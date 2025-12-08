@@ -14,19 +14,19 @@ export const Input: React.FC<InputProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-h800 text-forest-f60 mb-1.5 font-medium">
+        <label className="block text-[14px] font-medium text-[#0b0f16] mb-1.5">
           {label}
         </label>
       )}
       <input
         className={`
           w-full px-4 py-2.5
-          bg-sandstorm-s5
-          border border-sandstorm-s50
+          bg-white
+          border border-[#E6E6E6]
           rounded-lg
-          text-h800 text-forest-f60
-          placeholder:text-forest-f30
-          focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40
+          text-[14px] text-[#0b0f16]
+          placeholder:text-[#bfbfbf]
+          focus:outline-none focus:ring-2 focus:ring-[#136d6d] focus:border-[#136d6d]
           disabled:opacity-50 disabled:cursor-not-allowed
           ${error ? 'border-red-500 focus:ring-red-500' : ''}
           ${className}

@@ -1,13 +1,20 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { Layout } from './components/layout/Layout';
-import { Login } from './pages/Login';
-import { Signup } from './pages/Signup';
-import { ForgotPassword } from './pages/ForgotPassword';
-import { ResetPassword } from './pages/ResetPassword';
-import { Accounts } from './pages/Accounts';
-import { Channels } from './pages/Channels';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { Layout } from "./components/layout/Layout";
+import { Login } from "./pages/Login";
+import { Signup } from "./pages/Signup";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
+import { Accounts } from "./pages/Accounts";
+import { Channels } from "./pages/Channels";
+import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
+import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
 
 function App() {
   return (
@@ -18,6 +25,24 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route
+            path="/return"
+            element={
+              <ProtectedRoute>
+                <AmazonOAuthCallback />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounts/:accountId/select-profiles"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SelectAmazonProfiles />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/"
             element={

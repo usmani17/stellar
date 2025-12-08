@@ -1,23 +1,27 @@
 import React, { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Button, Input } from '../ui';
+import { accountsService } from '../../services/accounts';
 
 interface ConnectAmazonModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: { account_name: string; amazon_account_id?: string }) => Promise<void>;
+  onOAuthSuccess?: () => void;
 }
 
 export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
+  onOAuthSuccess,
 }) => {
   const [formData, setFormData] = useState({
     account_name: '',
     amazon_account_id: '',
   });
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,6 +44,20 @@ export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
       setError(err.response?.data?.error || 'Failed to connect account');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAmazonOAuth = async () => {
+    setError('');
+    setOauthLoading(true);
+
+    try {
+      const { auth_url } = await accountsService.initiateAmazonOAuth();
+      // Redirect to Amazon OAuth
+      window.location.href = auth_url;
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to initiate Amazon OAuth');
+      setOauthLoading(false);
     }
   };
 
@@ -70,17 +88,42 @@ export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-h1100 font-semibold text-forest-f60 mb-4">
+                <Dialog.Title as="h3" className="text-[24px] font-medium text-[#072929] mb-4">
                   Connect Amazon Account
                 </Dialog.Title>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-h700">
-                      {error}
-                    </div>
-                  )}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-[14px] mb-4">
+                    {error}
+                  </div>
+                )}
 
+                {/* Amazon OAuth Button */}
+                <div className="mb-6">
+                  <button
+                    type="button"
+                    onClick={handleAmazonOAuth}
+                    disabled={oauthLoading}
+                    className="w-full h-14 bg-white border border-[#E6E6E6] rounded-2xl flex items-center justify-center gap-2.5 hover:bg-[#F0F0ED] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="w-8 h-8 flex items-center justify-center bg-[#FF9900] rounded">
+                      <span className="text-white font-bold text-lg">A</span>
+                    </div>
+                    <span className="text-[16px] text-black font-medium">
+                      {oauthLoading ? 'Redirecting to Amazon...' : 'Connect with Amazon'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-2.5 mb-6">
+                  <div className="flex-1 h-px bg-[#E6E6E6]"></div>
+                  <span className="text-[14px] font-medium text-black">or</span>
+                  <div className="flex-1 h-px bg-[#E6E6E6]"></div>
+                </div>
+
+                {/* Manual Form */}
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <Input
                     label="Account Name"
                     name="account_name"

@@ -16,16 +16,16 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyles = 'font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variants = {
-    primary: 'bg-forest-f60 text-white hover:bg-forest-f50 focus:ring-forest-f40',
+    primary: 'bg-[#136d6d] text-white hover:bg-[#0e5a5a] focus:ring-[#136d6d]',
     secondary: 'bg-blue-b10 text-white hover:bg-blue-b20 focus:ring-blue-b30',
-    outline: 'border-2 border-forest-f60 text-forest-f60 hover:bg-forest-f0 focus:ring-forest-f40',
-    ghost: 'text-forest-f60 hover:bg-sandstorm-s20 focus:ring-forest-f40',
+    outline: 'border-2 border-[#136d6d] text-[#136d6d] hover:bg-[#D6E5E5] focus:ring-[#136d6d]',
+    ghost: 'text-[#072929] hover:bg-[#F0F0ED] focus:ring-[#136d6d]',
   };
   
   const sizes = {
-    sm: 'px-3 py-1.5 text-h700',
-    md: 'px-4 py-2 text-h800',
-    lg: 'px-6 py-3 text-h900',
+    sm: 'px-3 py-1.5 text-[14px]',
+    md: 'px-4 py-2 text-[16px]',
+    lg: 'px-6 py-3 text-[18px]',
   };
   
   return (

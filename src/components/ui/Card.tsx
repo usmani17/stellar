@@ -14,16 +14,16 @@ export const Card: React.FC<CardProps> = ({
   actions,
 }) => {
   return (
-    <div className={`bg-white rounded-lg border border-sandstorm-s50 shadow-sm ${className}`}>
+    <div className={`bg-[#F9F9F6] rounded-xl border border-[#E8E8E3] ${className}`}>
       {(title || actions) && (
-        <div className="px-6 py-4 border-b border-sandstorm-s30 flex items-center justify-between">
+        <div className="px-6 py-6 border-b border-[#E8E8E3] flex items-center justify-between">
           {title && (
-            <h3 className="text-h1000 font-semibold text-forest-f60">{title}</h3>
+            <h3 className="text-[24px] font-medium text-[#072929]">{title}</h3>
           )}
           {actions && <div>{actions}</div>}
         </div>
       )}
-      <div className="px-6 py-4">
+      <div className="px-6 py-6">
         {children}
       </div>
     </div>

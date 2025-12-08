@@ -1,0 +1,288 @@
+{
+  "authPages": {
+    "layout": {
+      "pageBackground": {
+        "color": "#FFFFFF",
+        "description": "Full page background color (white)"
+      },
+      "cardContainer": {
+        "backgroundColor": "#f5f7fa",
+        "borderColor": "#e6e6e6",
+        "borderWidth": "1px",
+        "borderRadius": "16px",
+        "padding": "40px",
+        "width": "576px",
+        "position": "centered",
+        "description": "Card container that holds the form content"
+      },
+      "logo": {
+        "position": "absolute",
+        "left": "80px",
+        "top": "80px",
+        "height": "36px",
+        "fontSize": "30px",
+        "fontWeight": "bold",
+        "color": "#072929",
+        "description": "PIXIS logo at top left of page"
+      }
+    },
+    "typography": {
+      "heading": {
+        "fontSize": "32px",
+        "fontWeight": "600",
+        "color": "#000205",
+        "lineHeight": "normal",
+        "description": "Main heading (e.g., 'Welcome back to PIXIS')"
+      },
+      "subtitle": {
+        "fontSize": "20px",
+        "color": "#808080",
+        "lineHeight": "normal",
+        "description": "Subtitle/description text below heading"
+      },
+      "label": {
+        "fontSize": "16px",
+        "fontWeight": "500",
+        "color": "#000000",
+        "lineHeight": "20px",
+        "description": "Form field labels"
+      },
+      "bodyText": {
+        "fontSize": "16px",
+        "color": "#000000",
+        "description": "Body text and links"
+      },
+      "smallText": {
+        "fontSize": "12px",
+        "fontWeight": "600",
+        "description": "Small text like 'Forget Password?' link"
+      },
+      "dividerText": {
+        "fontSize": "14px",
+        "fontWeight": "500",
+        "color": "#000000",
+        "description": "Text in divider (e.g., 'or')"
+      }
+    },
+    "colors": {
+      "primary": {
+        "button": "#136d6d",
+        "buttonHover": "#0e5a5a",
+        "description": "Primary button background color"
+      },
+      "text": {
+        "primary": "#000205",
+        "secondary": "#808080",
+        "placeholder": "#bfbfbf",
+        "link": "#072929",
+        "linkHover": "#0E4E4E",
+        "white": "#FFFFFF",
+        "black": "#000000"
+      },
+      "backgrounds": {
+        "page": "#FFFFFF",
+        "card": "#f5f7fa",
+        "input": "#FFFFFF",
+        "error": "#FEF2F2",
+        "success": "#F0FDF4"
+      },
+      "borders": {
+        "default": "#e6e6e6",
+        "error": "#FCA5A5",
+        "success": "#86EFAC",
+        "focus": "#13606D"
+      },
+      "error": {
+        "background": "#FEF2F2",
+        "border": "#FCA5A5",
+        "text": "#991B1B"
+      },
+      "success": {
+        "background": "#F0FDF4",
+        "border": "#86EFAC",
+        "text": "#166534"
+      }
+    },
+    "spacing": {
+      "sectionGap": "64px",
+      "formGap": "32px",
+      "inputGap": "20px",
+      "fieldGap": "4px",
+      "headerGap": "16px",
+      "dividerGap": "10px",
+      "buttonPadding": {
+        "horizontal": "24px",
+        "vertical": "20px"
+      },
+      "inputPadding": {
+        "horizontal": "12px",
+        "vertical": "0px"
+      },
+      "cardPadding": "40px",
+      "logoPosition": {
+        "left": "80px",
+        "top": "80px"
+      }
+    },
+    "components": {
+      "input": {
+        "height": "48px",
+        "backgroundColor": "#FFFFFF",
+        "borderColor": "#e6e6e6",
+        "borderWidth": "1px",
+        "borderRadius": "12px",
+        "padding": "12px",
+        "fontSize": "14px",
+        "color": "#bfbfbf",
+        "placeholderColor": "#bfbfbf",
+        "focus": {
+          "outline": "none",
+          "ringWidth": "2px",
+          "ringColor": "#13606D",
+          "borderColor": "#13606D"
+        },
+        "description": "Text input fields"
+      },
+      "button": {
+        "primary": {
+          "backgroundColor": "#136d6d",
+          "hoverBackgroundColor": "#0e5a5a",
+          "color": "#FFFFFF",
+          "fontWeight": "600",
+          "fontSize": "16px",
+          "padding": "20px 24px",
+          "borderRadius": "12px",
+          "width": "100%",
+          "transition": "colors",
+          "disabled": {
+            "opacity": "0.5",
+            "cursor": "not-allowed"
+          },
+          "description": "Primary action button (Sign in, Create account, etc.)"
+        },
+        "google": {
+          "backgroundColor": "#FFFFFF",
+          "borderColor": "#e6e6e6",
+          "borderWidth": "1px",
+          "height": "56px",
+          "borderRadius": "16px",
+          "hoverBackgroundColor": "#FEFEFB",
+          "gap": "10px",
+          "iconSize": "32px",
+          "fontSize": "16px",
+          "color": "#000000",
+          "description": "Google OAuth button"
+        }
+      },
+      "divider": {
+        "lineColor": "#e6e6e6",
+        "lineHeight": "1px",
+        "gap": "10px",
+        "textColor": "#000000",
+        "textSize": "14px",
+        "textWeight": "500",
+        "description": "Divider with 'or' text"
+      },
+      "link": {
+        "color": "#072929",
+        "hoverColor": "#0E4E4E",
+        "fontWeight": "600",
+        "description": "Text links (Sign up, Sign in, Forget Password, etc.)"
+      }
+    },
+    "borderRadius": {
+      "card": "16px",
+      "input": "12px",
+      "button": "12px",
+      "googleButton": "16px",
+      "errorMessage": "8px"
+    },
+    "shadows": {
+      "card": "none",
+      "description": "Card uses border instead of shadow"
+    },
+    "grid": {
+      "twoColumn": {
+        "columns": "2",
+        "gap": "16px",
+        "description": "Grid layout for First Name/Last Name fields"
+      }
+    },
+    "layoutStructure": {
+      "container": {
+        "minHeight": "100vh",
+        "position": "relative",
+        "display": "flex",
+        "description": "Main page container"
+      },
+      "card": {
+        "position": "absolute",
+        "left": "50%",
+        "top": "50%",
+        "transform": "translate(-50%, -50%)",
+        "display": "flex",
+        "flexDirection": "column",
+        "description": "Centered card positioning"
+      },
+      "form": {
+        "display": "flex",
+        "flexDirection": "column",
+        "gap": "32px",
+        "description": "Form container"
+      },
+      "inputGroup": {
+        "display": "flex",
+        "flexDirection": "column",
+        "gap": "20px",
+        "description": "Container for input fields"
+      }
+    },
+    "responsive": {
+      "cardWidth": "576px",
+      "maxWidth": "576px",
+      "description": "Fixed width card, may need responsive adjustments for mobile"
+    },
+    "states": {
+      "hover": {
+        "button": "#0e5a5a",
+        "link": "#0E4E4E",
+        "googleButton": "#FEFEFB"
+      },
+      "focus": {
+        "input": {
+          "ringColor": "#13606D",
+          "borderColor": "#13606D"
+        }
+      },
+      "disabled": {
+        "opacity": "0.5",
+        "cursor": "not-allowed"
+      },
+      "error": {
+        "borderColor": "#FCA5A5",
+        "ringColor": "#FCA5A5"
+      }
+    },
+    "googleIcon": {
+      "width": "32px",
+      "height": "32px",
+      "colors": {
+        "blue": "#4285F4",
+        "green": "#34A853",
+        "yellow": "#FBBC05",
+        "red": "#EB4335"
+      },
+      "description": "Google logo SVG colors"
+    },
+    "usage": {
+      "pages": [
+        "Login",
+        "Signup",
+        "ForgotPassword",
+        "ResetPassword"
+      ],
+      "description": "These styles are applied consistently across all auth pages"
+    }
+  }
+}
+

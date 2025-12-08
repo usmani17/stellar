@@ -48,9 +48,9 @@ export const ProfileForm: React.FC = () => {
 
   return (
     <Card title="Profile Information">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {message && (
-          <div className={`px-4 py-3 rounded-lg text-h700 ${
+          <div className={`px-4 py-3 rounded-lg text-[14px] ${
             message.includes('success') 
               ? 'bg-green-50 border border-green-200 text-green-700' 
               : 'bg-red-50 border border-red-200 text-red-700'
@@ -59,7 +59,7 @@ export const ProfileForm: React.FC = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           <Input
             label="First Name"
             name="first_name"

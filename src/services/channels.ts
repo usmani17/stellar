@@ -21,7 +21,18 @@ export interface CreateChannelData {
 export const channelsService = {
   getChannels: async (): Promise<Channel[]> => {
     const response = await api.get<Channel[]>('/accounts/channels/');
-    return response.data;
+    // Ensure we always return an array
+    const data = response.data;
+    if (Array.isArray(data)) {
+      return data;
+    }
+    // If response is wrapped in an object, try to extract the array
+    if (data && typeof data === 'object' && 'results' in data && Array.isArray(data.results)) {
+      return data.results;
+    }
+    // If data is an object but not an array, return empty array
+    console.warn('Unexpected response format from /accounts/channels/', data);
+    return [];
   },
 
   createChannel: async (data: CreateChannelData): Promise<Channel> => {
