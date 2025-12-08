@@ -1,22 +1,35 @@
 import api from './api';
 
-export interface AmazonAccount {
+export interface Account {
   id: number;
   account_name: string;
-  amazon_account_id: string;
-  connected_at: string;
+  channels_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAccountData {
+  account_name: string;
+}
+
+export interface Channel {
+  id: number;
+  channel_name: string;
+  channel_type: 'amazon' | 'google' | 'walmart';
+  status: 'active' | 'inactive' | 'pending';
+  account: number;
+  account_id?: number;
+  account_name?: string;
+  credentials_json?: any;
+  created_at: string;
   updated_at: string;
   needs_profile_selection?: boolean;
 }
 
-export interface CreateAmazonAccountData {
-  account_name: string;
-  amazon_account_id?: string;
-}
-
 export const accountsService = {
-  getAccounts: async (): Promise<AmazonAccount[]> => {
-    const response = await api.get<AmazonAccount[]>('/accounts/');
+  // Account methods
+  getAccounts: async (): Promise<Account[]> => {
+    const response = await api.get<Account[]>('/accounts/');
     // Ensure we always return an array
     const data = response.data;
     if (Array.isArray(data)) {
@@ -31,13 +44,13 @@ export const accountsService = {
     return [];
   },
 
-  createAccount: async (data: CreateAmazonAccountData): Promise<AmazonAccount> => {
-    const response = await api.post<AmazonAccount>('/accounts/', data);
+  createAccount: async (data: CreateAccountData): Promise<Account> => {
+    const response = await api.post<Account>('/accounts/', data);
     return response.data;
   },
 
-  updateAccount: async (id: number, data: Partial<CreateAmazonAccountData>): Promise<AmazonAccount> => {
-    const response = await api.put<AmazonAccount>(`/accounts/${id}/`, data);
+  updateAccount: async (id: number, data: Partial<CreateAccountData>): Promise<Account> => {
+    const response = await api.put<Account>(`/accounts/${id}/`, data);
     return response.data;
   },
 
@@ -45,14 +58,27 @@ export const accountsService = {
     await api.delete(`/accounts/${id}/`);
   },
 
+  // Account channels
+  getAccountChannels: async (accountId: number): Promise<Channel[]> => {
+    const response = await api.get<Channel[]>(`/accounts/${accountId}/channels/`);
+    const data = response.data;
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (data && typeof data === 'object' && 'results' in data && Array.isArray(data.results)) {
+      return data.results;
+    }
+    return [];
+  },
+
   // Amazon OAuth
-  initiateAmazonOAuth: async (): Promise<{ auth_url: string }> => {
-    const response = await api.get<{ auth_url: string }>('/accounts/amazon-oauth/initiate/');
+  initiateAmazonOAuth: async (accountId: number): Promise<{ auth_url: string }> => {
+    const response = await api.get<{ auth_url: string }>(`/accounts/amazon-oauth/initiate/?account_id=${accountId}`);
     return response.data;
   },
 
-  handleAmazonOAuthCallback: async (code: string, state?: string): Promise<AmazonAccount> => {
-    const response = await api.post<AmazonAccount>('/accounts/amazon-oauth/callback/', {
+  handleAmazonOAuthCallback: async (code: string, state?: string): Promise<Channel> => {
+    const response = await api.post<Channel>('/accounts/amazon-oauth/callback/', {
       code,
       state,
     });
@@ -60,19 +86,19 @@ export const accountsService = {
     return response.data;
   },
 
-  // Amazon Profiles
-  getProfiles: async (accountId: number): Promise<{ profiles: any[]; total: number; selected: number }> => {
-    const response = await api.get<{ profiles: any[]; total: number; selected: number }>(`/accounts/${accountId}/profiles/`);
+  // Amazon Profiles (now using channel_id)
+  getProfiles: async (channelId: number): Promise<{ profiles: any[]; total: number; selected: number }> => {
+    const response = await api.get<{ profiles: any[]; total: number; selected: number }>(`/accounts/channels/${channelId}/profiles/`);
     return response.data;
   },
 
-  fetchProfiles: async (accountId: number): Promise<any[]> => {
-    const response = await api.get<{ profiles: any[] }>(`/accounts/${accountId}/profiles/fetch/`);
+  fetchProfiles: async (channelId: number): Promise<any[]> => {
+    const response = await api.get<{ profiles: any[] }>(`/accounts/channels/${channelId}/profiles/fetch/`);
     return response.data.profiles || [];
   },
 
-  saveProfiles: async (accountId: number, profileIds: string[], profiles?: any[]): Promise<any> => {
-    const response = await api.post(`/accounts/${accountId}/profiles/save/`, {
+  saveProfiles: async (channelId: number, profileIds: string[], profiles?: any[]): Promise<any> => {
+    const response = await api.post(`/accounts/channels/${channelId}/profiles/save/`, {
       profile_ids: profileIds,
       profiles: profiles || [],
     });

@@ -26,7 +26,7 @@ interface AmazonProfile {
 }
 
 export const SelectAmazonProfiles: React.FC = () => {
-  const { accountId } = useParams<{ accountId: string }>();
+  const { channelId } = useParams<{ channelId: string }>();
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<AmazonProfile[]>([]);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(
@@ -37,23 +37,83 @@ export const SelectAmazonProfiles: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (accountId) {
+    if (channelId) {
       loadProfiles();
     }
-  }, [accountId]);
+  }, [channelId]);
 
   const loadProfiles = async () => {
-    if (!accountId) return;
+    if (!channelId) return;
 
     try {
       setLoading(true);
       setError(null);
+
+      // Fetch profiles from Amazon API
       const profilesData = await accountsService.fetchProfiles(
-        parseInt(accountId)
+        parseInt(channelId)
       );
       console.log("Fetched profiles from API:", profilesData);
       console.log("First profile structure:", profilesData[0]);
+
+      // Load saved profiles from database to see which ones are selected
+      let selectedIds = new Set<string>();
+      try {
+        const savedProfilesResponse = await accountsService.getProfiles(
+          parseInt(channelId)
+        );
+        const savedProfiles = savedProfilesResponse.profiles || [];
+        console.log("Saved profiles from DB:", savedProfiles);
+
+        // Set selected profile IDs based on is_selected flag
+        // Use profile_id from saved profiles (this matches the 'id' field from Amazon API)
+        savedProfiles.forEach((savedProfile: any) => {
+          if (savedProfile.is_selected) {
+            // Use profile_id from database (this is the same as 'id' from Amazon API)
+            const profileId = savedProfile.profile_id || savedProfile.id;
+            if (profileId) {
+              selectedIds.add(String(profileId));
+            }
+          }
+        });
+
+        console.log("Selected profile IDs from DB:", Array.from(selectedIds));
+      } catch (err: any) {
+        console.warn("Failed to load saved profiles (may be first time):", err);
+        // If no saved profiles exist yet, that's okay - just start with empty selection
+      }
+
+      // Now set both profiles and selected IDs
       setProfiles(profilesData);
+
+      // Verify which profile IDs from Amazon match the selected ones
+      const amazonProfileIds = profilesData
+        .map((p) => {
+          const id = p.id || p.profileId || p.profile_id;
+          return id ? String(id) : null;
+        })
+        .filter(Boolean);
+
+      console.log("Amazon API profile IDs:", amazonProfileIds);
+      console.log("Selected IDs to set:", Array.from(selectedIds));
+
+      // Only keep IDs that exist in the Amazon API response
+      const validSelectedIds = new Set<string>();
+      selectedIds.forEach((id) => {
+        if (amazonProfileIds.includes(id)) {
+          validSelectedIds.add(id);
+        } else {
+          console.warn(
+            `Profile ID ${id} from DB not found in Amazon API response`
+          );
+        }
+      });
+
+      console.log(
+        "Valid selected IDs (matching Amazon API):",
+        Array.from(validSelectedIds)
+      );
+      setSelectedProfileIds(validSelectedIds);
     } catch (err: any) {
       setError(
         err.response?.data?.error ||
@@ -86,7 +146,7 @@ export const SelectAmazonProfiles: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!accountId || selectedProfileIds.size === 0) {
+    if (!channelId || selectedProfileIds.size === 0) {
       setError("Please select at least one profile");
       return;
     }
@@ -94,21 +154,62 @@ export const SelectAmazonProfiles: React.FC = () => {
     try {
       setSaving(true);
       setError(null);
-      console.log("Saving profiles - selected IDs:", Array.from(selectedProfileIds));
-      console.log("Saving profiles - profiles data:", profiles);
-      // Send profiles as-is from Amazon API (they already have 'id' and 'name' fields)
+
+      // Prepare profile data for saving - ensure we have the correct structure
+      const profilesToSave = profiles.map((profile) => {
+        const profileId = getProfileId(profile);
+        const profileName = getProfileName(profile);
+
+        // Return profile in the format expected by backend
+        return {
+          id: profileId,
+          name: profileName,
+          type: profile.type || profile.accountInfo?.type || "",
+          validPaymentMethod:
+            profile.validPaymentMethod ||
+            profile.accountInfo?.validPaymentMethod ||
+            false,
+          marketplaceStringId:
+            profile.marketplaceStringId ||
+            profile.accountInfo?.marketplaceStringId ||
+            "",
+          countryCode:
+            getCountryCode(profile) !== "N/A" ? getCountryCode(profile) : "",
+          currencyCode:
+            getCurrencyCode(profile) !== "N/A" ? getCurrencyCode(profile) : "",
+          timezone: profile.timezone || "",
+          accountInfo: profile.accountInfo || profile.account_info || {},
+        };
+      });
+
+      console.log(
+        "Saving profiles - selected IDs:",
+        Array.from(selectedProfileIds)
+      );
+      console.log("Saving profiles - profiles data to send:", profilesToSave);
+
       const result = await accountsService.saveProfiles(
-        parseInt(accountId),
+        parseInt(channelId),
         Array.from(selectedProfileIds),
-        profiles
+        profilesToSave
       );
+
       console.log("Save profiles result:", result);
-      navigate("/accounts");
+
+      if (result && result.message) {
+        // Success - navigate to accounts
+        navigate("/accounts");
+      } else {
+        setError("Profiles saved but no confirmation received");
+      }
     } catch (err: any) {
+      console.error("Failed to save profiles - full error:", err);
+      console.error("Error response:", err.response);
       setError(
-        err.response?.data?.error || "Failed to save profiles. Please try again."
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Failed to save profiles. Please try again."
       );
-      console.error("Failed to save profiles:", err);
     } finally {
       setSaving(false);
     }
@@ -116,12 +217,19 @@ export const SelectAmazonProfiles: React.FC = () => {
 
   const getProfileId = (profile: AmazonProfile): string => {
     // Amazon API returns 'id' field, not 'profileId'
-    return profile.id || profile.profileId || profile.profile_id || "";
+    // Make sure we return a string and handle all possible field names
+    const id = profile.id || profile.profileId || profile.profile_id;
+    return id ? String(id) : "";
   };
 
   const getProfileName = (profile: AmazonProfile): string => {
-    // Amazon API returns 'name' field directly
-    const name = profile.name || profile.profile_name || "";
+    // Amazon API returns 'name' field directly, or nested in accountInfo
+    const name =
+      profile.name ||
+      profile.profile_name ||
+      profile.accountInfo?.name ||
+      profile.account_info?.name ||
+      "";
     if (!name) {
       console.warn("No name found for profile:", profile);
     }
@@ -167,12 +275,15 @@ export const SelectAmazonProfiles: React.FC = () => {
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#072929] mx-auto mb-4"></div>
-                <p className="text-[14px] text-[#556179]">Loading profiles...</p>
+                <p className="text-[14px] text-[#556179]">
+                  Loading profiles...
+                </p>
               </div>
             ) : profiles.length === 0 ? (
               <div className="text-center py-12 bg-[#FEFEFB] border border-[#E8E8E3] rounded-2xl">
                 <p className="text-[14px] text-[#556179] mb-4">
-                  No profiles found. Please check your Amazon account connection.
+                  No profiles found. Please check your Amazon account
+                  connection.
                 </p>
                 <Button onClick={loadProfiles} variant="outline">
                   Retry
@@ -202,8 +313,8 @@ export const SelectAmazonProfiles: React.FC = () => {
                     const profileId = getProfileId(profile);
                     const isSelected = selectedProfileIds.has(profileId);
                     const profileName = getProfileName(profile);
-                    const profileType = profile.type || '';
-                    const marketplaceId = profile.marketplaceStringId || '';
+                    const profileType = profile.type || "";
+                    const marketplaceId = profile.marketplaceStringId || "";
 
                     return (
                       <div
@@ -230,12 +341,16 @@ export const SelectAmazonProfiles: React.FC = () => {
                             <div className="flex gap-4 text-[14px] text-[#556179] flex-wrap">
                               <span>ID: {profileId}</span>
                               {profileType && <span>Type: {profileType}</span>}
-                              {marketplaceId && <span>Marketplace: {marketplaceId}</span>}
-                              {getCountryCode(profile) !== 'N/A' && (
+                              {marketplaceId && (
+                                <span>Marketplace: {marketplaceId}</span>
+                              )}
+                              {getCountryCode(profile) !== "N/A" && (
                                 <span>Country: {getCountryCode(profile)}</span>
                               )}
-                              {getCurrencyCode(profile) !== 'N/A' && (
-                                <span>Currency: {getCurrencyCode(profile)}</span>
+                              {getCurrencyCode(profile) !== "N/A" && (
+                                <span>
+                                  Currency: {getCurrencyCode(profile)}
+                                </span>
                               )}
                               {profile.timezone && (
                                 <span>Timezone: {profile.timezone}</span>
@@ -275,4 +390,3 @@ export const SelectAmazonProfiles: React.FC = () => {
     </div>
   );
 };
-

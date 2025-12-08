@@ -37,46 +37,46 @@ export const AmazonOAuthCallback: React.FC = () => {
       }
 
       try {
-        // Exchange authorization code for tokens
-        const account = await accountsService.handleAmazonOAuthCallback(
+        // Exchange authorization code for tokens - now returns a Channel
+        const channel = await accountsService.handleAmazonOAuthCallback(
           code,
           state || undefined
         );
 
-        console.log("OAuth callback response:", account);
-        console.log("Account type:", typeof account);
-        console.log("Account keys:", account ? Object.keys(account) : "null");
+        console.log("OAuth callback response:", channel);
+        console.log("Channel type:", typeof channel);
+        console.log("Channel keys:", channel ? Object.keys(channel) : "null");
 
         // Always redirect to profile selection after OAuth (since we always need to select profiles)
-        // Try multiple ways to get the account ID
-        const accountId =
-          account?.id ||
-          (account as any)?.id ||
-          (account as any)?.data?.id ||
+        // Try multiple ways to get the channel ID
+        const channelId =
+          channel?.id ||
+          (channel as any)?.id ||
+          (channel as any)?.data?.id ||
           null;
 
-        console.log("Extracted account ID:", accountId);
+        console.log("Extracted channel ID:", channelId);
 
-        if (accountId) {
+        if (channelId) {
           console.log(
-            "Redirecting to profile selection for account:",
-            accountId
+            "Redirecting to profile selection for channel:",
+            channelId
           );
           // Use window.location for immediate redirect (more reliable than navigate)
           // Small delay to ensure state is saved
           setTimeout(() => {
-            window.location.href = `/accounts/${accountId}/select-profiles`;
+            window.location.href = `/channels/${channelId}/select-profiles`;
           }, 100);
           return;
         } else {
-          // Fallback - redirect to accounts page if no account ID
-          console.error("No account ID in response:", account);
+          // Fallback - redirect to accounts page if no channel ID
+          console.error("No channel ID in response:", channel);
           console.error(
             "Full response structure:",
-            JSON.stringify(account, null, 2)
+            JSON.stringify(channel, null, 2)
           );
           setError(
-            "Account created but unable to redirect to profile selection. Please check the accounts page."
+            "Channel created but unable to redirect to profile selection. Please check the accounts page."
           );
           setLoading(false);
           setTimeout(() => {

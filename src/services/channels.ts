@@ -3,24 +3,24 @@ import api from './api';
 export interface Channel {
   id: number;
   channel_name: string;
-  channel_type: 'amazon' | 'google';
-  status: 'active' | 'inactive' | 'pending';
-  amazon_account: number | null;
-  amazon_account_name?: string;
+  channel_type: 'amazon' | 'google' | 'walmart';
+  account: number;
+  account_id?: number;
+  account_name?: string;
+  credentials_json?: any;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateChannelData {
   channel_name: string;
-  channel_type: 'amazon' | 'google';
-  status?: 'active' | 'inactive' | 'pending';
-  amazon_account?: number | null;
+  channel_type: 'amazon' | 'google' | 'walmart';
+  account: number;
 }
 
 export const channelsService = {
-  getChannels: async (): Promise<Channel[]> => {
-    const response = await api.get<Channel[]>('/accounts/channels/');
+  getChannels: async (accountId: number): Promise<Channel[]> => {
+    const response = await api.get<Channel[]>(`/accounts/${accountId}/channels/`);
     // Ensure we always return an array
     const data = response.data;
     if (Array.isArray(data)) {
@@ -35,18 +35,18 @@ export const channelsService = {
     return [];
   },
 
-  createChannel: async (data: CreateChannelData): Promise<Channel> => {
-    const response = await api.post<Channel>('/accounts/channels/', data);
+  createChannel: async (accountId: number, data: CreateChannelData): Promise<Channel> => {
+    const response = await api.post<Channel>(`/accounts/${accountId}/channels/`, data);
     return response.data;
   },
 
-  updateChannel: async (id: number, data: Partial<CreateChannelData>): Promise<Channel> => {
-    const response = await api.put<Channel>(`/accounts/channels/${id}/`, data);
+  updateChannel: async (accountId: number, id: number, data: Partial<CreateChannelData>): Promise<Channel> => {
+    const response = await api.put<Channel>(`/accounts/${accountId}/channels/${id}/`, data);
     return response.data;
   },
 
-  deleteChannel: async (id: number): Promise<void> => {
-    await api.delete(`/accounts/channels/${id}/`);
+  deleteChannel: async (accountId: number, id: number): Promise<void> => {
+    await api.delete(`/accounts/${accountId}/channels/${id}/`);
   },
 };
 
