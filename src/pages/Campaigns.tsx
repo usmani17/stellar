@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   LineChart,
   Line,
@@ -12,15 +12,13 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
 import { campaignsService, type Campaign } from "../services/campaigns";
-import { accountsService } from "../services/accounts";
+import { Checkbox } from "../components/ui/Checkbox";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
+  const { accountId } = useParams<{ accountId: string }>();
   const { startDate, endDate } = useDateRange();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
-    null
-  );
   const [loading, setLoading] = useState(true);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<number>>(
     new Set()
@@ -39,15 +37,18 @@ export const Campaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
-    loadAccountAndCampaigns();
-  }, []);
-
-  useEffect(() => {
-    if (selectedAccountId) {
-      loadCampaigns(selectedAccountId);
+    if (accountId) {
+      const accountIdNum = parseInt(accountId, 10);
+      if (!isNaN(accountIdNum)) {
+        loadCampaigns(accountIdNum);
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
     }
   }, [
-    selectedAccountId,
+    accountId,
     currentPage,
     itemsPerPage,
     sortBy,
@@ -55,22 +56,6 @@ export const Campaigns: React.FC = () => {
     startDate,
     endDate,
   ]);
-
-  const loadAccountAndCampaigns = async () => {
-    try {
-      // Get accounts and use the first one
-      const accountsData = await accountsService.getAccounts();
-      if (Array.isArray(accountsData) && accountsData.length > 0) {
-        const accountId = accountsData[0].id;
-        setSelectedAccountId(accountId);
-      } else {
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error("Failed to load accounts:", error);
-      setLoading(false);
-    }
-  };
 
   const loadCampaigns = async (accountId: number) => {
     try {
@@ -113,26 +98,6 @@ export const Campaigns: React.FC = () => {
       ...prev,
       [metric]: !prev[metric],
     }));
-  };
-
-  const toggleSelectCampaign = (campaignId: number) => {
-    setSelectedCampaigns((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(campaignId)) {
-        newSet.delete(campaignId);
-      } else {
-        newSet.add(campaignId);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedCampaigns.size === campaigns.length) {
-      setSelectedCampaigns(new Set());
-    } else {
-      setSelectedCampaigns(new Set(campaigns.map((c) => c.id)));
-    }
   };
 
   const getSortIcon = (column: string) => {
@@ -473,14 +438,25 @@ export const Campaigns: React.FC = () => {
                   <div className="bg-white border-b border-[#E6E6E6] flex items-center h-[60px]">
                     {/* Checkbox Header */}
                     <div className="w-[35px] flex items-center justify-center">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={
                           selectedCampaigns.size === campaigns.length &&
                           campaigns.length > 0
                         }
-                        onChange={toggleSelectAll}
-                        className="w-6 h-6 border-[#A3A8B3] rounded"
+                        indeterminate={
+                          selectedCampaigns.size > 0 &&
+                          selectedCampaigns.size < campaigns.length
+                        }
+                        onChange={(checked) => {
+                          if (checked) {
+                            setSelectedCampaigns(
+                              new Set(campaigns.map((c) => c.id))
+                            );
+                          } else {
+                            setSelectedCampaigns(new Set());
+                          }
+                        }}
+                        size="small"
                       />
                     </div>
 
@@ -588,19 +564,39 @@ export const Campaigns: React.FC = () => {
                       >
                         {/* Checkbox */}
                         <div className="w-[35px] flex items-center justify-center">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={selectedCampaigns.has(campaign.id)}
-                            onChange={() => toggleSelectCampaign(campaign.id)}
-                            className="w-6 h-6 border-[#A3A8B3] rounded"
+                            onChange={(checked) => {
+                              if (checked) {
+                                setSelectedCampaigns((prev) => {
+                                  const newSet = new Set(prev);
+                                  newSet.add(campaign.id);
+                                  return newSet;
+                                });
+                              } else {
+                                setSelectedCampaigns((prev) => {
+                                  const newSet = new Set(prev);
+                                  newSet.delete(campaign.id);
+                                  return newSet;
+                                });
+                              }
+                            }}
+                            size="small"
                           />
                         </div>
 
                         {/* Campaign Name */}
                         <div className="w-[280px] px-4">
-                          <p className="text-[16px] font-normal text-black truncate">
+                          <button
+                            onClick={() =>
+                              navigate(
+                                `/accounts/${accountId}/campaigns/${campaign.id}`
+                              )
+                            }
+                            className="text-[16px] font-normal text-black truncate hover:text-[#0066ff] hover:underline cursor-pointer text-left w-full"
+                          >
                             {campaign.campaign_name || "Unnamed Campaign"}
-                          </p>
+                          </button>
                         </div>
 
                         {/* Type */}
@@ -656,7 +652,9 @@ export const Campaigns: React.FC = () => {
                         <div className="w-[54px] text-center">
                           <button
                             onClick={() =>
-                              navigate(`/campaigns/${campaign.id}`)
+                              navigate(
+                                `/accounts/${accountId}/campaigns/${campaign.id}`
+                              )
                             }
                             className="text-[#A3A8B3] hover:text-black"
                           >

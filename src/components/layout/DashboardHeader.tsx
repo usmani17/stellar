@@ -1,21 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDateRange } from '../../contexts/DateRangeContext';
-import { accountsService, type Account, type Channel } from '../../services/accounts';
-import { channelsService } from '../../services/channels';
+import { accountsService, type Account } from '../../services/accounts';
 
 export const DashboardHeader: React.FC = () => {
   const { user, logout } = useAuth();
   const { startDate, endDate, setDateRange, formatDateRange } = useDateRange();
   const location = useLocation();
   const navigate = useNavigate();
+  const params = useParams<{ accountId?: string }>();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [channels, setChannels] = useState<Channel[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -26,8 +25,19 @@ export const DashboardHeader: React.FC = () => {
   const userName = user ? `${user.first_name} ${user.last_name}` : 'User';
 
   useEffect(() => {
-    loadChannels();
+    loadAccounts();
   }, []);
+
+  // Update selected account when URL params change
+  useEffect(() => {
+    if (params.accountId && accounts.length > 0) {
+      const accountId = parseInt(params.accountId, 10);
+      const account = accounts.find(a => a.id === accountId);
+      if (account) {
+        setSelectedAccount(account);
+      }
+    }
+  }, [params.accountId, accounts]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -53,43 +63,25 @@ export const DashboardHeader: React.FC = () => {
     navigate('/login');
   };
 
-  const loadChannels = async () => {
+  const loadAccounts = async () => {
     try {
       const accountsData = await accountsService.getAccounts();
       setAccounts(Array.isArray(accountsData) ? accountsData : []);
       
-      // Load all channels from all accounts
-      const allChannels: Channel[] = [];
-      for (const account of accountsData) {
-        try {
-          const accountChannels = await channelsService.getChannels(account.id);
-          allChannels.push(...(Array.isArray(accountChannels) ? accountChannels : []));
-        } catch (error) {
-          console.error(`Failed to load channels for account ${account.id}:`, error);
-        }
-      }
-      setChannels(allChannels);
-      
-      // Set first channel as selected by default
-      if (allChannels.length > 0 && !selectedChannel) {
-        setSelectedChannel(allChannels[0]);
+      // Set first account as selected by default if no accountId in URL
+      if (accountsData.length > 0 && !params.accountId && !selectedAccount) {
+        setSelectedAccount(accountsData[0]);
       }
     } catch (error) {
-      console.error('Failed to load channels:', error);
+      console.error('Failed to load accounts:', error);
     }
   };
 
-  const getChannelTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      amazon: 'Amazon',
-      google: 'Google',
-      walmart: 'Walmart',
-    };
-    return labels[type] || type;
-  };
-
-  const getChannelDisplayName = (channel: Channel) => {
-    return `${channel.channel_name} (${getChannelTypeLabel(channel.channel_type)})`;
+  const handleAccountSelect = (account: Account) => {
+    setSelectedAccount(account);
+    setIsDropdownOpen(false);
+    // Navigate to campaigns page for the selected account
+    navigate(`/accounts/${account.id}/campaigns`);
   };
 
   return (
@@ -102,10 +94,10 @@ export const DashboardHeader: React.FC = () => {
             className="flex items-center gap-2 px-2 py-1.5 bg-[#FEFEFB] border border-[#EBEAED] rounded-lg h-8 hover:bg-gray-50"
           >
             <div className="w-3 h-3 rounded bg-[#072929] text-white text-[8px] flex items-center justify-center font-semibold">
-              {selectedChannel ? getChannelTypeLabel(selectedChannel.channel_type)[0] : 'A'}
+              {selectedAccount ? selectedAccount.account_name[0].toUpperCase() : 'A'}
             </div>
             <span className="text-[12px] text-[#072929] font-medium">
-              {selectedChannel ? getChannelDisplayName(selectedChannel) : 'Select Channel'}
+              {selectedAccount ? selectedAccount.account_name : 'Select Account'}
             </span>
             <svg className="w-4 h-4 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -115,38 +107,29 @@ export const DashboardHeader: React.FC = () => {
           {isDropdownOpen && (
             <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
               <div className="p-2">
-                {channels.length === 0 ? (
+                {accounts.length === 0 ? (
                   <div className="px-3 py-2 text-[14px] text-[#556179]">
-                    No channels available
+                    No accounts available
                   </div>
                 ) : (
-                  channels.map((channel) => (
+                  accounts.map((account) => (
                     <button
-                      key={channel.id}
-                      onClick={() => {
-                        setSelectedChannel(channel);
-                        setIsDropdownOpen(false);
-                        // Optionally navigate to channel details or filter by channel
-                      }}
+                      key={account.id}
+                      onClick={() => handleAccountSelect(account)}
                       className={`w-full text-left px-3 py-2 rounded text-[14px] hover:bg-gray-50 ${
-                        selectedChannel?.id === channel.id
+                        selectedAccount?.id === account.id
                           ? 'bg-[#F0F0ED] text-[#072929] font-medium'
                           : 'text-[#313850]'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span>{getChannelDisplayName(channel)}</span>
-                        {selectedChannel?.id === channel.id && (
+                        <span>{account.account_name}</span>
+                        {selectedAccount?.id === account.id && (
                           <svg className="w-4 h-4 text-[#072929]" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         )}
                       </div>
-                      {channel.account_name && (
-                        <div className="text-[12px] text-[#556179] mt-1">
-                          Account: {channel.account_name}
-                        </div>
-                      )}
                     </button>
                   ))
                 )}

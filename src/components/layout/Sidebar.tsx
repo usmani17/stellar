@@ -1,22 +1,64 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
+import InstacartIcon from "../../assets/images/cib_instacart.svg";
+import CreateCampaignIcon from "../../assets/images/ri_amazon-fill.svg";
+import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
+import AdGroupIcon from "../../assets/images/adgroups.svg";
+import ProductTargetIcon from "../../assets/images/producttarget.svg";
+import AnalyticsIcon from "../../assets/images/majesticons_analytics.svg";
+import BlueprintsIcon from "../../assets/images/ph_fingerprint-fill.svg";
+import SettingsIcon from "../../assets/images/settings.svg";
+import GoogleIcon from "../../assets/images/ri_google-fill.svg";
+import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
+import WalmartIcon from "../../assets/images/cbi_walmart.svg";
+import TopKeywordsIcon from "../../assets/images/cbi_walmart.svg";
+import TopProductsIcon from "../../assets/images/cib_instacart.svg";
+import PixelsLikeBoxIcon from "../../assets/images/cib_instacart.svg";
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
 
   const isActive = (path: string) => {
-    if (path === '/campaigns') {
-      return location.pathname.startsWith('/campaigns');
+    if (path === "/campaigns") {
+      return location.pathname.includes("/campaigns");
     }
     return location.pathname === path;
   };
 
+  const activeLinkStyle = {
+    width: "100%",
+    height: "100%",
+    padding: "8px",
+    background: "#072929",
+    borderRadius: "12px",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "4px",
+    display: "inline-flex",
+    flexWrap: "wrap",
+    alignContent: "center",
+    color: "white",
+  };
+
+  const defaultLinkStyle = {
+    padding: "8px",
+    color: "black",
+  };
+
   return (
-    <div className="w-[272px] bg-white border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto">
+    <div
+      className="w-[272px] border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto"
+      style={{ backgroundColor: "#F5F5F0" }}
+    >
       <div className="p-4">
         {/* Logo */}
-        <div className="mb-8">
-          <h1 className="text-h1100 font-bold text-forest-f60">Stellar</h1>
+        <div className="mb-8 flex items-center gap-3">
+          <img
+            src={StellarLogo}
+            alt="Stellar Logo"
+            className="h-[30px] w-auto"
+          />
         </div>
 
         {/* Accounts Section */}
@@ -24,163 +66,260 @@ export const Sidebar: React.FC = () => {
           <div className="space-y-1">
             <Link
               to="/accounts"
-              className={`flex items-center gap-2 p-2 rounded-xl transition-colors ${
-                isActive('/accounts') 
-                  ? 'bg-[rgba(0,0,0,0.04)] text-black' 
-                  : 'text-black hover:bg-transparent'
+              className={`flex items-center gap-2 rounded-xl transition-colors ${
+                isActive("/accounts") ? "" : "hover:bg-transparent"
               }`}
+              style={isActive("/accounts") ? activeLinkStyle : defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Accounts</span>
+              <span className="text-[14px] font-normal leading-[20px]">
+                Accounts
+              </span>
             </Link>
           </div>
         </div>
 
         {/* Dashboards Section */}
         <div className="mb-6">
-          <h2 className="text-[14px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">Dashboards</h2>
+          <h2 className="text-[14px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
+            Dashboards
+          </h2>
           <div className="space-y-1">
             <Link
-              to="/accounts"
-              className={`flex items-center gap-2 p-2 rounded-xl transition-colors ${
-                isActive('/accounts') 
-                  ? 'bg-[rgba(0,0,0,0.04)] text-black' 
-                  : 'text-black hover:bg-transparent'
+              to="/dashboards"
+              className={`flex items-center gap-2 rounded-xl transition-colors ${
+                isActive("/dashboards") ? "" : "hover:bg-transparent"
               }`}
+              style={
+                isActive("/dashboards") ? activeLinkStyle : defaultLinkStyle
+              }
             >
-              <span className="text-[14px] font-normal leading-[20px]">Overview</span>
+              <img
+                src={InstacartIcon}
+                alt=""
+                className="w-5 h-5"
+                style={{
+                  filter: isActive("/dashboards")
+                    ? "brightness(0) invert(1)"
+                    : "none",
+                }}
+              />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Overview
+              </span>
             </Link>
           </div>
         </div>
 
         {/* Amazon Section */}
         <div className="mb-6">
-          <h2 className="text-[14px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">Amazon</h2>
+          <h2 className="text-[14px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
+            Amazon
+          </h2>
           <div className="space-y-1">
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Create Campaign</span>
+              <img src={CreateCampaignIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Create Campaign
+              </span>
             </Link>
             <Link
-              to="/campaigns"
-              className={`flex items-center gap-2 p-2 rounded-xl transition-colors ${
-                isActive('/campaigns') 
-                  ? 'bg-[rgba(0,0,0,0.04)] text-black' 
-                  : 'text-black hover:bg-transparent'
+              to="/accounts"
+              className={`flex items-center gap-2 rounded-xl transition-colors ${
+                isActive("/campaigns") ? "" : "hover:bg-transparent"
               }`}
+              style={
+                isActive("/campaigns") ? activeLinkStyle : defaultLinkStyle
+              }
             >
-              <span className="text-[14px] font-normal leading-[20px]">Campaigns</span>
+              <img
+                src={CreateCampaignIcon}
+                alt=""
+                className="w-5 h-5"
+                style={{
+                  filter: isActive("/campaigns")
+                    ? "brightness(0) invert(1)"
+                    : "none",
+                }}
+              />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Campaigns
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Ad Groups</span>
+              <img src={AdGroupIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Ad Groups
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Product Target</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Product Target
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Analytics</span>
+              <img src={GoogleIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Analytics
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Blueprints</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Blueprints
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Settings</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Settings
+              </span>
             </Link>
           </div>
         </div>
 
         {/* Marketing Channels Section */}
         <div className="mb-6">
-          <h2 className="text-[14px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">Marketing Channels</h2>
+          <h2 className="text-[14px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
+            Marketing Channels
+          </h2>
           <div className="space-y-1">
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Google</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Google
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Meta</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Meta
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Walmart</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Walmart
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Instacart</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Instacart
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Criteo</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Criteo
+              </span>
             </Link>
           </div>
         </div>
 
         {/* Overview Section */}
         <div className="mb-6">
-          <h2 className="text-[14px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">Overview</h2>
+          <h2 className="text-[14px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
+            Overview
+          </h2>
           <div className="space-y-1">
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Trend Chart</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Trend Chart
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">KPI Cards</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                KPI Cards
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Top Keywords</span>
+              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Top Keywords
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Top Products</span>
+              <img src={TopKeywordsIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Top Products
+              </span>
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 p-2 rounded-xl text-black hover:bg-transparent transition-colors"
+              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
+              style={defaultLinkStyle}
             >
-              <span className="text-[14px] font-normal leading-[20px]">Pixels-Like Box</span>
+              <img src={TopProductsIcon} alt="" className="w-5 h-5" />
+              <span className="text-[14px] font-normal leading-[20px]">
+                Pixels-Like Box
+              </span>
             </Link>
           </div>
         </div>
-
       </div>
     </div>
   );
 };
-

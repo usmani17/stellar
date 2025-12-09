@@ -57,6 +57,27 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            {/* Legacy routes - redirect to accounts */}
+            <Route
+              path="/campaigns"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Navigate to="/accounts" replace />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/channels"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Navigate to="/accounts" replace />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/accounts"
               element={
@@ -68,17 +89,7 @@ function App() {
               }
             />
             <Route
-              path="/channels"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Channels />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/campaigns"
+              path="/accounts/:accountId/campaigns"
               element={
                 <ProtectedRoute>
                   <Layout>
@@ -88,11 +99,21 @@ function App() {
               }
             />
             <Route
-              path="/campaigns/:id"
+              path="/accounts/:accountId/campaigns/:campaignId"
               element={
                 <ProtectedRoute>
                   <Layout>
                     <CampaignDetail />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounts/:accountId/channels"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Channels />
                   </Layout>
                 </ProtectedRoute>
               }

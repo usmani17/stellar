@@ -11,4 +11,5 @@ export { Alert } from './Alert';
 export { Divider } from './Divider';
 export { Logo } from './Logo';
 export { GoogleButton } from './GoogleButton';
+export { Checkbox } from './Checkbox';
 

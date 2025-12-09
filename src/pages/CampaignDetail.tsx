@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../components/layout/Sidebar';
 import { DashboardHeader } from '../components/layout/DashboardHeader';
 import { Button } from '../components/ui';
 
 export const CampaignDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { accountId, campaignId } = useParams<{ accountId: string; campaignId: string }>();
+  const navigate = useNavigate();
   const [isStatusEnabled, setIsStatusEnabled] = useState(true);
   const [activeTab, setActiveTab] = useState('Campaign Type');
   const [chartToggles, setChartToggles] = useState({
