@@ -365,9 +365,12 @@ export const Accounts: React.FC = () => {
                                             {channels.map((channel) => (
                                               <tr key={channel.id} className="border-b border-gray-100 hover:bg-white">
                                                 <td className="py-3 px-4">
-                                                  <span className="text-[14px] text-[#313850]">
+                                                  <button
+                                                    onClick={() => navigate(`/campaigns?account_id=${channel.account_id || account.id}`)}
+                                                    className="text-[14px] text-[#313850] hover:text-[#0066ff] hover:underline cursor-pointer text-left"
+                                                  >
                                                     {channel.channel_name}
-                                                  </span>
+                                                  </button>
                                                 </td>
                                                 <td className="py-3 px-4">
                                                   <span className="text-[14px] text-[#556179]">
