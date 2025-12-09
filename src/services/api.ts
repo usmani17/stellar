@@ -28,6 +28,12 @@ api.interceptors.request.use(
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log(`[API] Making ${config.method?.toUpperCase()} request to ${config.url}`, {
+        hasToken: !!token,
+        tokenPreview: token.substring(0, 20) + '...'
+      });
+    } else {
+      console.warn(`[API] Making ${config.method?.toUpperCase()} request to ${config.url} without token`);
     }
     return config;
   },
@@ -38,8 +44,18 @@ api.interceptors.request.use(
 
 // Response interceptor to handle token refresh (for traditional login)
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`[API] Response from ${response.config.url}:`, response.status, response.statusText);
+    return response;
+  },
   async (error) => {
+    console.error(`[API] Error from ${error.config?.url}:`, {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
