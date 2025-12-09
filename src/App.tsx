@@ -18,6 +18,7 @@ import { Campaigns } from "./pages/Campaigns";
 import { CampaignDetail } from "./pages/CampaignDetail";
 import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
+import { Auth0Callback } from "./pages/Auth0Callback";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/callback" element={<Auth0Callback />} />
             <Route
               path="/return"
               element={
