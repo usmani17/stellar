@@ -173,7 +173,7 @@ export const Campaigns: React.FC = () => {
     const statusInfo = statusMap[status] || statusMap["Enable"];
     return (
       <span
-        className={`inline-block px-3 py-1 rounded-full text-[12px] font-semibold ${statusInfo.bg} ${statusInfo.text}`}
+        className={`inline-block px-3 py-1 rounded-full text-[9.6px] font-semibold ${statusInfo.bg} ${statusInfo.text}`}
       >
         {statusInfo.label}
       </span>
@@ -257,51 +257,83 @@ export const Campaigns: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="p-8 bg-white">
-          {/* Add Filter Link */}
-          <div className="mb-4">
-            <button className="text-[16px] font-normal text-[#0066ff] hover:underline">
-              + Add Filter
+          {/* Page Header with Campaign Manager and Add Filter */}
+          <div className="mb-4 flex items-center justify-between">
+            <h1 className="text-[22.4px] font-semibold text-black">
+              Campaign Manager
+            </h1>
+            <button className="px-3 py-2 bg-[#FEFEFB] border border-[#E3E3E3] rounded-xl flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors">
+              <svg
+                className="w-5 h-5 text-[#072929]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
+              </svg>
+              <span className="text-[11.2px] text-[#072929] font-normal">
+                Add Filter
+              </span>
+              <svg
+                className="w-5 h-5 text-[#E3E3E3]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
             </button>
           </div>
 
           {/* Chart Section */}
-          <div className="bg-[#F5F7FA] border border-[#E6E6E6] rounded-[20px] p-6 mb-4">
+          <div
+            className="border border-[#E6E6E6] rounded-[20px] p-6 mb-4"
+            style={{ backgroundColor: "#FEFEFB" }}
+          >
             {/* Title and Toggle Switches Row */}
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[20px] font-semibold text-black">
+              <h3 className="text-[12.8px] font-semibold text-black">
                 Performance Trends
               </h3>
 
               {/* Toggle Switches */}
-              <div className="flex gap-4 items-center">
+              <div className="flex gap-3 items-center">
                 {[
-                  { key: "sales", label: "Sales", color: "#1ec77a" },
-                  { key: "spend", label: "Spend", color: "#7a4dff" },
+                  { key: "sales", label: "Sales", color: "#136D6D" },
+                  { key: "spend", label: "Spend", color: "#506766" },
                   { key: "clicks", label: "Clicks", color: "#169aa3" },
-                  { key: "orders", label: "Orders", color: "#ea33de" },
+                  { key: "orders", label: "Orders", color: "#072929" },
                 ].map((metric) => (
                   <div
                     key={metric.key}
-                    className="border border-gray-300 rounded-lg px-3 py-2.5 flex items-center gap-4"
+                    className="border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-3 bg-white"
                   >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: metric.color }}
-                      />
-                      <span className="text-[13px] font-normal text-black">
-                        {metric.label}
-                      </span>
-                    </div>
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: metric.color }}
+                    />
+                    <span className="text-[10.4px] font-normal text-black whitespace-nowrap">
+                      {metric.label}
+                    </span>
                     <button
                       onClick={() =>
                         toggleChartMetric(
                           metric.key as keyof typeof chartToggles
                         )
                       }
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
                         chartToggles[metric.key as keyof typeof chartToggles]
-                          ? "bg-[#7a4dff]"
+                          ? "bg-[#136D6D]"
                           : "bg-[#a3a8b3]"
                       }`}
                     >
@@ -319,23 +351,23 @@ export const Campaigns: React.FC = () => {
             </div>
 
             {/* Chart */}
-            <div className="h-[223px] bg-transparent rounded-lg p-4">
+            <div className="h-[223px] bg-transparent rounded-lg pl-2 pr-4 pt-4 pb-2">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={chartData}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                  margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
                 >
                   <XAxis
                     dataKey="date"
                     stroke="#556179"
-                    style={{ fontSize: "12px" }}
+                    style={{ fontSize: "9.6px" }}
                     tick={{ fill: "#556179" }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
                     stroke="#556179"
-                    style={{ fontSize: "12px" }}
+                    style={{ fontSize: "9.6px" }}
                     tick={{ fill: "#556179" }}
                     axisLine={false}
                     tickLine={false}
@@ -351,7 +383,7 @@ export const Campaigns: React.FC = () => {
                       backgroundColor: "#fff",
                       border: "1px solid #E6E6E6",
                       borderRadius: "8px",
-                      fontSize: "12px",
+                      fontSize: "9.6px",
                       boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
                     }}
                     formatter={(value: any, name: string) => {
@@ -365,7 +397,7 @@ export const Campaigns: React.FC = () => {
                     <Line
                       type="monotone"
                       dataKey="sales"
-                      stroke="#1ec77a"
+                      stroke="#136D6D"
                       strokeWidth={0.8}
                       dot={false}
                       name="Sales"
@@ -376,7 +408,7 @@ export const Campaigns: React.FC = () => {
                     <Line
                       type="monotone"
                       dataKey="spend"
-                      stroke="#7a4dff"
+                      stroke="#506766"
                       strokeWidth={0.8}
                       dot={false}
                       name="Spend"
@@ -398,7 +430,7 @@ export const Campaigns: React.FC = () => {
                     <Line
                       type="monotone"
                       dataKey="orders"
-                      stroke="#ea33de"
+                      stroke="#072929"
                       strokeWidth={0.8}
                       dot={false}
                       name="Orders"
@@ -411,31 +443,43 @@ export const Campaigns: React.FC = () => {
           </div>
 
           {/* Campaigns Table */}
-          <div className="bg-[#F5F7FA] rounded-2xl">
+          <div className="rounded-2xl" style={{ backgroundColor: "#F5F5F0" }}>
             {/* Table Header */}
-            <div className="bg-[#F5F7FA] border border-[#E8E8E3] border-b-0 rounded-t-2xl px-[34px] py-8 shadow-[0px_8px_20px_0px_rgba(0,0,0,0.06)]">
-              <h2 className="text-[28px] font-semibold text-black">
+            <div
+              className="border border-[#E6E6E6] border-b-0 rounded-t-2xl px-[34px] pt-8 pb-0 shadow-[0px_8px_20px_0px_rgba(0,0,0,0.06)]"
+              style={{ backgroundColor: "#F5F5F0" }}
+            >
+              <h2 className="text-[22.4px] font-semibold text-black">
                 Campaigns{" "}
-                <span className="text-[16px] font-normal text-[#727272]">
+                <span className="text-[12.8px] font-normal text-[#727272]">
                   (Overview of all active campaigns)
                 </span>
               </h2>
             </div>
 
             {/* Table */}
-            <div className="border border-[#E6E6E6] rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div
+              className="border border-[#E6E6E6] border-t-0 rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden p-6"
+              style={{ backgroundColor: "#F5F5F0" }}
+            >
               {loading ? (
-                <div className="p-8 text-center text-[#556179]">
+                <div
+                  className="p-8 text-center text-[#556179]"
+                  style={{ backgroundColor: "#F5F5F0" }}
+                >
                   Loading campaigns...
                 </div>
               ) : campaigns.length === 0 ? (
-                <div className="p-8 text-center text-[#556179]">
+                <div
+                  className="p-8 text-center text-[#556179]"
+                  style={{ backgroundColor: "#F5F5F0" }}
+                >
                   No campaigns found
                 </div>
               ) : (
-                <>
+                <div className="bg-white rounded-xl overflow-hidden">
                   {/* Table Header Row */}
-                  <div className="bg-white border-b border-[#E6E6E6] flex items-center h-[60px]">
+                  <div className="border-b border-[#E6E6E6] flex items-center h-[48px] bg-white rounded-t-xl">
                     {/* Checkbox Header */}
                     <div className="w-[35px] flex items-center justify-center">
                       <Checkbox
@@ -465,7 +509,7 @@ export const Campaigns: React.FC = () => {
                       className="w-[280px] px-4 cursor-pointer hover:bg-gray-50 flex items-center"
                       onClick={() => handleSort("campaign_name")}
                     >
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         Campaign Name
                       </p>
                       {getSortIcon("campaign_name")}
@@ -476,7 +520,7 @@ export const Campaigns: React.FC = () => {
                       className="w-[80px] text-center cursor-pointer hover:bg-gray-50 flex items-center justify-center"
                       onClick={() => handleSort("type")}
                     >
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         Type
                       </p>
                       {getSortIcon("type")}
@@ -487,7 +531,7 @@ export const Campaigns: React.FC = () => {
                       className="w-[100px] text-center cursor-pointer hover:bg-gray-50 flex items-center justify-center"
                       onClick={() => handleSort("status")}
                     >
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         State
                       </p>
                       {getSortIcon("status")}
@@ -498,7 +542,7 @@ export const Campaigns: React.FC = () => {
                       className="w-[120px] text-center cursor-pointer hover:bg-gray-50 flex items-center justify-center"
                       onClick={() => handleSort("budget")}
                     >
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         Budget
                       </p>
                       {getSortIcon("budget")}
@@ -509,7 +553,7 @@ export const Campaigns: React.FC = () => {
                       className="w-[100px] text-center cursor-pointer hover:bg-gray-50 flex items-center justify-center"
                       onClick={() => handleSort("spends")}
                     >
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         Spends
                       </p>
                       {getSortIcon("spends")}
@@ -520,7 +564,7 @@ export const Campaigns: React.FC = () => {
                       className="text-center flex-1 min-w-[51px] cursor-pointer hover:bg-gray-50 flex items-center justify-center"
                       onClick={() => handleSort("sales")}
                     >
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         Sales
                       </p>
                       {getSortIcon("sales")}
@@ -531,7 +575,7 @@ export const Campaigns: React.FC = () => {
                       className="text-center flex-1 min-w-[47px] cursor-pointer hover:bg-gray-50 flex items-center justify-center"
                       onClick={() => handleSort("acos")}
                     >
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         ACOS
                       </p>
                       {getSortIcon("acos")}
@@ -542,15 +586,15 @@ export const Campaigns: React.FC = () => {
                       className="text-center flex-1 min-w-[47px] cursor-pointer hover:bg-gray-50 flex items-center justify-center"
                       onClick={() => handleSort("roas")}
                     >
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         ROAS
                       </p>
                       {getSortIcon("roas")}
                     </div>
 
                     {/* Actions Header */}
-                    <div className="w-[54px] text-center">
-                      <p className="text-[12px] font-semibold text-[#556179] uppercase">
+                    <div className="w-[54px] text-center mr-4">
+                      <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
                         Actions
                       </p>
                     </div>
@@ -560,7 +604,7 @@ export const Campaigns: React.FC = () => {
                     {campaigns.map((campaign) => (
                       <div
                         key={campaign.id}
-                        className="flex items-center h-[60px] hover:bg-gray-50"
+                        className="flex items-center h-[48px] bg-white hover:bg-gray-50"
                       >
                         {/* Checkbox */}
                         <div className="w-[35px] flex items-center justify-center">
@@ -593,7 +637,7 @@ export const Campaigns: React.FC = () => {
                                 `/accounts/${accountId}/campaigns/${campaign.id}`
                               )
                             }
-                            className="text-[16px] font-normal text-black truncate hover:text-[#0066ff] hover:underline cursor-pointer text-left w-full"
+                            className="text-[12.8px] font-normal text-black truncate hover:text-[#0066ff] hover:underline cursor-pointer text-left w-full"
                           >
                             {campaign.campaign_name || "Unnamed Campaign"}
                           </button>
@@ -601,7 +645,7 @@ export const Campaigns: React.FC = () => {
 
                         {/* Type */}
                         <div className="w-[80px] text-center">
-                          <p className="text-[16px] font-semibold text-[#7a4dff]">
+                          <p className="text-[12.8px] font-semibold text-[#7a4dff]">
                             {campaign.type || "SP"}
                           </p>
                         </div>
@@ -613,35 +657,35 @@ export const Campaigns: React.FC = () => {
 
                         {/* Daily Budget */}
                         <div className="w-[120px] text-center">
-                          <p className="text-[16px] font-normal text-black">
+                          <p className="text-[12.8px] font-normal text-black">
                             {formatCurrency(campaign.daily_budget || 0)}
                           </p>
                         </div>
 
                         {/* Spends */}
                         <div className="w-[100px] text-center">
-                          <p className="text-[16px] font-normal text-black">
+                          <p className="text-[12.8px] font-normal text-black">
                             {formatCurrency(campaign.spends || 0)}
                           </p>
                         </div>
 
                         {/* Sales */}
                         <div className="text-center flex-1 min-w-[51px]">
-                          <p className="text-[16px] font-normal text-black">
+                          <p className="text-[12.8px] font-normal text-black">
                             {formatCurrency(campaign.sales || 0)}
                           </p>
                         </div>
 
                         {/* ACOS */}
                         <div className="text-center flex-1 min-w-[47px]">
-                          <p className="text-[16px] font-normal text-black">
+                          <p className="text-[12.8px] font-normal text-black">
                             {formatPercentage(campaign.acos || 0)}
                           </p>
                         </div>
 
                         {/* ROAS */}
                         <div className="text-center flex-1 min-w-[47px]">
-                          <p className="text-[16px] font-normal text-black">
+                          <p className="text-[12.8px] font-normal text-black">
                             {campaign.roas
                               ? `${campaign.roas.toFixed(2)} x`
                               : "0.00 x"}
@@ -649,7 +693,7 @@ export const Campaigns: React.FC = () => {
                         </div>
 
                         {/* Actions */}
-                        <div className="w-[54px] text-center">
+                        <div className="w-[54px] text-center mr-4">
                           <button
                             onClick={() =>
                               navigate(
@@ -672,93 +716,17 @@ export const Campaigns: React.FC = () => {
                   </div>
 
                   {/* Pagination */}
-                  <div className="bg-[#F5F7FA] border-t border-[#E6E6E6] px-[34px] py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[14px] font-normal text-black">
-                        Showing
-                      </span>
-                      <div className="relative inline-block">
-                        <input
-                          type="number"
-                          value={itemsPerPage}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            if (val >= 10 && val <= 100) {
-                              handleItemsPerPageChange(val);
-                            }
-                          }}
-                          min={10}
-                          max={100}
-                          step={10}
-                          className="w-14 h-8 px-2 pr-6 border border-[#EBEBEB] rounded-lg bg-white text-[14px] text-black text-center appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-[#EBEBEB]"
-                        />
-                        <div className="absolute right-1 top-0 bottom-0 flex flex-col justify-center items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleItemsPerPageChange(
-                                Math.min(100, itemsPerPage + 10)
-                              )
-                            }
-                            disabled={itemsPerPage >= 100}
-                            className="w-3 h-3 flex items-center justify-center text-[#858585] hover:text-black disabled:opacity-30 disabled:cursor-not-allowed pointer-events-auto"
-                          >
-                            <svg
-                              className="w-2.5 h-2.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 15l7-7 7 7"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleItemsPerPageChange(
-                                Math.max(10, itemsPerPage - 10)
-                              )
-                            }
-                            disabled={itemsPerPage <= 10}
-                            className="w-3 h-3 flex items-center justify-center text-[#858585] hover:text-black disabled:opacity-30 disabled:cursor-not-allowed pointer-events-auto"
-                          >
-                            <svg
-                              className="w-2.5 h-2.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                      <span className="text-[14px] font-normal text-black">
-                        of{" "}
-                        <span className="font-bold text-black">
-                          {totalCount}
-                        </span>{" "}
-                        Result
-                      </span>
-                    </div>
-
+                  <div
+                    className="border-t border-[#E6E6E6] py-4 flex items-center justify-end rounded-b-xl"
+                    style={{ backgroundColor: "#F5F5F0" }}
+                  >
                     <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
                       <button
                         onClick={() =>
                           handlePageChange(Math.max(1, currentPage - 1))
                         }
                         disabled={currentPage === 1}
-                        className="px-3 py-2 border-r border-[#E6E6E6] text-[14px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        className="px-3 py-2 border-r border-[#E6E6E6] text-[11.2px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                       >
                         Previous
                       </button>
@@ -779,7 +747,7 @@ export const Campaigns: React.FC = () => {
                             <button
                               key={pageNum}
                               onClick={() => handlePageChange(pageNum)}
-                              className={`px-3 py-2 border-r border-[#E6E6E6] text-[14px] min-w-[40px] ${
+                              className={`px-3 py-2 border-r border-[#E6E6E6] text-[11.2px] min-w-[40px] ${
                                 currentPage === pageNum
                                   ? "bg-white text-[#4e5cff] font-semibold"
                                   : "text-black hover:bg-gray-50"
@@ -791,14 +759,14 @@ export const Campaigns: React.FC = () => {
                         }
                       )}
                       {totalPages > 5 && currentPage < totalPages - 2 && (
-                        <span className="px-3 py-2 border-r border-[#E6E6E6] text-[14px] text-[#222124]">
+                        <span className="px-3 py-2 border-r border-[#E6E6E6] text-[11.2px] text-[#222124]">
                           ...
                         </span>
                       )}
                       {totalPages > 5 && (
                         <button
                           onClick={() => handlePageChange(totalPages)}
-                          className={`px-3 py-2 border-r border-[#E6E6E6] text-[14px] ${
+                          className={`px-3 py-2 border-r border-[#E6E6E6] text-[11.2px] ${
                             currentPage === totalPages
                               ? "bg-white text-[#4e5cff] font-semibold"
                               : "text-black hover:bg-gray-50"
@@ -814,13 +782,13 @@ export const Campaigns: React.FC = () => {
                           )
                         }
                         disabled={currentPage === totalPages}
-                        className="px-3 py-2 text-[14px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        className="px-3 py-2 text-[11.2px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                       >
                         Next
                       </button>
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>

@@ -93,10 +93,10 @@ export const DashboardHeader: React.FC = () => {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center gap-2 px-2 py-1.5 bg-[#FEFEFB] border border-[#EBEAED] rounded-lg h-8 hover:bg-gray-50"
           >
-            <div className="w-3 h-3 rounded bg-[#072929] text-white text-[8px] flex items-center justify-center font-semibold">
+            <div className="w-3 h-3 rounded bg-[#072929] text-white text-[6.4px] flex items-center justify-center font-semibold">
               {selectedAccount ? selectedAccount.account_name[0].toUpperCase() : 'A'}
             </div>
-            <span className="text-[12px] text-[#072929] font-medium">
+            <span className="text-[9.6px] text-[#072929] font-medium">
               {selectedAccount ? selectedAccount.account_name : 'Select Account'}
             </span>
             <svg className="w-4 h-4 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -108,7 +108,7 @@ export const DashboardHeader: React.FC = () => {
             <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
               <div className="p-2">
                 {accounts.length === 0 ? (
-                  <div className="px-3 py-2 text-[14px] text-[#556179]">
+                  <div className="px-3 py-2 text-[11.2px] text-[#556179]">
                     No accounts available
                   </div>
                 ) : (
@@ -116,7 +116,7 @@ export const DashboardHeader: React.FC = () => {
                     <button
                       key={account.id}
                       onClick={() => handleAccountSelect(account)}
-                      className={`w-full text-left px-3 py-2 rounded text-[14px] hover:bg-gray-50 ${
+                      className={`w-full text-left px-3 py-2 rounded text-[11.2px] hover:bg-gray-50 ${
                         selectedAccount?.id === account.id
                           ? 'bg-[#F0F0ED] text-[#072929] font-medium'
                           : 'text-[#313850]'
@@ -151,7 +151,7 @@ export const DashboardHeader: React.FC = () => {
             <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span className="text-[12px] text-gray-900 font-normal">{formatDateRange()}</span>
+            <span className="text-[9.6px] text-gray-900 font-normal">{formatDateRange()}</span>
             <svg 
               className={`w-4 h-4 text-gray-400 transition-transform ${isDatePickerOpen ? 'rotate-180' : ''}`}
               fill="none" 
@@ -195,7 +195,7 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={profileDropdownRef}>
           <button
             onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-[14px] font-semibold hover:bg-gray-300 transition-colors"
+            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-[11.2px] font-semibold hover:bg-gray-300 transition-colors"
           >
             {user?.first_name?.[0] || 'U'}
           </button>
@@ -203,13 +203,13 @@ export const DashboardHeader: React.FC = () => {
           {isProfileDropdownOpen && (
             <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
               <div className="p-2">
-                <div className="px-3 py-2 text-[14px] text-[#313850] border-b border-gray-100">
+                <div className="px-3 py-2 text-[11.2px] text-[#313850] border-b border-gray-100">
                   <div className="font-medium">{user?.first_name} {user?.last_name}</div>
-                  <div className="text-[12px] text-[#556179] mt-1">{user?.email}</div>
+                  <div className="text-[9.6px] text-[#556179] mt-1">{user?.email}</div>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-2 rounded text-[14px] text-[#313850] hover:bg-gray-50 transition-colors"
+                  className="w-full text-left px-3 py-2 rounded text-[11.2px] text-[#313850] hover:bg-gray-50 transition-colors"
                 >
                   Logout
                 </button>
