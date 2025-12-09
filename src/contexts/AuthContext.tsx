@@ -54,14 +54,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       if (isAuthenticated && auth0User) {
         try {
-          // Get Auth0 access token with audience
+          // Get Auth0 access token with audience and scope
           // With audience configured, Auth0 returns a proper JWT access token (not encrypted)
           const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
+
+          console.log("Auth0 Audience:", audience);
           const token = await getAccessTokenSilently({
-            authorizationParams: audience ? { audience } : undefined,
+            authorizationParams: audience ? { 
+              audience,
+              scope: 'openid profile email offline_access'
+            } : { scope: 'openid profile email offline_access' },
           });
-          
+
+          // Decode JWT token to see what's inside (without verification)
           if (token) {
+            try {
+              const base64Url = token.split('.')[1];
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const jsonPayload = decodeURIComponent(
+                atob(base64)
+                  .split('')
+                  .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                  .join('')
+              );
+              const decodedToken = JSON.parse(jsonPayload);
+              console.log("🔓 [FRONTEND] Decoded Access Token Payload:", decodedToken);
+              console.log("🔓 [FRONTEND] Token Claims:", {
+                sub: decodedToken.sub,
+                email: decodedToken.email,
+                aud: decodedToken.aud,
+                iss: decodedToken.iss,
+                exp: decodedToken.exp,
+                iat: decodedToken.iat,
+                allKeys: Object.keys(decodedToken),
+              });
+            } catch (error) {
+              console.error("Failed to decode token:", error);
+            }
+            
             localStorage.setItem("accessToken", token);
             console.log("Stored access token for backend authentication", { hasAudience: !!audience });
             
@@ -175,18 +205,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const loginWithAuth0 = async () => {
+    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
         screen_hint: 'login',
+        scope: 'openid profile email offline_access',
+        ...(audience ? { audience } : {}),
       },
     });
   };
 
   const loginWithGoogle = async () => {
+    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
         connection: 'google-oauth2',
         screen_hint: 'login',
+        scope: 'openid profile email offline_access',
+        ...(audience ? { audience } : {}),
       },
     });
   };
@@ -200,18 +236,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const registerWithAuth0 = async () => {
+    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
         screen_hint: 'signup',
+        scope: 'openid profile email offline_access',
+        ...(audience ? { audience } : {}),
       },
     });
   };
 
   const registerWithGoogle = async () => {
+    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
         connection: 'google-oauth2',
         screen_hint: 'signup',
+        scope: 'openid profile email offline_access',
+        ...(audience ? { audience } : {}),
       },
     });
   };
@@ -238,10 +280,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const getAccessToken = async (): Promise<string | null> => {
     try {
-      // Get access token with audience (returns JWT when audience is configured)
+      // Get access token with audience and scope (returns JWT when audience is configured)
       const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
       const token = await getAccessTokenSilently({
-        authorizationParams: audience ? { audience } : undefined,
+        authorizationParams: audience ? { 
+          audience,
+          scope: 'openid profile email offline_access'
+        } : { scope: 'openid profile email offline_access' },
       });
       if (token) {
         localStorage.setItem("accessToken", token);
