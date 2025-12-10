@@ -2,14 +2,15 @@ import api from './api';
 
 export interface Account {
   id: number;
-  account_name: string;
+  name: string;
   channels_count?: number;
+  channels?: Channel[];
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateAccountData {
-  account_name: string;
+  name: string;
 }
 
 export interface Channel {

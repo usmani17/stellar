@@ -4,16 +4,17 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDateRange } from '../../contexts/DateRangeContext';
-import { accountsService, type Account } from '../../services/accounts';
+import { useAccounts } from '../../contexts/AccountsContext';
+import { type Account } from '../../services/accounts';
 
 export const DashboardHeader: React.FC = () => {
   const { user, logout } = useAuth();
+  const { accounts } = useAccounts();
   const { startDate, endDate, setDateRange, formatDateRange } = useDateRange();
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams<{ accountId?: string }>();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -24,11 +25,7 @@ export const DashboardHeader: React.FC = () => {
   const isAccountsPage = location.pathname === '/accounts';
   const userName = user ? `${user.first_name} ${user.last_name}` : 'User';
 
-  useEffect(() => {
-    loadAccounts();
-  }, []);
-
-  // Update selected account when URL params change
+  // Update selected account when URL params change or accounts load
   useEffect(() => {
     if (params.accountId && accounts.length > 0) {
       const accountId = parseInt(params.accountId, 10);
@@ -36,6 +33,9 @@ export const DashboardHeader: React.FC = () => {
       if (account) {
         setSelectedAccount(account);
       }
+    } else if (accounts.length > 0 && !selectedAccount) {
+      // Set first account as selected by default if no accountId in URL
+      setSelectedAccount(accounts[0]);
     }
   }, [params.accountId, accounts]);
 
@@ -63,20 +63,6 @@ export const DashboardHeader: React.FC = () => {
     navigate('/login');
   };
 
-  const loadAccounts = async () => {
-    try {
-      const accountsData = await accountsService.getAccounts();
-      setAccounts(Array.isArray(accountsData) ? accountsData : []);
-      
-      // Set first account as selected by default if no accountId in URL
-      if (accountsData.length > 0 && !params.accountId && !selectedAccount) {
-        setSelectedAccount(accountsData[0]);
-      }
-    } catch (error) {
-      console.error('Failed to load accounts:', error);
-    }
-  };
-
   const handleAccountSelect = (account: Account) => {
     setSelectedAccount(account);
     setIsDropdownOpen(false);
@@ -94,10 +80,10 @@ export const DashboardHeader: React.FC = () => {
             className="flex items-center gap-2 px-2 py-1.5 bg-[#FEFEFB] border border-[#EBEAED] rounded-lg h-8 hover:bg-gray-50"
           >
             <div className="w-3 h-3 rounded bg-[#072929] text-white text-[6.4px] flex items-center justify-center font-semibold">
-              {selectedAccount ? selectedAccount.account_name[0].toUpperCase() : 'A'}
+              {selectedAccount?.name ? selectedAccount.name[0]?.toUpperCase() : 'A'}
             </div>
             <span className="text-[9.6px] text-[#072929] font-medium">
-              {selectedAccount ? selectedAccount.account_name : 'Select Account'}
+              {selectedAccount?.name || 'Select Account'}
             </span>
             <svg className="w-4 h-4 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -123,7 +109,7 @@ export const DashboardHeader: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span>{account.account_name}</span>
+                        <span>{account.name}</span>
                         {selectedAccount?.id === account.id && (
                           <svg className="w-4 h-4 text-[#072929]" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

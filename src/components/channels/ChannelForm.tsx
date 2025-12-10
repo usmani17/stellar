@@ -151,7 +151,7 @@ export const ChannelForm: React.FC<ChannelFormProps> = ({
                         <option value="">Select an account</option>
                         {amazonAccounts.map((account) => (
                           <option key={account.id} value={account.id}>
-                            {account.account_name}
+                            {account.name ?? account.account_name}
                           </option>
                         ))}
                       </select>

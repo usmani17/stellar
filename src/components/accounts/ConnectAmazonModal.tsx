@@ -6,7 +6,7 @@ import { accountsService } from '../../services/accounts';
 interface ConnectAmazonModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { account_name: string; amazon_account_id?: string }) => Promise<void>;
+  onSubmit: (data: { name: string; amazon_account_id?: string }) => Promise<void>;
   onOAuthSuccess?: () => void;
 }
 
@@ -17,7 +17,7 @@ export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
   onOAuthSuccess,
 }) => {
   const [formData, setFormData] = useState({
-    account_name: '',
+    name: '',
     amazon_account_id: '',
   });
   const [loading, setLoading] = useState(false);
@@ -35,10 +35,10 @@ export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
 
     try {
       await onSubmit({
-        account_name: formData.account_name,
+        name: formData.name,
         amazon_account_id: formData.amazon_account_id || undefined,
       });
-      setFormData({ account_name: '', amazon_account_id: '' });
+      setFormData({ name: '', amazon_account_id: '' });
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to connect account');
@@ -126,8 +126,8 @@ export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <Input
                     label="Account Name"
-                    name="account_name"
-                    value={formData.account_name}
+                    name="name"
+                    value={formData.name}
                     onChange={handleChange}
                     required
                     placeholder="My Amazon Account"

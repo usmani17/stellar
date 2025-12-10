@@ -49,70 +49,66 @@ export const SelectAmazonProfiles: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch profiles from Amazon API
-      const profilesData = await accountsService.fetchProfiles(
+      // First, try to load profiles from our DB
+      const savedProfilesResponse = await accountsService.getProfiles(
         parseInt(channelId)
       );
-      console.log("Fetched profiles from API:", profilesData);
-      console.log("First profile structure:", profilesData[0]);
+      const savedProfiles = savedProfilesResponse.profiles || [];
+      console.log("Saved profiles from DB:", savedProfiles);
 
-      // Load saved profiles from database to see which ones are selected
-      let selectedIds = new Set<string>();
-      try {
-        const savedProfilesResponse = await accountsService.getProfiles(
-          parseInt(channelId)
-        );
-        const savedProfiles = savedProfilesResponse.profiles || [];
-        console.log("Saved profiles from DB:", savedProfiles);
+      // If no profiles in DB, fetch from Amazon
+      if (savedProfiles.length === 0) {
+        console.log("No profiles in DB, fetching from Amazon...");
+        try {
+          const amazonProfiles = await accountsService.fetchProfiles(
+            parseInt(channelId)
+          );
+          console.log("Profiles fetched from Amazon:", amazonProfiles);
 
-        // Set selected profile IDs based on is_selected flag
-        // Use profile_id from saved profiles (this matches the 'id' field from Amazon API)
-        savedProfiles.forEach((savedProfile: any) => {
-          if (savedProfile.is_selected) {
-            // Use profile_id from database (this is the same as 'id' from Amazon API)
-            const profileId = savedProfile.profile_id || savedProfile.id;
-            if (profileId) {
-              selectedIds.add(String(profileId));
-            }
+          if (amazonProfiles.length > 0) {
+            // Use profiles from Amazon
+            setProfiles(amazonProfiles);
+            setSelectedProfileIds(new Set());
+            return;
           }
-        });
-
-        console.log("Selected profile IDs from DB:", Array.from(selectedIds));
-      } catch (err: any) {
-        console.warn("Failed to load saved profiles (may be first time):", err);
-        // If no saved profiles exist yet, that's okay - just start with empty selection
+        } catch (fetchErr: any) {
+          console.error("Failed to fetch profiles from Amazon:", fetchErr);
+          // Continue with empty profiles - will show error message
+        }
       }
 
-      // Now set both profiles and selected IDs
-      setProfiles(profilesData);
+      // Set selected profile IDs based on is_selected flag
+      const selectedIds = new Set<string>();
+      savedProfiles.forEach((savedProfile: any) => {
+        if (savedProfile.is_selected) {
+          const profileId =
+            savedProfile.profileId ||
+            savedProfile.profile_id ||
+            savedProfile.id;
+          if (profileId) {
+            selectedIds.add(String(profileId));
+          }
+        }
+      });
 
-      // Verify which profile IDs from Amazon match the selected ones
-      const amazonProfileIds = profilesData
-        .map((p) => {
+      // Now set both profiles and selected IDs
+      setProfiles(savedProfiles);
+
+      // Ensure selected IDs exist in the returned list
+      const dbProfileIds = savedProfiles
+        .map((p: any) => {
           const id = p.id || p.profileId || p.profile_id;
           return id ? String(id) : null;
         })
         .filter(Boolean);
 
-      console.log("Amazon API profile IDs:", amazonProfileIds);
-      console.log("Selected IDs to set:", Array.from(selectedIds));
-
-      // Only keep IDs that exist in the Amazon API response
       const validSelectedIds = new Set<string>();
       selectedIds.forEach((id) => {
-        if (amazonProfileIds.includes(id)) {
+        if (dbProfileIds.includes(id)) {
           validSelectedIds.add(id);
-        } else {
-          console.warn(
-            `Profile ID ${id} from DB not found in Amazon API response`
-          );
         }
       });
 
-      console.log(
-        "Valid selected IDs (matching Amazon API):",
-        Array.from(validSelectedIds)
-      );
       setSelectedProfileIds(validSelectedIds);
     } catch (err: any) {
       setError(

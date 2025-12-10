@@ -28,6 +28,19 @@ export interface CampaignsQueryParams {
   page_size?: number;
   start_date?: string;
   end_date?: string;
+  // Campaign name filters with operators
+  campaign_name?: string;
+  campaign_name__icontains?: string;
+  campaign_name__not_icontains?: string;
+  // Budget filters with operators
+  budget?: number | string;
+  budget__lt?: number | string;
+  budget__gt?: number | string;
+  budget__lte?: number | string;
+  budget__gte?: number | string;
+  // State and Type filters
+  state?: string;
+  type?: string;
 }
 
 export const campaignsService = {
@@ -53,6 +66,39 @@ export const campaignsService = {
     }
     if (params?.end_date) {
       queryParams.append('end_date', params.end_date);
+    }
+    // Campaign name filters
+    if (params?.campaign_name) {
+      queryParams.append('campaign_name', params.campaign_name);
+    }
+    if (params?.campaign_name__icontains) {
+      queryParams.append('campaign_name__icontains', params.campaign_name__icontains);
+    }
+    if (params?.campaign_name__not_icontains) {
+      queryParams.append('campaign_name__not_icontains', params.campaign_name__not_icontains);
+    }
+    // Budget filters
+    if (params?.budget !== undefined) {
+      queryParams.append('budget', params.budget.toString());
+    }
+    if (params?.budget__lt !== undefined) {
+      queryParams.append('budget__lt', params.budget__lt.toString());
+    }
+    if (params?.budget__gt !== undefined) {
+      queryParams.append('budget__gt', params.budget__gt.toString());
+    }
+    if (params?.budget__lte !== undefined) {
+      queryParams.append('budget__lte', params.budget__lte.toString());
+    }
+    if (params?.budget__gte !== undefined) {
+      queryParams.append('budget__gte', params.budget__gte.toString());
+    }
+    // State and Type filters
+    if (params?.state) {
+      queryParams.append('state', params.state);
+    }
+    if (params?.type) {
+      queryParams.append('type', params.type);
     }
     
     const queryString = queryParams.toString();
