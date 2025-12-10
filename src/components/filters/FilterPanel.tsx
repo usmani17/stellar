@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 
 export interface FilterItem {
   id: string;
@@ -14,7 +14,6 @@ interface FilterPanelProps {
   onClose: () => void;
   onApply: (filters: FilterValues) => void;
   initialFilters?: FilterValues;
-  buttonRef?: React.RefObject<HTMLButtonElement | null>;
 }
 
 const FILTER_FIELDS = [
@@ -46,34 +45,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   onClose,
   onApply,
   initialFilters = [],
-  buttonRef,
 }) => {
   const [activeFilters, setActiveFilters] = useState<FilterValues>(initialFilters);
   const [selectedField, setSelectedField] = useState<string>("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
   const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(event.target as Node) &&
-        buttonRef?.current &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, onClose, buttonRef]);
 
   const handleAddFilter = () => {
     if (!selectedField || !filterValue) return;
@@ -105,7 +82,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
   const handleApply = () => {
     onApply(activeFilters);
-    onClose();
+    // Don't auto-close - let user toggle with button
   };
 
   const handleClearAll = () => {
@@ -140,7 +117,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className="absolute top-full left-0 mt-2 z-50 bg-white border border-[#E6E6E6] rounded-xl shadow-lg w-[600px]"
+      className="border border-[#E6E6E6] rounded-xl shadow-sm w-full"
+      style={{ backgroundColor: "#F5F5F0" }}
     >
       {/* Filter Builder */}
       <div className="p-4 border-b border-[#E6E6E6]">

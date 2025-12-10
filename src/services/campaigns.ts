@@ -48,62 +48,64 @@ export const campaignsService = {
     accountId: number,
     params?: CampaignsQueryParams
   ): Promise<CampaignsResponse> => {
-    const queryParams = new URLSearchParams();
+    // Build filters object for POST request body
+    const filters: any = {};
+    
     if (params?.sort_by) {
-      queryParams.append('sort_by', params.sort_by);
+      filters.sort_by = params.sort_by;
     }
     if (params?.order) {
-      queryParams.append('order', params.order);
+      filters.order = params.order;
     }
     if (params?.page) {
-      queryParams.append('page', params.page.toString());
+      filters.page = params.page;
     }
     if (params?.page_size) {
-      queryParams.append('page_size', params.page_size.toString());
+      filters.page_size = params.page_size;
     }
     if (params?.start_date) {
-      queryParams.append('start_date', params.start_date);
+      filters.start_date = params.start_date;
     }
     if (params?.end_date) {
-      queryParams.append('end_date', params.end_date);
+      filters.end_date = params.end_date;
     }
     // Campaign name filters
     if (params?.campaign_name) {
-      queryParams.append('campaign_name', params.campaign_name);
+      filters.campaign_name = params.campaign_name;
     }
     if (params?.campaign_name__icontains) {
-      queryParams.append('campaign_name__icontains', params.campaign_name__icontains);
+      filters.campaign_name__icontains = params.campaign_name__icontains;
     }
     if (params?.campaign_name__not_icontains) {
-      queryParams.append('campaign_name__not_icontains', params.campaign_name__not_icontains);
+      filters.campaign_name__not_icontains = params.campaign_name__not_icontains;
     }
     // Budget filters
     if (params?.budget !== undefined) {
-      queryParams.append('budget', params.budget.toString());
+      filters.budget = params.budget;
     }
     if (params?.budget__lt !== undefined) {
-      queryParams.append('budget__lt', params.budget__lt.toString());
+      filters.budget__lt = params.budget__lt;
     }
     if (params?.budget__gt !== undefined) {
-      queryParams.append('budget__gt', params.budget__gt.toString());
+      filters.budget__gt = params.budget__gt;
     }
     if (params?.budget__lte !== undefined) {
-      queryParams.append('budget__lte', params.budget__lte.toString());
+      filters.budget__lte = params.budget__lte;
     }
     if (params?.budget__gte !== undefined) {
-      queryParams.append('budget__gte', params.budget__gte.toString());
+      filters.budget__gte = params.budget__gte;
     }
     // State and Type filters
     if (params?.state) {
-      queryParams.append('state', params.state);
+      filters.state = params.state;
     }
     if (params?.type) {
-      queryParams.append('type', params.type);
+      filters.type = params.type;
     }
     
-    const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${queryString ? `?${queryString}` : ''}`;
-    const response = await api.get<CampaignsResponse>(url);
+    // Send POST request with filters in body
+    const url = `/accounts/${accountId}/campaigns/`;
+    const response = await api.post<CampaignsResponse>(url, { filters });
     return response.data;
   },
 };

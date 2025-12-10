@@ -41,7 +41,6 @@ export const Campaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
-  const filterButtonRef = React.useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (accountId) {
@@ -338,46 +337,47 @@ export const Campaigns: React.FC = () => {
             <h1 className="text-[22.4px] font-semibold text-black mb-3">
               Campaign Manager
             </h1>
-            <div className="relative inline-block">
-              <button
-                ref={filterButtonRef}
-                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                className="px-3 py-2 bg-[#FEFEFB] border border-[#E3E3E3] rounded-xl flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            {/* Add Filter Button - Under Campaign Manager */}
+            <button
+              onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+              className="px-3 py-2 bg-[#FEFEFB] border border-[#E3E3E3] rounded-xl flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors mb-3"
+            >
+              <svg
+                className="w-5 h-5 text-[#072929]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <svg
-                  className="w-5 h-5 text-[#072929]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                  />
-                </svg>
-                <span className="text-[11.2px] text-[#072929] font-normal">
-                  Add Filter
-                </span>
-                <svg
-                  className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                    isFilterPanelOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
+              </svg>
+              <span className="text-[11.2px] text-[#072929] font-normal">
+                Add Filter
+              </span>
+              <svg
+                className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                  isFilterPanelOpen ? "rotate-180" : ""
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+            {/* Filter Panel - Full width, inline, no popup */}
+            {isFilterPanelOpen && (
               <FilterPanel
-                isOpen={isFilterPanelOpen}
+                isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
                   setFilters(newFilters);
@@ -391,15 +391,14 @@ export const Campaigns: React.FC = () => {
                   }
                 }}
                 initialFilters={filters}
-                buttonRef={filterButtonRef}
               />
-            </div>
+            )}
           </div>
 
           {/* Chart Section */}
           <div
             className="border border-[#E6E6E6] rounded-[20px] p-4 mb-4"
-            style={{ backgroundColor: "#FEFEFB" }}
+            style={{ backgroundColor: "#F5F5F0" }}
           >
             {/* Title and Toggle Switches Row */}
             <div className="flex items-center justify-between mb-4">
