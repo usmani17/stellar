@@ -43,16 +43,42 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   const getStateClasses = () => {
     if (disabled) {
       if (checked || indeterminate) {
-        return "bg-[#74AAFD] border-[#74AAFD]";
+        return "opacity-50";
       }
       return "bg-white border-[#A3A8B3] opacity-50";
     }
 
     if (checked || indeterminate) {
-      return "bg-[#0350C3] border-[#0350C3] hover:bg-[#3C88FC] hover:border-[#3C88FC]";
+      return ""; // Will use inline styles instead
     }
 
     return "bg-white border-[#A3A8B3] hover:border-[#556179]";
+  };
+
+  const getStateStyles = (): React.CSSProperties => {
+    if (disabled) {
+      if (checked || indeterminate) {
+        return {
+          backgroundColor: "#136D6D",
+          borderColor: "#136D6D",
+          opacity: 0.5,
+        };
+      }
+      return {
+        borderColor: "#A3A8B3",
+      };
+    }
+
+    if (checked || indeterminate) {
+      return {
+        backgroundColor: "#136D6D",
+        borderColor: "#136D6D",
+      };
+    }
+
+    return {
+      borderColor: "#A3A8B3",
+    };
   };
 
   const checkboxId =
@@ -68,12 +94,16 @@ export const Checkbox: React.FC<CheckboxProps> = ({
         disabled={disabled}
         onClick={handleClick}
         className={cn(
-          "relative inline-flex items-center justify-center rounded-[12px] border transition-colors focus:outline-none focus:ring-2 focus:ring-[#0350C3] focus:ring-offset-1",
+          "relative inline-flex items-center justify-center border transition-colors focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:ring-offset-1",
           sizeClasses[size],
           getStateClasses(),
           disabled && "cursor-not-allowed",
-          !disabled && "cursor-pointer"
+          !disabled && "cursor-pointer",
+          !disabled &&
+            (checked || indeterminate) &&
+            "hover:bg-[#169aa3] hover:border-[#169aa3]"
         )}
+        style={getStateStyles()}
         id={checkboxId}
       >
         {/* Checkmark icon */}

@@ -1,7 +1,8 @@
 import api from './api';
 
 export interface Campaign {
-  id: number;
+  id: number;  // Database ID (for internal use)
+  campaignId: string | number;  // Amazon campaign ID (e.g., '250760975023635')
   campaign_name: string;
   type: string;
   status: 'Enable' | 'Paused' | 'Archived';
@@ -41,6 +42,83 @@ export interface CampaignsQueryParams {
   // State and Type filters
   state?: string;
   type?: string;
+}
+
+export interface CampaignDetail {
+  campaign: {
+    id: number;
+    name: string;
+    status: string;
+    description: string;
+  };
+  kpi_cards: Array<{
+    label: string;
+    value: string;
+    change?: string;
+    isPositive?: boolean;
+  }>;
+  chart_data: Array<{
+    date: string;
+    spend: number;
+    sales: number;
+    clicks: number;
+    orders: number;
+  }>;
+  top_keywords: Array<{
+    name: string;
+    ctr: string;
+    status: string;
+    spends: string;
+    sales: string;
+  }>;
+  top_products: Array<{
+    name: string;
+    asin: string;
+    sales: string;
+  }>;
+}
+
+export interface AdGroup {
+  id: number;
+  name: string;
+  status: string;
+  ctr: string;
+  spends: string;
+  sales: string;
+  clicks?: number;
+  impressions?: number;
+  acos?: string;
+  roas?: string;
+}
+
+export interface AdGroupsResponse {
+  adgroups: AdGroup[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface Keyword {
+  id: number;
+  name: string;
+  status: string;
+  adgroup_name?: string;
+  ctr: string;
+  spends: string;
+  sales: string;
+  clicks?: number;
+  impressions?: number;
+  acos?: string;
+  roas?: string;
+}
+
+export interface KeywordsResponse {
+  keywords: Keyword[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export const campaignsService = {
@@ -107,6 +185,129 @@ export const campaignsService = {
     const url = `/accounts/${accountId}/campaigns/`;
     const response = await api.post<CampaignsResponse>(url, { filters });
     return response.data;
+  },
+
+  getCampaignDetail: async (
+    accountId: number,
+    campaignId: string | number,
+    startDate?: string,
+    endDate?: string
+  ): Promise<CampaignDetail> => {
+    const params = new URLSearchParams();
+    if (startDate) {
+      params.append('start_date', startDate);
+    }
+    if (endDate) {
+      params.append('end_date', endDate);
+    }
+    
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await api.get<CampaignDetail>(url);
+    return response.data;
+  },
+
+  getAdGroups: async (
+    accountId: number,
+    campaignId: string | number,
+    startDate?: string,
+    endDate?: string,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: 'asc' | 'desc';
+    }
+  ): Promise<AdGroupsResponse> => {
+    const queryParams = new URLSearchParams();
+    if (startDate) {
+      queryParams.append('start_date', startDate);
+    }
+    if (endDate) {
+      queryParams.append('end_date', endDate);
+    }
+    if (params?.page) {
+      queryParams.append('page', params.page.toString());
+    }
+    if (params?.page_size) {
+      queryParams.append('page_size', params.page_size.toString());
+    }
+    if (params?.sort_by) {
+      queryParams.append('sort_by', params.sort_by);
+    }
+    if (params?.order) {
+      queryParams.append('order', params.order);
+    }
+    
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    try {
+      const response = await api.get<AdGroupsResponse>(url);
+      return response.data;
+    } catch (error: any) {
+      // If endpoint doesn't exist yet, return empty response
+      if (error.response?.status === 404) {
+        return {
+          adgroups: [],
+          total: 0,
+          page: 1,
+          page_size: 10,
+          total_pages: 0,
+        };
+      }
+      throw error;
+    }
+  },
+
+  getKeywords: async (
+    accountId: number,
+    campaignId: string | number,
+    startDate?: string,
+    endDate?: string,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: 'asc' | 'desc';
+    }
+  ): Promise<KeywordsResponse> => {
+    const queryParams = new URLSearchParams();
+    if (startDate) {
+      queryParams.append('start_date', startDate);
+    }
+    if (endDate) {
+      queryParams.append('end_date', endDate);
+    }
+    if (params?.page) {
+      queryParams.append('page', params.page.toString());
+    }
+    if (params?.page_size) {
+      queryParams.append('page_size', params.page_size.toString());
+    }
+    if (params?.sort_by) {
+      queryParams.append('sort_by', params.sort_by);
+    }
+    if (params?.order) {
+      queryParams.append('order', params.order);
+    }
+    
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    try {
+      const response = await api.get<KeywordsResponse>(url);
+      return response.data;
+    } catch (error: any) {
+      // If endpoint doesn't exist yet, return empty response
+      if (error.response?.status === 404) {
+        return {
+          keywords: [],
+          total: 0,
+          page: 1,
+          page_size: 10,
+          total_pages: 0,
+        };
+      }
+      throw error;
+    }
   },
 };
 

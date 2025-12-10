@@ -13,6 +13,7 @@ import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
 import { campaignsService, type Campaign } from "../services/campaigns";
 import { Checkbox } from "../components/ui/Checkbox";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import {
   FilterPanel,
   type FilterValues,
@@ -24,9 +25,9 @@ export const Campaigns: React.FC = () => {
   const { startDate, endDate } = useDateRange();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCampaigns, setSelectedCampaigns] = useState<Set<number>>(
-    new Set()
-  );
+  const [selectedCampaigns, setSelectedCampaigns] = useState<
+    Set<string | number>
+  >(new Set());
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
@@ -36,7 +37,6 @@ export const Campaigns: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
   const [sortBy, setSortBy] = useState<string>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -114,12 +114,10 @@ export const Campaigns: React.FC = () => {
 
       const response = await campaignsService.getCampaigns(accountId, params);
       setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalCount(response.total || 0);
       setTotalPages(response.total_pages || 0);
     } catch (error) {
       console.error("Failed to load campaigns:", error);
       setCampaigns([]);
-      setTotalCount(0);
       setTotalPages(0);
     } finally {
       setLoading(false);
@@ -144,12 +142,10 @@ export const Campaigns: React.FC = () => {
 
       const response = await campaignsService.getCampaigns(accountId, params);
       setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalCount(response.total || 0);
       setTotalPages(response.total_pages || 0);
     } catch (error) {
       console.error("Failed to load campaigns:", error);
       setCampaigns([]);
-      setTotalCount(0);
       setTotalPages(0);
     } finally {
       setLoading(false);
@@ -224,37 +220,6 @@ export const Campaigns: React.FC = () => {
     );
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<
-      string,
-      { bg: string; text: string; label: string }
-    > = {
-      Enable: {
-        bg: "bg-[rgba(30,199,122,0.1)]",
-        text: "text-[#1ec77a]",
-        label: "Enable",
-      },
-      Paused: {
-        bg: "bg-[rgba(255,182,92,0.1)]",
-        text: "text-[#ffb65c]",
-        label: "Paused",
-      },
-      Archived: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
-        label: "Archived",
-      },
-    };
-    const statusInfo = statusMap[status] || statusMap["Enable"];
-    return (
-      <span
-        className={`inline-block px-3 py-1 rounded-full text-[9.6px] font-semibold ${statusInfo.bg} ${statusInfo.text}`}
-      >
-        {statusInfo.label}
-      </span>
-    );
-  };
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -270,11 +235,6 @@ export const Campaigns: React.FC = () => {
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
-  };
-
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to first page when changing page size
   };
 
   // Generate chart data based on campaigns and date range
@@ -703,24 +663,24 @@ export const Campaigns: React.FC = () => {
                   <div className="divide-y divide-[#E6E6E6]">
                     {campaigns.map((campaign) => (
                       <div
-                        key={campaign.id}
+                        key={campaign.campaignId}
                         className="flex items-center h-[48px] bg-white hover:bg-gray-50"
                       >
                         {/* Checkbox */}
                         <div className="w-[35px] flex items-center justify-center">
                           <Checkbox
-                            checked={selectedCampaigns.has(campaign.id)}
+                            checked={selectedCampaigns.has(campaign.campaignId)}
                             onChange={(checked) => {
                               if (checked) {
                                 setSelectedCampaigns((prev) => {
                                   const newSet = new Set(prev);
-                                  newSet.add(campaign.id);
+                                  newSet.add(campaign.campaignId);
                                   return newSet;
                                 });
                               } else {
                                 setSelectedCampaigns((prev) => {
                                   const newSet = new Set(prev);
-                                  newSet.delete(campaign.id);
+                                  newSet.delete(campaign.campaignId);
                                   return newSet;
                                 });
                               }
@@ -734,7 +694,7 @@ export const Campaigns: React.FC = () => {
                           <button
                             onClick={() =>
                               navigate(
-                                `/accounts/${accountId}/campaigns/${campaign.id}`
+                                `/accounts/${accountId}/campaigns/${campaign.campaignId}`
                               )
                             }
                             className="text-[12.8px] font-normal text-black truncate hover:text-[#0066ff] hover:underline cursor-pointer text-left w-full"
@@ -752,7 +712,7 @@ export const Campaigns: React.FC = () => {
 
                         {/* Status */}
                         <div className="w-[100px] text-center">
-                          {getStatusBadge(campaign.status || "Enable")}
+                          <StatusBadge status={campaign.status || "Enable"} />
                         </div>
 
                         {/* Daily Budget */}
@@ -797,7 +757,7 @@ export const Campaigns: React.FC = () => {
                           <button
                             onClick={() =>
                               navigate(
-                                `/accounts/${accountId}/campaigns/${campaign.id}`
+                                `/accounts/${accountId}/campaigns/${campaign.campaignId}`
                               )
                             }
                             className="text-[#A3A8B3] hover:text-black"

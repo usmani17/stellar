@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { Dropdown, type DropdownOption } from "../ui/Dropdown";
 
 export interface FilterItem {
   id: string;
@@ -128,22 +129,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Filter
             </label>
-            <select
-              value={selectedField}
-              onChange={(e) => {
-                setSelectedField(e.target.value);
+            <Dropdown<string>
+              options={FILTER_FIELDS.map(f => ({ value: f.value, label: f.label }))}
+              value={selectedField || undefined}
+              placeholder="Select Filter"
+              onChange={(value) => {
+                setSelectedField(value);
                 setSelectedOperator("");
                 setFilterValue("");
               }}
-              className="w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white"
-            >
-              <option value="">Select Filter</option>
-              {FILTER_FIELDS.map((field) => (
-                <option key={field.value} value={field.value}>
-                  {field.label}
-                </option>
-              ))}
-            </select>
+              buttonClassName="w-full"
+            />
           </div>
 
           {/* Operator Dropdown (for campaign_name and budget) */}
@@ -152,25 +148,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Operator
               </label>
-              <select
-                value={selectedOperator}
-                onChange={(e) => setSelectedOperator(e.target.value)}
-                className="w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white"
-              >
-                <option value="">Select Operator</option>
-                {selectedField === "campaign_name" &&
-                  STRING_OPERATORS.map((op) => (
-                    <option key={op.value} value={op.value}>
-                      {op.label}
-                    </option>
-                  ))}
-                {selectedField === "budget" &&
-                  NUMERIC_OPERATORS.map((op) => (
-                    <option key={op.value} value={op.value}>
-                      {op.label}
-                    </option>
-                  ))}
-              </select>
+              <Dropdown<string>
+                options={
+                  selectedField === "campaign_name"
+                    ? STRING_OPERATORS.map(op => ({ value: op.value, label: op.label }))
+                    : NUMERIC_OPERATORS.map(op => ({ value: op.value, label: op.label }))
+                }
+                value={selectedOperator || undefined}
+                placeholder="Select Operator"
+                onChange={(value) => setSelectedOperator(value)}
+                buttonClassName="w-full"
+              />
             </div>
           )}
 
@@ -180,18 +168,16 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               Value
             </label>
             {isStateOrType ? (
-              <select
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-                className="w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white"
-              >
-                <option value="">Select {selectedField === "state" ? "State" : "Type"}</option>
-                {(selectedField === "state" ? STATE_OPTIONS : TYPE_OPTIONS).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              <Dropdown<string>
+                options={(selectedField === "state" ? STATE_OPTIONS : TYPE_OPTIONS).map(opt => ({
+                  value: opt,
+                  label: opt,
+                }))}
+                value={filterValue || undefined}
+                placeholder={`Select ${selectedField === "state" ? "State" : "Type"}`}
+                onChange={(value) => setFilterValue(value)}
+                buttonClassName="w-full"
+              />
             ) : selectedField === "budget" ? (
               <input
                 type="number"

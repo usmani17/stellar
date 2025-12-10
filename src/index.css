@@ -1,7 +1,90 @@
 @import "tailwindcss";
 
+/* Agrandir Font Faces */
+@font-face {
+  font-family: "Agrandir";
+  src: url("./assets/fonts/PPAgrandir-Regular.woff2") format("woff2"),
+       url("./assets/fonts/PPAgrandir-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Agrandir";
+  src: url("./assets/fonts/PPAgrandir-Italic.woff2") format("woff2"),
+       url("./assets/fonts/PPAgrandir-Italic.woff") format("woff");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* GT America Trial Font Faces */
+@font-face {
+  font-family: "GT America Trial";
+  src: url("./assets/fonts/GT-America-Standard-Thin.woff2") format("woff2"),
+       url("./assets/fonts/GT-America-Standard-Thin.woff") format("woff");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America Trial";
+  src: url("./assets/fonts/GT-America-Standard-Light.woff2") format("woff2"),
+       url("./assets/fonts/GT-America-Standard-Light.woff") format("woff");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America Trial";
+  src: url("./assets/fonts/GT-America-Standard-Regular.woff2") format("woff2"),
+       url("./assets/fonts/GT-America-Standard-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America Trial";
+  src: url("./assets/fonts/GT-America-Standard-Regular-Italic.woff2") format("woff2"),
+       url("./assets/fonts/GT-America-Standard-Regular-Italic.woff") format("woff");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America Trial";
+  src: url("./assets/fonts/GT-America-Standard-Medium.woff2") format("woff2"),
+       url("./assets/fonts/GT-America-Standard-Medium.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America Trial";
+  src: url("./assets/fonts/GT-America-Standard-Bold.woff2") format("woff2"),
+       url("./assets/fonts/GT-America-Standard-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America Trial";
+  src: url("./assets/fonts/GT-America-Standard-Black.woff2") format("woff2"),
+       url("./assets/fonts/GT-America-Standard-Black.woff") format("woff");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "GT America Trial", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
@@ -13,6 +96,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: "GT America Trial", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
@@ -21,7 +105,7 @@ body {
 
 /* React DatePicker Styles */
 .react-datepicker {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "GT America Trial", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   border: none;
   border-radius: 12px;
   box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.12);

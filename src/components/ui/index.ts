@@ -12,4 +12,6 @@ export { Divider } from './Divider';
 export { Logo } from './Logo';
 export { GoogleButton } from './GoogleButton';
 export { Checkbox } from './Checkbox';
+export { Dropdown } from './Dropdown';
+export type { DropdownOption, DropdownProps } from './Dropdown';
 
