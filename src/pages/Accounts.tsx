@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useAccounts } from '../contexts/AccountsContext';
 import { accountsService, type Account, type Channel } from '../services/accounts';
 import { channelsService } from '../services/channels';
 import { Sidebar } from '../components/layout/Sidebar';
@@ -9,9 +10,9 @@ import { Button, Card } from '../components/ui';
 
 export const Accounts: React.FC = () => {
   const { user } = useAuth();
+  const { accounts, loading: accountsLoading, refreshAccounts } = useAccounts();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [channelsByAccount, setChannelsByAccount] = useState<Record<number, Channel[]>>({});
   const [expandedAccounts, setExpandedAccounts] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -24,8 +25,8 @@ export const Accounts: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadAccounts();
-  }, []);
+    loadChannels();
+  }, [accounts]);
 
   // Handle OAuth callback
   useEffect(() => {
@@ -54,7 +55,8 @@ export const Accounts: React.FC = () => {
         return;
       }
       
-      await loadAccounts();
+      await refreshAccounts();
+      await loadChannels();
       setOauthError(null);
     } catch (error: any) {
       setOauthError(error.response?.data?.error || 'Failed to complete Amazon OAuth');
@@ -62,26 +64,41 @@ export const Accounts: React.FC = () => {
     }
   };
 
-  const loadAccounts = async () => {
+  const loadChannels = async () => {
     try {
       setLoading(true);
-      const accountsData = await accountsService.getAccounts();
-      setAccounts(Array.isArray(accountsData) ? accountsData : []);
       
+      // Use channels from accounts response if available, otherwise fetch them
       const channelsMap: Record<number, Channel[]> = {};
-      for (const account of accountsData) {
-        try {
-          const channels = await channelsService.getChannels(account.id);
-          channelsMap[account.id] = Array.isArray(channels) ? channels : [];
-        } catch (error) {
-          console.error(`Failed to load channels for account ${account.id}:`, error);
-          channelsMap[account.id] = [];
-        }
+      const accountsWithChannels = accounts.filter((account: any) => account.channels && Array.isArray(account.channels));
+      const accountsWithoutChannels = accounts.filter((account: any) => !account.channels || !Array.isArray(account.channels));
+      
+      // Use channels from response if available
+      accountsWithChannels.forEach((account: any) => {
+        channelsMap[account.id] = account.channels;
+      });
+      
+      // Fetch channels for accounts that don't have them (fallback)
+      if (accountsWithoutChannels.length > 0) {
+        const channelPromises = accountsWithoutChannels.map(async (account) => {
+          try {
+            const channels = await channelsService.getChannels(account.id);
+            return { accountId: account.id, channels: Array.isArray(channels) ? channels : [] };
+          } catch (error) {
+            console.error(`Failed to load channels for account ${account.id}:`, error);
+            return { accountId: account.id, channels: [] };
+          }
+        });
+        
+        const channelResults = await Promise.all(channelPromises);
+        channelResults.forEach(({ accountId, channels }) => {
+          channelsMap[accountId] = channels;
+        });
       }
+      
       setChannelsByAccount(channelsMap);
     } catch (error) {
-      console.error('Failed to load accounts:', error);
-      setAccounts([]);
+      console.error('Failed to load channels:', error);
     } finally {
       setLoading(false);
     }
@@ -94,10 +111,11 @@ export const Accounts: React.FC = () => {
     }
 
     try {
-      await accountsService.createAccount({ account_name: newAccountName.trim() });
+      await accountsService.createAccount({ name: newAccountName.trim() });
       setNewAccountName('');
       setShowCreateAccount(false);
-      await loadAccounts();
+      await refreshAccounts();
+      await loadChannels();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Failed to create account');
     }
@@ -111,7 +129,8 @@ export const Accounts: React.FC = () => {
     setDeletingAccountId(id);
     try {
       await accountsService.deleteAccount(id);
-      await loadAccounts();
+      await refreshAccounts();
+      await loadChannels();
     } catch (error) {
       console.error('Failed to delete account:', error);
       alert('Failed to delete account');
@@ -128,7 +147,8 @@ export const Accounts: React.FC = () => {
     setDeletingChannelId(channelId);
     try {
       await channelsService.deleteChannel(accountId, channelId);
-      await loadAccounts();
+      await refreshAccounts();
+      await loadChannels();
     } catch (error) {
       console.error('Failed to delete channel:', error);
       alert('Failed to delete channel');
@@ -177,7 +197,7 @@ export const Accounts: React.FC = () => {
 
   // Filter accounts based on search query
   const filteredAccounts = accounts.filter(account =>
-    account.account_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (account.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -251,7 +271,7 @@ export const Accounts: React.FC = () => {
                   />
                 </div>
 
-                {loading ? (
+                {(loading || accountsLoading) ? (
                   <div className="text-center py-8 text-[#556179]">Loading accounts...</div>
                 ) : filteredAccounts.length === 0 ? (
                   <div className="text-center py-8">
@@ -300,7 +320,7 @@ export const Accounts: React.FC = () => {
                                       {isExpanded ? '▼' : '▶'}
                                     </button>
                                     <span className="font-medium text-[14px] text-[#313850]">
-                                      {account.account_name}
+                                      {account.name}
                                     </span>
                                   </div>
                                 </td>

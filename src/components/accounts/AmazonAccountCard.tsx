@@ -90,7 +90,7 @@ export const AmazonAccountCard: React.FC<AmazonAccountCardProps> = ({
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="text-[14px] font-medium text-[#0b0f16] mb-1">
-            {account.account_name}
+            {account.name}
           </h3>
           {account.amazon_account_id && (
             <p className="text-[14px] text-[#556179] mb-2">

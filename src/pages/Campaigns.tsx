@@ -13,6 +13,11 @@ import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
 import { campaignsService, type Campaign } from "../services/campaigns";
 import { Checkbox } from "../components/ui/Checkbox";
+import { StatusBadge } from "../components/ui/StatusBadge";
+import {
+  FilterPanel,
+  type FilterValues,
+} from "../components/filters/FilterPanel";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
@@ -20,9 +25,9 @@ export const Campaigns: React.FC = () => {
   const { startDate, endDate } = useDateRange();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCampaigns, setSelectedCampaigns] = useState<Set<number>>(
-    new Set()
-  );
+  const [selectedCampaigns, setSelectedCampaigns] = useState<
+    Set<string | number>
+  >(new Set());
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
@@ -32,9 +37,10 @@ export const Campaigns: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
   const [sortBy, setSortBy] = useState<string>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterValues>([]);
 
   useEffect(() => {
     if (accountId) {
@@ -55,26 +61,91 @@ export const Campaigns: React.FC = () => {
     sortOrder,
     startDate,
     endDate,
+    filters,
   ]);
+
+  const buildFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "campaign_name") {
+        if (filter.operator === "contains") {
+          params.campaign_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.campaign_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.campaign_name = filter.value;
+        }
+      } else if (filter.field === "budget") {
+        if (filter.operator === "lt") {
+          params.budget__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.budget__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.budget = filter.value;
+        } else if (filter.operator === "lte") {
+          params.budget__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.budget__gte = filter.value;
+        }
+      } else if (filter.field === "state") {
+        params.state = filter.value;
+      } else if (filter.field === "type") {
+        params.type = filter.value;
+      }
+    });
+
+    return params;
+  };
 
   const loadCampaigns = async (accountId: number) => {
     try {
       setLoading(true);
-      const response = await campaignsService.getCampaigns(accountId, {
+      const params: any = {
         sort_by: sortBy,
         order: sortOrder,
         page: currentPage,
         page_size: itemsPerPage,
         start_date: startDate.toISOString().split("T")[0],
         end_date: endDate.toISOString().split("T")[0],
-      });
+        ...buildFilterParams(filters),
+      };
+
+      const response = await campaignsService.getCampaigns(accountId, params);
       setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalCount(response.total || 0);
       setTotalPages(response.total_pages || 0);
     } catch (error) {
       console.error("Failed to load campaigns:", error);
       setCampaigns([]);
-      setTotalCount(0);
+      setTotalPages(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCampaignsWithFilters = async (
+    accountId: number,
+    filterList: FilterValues
+  ) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        sort_by: sortBy,
+        order: sortOrder,
+        page: 1, // Always reset to first page when applying filters
+        page_size: itemsPerPage,
+        start_date: startDate.toISOString().split("T")[0],
+        end_date: endDate.toISOString().split("T")[0],
+        ...buildFilterParams(filterList),
+      };
+
+      const response = await campaignsService.getCampaigns(accountId, params);
+      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
+      setTotalPages(response.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load campaigns:", error);
+      setCampaigns([]);
       setTotalPages(0);
     } finally {
       setLoading(false);
@@ -149,37 +220,6 @@ export const Campaigns: React.FC = () => {
     );
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<
-      string,
-      { bg: string; text: string; label: string }
-    > = {
-      Enable: {
-        bg: "bg-[rgba(30,199,122,0.1)]",
-        text: "text-[#1ec77a]",
-        label: "Enable",
-      },
-      Paused: {
-        bg: "bg-[rgba(255,182,92,0.1)]",
-        text: "text-[#ffb65c]",
-        label: "Paused",
-      },
-      Archived: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
-        label: "Archived",
-      },
-    };
-    const statusInfo = statusMap[status] || statusMap["Enable"];
-    return (
-      <span
-        className={`inline-block px-3 py-1 rounded-full text-[9.6px] font-semibold ${statusInfo.bg} ${statusInfo.text}`}
-      >
-        {statusInfo.label}
-      </span>
-    );
-  };
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -195,11 +235,6 @@ export const Campaigns: React.FC = () => {
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
-  };
-
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to first page when changing page size
   };
 
   // Generate chart data based on campaigns and date range
@@ -257,12 +292,16 @@ export const Campaigns: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="p-8 bg-white">
-          {/* Page Header with Campaign Manager and Add Filter */}
-          <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-[22.4px] font-semibold text-black">
+          {/* Page Header with Campaign Manager */}
+          <div className="mb-4">
+            <h1 className="text-[22.4px] font-semibold text-black mb-3">
               Campaign Manager
             </h1>
-            <button className="px-3 py-2 bg-[#FEFEFB] border border-[#E3E3E3] rounded-xl flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors">
+            {/* Add Filter Button - Under Campaign Manager */}
+            <button
+              onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+              className="px-3 py-2 bg-[#FEFEFB] border border-[#E3E3E3] rounded-xl flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors mb-3"
+            >
               <svg
                 className="w-5 h-5 text-[#072929]"
                 fill="none"
@@ -280,7 +319,9 @@ export const Campaigns: React.FC = () => {
                 Add Filter
               </span>
               <svg
-                className="w-5 h-5 text-[#E3E3E3]"
+                className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                  isFilterPanelOpen ? "rotate-180" : ""
+                }`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -293,12 +334,31 @@ export const Campaigns: React.FC = () => {
                 />
               </svg>
             </button>
+            {/* Filter Panel - Full width, inline, no popup */}
+            {isFilterPanelOpen && (
+              <FilterPanel
+                isOpen={true}
+                onClose={() => setIsFilterPanelOpen(false)}
+                onApply={(newFilters) => {
+                  setFilters(newFilters);
+                  setCurrentPage(1); // Reset to first page when applying filters
+                  // Explicitly trigger AJAX request when filters are applied
+                  if (accountId) {
+                    const accountIdNum = parseInt(accountId, 10);
+                    if (!isNaN(accountIdNum)) {
+                      loadCampaignsWithFilters(accountIdNum, newFilters);
+                    }
+                  }
+                }}
+                initialFilters={filters}
+              />
+            )}
           </div>
 
           {/* Chart Section */}
           <div
-            className="border border-[#E6E6E6] rounded-[20px] p-6 mb-4"
-            style={{ backgroundColor: "#FEFEFB" }}
+            className="border border-[#E6E6E6] rounded-[20px] p-4 mb-4"
+            style={{ backgroundColor: "#F5F5F0" }}
           >
             {/* Title and Toggle Switches Row */}
             <div className="flex items-center justify-between mb-4">
@@ -351,7 +411,7 @@ export const Campaigns: React.FC = () => {
             </div>
 
             {/* Chart */}
-            <div className="h-[223px] bg-transparent rounded-lg pl-2 pr-4 pt-4 pb-2">
+            <div className="h-[223px] bg-transparent rounded-lg ">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={chartData}
@@ -398,7 +458,7 @@ export const Campaigns: React.FC = () => {
                       type="monotone"
                       dataKey="sales"
                       stroke="#136D6D"
-                      strokeWidth={0.8}
+                      strokeWidth={1.5}
                       dot={false}
                       name="Sales"
                       activeDot={{ r: 4 }}
@@ -409,7 +469,7 @@ export const Campaigns: React.FC = () => {
                       type="monotone"
                       dataKey="spend"
                       stroke="#506766"
-                      strokeWidth={0.8}
+                      strokeWidth={1.5}
                       dot={false}
                       name="Spend"
                       activeDot={{ r: 4 }}
@@ -420,7 +480,7 @@ export const Campaigns: React.FC = () => {
                       type="monotone"
                       dataKey="clicks"
                       stroke="#169aa3"
-                      strokeWidth={0.8}
+                      strokeWidth={1.5}
                       dot={false}
                       name="Clicks"
                       activeDot={{ r: 4 }}
@@ -431,7 +491,7 @@ export const Campaigns: React.FC = () => {
                       type="monotone"
                       dataKey="orders"
                       stroke="#072929"
-                      strokeWidth={0.8}
+                      strokeWidth={1.5}
                       dot={false}
                       name="Orders"
                       activeDot={{ r: 4 }}
@@ -603,24 +663,24 @@ export const Campaigns: React.FC = () => {
                   <div className="divide-y divide-[#E6E6E6]">
                     {campaigns.map((campaign) => (
                       <div
-                        key={campaign.id}
+                        key={campaign.campaignId}
                         className="flex items-center h-[48px] bg-white hover:bg-gray-50"
                       >
                         {/* Checkbox */}
                         <div className="w-[35px] flex items-center justify-center">
                           <Checkbox
-                            checked={selectedCampaigns.has(campaign.id)}
+                            checked={selectedCampaigns.has(campaign.campaignId)}
                             onChange={(checked) => {
                               if (checked) {
                                 setSelectedCampaigns((prev) => {
                                   const newSet = new Set(prev);
-                                  newSet.add(campaign.id);
+                                  newSet.add(campaign.campaignId);
                                   return newSet;
                                 });
                               } else {
                                 setSelectedCampaigns((prev) => {
                                   const newSet = new Set(prev);
-                                  newSet.delete(campaign.id);
+                                  newSet.delete(campaign.campaignId);
                                   return newSet;
                                 });
                               }
@@ -634,7 +694,7 @@ export const Campaigns: React.FC = () => {
                           <button
                             onClick={() =>
                               navigate(
-                                `/accounts/${accountId}/campaigns/${campaign.id}`
+                                `/accounts/${accountId}/campaigns/${campaign.campaignId}`
                               )
                             }
                             className="text-[12.8px] font-normal text-black truncate hover:text-[#0066ff] hover:underline cursor-pointer text-left w-full"
@@ -652,7 +712,7 @@ export const Campaigns: React.FC = () => {
 
                         {/* Status */}
                         <div className="w-[100px] text-center">
-                          {getStatusBadge(campaign.status || "Enable")}
+                          <StatusBadge status={campaign.status || "Enable"} />
                         </div>
 
                         {/* Daily Budget */}
@@ -697,7 +757,7 @@ export const Campaigns: React.FC = () => {
                           <button
                             onClick={() =>
                               navigate(
-                                `/accounts/${accountId}/campaigns/${campaign.id}`
+                                `/accounts/${accountId}/campaigns/${campaign.campaignId}`
                               )
                             }
                             className="text-[#A3A8B3] hover:text-black"
