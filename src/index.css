@@ -74,6 +74,7 @@ body {
   display: flex;
   justify-content: space-between;
   margin-bottom: 4px;
+  gap: 0;
 }
 
 /* .react-datepicker__day {
@@ -127,8 +128,22 @@ body {
 
 .custom-datepicker .react-datepicker__month-container {
   padding: 12px 8px 12px;
-  width: 100%;
+  width: 280px; /* 7 days * 40px */
   background: transparent;
+}
+
+.custom-datepicker .react-datepicker__month {
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.custom-datepicker .react-datepicker__week {
+  gap: 0 !important;
+  margin-bottom: 2px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  width: 100% !important;
 }
 
 .custom-datepicker .react-datepicker__header {
@@ -167,7 +182,9 @@ body {
   width: 40px;
   height: 40px;
   line-height: 40px;
-  border-radius: 12px;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .custom-datepicker .react-datepicker__day--selected {
@@ -179,22 +196,32 @@ body {
 
 
 .custom-datepicker .react-datepicker__day--in-range {
-  background-color: #07292933 !important; /* Light shade */
+  background-color: #d6e5e5 !important;
   color: #072929 !important;
   border-radius: 0 !important;
+  margin: 0 !important;
 }
 
 /* Left rounded corner for start date */
 .custom-datepicker .react-datepicker__day--range-start {
-  border-radius: 50% !important;;
-  background-color:#072929 !important;
+  border-radius: 50% !important;
+  background-color: #072929 !important;
   color: white !important;
+  margin: 0 !important;
 }
 
 /* Right rounded corner for end date */
 .custom-datepicker .react-datepicker__day--range-end {
-  border-radius: 50% !important;;
-  background-color:#072929 !important;
+  border-radius: 50% !important;
+  background-color: #072929 !important;
+  color: white !important;
+  margin: 0 !important;
+}
+
+/* When start and end are the same day */
+.custom-datepicker .react-datepicker__day--range-start.react-datepicker__day--range-end {
+  border-radius: 50% !important;
+  background-color: #072929 !important;
   color: white !important;
 }
 
@@ -232,10 +259,12 @@ body {
 
 
 
-.react-datepicker__day,
-.react-datepicker__day--in-range,
-.react-datepicker__day--range-start,
-.react-datepicker__day--range-end {
+.custom-datepicker .react-datepicker__day,
+.custom-datepicker .react-datepicker__day--in-range,
+.custom-datepicker .react-datepicker__day--range-start,
+.custom-datepicker .react-datepicker__day--range-end {
   margin: 0 !important;
   box-sizing: border-box !important;
+  width: 40px !important;
+  flex: 0 0 40px !important;
 }
