@@ -14,10 +14,6 @@ export const DashboardHeader: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams<{ accountId?: string }>();
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [tempRange, setTempRange] = useState<[Date | null, Date | null]>([
-    startDate,
-    endDate,
-  ]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -63,7 +59,6 @@ export const DashboardHeader: React.FC = () => {
         !datePickerRef.current.contains(event.target as Node)
       ) {
         setIsDatePickerOpen(false);
-        setTempRange([startDate, endDate]);
       }
     };
 
@@ -100,50 +95,20 @@ export const DashboardHeader: React.FC = () => {
   };
 
   const toggleDatePicker = () => {
-    setTempRange([startDate, endDate]);
     setIsDatePickerOpen(!isDatePickerOpen);
   };
 
-  const handleDateChange = (dates: [Date | null, Date | null]) => {
-    setTempRange(dates);
-  };
-
-  const applyDateRange = () => {
-    if (tempRange[0] && tempRange[1]) {
-      setDateRange(tempRange[0], tempRange[1]);
+  const applyDateRange = (dates: [Date | null, Date | null]) => {
+    const [start, end] = dates;
+    if (start && end) {
+      setDateRange(start, end);
       setIsDatePickerOpen(false);
     }
   };
 
   const cancelDateRange = () => {
-    setTempRange([startDate, endDate]);
     setIsDatePickerOpen(false);
   };
-
-  const renderChevron = (direction: "left" | "right") => (
-    <svg
-      className="w-4 h-4 text-[#072929]"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
-      {direction === "left" ? (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M15 19l-7-7 7-7"
-        />
-      ) : (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 5l7 7-7 7"
-        />
-      )}
-    </svg>
-  );
 
   return (
     <div className="h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center justify-between px-7">
@@ -269,11 +234,15 @@ export const DashboardHeader: React.FC = () => {
                 monthsShown={2}
                 calendarClassName="custom-datepicker"
                 className="custom-datepicker-cls"
-                startDate={tempRange[0]}
-                endDate={tempRange[1]}
-                onChange={(dates) =>
-                  setTempRange(dates as [Date | null, Date | null])
-                }
+                startDate={startDate}
+                endDate={endDate}
+                onChange={(dates) => {
+                  // This is called when Apply is clicked, but we handle it in onApply
+                  const [start, end] = dates;
+                  if (start && end) {
+                    setDateRange(start, end);
+                  }
+                }}
                 onApply={applyDateRange}
                 onCancel={cancelDateRange}
               />

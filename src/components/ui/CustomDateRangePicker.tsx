@@ -1,5 +1,5 @@
 // components/CustomDateRangePicker.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import DatePicker, {
   type ReactDatePickerCustomHeaderProps,
   type DatePickerProps,
@@ -10,8 +10,8 @@ type CustomDateRangePickerProps = {
   startDate: Date | null;
   endDate: Date | null;
   onChange: (dates: [Date | null, Date | null]) => void;
-  onApply: () => void;
-  onCancel: () => void;
+  onApply?: (dates: [Date | null, Date | null]) => void;
+  onCancel?: () => void;
   monthsShown?: number;
 } & Omit<
   DatePickerProps,
@@ -30,14 +30,48 @@ type CustomDateRangePickerProps = {
 >;
 
 const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
-  startDate,
-  endDate,
+  startDate: propStartDate,
+  endDate: propEndDate,
   onChange,
   onApply,
   onCancel,
   monthsShown = 2,
   ...datePickerProps
 }) => {
+  // Local state for temporary date range changes
+  const [tempStartDate, setTempStartDate] = useState<Date | null>(
+    propStartDate
+  );
+  const [tempEndDate, setTempEndDate] = useState<Date | null>(propEndDate);
+
+  // Update local state when props change (e.g., when parent updates)
+  useEffect(() => {
+    setTempStartDate(propStartDate);
+    setTempEndDate(propEndDate);
+  }, [propStartDate, propEndDate]);
+
+  // Handle date range changes locally
+  const handleDateChange = (dates: [Date | null, Date | null]) => {
+    const [start, end] = dates;
+    setTempStartDate(start);
+    setTempEndDate(end);
+  };
+
+  // Apply the selected range to parent
+  const handleApply = () => {
+    if (tempStartDate && tempEndDate) {
+      const dates: [Date | null, Date | null] = [tempStartDate, tempEndDate];
+      onChange(dates);
+      onApply?.(dates);
+    }
+  };
+
+  // Cancel and reset to original values
+  const handleCancel = () => {
+    setTempStartDate(propStartDate);
+    setTempEndDate(propEndDate);
+    onCancel?.();
+  };
   const renderHeader = ({
     monthDate,
     customHeaderCount,
@@ -87,10 +121,10 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
   return (
     <div className="bg-white rounded-3xl border-none overflow-hidden select-none">
       <DatePicker
-        selected={startDate}
-        onChange={onChange}
-        startDate={startDate}
-        endDate={endDate}
+        selected={tempStartDate}
+        onChange={handleDateChange}
+        startDate={tempStartDate}
+        endDate={tempEndDate}
         selectsRange
         inline
         monthsShown={monthsShown}
@@ -105,15 +139,15 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-[#f9f9f6]">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={handleCancel}
           className="px-5 py-2.5 text-sm font-medium text-[#374151] bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition"
         >
           Cancel
         </button>
         <button
           type="button"
-          onClick={onApply}
-          disabled={!startDate || !endDate}
+          onClick={handleApply}
+          disabled={!tempStartDate || !tempEndDate}
           className="px-5 py-2.5 text-sm font-medium text-white bg-[#072929] rounded-xl hover:bg-[#051c1c] disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
         >
           Apply
