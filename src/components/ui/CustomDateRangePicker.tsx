@@ -43,6 +43,9 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
     propStartDate
   );
   const [tempEndDate, setTempEndDate] = useState<Date | null>(propEndDate);
+  const [monthGridOpen, setMonthGridOpen] = useState<Record<number, boolean>>(
+    {}
+  );
 
   // Update local state when props change (e.g., when parent updates)
   useEffect(() => {
@@ -79,7 +82,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
     decreaseMonth,
     increaseMonth,
   }: ReactDatePickerCustomHeaderProps & { customHeaderCount: number }) => (
-    <div className="flex items-center justify-between ">
+    <div className="flex items-center justify-between relative">
       {/* Previous button – only visible on the first (left) calendar */}
       <button
         type="button"
@@ -92,10 +95,69 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       </button>
 
       {/* Month + Year with comma: "September, 2025" */}
-      <h2 className="text-lg font-semibold text-[#030712]">
-        {monthDate.toLocaleDateString("en-US", { month: "long" })},{" "}
-        {monthDate.getFullYear()}
-      </h2>
+      <div className="flex items-center gap-0 relative">
+        <button
+          type="button"
+          className="month-grid-trigger text-lg font-semibold text-[#072929] rounded-[10px]  hover:border-[#072929] cursor-pointer"
+          onClick={() =>
+            setMonthGridOpen((prev) => ({
+              ...prev,
+              [customHeaderCount]: !prev[customHeaderCount],
+            }))
+          }
+        >
+          {monthDate.toLocaleDateString("en-US", { month: "short" })}
+        </button>
+        <span className="text-lg font-semibold text-[#072929]">
+          , {monthDate.getFullYear()}
+        </span>
+
+        {monthGridOpen[customHeaderCount] && (
+          <div className="month-grid">
+            {[
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec",
+            ].map((label, idx) => {
+              const isSelected = idx === monthDate.getMonth();
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={`month-grid-item ${isSelected ? "selected" : ""}`}
+                  onClick={() => {
+                    setMonthGridOpen((prev) => ({
+                      ...prev,
+                      [customHeaderCount]: false,
+                    }));
+                    // Update month while keeping year/day
+                    const newDate = new Date(monthDate);
+                    newDate.setMonth(idx);
+                    // Use decrease/increase helpers by diff, simpler: set month on current start
+                    const diff = idx - monthDate.getMonth();
+                    if (diff > 0) {
+                      for (let i = 0; i < diff; i++) increaseMonth();
+                    } else if (diff < 0) {
+                      for (let i = 0; i < Math.abs(diff); i++) decreaseMonth();
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Next button – only visible on the second (right) calendar */}
       <button
