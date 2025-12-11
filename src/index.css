@@ -4,6 +4,7 @@
 
 @theme {
    /* All custom tokens go here */
+   --color-midnight: #F54927;
 }
 
 :root {
