@@ -12,6 +12,10 @@ export interface Campaign {
   acos: number;
   roas: number;
   last_sync: string;
+  startDate?: string;  // Campaign start date
+  budgetType?: string;  // Budget type (e.g., 'daily', 'lifetime')
+  profile_name?: string;  // Profile name
+  profile_id?: string;  // Profile ID
 }
 
 export interface CampaignsResponse {
@@ -42,6 +46,10 @@ export interface CampaignsQueryParams {
   // State and Type filters
   state?: string;
   type?: string;
+  // Profile name filters with operators
+  profile_name?: string;
+  profile_name__icontains?: string;
+  profile_name__not_icontains?: string;
 }
 
 export interface CampaignDetail {
@@ -180,6 +188,16 @@ export const campaignsService = {
     if (params?.type) {
       filters.type = params.type;
     }
+    // Profile name filters
+    if (params?.profile_name) {
+      filters.profile_name = params.profile_name;
+    }
+    if (params?.profile_name__icontains) {
+      filters.profile_name__icontains = params.profile_name__icontains;
+    }
+    if (params?.profile_name__not_icontains) {
+      filters.profile_name__not_icontains = params.profile_name__not_icontains;
+    }
     
     // Send POST request with filters in body
     const url = `/accounts/${accountId}/campaigns/`;
@@ -308,6 +326,24 @@ export const campaignsService = {
       }
       throw error;
     }
+  },
+
+  bulkUpdateCampaigns: async (
+    accountId: number,
+    payload: {
+      campaignIds: Array<string | number>;
+      action: 'status' | 'budget';
+      status?: 'enable' | 'pause' | 'archive';
+      budgetAction?: 'increase' | 'decrease' | 'set';
+      unit?: 'percent' | 'amount';
+      value?: number;
+      upperLimit?: number;
+      lowerLimit?: number;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
   },
 };
 

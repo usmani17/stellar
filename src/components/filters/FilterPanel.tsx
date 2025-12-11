@@ -1,10 +1,11 @@
 import React, { useState, useRef } from "react";
 import { Dropdown, type DropdownOption } from "../ui/Dropdown";
+import { Chip } from "../ui/Chip";
 
 export interface FilterItem {
   id: string;
-  field: "campaign_name" | "state" | "budget" | "type";
-  operator?: string; // For campaign_name and budget
+  field: "campaign_name" | "state" | "budget" | "type" | "profile_name";
+  operator?: string; // For campaign_name, budget, and profile_name
   value: string | number;
 }
 
@@ -22,6 +23,7 @@ const FILTER_FIELDS = [
   { value: "state", label: "State" },
   { value: "budget", label: "Budget" },
   { value: "type", label: "Type" },
+  { value: "profile_name", label: "Profile Name" },
 ] as const;
 
 const STRING_OPERATORS = [
@@ -47,7 +49,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   onApply,
   initialFilters = [],
 }) => {
-  const [activeFilters, setActiveFilters] = useState<FilterValues>(initialFilters);
+  const [activeFilters, setActiveFilters] =
+    useState<FilterValues>(initialFilters);
   const [selectedField, setSelectedField] = useState<string>("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
@@ -58,7 +61,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
     // For fields that require operators, ensure operator is selected
     if (
-      (selectedField === "campaign_name" || selectedField === "budget") &&
+      (selectedField === "campaign_name" ||
+        selectedField === "budget" ||
+        selectedField === "profile_name") &&
       !selectedOperator
     ) {
       return;
@@ -68,7 +73,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       id: `${selectedField}-${Date.now()}`,
       field: selectedField as FilterItem["field"],
       operator: selectedOperator || undefined,
-      value: selectedField === "budget" ? parseFloat(filterValue) || 0 : filterValue,
+      value:
+        selectedField === "budget" ? parseFloat(filterValue) || 0 : filterValue,
     };
 
     setActiveFilters([...activeFilters, newFilter]);
@@ -110,7 +116,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     return filter.value.toString();
   };
 
-  const needsOperator = selectedField === "campaign_name" || selectedField === "budget";
+  const needsOperator =
+    selectedField === "campaign_name" ||
+    selectedField === "budget" ||
+    selectedField === "profile_name";
   const isStateOrType = selectedField === "state" || selectedField === "type";
 
   if (!isOpen) return null;
@@ -125,12 +134,15 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       <div className="p-4 border-b border-[#E6E6E6]">
         <div className="flex items-end gap-2">
           {/* Field Dropdown */}
-          <div className="flex-1">
+          <div className="w-[200px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Filter
             </label>
             <Dropdown<string>
-              options={FILTER_FIELDS.map(f => ({ value: f.value, label: f.label }))}
+              options={FILTER_FIELDS.map((f) => ({
+                value: f.value,
+                label: f.label,
+              }))}
               value={selectedField || undefined}
               placeholder="Select Filter"
               onChange={(value) => {
@@ -143,16 +155,23 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           </div>
 
           {/* Operator Dropdown (for campaign_name and budget) */}
-          {needsOperator && (
-            <div className="flex-1">
+          {selectedField && needsOperator && (
+            <div className="w-[150px]">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Operator
               </label>
               <Dropdown<string>
                 options={
-                  selectedField === "campaign_name"
-                    ? STRING_OPERATORS.map(op => ({ value: op.value, label: op.label }))
-                    : NUMERIC_OPERATORS.map(op => ({ value: op.value, label: op.label }))
+                  selectedField === "campaign_name" ||
+                  selectedField === "profile_name"
+                    ? STRING_OPERATORS.map((op) => ({
+                        value: op.value,
+                        label: op.label,
+                      }))
+                    : NUMERIC_OPERATORS.map((op) => ({
+                        value: op.value,
+                        label: op.label,
+                      }))
                 }
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
@@ -162,45 +181,56 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             </div>
           )}
 
-          {/* Value Input */}
-          <div className="flex-1">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-              Value
-            </label>
-            {isStateOrType ? (
-              <Dropdown<string>
-                options={(selectedField === "state" ? STATE_OPTIONS : TYPE_OPTIONS).map(opt => ({
-                  value: opt,
-                  label: opt,
-                }))}
-                value={filterValue || undefined}
-                placeholder={`Select ${selectedField === "state" ? "State" : "Type"}`}
-                onChange={(value) => setFilterValue(value)}
-                buttonClassName="w-full"
-              />
-            ) : selectedField === "budget" ? (
-              <input
-                type="number"
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-                placeholder="Enter budget"
-                className="w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-              />
-            ) : (
-              <input
-                type="text"
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-                placeholder="Enter value"
-                className="w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-              />
-            )}
-          </div>
+          {/* Value Input - Only show when a field is selected */}
+          {selectedField && (
+            <div className="w-[200px]">
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                Value
+              </label>
+              {isStateOrType ? (
+                <Dropdown<string>
+                  options={(selectedField === "state"
+                    ? STATE_OPTIONS
+                    : TYPE_OPTIONS
+                  ).map((opt) => ({
+                    value: opt,
+                    label: opt,
+                  }))}
+                  value={filterValue || undefined}
+                  placeholder={`Select ${
+                    selectedField === "state" ? "State" : "Type"
+                  }`}
+                  onChange={(value) => setFilterValue(value)}
+                  buttonClassName="w-full"
+                />
+              ) : selectedField === "budget" ? (
+                <input
+                  type="number"
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  placeholder="Enter budget"
+                  className="bg-white w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  placeholder="Enter value"
+                  className="bg-white w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                />
+              )}
+            </div>
+          )}
 
           {/* Add Filter Button */}
           <button
             onClick={handleAddFilter}
-            disabled={!selectedField || !filterValue || (needsOperator && !selectedOperator)}
+            disabled={
+              !selectedField ||
+              !filterValue ||
+              (needsOperator && !selectedOperator)
+            }
             className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             Add Filter
@@ -213,32 +243,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <div className="p-4 border-b border-[#E6E6E6]">
           <div className="flex flex-wrap gap-2">
             {activeFilters.map((filter) => (
-              <div
+              <Chip
                 key={filter.id}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#F5F5F0] border border-[#E6E6E6] rounded-lg"
+                onClose={() => handleRemoveFilter(filter.id)}
               >
-                <span className="text-[11.2px] font-medium text-black">
-                  {getFieldLabel(filter.field)}: {getFilterDisplayValue(filter)}
-                </span>
-                <button
-                  onClick={() => handleRemoveFilter(filter.id)}
-                  className="text-[#556179] hover:text-black transition-colors"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
+                {getFieldLabel(filter.field)}: {getFilterDisplayValue(filter)}
+              </Chip>
             ))}
           </div>
         </div>

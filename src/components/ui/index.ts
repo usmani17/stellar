@@ -14,4 +14,5 @@ export { GoogleButton } from './GoogleButton';
 export { Checkbox } from './Checkbox';
 export { Dropdown } from './Dropdown';
 export type { DropdownOption, DropdownProps } from './Dropdown';
+export { Chip } from './Chip';
 

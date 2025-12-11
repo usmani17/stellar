@@ -348,7 +348,10 @@ export const CampaignDetail: React.FC = () => {
           )}
 
           {/* Tab Navigation & Chart Section */}
-          <div className="border border-sandstorm-s40 rounded-2xl shadow-[0px_8px_20px_0px_rgba(0,0,0,0.06)] p-3 mt-4 bg-sandstorm-s0">
+          <div
+            className="border border-[#E8E8E3] rounded-2xl shadow-[0px_8px_20px_0px_rgba(0,0,0,0.06)] p-3 mt-4"
+            style={{ backgroundColor: "#F9F9F6" }}
+          >
             {/* Tabs */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex gap-1">
@@ -356,11 +359,17 @@ export const CampaignDetail: React.FC = () => {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-3 py-3 rounded-lg transition-colors text-h300 font-gtAmerica font-medium leading-[100%] ${
+                    className={`px-3 py-3 rounded-lg transition-colors ${
                       activeTab === tab
-                        ? "bg-white border border-sandstorm-s40 text-forest-f60 shadow-[0px_2px_4px_0px_rgba(0,0,0,0.06)]"
-                        : "bg-transparent text-forest-f60 hover:bg-sandstorm-s30"
+                        ? "bg-white border border-[#EBEAED] text-[#072929] shadow-[0px_2px_4px_0px_rgba(0,0,0,0.06)]"
+                        : "bg-transparent text-[#072929]"
                     }`}
+                    style={{
+                      fontSize: "12px",
+                      fontFamily: "GT America Trial",
+                      fontWeight: 500,
+                      lineHeight: "100%",
+                    }}
                   >
                     {tab}
                   </button>

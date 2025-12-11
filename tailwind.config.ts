@@ -10,6 +10,7 @@ const config: Config = {
       colors: {
         // Neutral (Light) - Complete palette from Figma
         neutral: {
+          red: '#00FF00',
           n0: '#FFFFFF',
           n10: '#FAFBFC',
           n20: '#F4F5F7',
