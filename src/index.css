@@ -185,6 +185,7 @@ body {
   border-radius: 0;
   margin: 0;
   padding: 0;
+  position: relative;
 }
 
 .custom-datepicker .react-datepicker__day--selected {
@@ -195,6 +196,7 @@ body {
 
 
 
+/* In-range days - light green background that extends fully */
 .custom-datepicker .react-datepicker__day--in-range {
   background-color: #d6e5e5 !important;
   color: #072929 !important;
@@ -202,20 +204,103 @@ body {
   margin: 0 !important;
 }
 
-/* Left rounded corner for start date */
+/* Start date - circular dark green */
 .custom-datepicker .react-datepicker__day--range-start {
-  border-radius: 50% !important;
-  background-color: #072929 !important;
+  /* border-radius: 50% !important; */
+  border-top-left-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  /* background-color: #072929 !important; */
   color: white !important;
   margin: 0 !important;
+  position: relative;
+  z-index: 1;
 }
 
-/* Right rounded corner for end date */
-.custom-datepicker .react-datepicker__day--range-end {
-  border-radius: 50% !important;
+/* When start is also in-range, show full light background with circular dark overlay */
+.custom-datepicker .react-datepicker__day--range-start.react-datepicker__day--in-range {
   background-color: #072929 !important;
   color: white !important;
+   
+}
+
+.custom-datepicker .react-datepicker__day--range-start.react-datepicker__day--in-range::before {
+  /* content: ''; */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+ 
+  border-top-left-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  background-color: #072929;
+  z-index: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Ensure text is visible above the circular overlay */
+.custom-datepicker .react-datepicker__day--range-start.react-datepicker__day--in-range {
+  color: white !important;
+  z-index: 1;
+}
+
+.custom-datepicker .react-datepicker__day--range-start.react-datepicker__day--in-range * {
+  color: white !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* End date - circular dark green */
+.custom-datepicker .react-datepicker__day--range-end {
+ 
+
+  color: white !important;
   margin: 0 !important;
+  position: relative;
+  z-index: 1;
+  border-top-left-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+}
+
+/* When end is also in-range, show full light background with circular dark overlay */
+.custom-datepicker .react-datepicker__day--range-end.react-datepicker__day--in-range {
+  /* background-color: #072929 !important; */
+  color: white !important;
+  background-color: #072929 !important;
+  border-radius: 0 !important;
+  border-top-right-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
+  
+}
+
+.custom-datepicker .react-datepicker__day--range-end.react-datepicker__day--in-range::before {
+  /* content: ''; */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+ 
+  /* background-color: #072929; */
+ 
+  z-index: 0;
+  color: white !important;
+  pointer-events: none;
+  box-sizing: border-box;
+  
+}
+
+/* Ensure text is visible above the circular overlay */
+.custom-datepicker .react-datepicker__day--range-end.react-datepicker__day--in-range {
+  color: white !important;
+  z-index: 1;
+}
+
+.custom-datepicker .react-datepicker__day--range-end.react-datepicker__day--in-range * {
+  color: white !important;
+  position: relative;
+  z-index: 1;
 }
 
 /* When start and end are the same day */
@@ -223,6 +308,8 @@ body {
   border-radius: 50% !important;
   background-color: #072929 !important;
   color: white !important;
+  z-index: 2;
+  
 }
 
 .custom-datepicker .react-datepicker__day--keyboard-selected {
@@ -238,6 +325,7 @@ body {
 .custom-datepicker .react-datepicker__day--outside-month {
   color: #b3bac5 !important;
   opacity: 0.7;
+  background-color: transparent !important;
 }
 
 .custom-datepicker .react-datepicker__day--disabled {
