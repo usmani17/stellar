@@ -19,8 +19,15 @@ export interface DropdownProps<T = string> {
   buttonClassName?: string;
   menuClassName?: string;
   optionClassName?: string;
-  renderButton?: (option: DropdownOption<T> | null, isOpen: boolean, toggle: () => void) => React.ReactNode;
-  renderOption?: (option: DropdownOption<T>, isSelected: boolean) => React.ReactNode;
+  renderButton?: (
+    option: DropdownOption<T> | null,
+    isOpen: boolean,
+    toggle: () => void
+  ) => React.ReactNode;
+  renderOption?: (
+    option: DropdownOption<T>,
+    isSelected: boolean
+  ) => React.ReactNode;
   searchable?: boolean;
   searchPlaceholder?: string;
   emptyMessage?: string;
@@ -30,6 +37,7 @@ export interface DropdownProps<T = string> {
   width?: string;
   showCheckmark?: boolean;
   closeOnSelect?: boolean;
+  defaultOpen?: boolean;
 }
 
 export const Dropdown = <T extends string | number = string>({
@@ -53,13 +61,21 @@ export const Dropdown = <T extends string | number = string>({
   width = "w-full",
   showCheckmark = true,
   closeOnSelect = true,
+  defaultOpen = false,
 }: DropdownProps<T>) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value) || null;
+
+  // Open dropdown if defaultOpen is true
+  useEffect(() => {
+    if (defaultOpen && !disabled) {
+      setIsOpen(true);
+    }
+  }, [defaultOpen, disabled]);
 
   // Filter options based on search query
   const filteredOptions = searchable
@@ -114,7 +130,10 @@ export const Dropdown = <T extends string | number = string>({
   };
 
   // Default button renderer
-  const defaultRenderButton = (option: DropdownOption<T> | null, isOpen: boolean) => {
+  const defaultRenderButton = (
+    option: DropdownOption<T> | null,
+    isOpen: boolean
+  ) => {
     return (
       <button
         type="button"
@@ -127,9 +146,7 @@ export const Dropdown = <T extends string | number = string>({
           buttonClassName
         )}
       >
-        <span className="truncate">
-          {option ? option.label : placeholder}
-        </span>
+        <span className="truncate">{option ? option.label : placeholder}</span>
         <svg
           className={cn(
             "w-4 h-4 text-[#072929] transition-transform",
@@ -254,4 +271,3 @@ export const Dropdown = <T extends string | number = string>({
     </div>
   );
 };
-

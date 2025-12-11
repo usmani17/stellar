@@ -15,4 +15,5 @@ export { Checkbox } from './Checkbox';
 export { Dropdown } from './Dropdown';
 export type { DropdownOption, DropdownProps } from './Dropdown';
 export { DeleteConfirmationModal } from './DeleteConfirmationModal';
+export { Chip } from './Chip';
 
