@@ -95,7 +95,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       </button>
 
       {/* Month + Year with comma: "September, 2025" */}
-      <div className="flex items-center gap-0 relative">
+      <div className="flex items-center gap-1 relative">
         <button
           type="button"
           className="month-grid-trigger text-lg font-semibold text-[#072929] rounded-[10px]  hover:border-[#072929] cursor-pointer"
@@ -106,14 +106,37 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
             }))
           }
         >
-          {monthDate.toLocaleDateString("en-US", { month: "short" })}
+          <span className="inline-flex items-center gap-1">
+            <svg
+              className="w-3 h-3 text-[#072929]"
+              viewBox="0 0 12 8"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M1 1.5L6 6.5L11 1.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {monthDate.toLocaleDateString("en-US", { month: "short" })},
+          </span>
         </button>
         <span className="text-lg font-semibold text-[#072929]">
-          , {monthDate.getFullYear()}
+          {monthDate.getFullYear()}
         </span>
 
         {monthGridOpen[customHeaderCount] && (
-          <div className="month-grid">
+          <div
+            className="month-grid"
+            style={
+              customHeaderCount === 1
+                ? { right: 0, left: "auto" }
+                : { left: 0, right: "auto" }
+            }
+          >
             {[
               "Jan",
               "Feb",
@@ -222,7 +245,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
 
 const ChevronLeft = () => (
   <svg
-    className="w-5 h-5 text-[#072929]"
+    className="w-5 h-5 text-[#072929] cursor-pointer"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"

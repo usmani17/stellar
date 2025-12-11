@@ -132,6 +132,10 @@ body {
   background: transparent;
 }
 
+.custom-datepicker .react-datepicker {
+  overflow: visible;
+}
+
 .custom-datepicker .react-datepicker__month {
   margin: 0 !important;
   padding: 0 !important;
