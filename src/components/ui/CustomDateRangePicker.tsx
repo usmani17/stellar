@@ -72,6 +72,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
     setTempEndDate(propEndDate);
     onCancel?.();
   };
+
   const renderHeader = ({
     monthDate,
     customHeaderCount,

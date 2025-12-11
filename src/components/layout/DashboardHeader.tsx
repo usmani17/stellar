@@ -243,7 +243,6 @@ export const DashboardHeader: React.FC = () => {
                     setDateRange(start, end);
                   }
                 }}
-                showMonthDropdown
                 onApply={applyDateRange}
                 onCancel={cancelDateRange}
               />
