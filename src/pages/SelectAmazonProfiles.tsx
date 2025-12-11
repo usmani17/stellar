@@ -12,6 +12,7 @@ interface AmazonProfile {
   type?: string;
   validPaymentMethod?: boolean;
   marketplaceStringId?: string;
+  sellerId?: string;
   // Alternative field names (for compatibility)
   profileId?: string;
   profile_id?: string;
@@ -23,6 +24,9 @@ interface AmazonProfile {
   timezone?: string;
   accountInfo?: any;
   account_info?: any;
+  // Database fields (from backend)
+  seller_id?: string;
+  marketplace_id?: string;
 }
 
 export const SelectAmazonProfiles: React.FC = () => {
@@ -156,6 +160,52 @@ export const SelectAmazonProfiles: React.FC = () => {
         const profileId = getProfileId(profile);
         const profileName = getProfileName(profile);
 
+        // Extract sellerId from accountInfo or profile
+        const sellerId =
+          profile.sellerId ||
+          profile.seller_id ||
+          profile.accountInfo?.id ||
+          profile.accountInfo?.sellerId ||
+          profile.account_info?.id ||
+          profile.account_info?.sellerId ||
+          "";
+
+        // Extract marketplaceId from accountInfo or profile
+        const marketplaceId =
+          profile.marketplaceStringId ||
+          profile.marketplace_id ||
+          profile.accountInfo?.marketplaceStringId ||
+          profile.accountInfo?.marketplaceId ||
+          profile.account_info?.marketplaceStringId ||
+          profile.account_info?.marketplaceId ||
+          "";
+
+        // Build accountInfo object with all necessary fields
+        const accountInfo = {
+          ...(profile.accountInfo || profile.account_info || {}),
+          // Ensure sellerId and marketplaceId are in accountInfo for backend compatibility
+          id:
+            sellerId ||
+            profile.accountInfo?.id ||
+            profile.account_info?.id ||
+            "",
+          sellerId:
+            sellerId ||
+            profile.accountInfo?.sellerId ||
+            profile.account_info?.sellerId ||
+            "",
+          marketplaceStringId:
+            marketplaceId ||
+            profile.accountInfo?.marketplaceStringId ||
+            profile.account_info?.marketplaceStringId ||
+            "",
+          marketplaceId:
+            marketplaceId ||
+            profile.accountInfo?.marketplaceId ||
+            profile.account_info?.marketplaceId ||
+            "",
+        };
+
         // Return profile in the format expected by backend
         return {
           id: profileId,
@@ -165,16 +215,14 @@ export const SelectAmazonProfiles: React.FC = () => {
             profile.validPaymentMethod ||
             profile.accountInfo?.validPaymentMethod ||
             false,
-          marketplaceStringId:
-            profile.marketplaceStringId ||
-            profile.accountInfo?.marketplaceStringId ||
-            "",
+          marketplaceStringId: marketplaceId,
+          sellerId: sellerId,
           countryCode:
             getCountryCode(profile) !== "N/A" ? getCountryCode(profile) : "",
           currencyCode:
             getCurrencyCode(profile) !== "N/A" ? getCurrencyCode(profile) : "",
           timezone: profile.timezone || "",
-          accountInfo: profile.accountInfo || profile.account_info || {},
+          accountInfo: accountInfo,
         };
       });
 
@@ -214,7 +262,7 @@ export const SelectAmazonProfiles: React.FC = () => {
   const getProfileId = (profile: AmazonProfile): string => {
     // Amazon API returns 'id' field, not 'profileId'
     // Make sure we return a string and handle all possible field names
-    const id = profile.id || profile.profileId || profile.profile_id;
+    const id = profile.profileId;
     return id ? String(id) : "";
   };
 
@@ -310,7 +358,26 @@ export const SelectAmazonProfiles: React.FC = () => {
                     const isSelected = selectedProfileIds.has(profileId);
                     const profileName = getProfileName(profile);
                     const profileType = profile.type || "";
-                    const marketplaceId = profile.marketplaceStringId || "";
+
+                    // Extract sellerId from various possible locations
+                    const sellerId =
+                      profile.sellerId ||
+                      profile.seller_id ||
+                      profile.accountInfo?.id ||
+                      profile.accountInfo?.sellerId ||
+                      profile.account_info?.id ||
+                      profile.account_info?.sellerId ||
+                      "";
+
+                    // Extract marketplaceId from various possible locations
+                    const marketplaceId =
+                      profile.marketplaceStringId ||
+                      profile.marketplace_id ||
+                      profile.accountInfo?.marketplaceStringId ||
+                      profile.accountInfo?.marketplaceId ||
+                      profile.account_info?.marketplaceStringId ||
+                      profile.account_info?.marketplaceId ||
+                      "";
 
                     return (
                       <div
@@ -335,10 +402,11 @@ export const SelectAmazonProfiles: React.FC = () => {
                               {profileName}
                             </h3>
                             <div className="flex gap-4 text-[14px] text-[#556179] flex-wrap">
-                              <span>ID: {profileId}</span>
+                              <span>ProfileId: {profileId}</span>
                               {profileType && <span>Type: {profileType}</span>}
+                              {sellerId && <span>SellerId: {sellerId}</span>}
                               {marketplaceId && (
-                                <span>Marketplace: {marketplaceId}</span>
+                                <span>MarketplaceId: {marketplaceId}</span>
                               )}
                               {getCountryCode(profile) !== "N/A" && (
                                 <span>Country: {getCountryCode(profile)}</span>
