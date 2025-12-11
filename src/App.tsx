@@ -18,7 +18,9 @@ import { Channels } from "./pages/Channels";
 import { Campaigns } from "./pages/Campaigns";
 import { CampaignDetail } from "./pages/CampaignDetail";
 import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
+import { GoogleOAuthCallback } from "./pages/GoogleOAuthCallback";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
+import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
 import { Auth0Callback } from "./pages/Auth0Callback";
 
 function App() {
@@ -38,6 +40,24 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AmazonOAuthCallback />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/google-oauth-callback"
+              element={
+                <ProtectedRoute>
+                  <GoogleOAuthCallback />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/channels/:channelId/select-google-accounts"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SelectGoogleAdsAccounts />
+                  </Layout>
                 </ProtectedRoute>
               }
             />

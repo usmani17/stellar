@@ -87,6 +87,40 @@ export const accountsService = {
     return response.data;
   },
 
+  // Google OAuth
+  initiateGoogleOAuth: async (accountId: number): Promise<{ auth_url: string }> => {
+    const response = await api.get<{ auth_url: string }>(`/accounts/google-oauth/initiate/?account_id=${accountId}`);
+    return response.data;
+  },
+
+  handleGoogleOAuthCallback: async (code: string, state?: string): Promise<any> => {
+    const response = await api.post<any>('/accounts/google-oauth/callback/', {
+      code,
+      state,
+    });
+    console.log('Google OAuth callback service response:', response.data);
+    return response.data;
+  },
+
+  // Google Profiles (now using channel_id, similar to Amazon profiles)
+  getGoogleProfiles: async (channelId: number): Promise<{ profiles: any[]; total: number; selected: number }> => {
+    const response = await api.get<{ profiles: any[]; total: number; selected: number }>(`/accounts/channels/${channelId}/google-profiles/`);
+    return response.data;
+  },
+
+  fetchGoogleProfiles: async (channelId: number): Promise<any[]> => {
+    const response = await api.get<{ profiles: any[] }>(`/accounts/channels/${channelId}/google-profiles/fetch/`);
+    return response.data.profiles || [];
+  },
+
+  saveGoogleProfiles: async (channelId: number, profileIds: string[], profiles?: any[]): Promise<any> => {
+    const response = await api.post(`/accounts/channels/${channelId}/google-profiles/save/`, {
+      profile_ids: profileIds,
+      profiles: profiles || [],
+    });
+    return response.data;
+  },
+
   // Amazon Profiles (now using channel_id)
   getProfiles: async (channelId: number): Promise<{ profiles: any[]; total: number; selected: number }> => {
     const response = await api.get<{ profiles: any[]; total: number; selected: number }>(`/accounts/channels/${channelId}/profiles/`);
