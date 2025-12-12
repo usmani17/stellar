@@ -4,8 +4,8 @@ import { Chip } from "../ui/Chip";
 
 export interface FilterItem {
   id: string;
-  field: "campaign_name" | "state" | "budget" | "type" | "profile_name";
-  operator?: string; // For campaign_name, budget, and profile_name
+  field: "campaign_name" | "state" | "budget" | "type" | "profile_name" | "status" | "advertising_channel_type" | "account_name";
+  operator?: string; // For campaign_name, budget, profile_name, and account_name
   value: string | number;
 }
 
@@ -16,14 +16,23 @@ interface FilterPanelProps {
   onClose: () => void;
   onApply: (filters: FilterValues) => void;
   initialFilters?: FilterValues;
+  filterFields?: Array<{ value: string; label: string }>;
 }
 
-const FILTER_FIELDS = [
+const DEFAULT_FILTER_FIELDS = [
   { value: "campaign_name", label: "Campaign Name" },
   { value: "state", label: "State" },
   { value: "budget", label: "Budget" },
   { value: "type", label: "Type" },
   { value: "profile_name", label: "Profile Name" },
+] as const;
+
+const GOOGLE_FILTER_FIELDS = [
+  { value: "campaign_name", label: "Campaign Name" },
+  { value: "status", label: "Status" },
+  { value: "budget", label: "Budget" },
+  { value: "advertising_channel_type", label: "Channel Type" },
+  { value: "account_name", label: "Account Name" },
 ] as const;
 
 const STRING_OPERATORS = [
@@ -42,12 +51,15 @@ const NUMERIC_OPERATORS = [
 
 const STATE_OPTIONS = ["Enable", "Paused", "Archived"];
 const TYPE_OPTIONS = ["SP", "SB", "SD"];
+const STATUS_OPTIONS = ["ENABLED", "PAUSED", "REMOVED"];
+const CHANNEL_TYPE_OPTIONS = ["SEARCH", "DISPLAY", "SHOPPING", "PERFORMANCE_MAX", "VIDEO", "HOTEL", "MULTI_CHANNEL", "LOCAL", "SMART"];
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   isOpen,
   onClose,
   onApply,
   initialFilters = [],
+  filterFields,
 }) => {
   const [activeFilters, setActiveFilters] =
     useState<FilterValues>(initialFilters);
@@ -55,6 +67,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
   const panelRef = useRef<HTMLDivElement>(null);
+  
+  const FILTER_FIELDS = filterFields || DEFAULT_FILTER_FIELDS;
 
   const handleAddFilter = () => {
     if (!selectedField || !filterValue) return;
@@ -63,7 +77,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     if (
       (selectedField === "campaign_name" ||
         selectedField === "budget" ||
-        selectedField === "profile_name") &&
+        selectedField === "profile_name" ||
+        selectedField === "account_name") &&
       !selectedOperator
     ) {
       return;
@@ -119,8 +134,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const needsOperator =
     selectedField === "campaign_name" ||
     selectedField === "budget" ||
-    selectedField === "profile_name";
+    selectedField === "profile_name" ||
+    selectedField === "account_name";
   const isStateOrType = selectedField === "state" || selectedField === "type";
+  const isStatusOrChannelType = selectedField === "status" || selectedField === "advertising_channel_type";
 
   if (!isOpen) return null;
 
@@ -163,7 +180,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Dropdown<string>
                 options={
                   selectedField === "campaign_name" ||
-                  selectedField === "profile_name"
+                  selectedField === "profile_name" ||
+                  selectedField === "account_name"
                     ? STRING_OPERATORS.map((op) => ({
                         value: op.value,
                         label: op.label,
@@ -199,6 +217,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue || undefined}
                   placeholder={`Select ${
                     selectedField === "state" ? "State" : "Type"
+                  }`}
+                  onChange={(value) => setFilterValue(value)}
+                  buttonClassName="w-full"
+                />
+              ) : isStatusOrChannelType ? (
+                <Dropdown<string>
+                  options={(selectedField === "status"
+                    ? STATUS_OPTIONS
+                    : CHANNEL_TYPE_OPTIONS
+                  ).map((opt) => ({
+                    value: opt,
+                    label: opt,
+                  }))}
+                  value={filterValue || undefined}
+                  placeholder={`Select ${
+                    selectedField === "status" ? "Status" : "Channel Type"
                   }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full"

@@ -22,6 +22,7 @@ const config = {
         // Neutral (Light) - Complete palette from Figma
         // Explicitly list all colors to ensure Tailwind JIT detects them
         neutral: {
+
           50: tokenStudioColors.neutral[50],
           100: tokenStudioColors.neutral[100],
           200: tokenStudioColors.neutral[200],

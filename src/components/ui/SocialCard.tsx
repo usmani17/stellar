@@ -96,7 +96,7 @@ export const SocialCard: React.FC<SocialCardProps> = ({
       {/* Button */}
       <button
         onClick={onButtonClick}
-        className="bg-forest-f60 flex gap-1 h-9 items-center justify-center min-w-[80px] px-2 py-0 relative rounded-lg shrink-0 hover:opacity-90 transition-opacity"
+        className="bg-forest-f60 flex gap-1 h-9 items-center justify-center min-w-[80px] px-2 py-0 relative rounded-lg shrink-0 hover:opacity-90 transition-opacity cursor-pointer"
       >
         <div className="flex items-center justify-center relative shrink-0">
           <div

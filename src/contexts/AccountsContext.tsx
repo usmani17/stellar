@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
   type ReactNode,
 } from "react";
 import { accountsService, type Account } from "../services/accounts";
@@ -24,7 +25,7 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadAccounts = async () => {
+  const loadAccounts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -38,16 +39,16 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const refreshAccounts = async () => {
+  const refreshAccounts = useCallback(async () => {
     await loadAccounts();
-  };
+  }, [loadAccounts]);
 
   // Load accounts on mount
   useEffect(() => {
     loadAccounts();
-  }, []);
+  }, [loadAccounts]);
 
   return (
     <AccountsContext.Provider

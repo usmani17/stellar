@@ -141,7 +141,7 @@ export const DashboardHeader: React.FC = () => {
           <button
             onClick={toggleDatePicker}
             className={`flex items-center gap-2 h-10 px-4 bg-background-field border ${
-              isDatePickerOpen ? "border-[#072929]" : "border-[#e4e4d7]"
+              isDatePickerOpen ? "border-gray-200" : "border-gray-200"
             } rounded-[12px] hover:bg-gray-50 transition-all`}
           >
             <svg
@@ -200,7 +200,7 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={profileDropdownRef}>
           <button
             onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-[#f9f9f6] border border-gray-200 flex items-center justify-center text-gray-600 text-[11.2px] font-semibold hover:bg-gray-50 transition-colors"
+            className="w-8 h-8 rounded-full bg-background-field border border-gray-200 flex items-center justify-center text-gray-600 text-[11.2px] font-semibold hover:bg-gray-50 transition-colors"
           >
             {user?.first_name?.[0] || "U"}
           </button>

@@ -1,72 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAccounts } from '../contexts/AccountsContext';
-import { accountsService, type Account, type Channel } from '../services/accounts';
+import { accountsService, type Channel } from '../services/accounts';
 import { channelsService } from '../services/channels';
 import { Sidebar } from '../components/layout/Sidebar';
 import { DashboardHeader } from '../components/layout/DashboardHeader';
-import { Button, Card } from '../components/ui';
+import { Button, Card, DeleteConfirmationModal } from '../components/ui';
 
 export const Accounts: React.FC = () => {
-  const { user } = useAuth();
   const { accounts, loading: accountsLoading, refreshAccounts } = useAccounts();
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [channelsByAccount, setChannelsByAccount] = useState<Record<number, Channel[]>>({});
   const [expandedAccounts, setExpandedAccounts] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null);
   const [deletingChannelId, setDeletingChannelId] = useState<number | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
-  const [oauthLoading, setOauthLoading] = useState<number | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<{ accountId: number; provider: 'amazon' | 'google' } | null>(null);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    type: 'account' | 'channel';
+    id: number;
+    name: string;
+    accountId?: number;
+  } | null>(null);
+
+  // Refresh accounts when navigating to this page (e.g., after OAuth flow)
+  // Use a ref to track if we've already refreshed to prevent infinite loops
+  const hasRefreshedRef = useRef<string>('');
+  useEffect(() => {
+    if (location.pathname === '/accounts') {
+      // Only refresh if we haven't already refreshed for this pathname
+      const currentKey = `${location.pathname}-${location.search}`;
+      if (hasRefreshedRef.current !== currentKey) {
+        hasRefreshedRef.current = currentKey;
+        refreshAccounts();
+      }
+    }
+  }, [location.pathname, location.search, refreshAccounts]);
 
   useEffect(() => {
-    loadChannels();
+    loadChannels(true); // Show loading on initial load
   }, [accounts]);
 
-  // Handle OAuth callback
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-    const state = searchParams.get('state');
+  // Note: OAuth callbacks are now handled by dedicated callback pages:
+  // - /return for Amazon OAuth
+  // - /google-oauth-callback for Google OAuth
+  // This keeps the Accounts page clean and provides better separation
 
-    if (error) {
-      setOauthError(`Amazon OAuth error: ${error}`);
-      setSearchParams({});
-      return;
-    }
-
-    if (code) {
-      handleOAuthCallback(code, state || undefined);
-    }
-  }, [searchParams]);
-
-  const handleOAuthCallback = async (code: string, state?: string) => {
+  const loadChannels = async (showLoading = false) => {
     try {
-      const channel = await accountsService.handleAmazonOAuthCallback(code, state);
-      setSearchParams({});
-      
-      if (channel.needs_profile_selection && channel.id) {
-        navigate(`/channels/${channel.id}/select-profiles`);
-        return;
+      if (showLoading) {
+        setLoading(true);
       }
-      
-      await refreshAccounts();
-      await loadChannels();
-      setOauthError(null);
-    } catch (error: any) {
-      setOauthError(error.response?.data?.error || 'Failed to complete Amazon OAuth');
-      setSearchParams({});
-    }
-  };
-
-  const loadChannels = async () => {
-    try {
-      setLoading(true);
       
       // Use channels from accounts response if available, otherwise fetch them
       const channelsMap: Record<number, Channel[]> = {};
@@ -100,7 +90,9 @@ export const Accounts: React.FC = () => {
     } catch (error) {
       console.error('Failed to load channels:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -122,36 +114,87 @@ export const Accounts: React.FC = () => {
   };
 
   const handleDeleteAccount = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this account? All channels will be deleted.')) {
-      return;
-    }
+    const account = accounts.find(acc => acc.id === id);
+    if (!account) return;
+    
+    setDeleteModal({
+      isOpen: true,
+      type: 'account',
+      id,
+      name: account.name,
+    });
+  };
 
+  const confirmDeleteAccount = async () => {
+    if (!deleteModal || deleteModal.type !== 'account') return;
+    
+    const id = deleteModal.id;
+    setDeleteModal(null);
     setDeletingAccountId(id);
+    
     try {
+      // Optimistically remove from UI
+      const updatedChannels = { ...channelsByAccount };
+      delete updatedChannels[id];
+      setChannelsByAccount(updatedChannels);
+      
+      // Perform delete in background
       await accountsService.deleteAccount(id);
+      
+      // Refresh data silently (no loading state)
       await refreshAccounts();
-      await loadChannels();
+      await loadChannels(false); // Don't show loading
     } catch (error) {
       console.error('Failed to delete account:', error);
       alert('Failed to delete account');
+      // Reload on error to restore state
+      await refreshAccounts();
+      await loadChannels(false);
     } finally {
       setDeletingAccountId(null);
     }
   };
 
   const handleDeleteChannel = async (accountId: number, channelId: number) => {
-    if (!window.confirm('Are you sure you want to delete this channel?')) {
-      return;
-    }
+    const channel = channelsByAccount[accountId]?.find(ch => ch.id === channelId);
+    if (!channel) return;
+    
+    setDeleteModal({
+      isOpen: true,
+      type: 'channel',
+      id: channelId,
+      name: channel.channel_name,
+      accountId,
+    });
+  };
 
+  const confirmDeleteChannel = async () => {
+    if (!deleteModal || deleteModal.type !== 'channel' || !deleteModal.accountId) return;
+    
+    const { id: channelId, accountId } = deleteModal;
+    setDeleteModal(null);
     setDeletingChannelId(channelId);
+    
     try {
+      // Optimistically remove from UI
+      const updatedChannels = { ...channelsByAccount };
+      if (updatedChannels[accountId]) {
+        updatedChannels[accountId] = updatedChannels[accountId].filter(ch => ch.id !== channelId);
+        setChannelsByAccount(updatedChannels);
+      }
+      
+      // Perform delete in background
       await channelsService.deleteChannel(accountId, channelId);
+      
+      // Refresh data silently (no loading state)
       await refreshAccounts();
-      await loadChannels();
+      await loadChannels(false); // Don't show loading
     } catch (error) {
       console.error('Failed to delete channel:', error);
       alert('Failed to delete channel');
+      // Reload on error to restore state
+      await refreshAccounts();
+      await loadChannels(false);
     } finally {
       setDeletingChannelId(null);
     }
@@ -159,13 +202,26 @@ export const Accounts: React.FC = () => {
 
   const handleConnectAmazon = async (accountId: number) => {
     setOauthError(null);
-    setOauthLoading(accountId);
+    setOauthLoading({ accountId, provider: 'amazon' });
 
     try {
       const { auth_url } = await accountsService.initiateAmazonOAuth(accountId);
       window.location.href = auth_url;
     } catch (err: any) {
       setOauthError(err.response?.data?.error || 'Failed to initiate Amazon OAuth');
+      setOauthLoading(null);
+    }
+  };
+
+  const handleConnectGoogle = async (accountId: number) => {
+    setOauthError(null);
+    setOauthLoading({ accountId, provider: 'google' });
+
+    try {
+      const { auth_url } = await accountsService.initiateGoogleOAuth(accountId);
+      window.location.href = auth_url;
+    } catch (err: any) {
+      setOauthError(err.response?.data?.error || 'Failed to initiate Google OAuth');
       setOauthLoading(null);
     }
   };
@@ -310,7 +366,11 @@ export const Accounts: React.FC = () => {
                           
                           return (
                             <React.Fragment key={account.id}>
-                              <tr className="border-b border-gray-100 hover:bg-gray-50">
+                              <tr 
+                                className={`border-b border-gray-100 hover:bg-gray-50 transition-opacity ${
+                                  deletingAccountId === account.id ? 'opacity-50' : ''
+                                }`}
+                              >
                                 <td className="py-4 px-4">
                                   <div className="flex items-center gap-3">
                                     <button
@@ -339,17 +399,32 @@ export const Accounts: React.FC = () => {
                                     <Button
                                       onClick={() => handleConnectAmazon(account.id)}
                                       size="sm"
-                                      disabled={oauthLoading === account.id}
+                                      disabled={oauthLoading?.accountId === account.id}
                                     >
-                                      {oauthLoading === account.id ? 'Connecting...' : 'Connect Amazon'}
+                                      {oauthLoading?.accountId === account.id && oauthLoading?.provider === 'amazon' ? 'Connecting...' : 'Connect Amazon'}
+                                    </Button>
+                                    <Button
+                                      onClick={() => handleConnectGoogle(account.id)}
+                                      size="sm"
+                                      disabled={oauthLoading?.accountId === account.id}
+                                    >
+                                      {oauthLoading?.accountId === account.id && oauthLoading?.provider === 'google' ? 'Connecting...' : 'Connect Google'}
                                     </Button>
                                     <Button
                                       onClick={() => handleDeleteAccount(account.id)}
                                       size="sm"
                                       variant="outline"
                                       disabled={deletingAccountId === account.id}
+                                      className="relative"
                                     >
-                                      {deletingAccountId === account.id ? 'Deleting...' : 'Delete'}
+                                      {deletingAccountId === account.id ? (
+                                        <span className="flex items-center gap-2">
+                                          <span className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent"></span>
+                                          Deleting...
+                                        </span>
+                                      ) : (
+                                        'Delete'
+                                      )}
                                     </Button>
                                   </div>
                                 </td>
@@ -383,10 +458,21 @@ export const Accounts: React.FC = () => {
                                           </thead>
                                           <tbody>
                                             {channels.map((channel) => (
-                                              <tr key={channel.id} className="border-b border-gray-100 hover:bg-white">
+                                              <tr 
+                                                key={channel.id} 
+                                                className={`border-b border-gray-100 hover:bg-white transition-opacity ${
+                                                  deletingChannelId === channel.id ? 'opacity-50' : ''
+                                                }`}
+                                              >
                                                 <td className="py-3 px-4">
                                                   <button
-                                                    onClick={() => navigate(`/accounts/${account.id}/campaigns`)}
+                                                    onClick={() => {
+                                                      if (channel.channel_type === 'google') {
+                                                        navigate(`/accounts/${account.id}/google-campaigns`);
+                                                      } else {
+                                                        navigate(`/accounts/${account.id}/campaigns`);
+                                                      }
+                                                    }}
                                                     className="text-[14px] text-[#313850] hover:text-[#0066ff] hover:underline cursor-pointer text-left"
                                                   >
                                                     {channel.channel_name}
@@ -413,13 +499,30 @@ export const Accounts: React.FC = () => {
                                                         Profiles
                                                       </Button>
                                                     )}
+                                                    {channel.channel_type === 'google' && (
+                                                      <Button
+                                                        onClick={() => navigate(`/channels/${channel.id}/select-google-accounts`)}
+                                                        size="sm"
+                                                        variant="outline"
+                                                      >
+                                                        Profiles
+                                                      </Button>
+                                                    )}
                                                     <Button
                                                       onClick={() => handleDeleteChannel(account.id, channel.id)}
                                                       size="sm"
                                                       variant="outline"
                                                       disabled={deletingChannelId === channel.id}
+                                                      className="relative"
                                                     >
-                                                      {deletingChannelId === channel.id ? 'Deleting...' : 'Delete'}
+                                                      {deletingChannelId === channel.id ? (
+                                                        <span className="flex items-center gap-2">
+                                                          <span className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent"></span>
+                                                          Deleting...
+                                                        </span>
+                                                      ) : (
+                                                        'Delete'
+                                                      )}
                                                     </Button>
                                                   </div>
                                                 </td>
@@ -444,6 +547,22 @@ export const Accounts: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <DeleteConfirmationModal
+          isOpen={deleteModal.isOpen}
+          onClose={() => setDeleteModal(null)}
+          onConfirm={deleteModal.type === 'account' ? confirmDeleteAccount : confirmDeleteChannel}
+          title={deleteModal.type === 'account' ? 'Delete Account' : 'Delete Channel'}
+          itemName={deleteModal.name}
+          itemType={deleteModal.type}
+          isLoading={
+            (deleteModal.type === 'account' && deletingAccountId === deleteModal.id) ||
+            (deleteModal.type === 'channel' && deletingChannelId === deleteModal.id)
+          }
+        />
+      )}
     </div>
   );
 };
