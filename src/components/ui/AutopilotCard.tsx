@@ -163,7 +163,7 @@ export const AutopilotCard: React.FC<AutopilotCardProps> = ({
       <div className="flex gap-1 items-center relative shrink-0">
         <p
           className="font-medium leading-[40px] not-italic relative shrink-0 text-forest-f60 text-[28px] tracking-tight"
-          style={{ fontFamily: 'GT America Trial, sans-serif' }}
+          className="font-gtAmerica"
         >
           {number}
         </p>
@@ -175,7 +175,7 @@ export const AutopilotCard: React.FC<AutopilotCardProps> = ({
       {/* Description */}
       <p
         className="font-normal leading-[28px] not-italic relative shrink-0 text-forest-f60 text-base"
-        style={{ fontFamily: 'GT America Trial, sans-serif' }}
+        className="font-gtAmerica"
       >
         {description}
       </p>

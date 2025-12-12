@@ -22,7 +22,7 @@ export const Input: React.FC<InputProps> = ({
         className={`
           w-full px-4 py-2.5
           bg-white
-          border border-[#E6E6E6]
+          border border-gray-200
           rounded-lg
           text-[14px] text-[#0b0f16]
           placeholder:text-[#bfbfbf]

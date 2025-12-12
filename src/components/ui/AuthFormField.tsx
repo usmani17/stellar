@@ -19,15 +19,14 @@ export const AuthFormField: React.FC<AuthFormFieldProps> = ({
     <div className={`flex-1 inline-flex flex-col justify-start items-start gap-1 ${containerClassName}`}>
       <div className="self-stretch pb-1 inline-flex justify-start items-start">
         <label 
-          className="justify-center text-black text-base font-medium leading-5" 
-          style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 500 }}
+          className="justify-center text-black text-base font-medium leading-5 font-poppins" 
         >
           {label}
         </label>
       </div>
       <div className={`
         self-stretch h-12 px-3 py-2 
-        bg-[#f5f7fa] 
+        bg-background-field 
         rounded-xl 
         outline outline-1 outline-offset-[-1px] outline-[#e8e8e3]
         inline-flex justify-start items-center gap-2
@@ -42,9 +41,10 @@ export const AuthFormField: React.FC<AuthFormFieldProps> = ({
             text-neutral-n1000
             placeholder:text-[#bfbfbf] 
             focus:outline-none 
+            font-poppins
+            font-normal
             ${className}
           `}
-          style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
           {...props}
         />
       </div>
@@ -54,7 +54,7 @@ export const AuthFormField: React.FC<AuthFormFieldProps> = ({
         </div>
       )}
       {error && (
-        <p className="self-stretch text-h700 text-red-600" style={{ fontFamily: 'Poppins, sans-serif' }}>{error}</p>
+        <p className="self-stretch text-h700 text-red-600 font-poppins">{error}</p>
       )}
     </div>
   );

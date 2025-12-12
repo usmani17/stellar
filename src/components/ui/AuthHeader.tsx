@@ -15,13 +15,13 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({
     <div className={`self-stretch flex flex-col justify-start items-start gap-4 ${className}`}>
       <h2 
         className="self-stretch justify-start text-black text-3xl font-semibold"
-        style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
+        className="font-poppins font-semibold"
       >
         {title}
       </h2>
       <div 
         className="self-stretch justify-start text-[#808080] text-xl font-normal"
-        style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
+        className="font-poppins font-normal"
       >
         {typeof description === 'string' ? (
           <p>{description}</p>

@@ -96,7 +96,7 @@ export const Login: React.FC = () => {
                     <Link
                       to="/forgot-password"
                       className="text-xs font-semibold text-forest-f60 hover:text-forest-f50"
-                      style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
+                      className="font-poppins font-semibold"
                     >
                       Forget Password?
                     </Link>
@@ -121,14 +121,14 @@ export const Login: React.FC = () => {
           <div className="self-stretch text-center">
             <p 
               className="text-base text-neutral-n1000 capitalize leading-4 tracking-tight"
-              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
+              className="font-poppins font-normal"
             >
               <span>Don't have an account?</span>
               <span> </span>
               <Link 
                 to="/signup" 
                 className="text-forest-f60 font-semibold uppercase leading-4 tracking-tight hover:text-forest-f50"
-                style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
+                className="font-poppins font-semibold"
               >
                 Sign up
               </Link>

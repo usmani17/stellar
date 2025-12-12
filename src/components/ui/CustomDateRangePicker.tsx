@@ -87,7 +87,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       <button
         type="button"
         onClick={decreaseMonth}
-        className={`p-2 rounded-full hover:bg-gray-100 transition ${
+        className={`p-2 border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition ${
           customHeaderCount === 0 ? "visible" : "invisible"
         }`}
       >
@@ -98,7 +98,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       <div className="flex items-center gap-1 relative">
         <button
           type="button"
-          className="month-grid-trigger text-lg font-semibold text-[#072929] rounded-[10px]  hover:border-[#072929] cursor-pointer"
+          className="month-grid-trigger text-lg font-semibold text-[#072929] rounded-[10px] cursor-pointer"
           onClick={() =>
             setMonthGridOpen((prev) => ({
               ...prev,
@@ -186,7 +186,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       <button
         type="button"
         onClick={increaseMonth}
-        className={`p-2 rounded-full hover:bg-gray-100 transition ${
+        className={`p-2 border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition ${
           customHeaderCount === 1 ? "visible" : "invisible"
         }`}
       >
@@ -226,7 +226,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
         <button
           type="button"
           onClick={handleCancel}
-          className="px-5 py-2.5 text-sm font-medium text-[#374151] bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition"
+          className="px-5 py-2.5 text-sm font-medium text-[#374151] bg-background-field border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition"
         >
           Cancel
         </button>

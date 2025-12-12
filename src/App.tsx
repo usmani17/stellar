@@ -20,6 +20,7 @@ import { CampaignDetail } from "./pages/CampaignDetail";
 import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
 import { Auth0Callback } from "./pages/Auth0Callback";
+import { ColorExamples } from "./pages/ColorExamples";
 
 function App() {
   return (
@@ -116,6 +117,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Channels />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/color-examples"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ColorExamples />
                   </Layout>
                 </ProtectedRoute>
               }

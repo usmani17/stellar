@@ -80,7 +80,7 @@ export const ForgotPassword: React.FC = () => {
             <Link
               to="/login"
               className="text-base text-forest-f60 hover:text-forest-f50"
-              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
+              className="font-poppins font-normal"
             >
               Back To Login
             </Link>

@@ -192,7 +192,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
               {heading && (
                 <p
                   className="font-medium relative shrink-0 w-full"
-                  style={{ fontFamily: 'GT America Trial, sans-serif' }}
+                  className="font-gtAmerica"
                 >
                   {heading}
                 </p>
@@ -200,7 +200,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
               {description && (
                 <p
                   className="font-normal relative shrink-0 w-full"
-                  style={{ fontFamily: 'GT America Trial, sans-serif' }}
+                  className="font-gtAmerica"
                 >
                   {description}
                 </p>

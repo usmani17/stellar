@@ -22,7 +22,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({
         transition-colors
         ${className}
       `}
-      style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
+      className="font-poppins font-normal"
       {...props}
     >
       <div className="w-8 h-8 relative shrink-0">
@@ -33,7 +33,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({
           <path d="M16.2864 7.41333C18.9689 7.41333 20.7784 8.54885 21.8102 9.49778L25.8239 5.54C23.3658 3.17777 20.1435 2 16.2864 2C10.699 2 5.87359 5.14222 3.52441 9.71556L8.14352 13.2311C9.30252 9.85555 12.5091 7.41333 16.2864 7.41333Z" fill="#EB4335"/>
         </svg>
       </div>
-      <span className="justify-center text-black text-base font-normal" style={{ fontFamily: 'Poppins, sans-serif' }}>
+      <span className="justify-center text-black text-base font-normal" className="font-poppins">
         {children || 'Continue with Google'}
       </span>
     </button>

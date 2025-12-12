@@ -23,17 +23,17 @@ export const AuthButton: React.FC<AuthButtonProps> = ({
         disabled={disabled || loading}
         className={`
           w-full h-14 
-          bg-white 
-          border border-[#e8e8e3] 
-          rounded-2xl 
+          bg-background-field 
+          border border-gray-200 
+          rounded-lg 
           flex items-center justify-center gap-2.5 
-          hover:bg-sandstorm-s5 
+          hover:bg-gray-50 
           transition-colors
           disabled:opacity-50 
           disabled:cursor-not-allowed
+          font-poppins
           ${className}
         `}
-        style={{ fontFamily: 'Poppins, sans-serif' }}
         {...props}
       >
         {children}
@@ -61,11 +61,6 @@ export const AuthButton: React.FC<AuthButtonProps> = ({
         inline-flex justify-center items-center gap-2.5
         ${className}
       `}
-      style={{ 
-        fontFamily: 'Poppins, sans-serif', 
-        fontWeight: 600,
-        backgroundColor: '#136D6D'
-      }}
       {...props}
     >
       {loading ? (loadingText || 'Loading...') : children}

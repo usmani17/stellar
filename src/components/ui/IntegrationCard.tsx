@@ -108,11 +108,11 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({
         {connected ? (
           <button
             onClick={onButtonClick}
-            className="bg-sandstorm-s0 border border-sandstorm-s60 border-solid flex gap-1 h-7 items-center justify-center min-w-[80px] px-3 py-0 relative rounded-lg shrink-0 hover:opacity-90 transition-opacity"
+            className="bg-sandstorm-s0 border border-gray-200 flex gap-1 h-7 items-center justify-center min-w-[80px] px-3 py-0 relative rounded-lg shrink-0 hover:bg-gray-50 transition-colors"
           >
             <div
               className="flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-forest-f60 whitespace-nowrap"
-              style={{ fontFamily: 'GT America Trial, sans-serif', fontWeight: 500 }}
+              className="font-gtAmerica font-medium"
             >
               <p className="leading-[20px]">Manage</p>
             </div>
@@ -120,11 +120,11 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({
         ) : (
           <button
             onClick={onButtonClick}
-            className="flex gap-1 h-7 items-center justify-center min-w-[80px] px-3 py-0 relative rounded-xl shrink-0 hover:opacity-90 transition-opacity"
+            className="flex gap-1 h-7 items-center justify-center min-w-[80px] px-3 py-0 relative border border-gray-200 rounded-lg shrink-0 hover:bg-gray-50 transition-colors"
           >
             <div
               className="flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-blue-b10Alt whitespace-nowrap"
-              style={{ fontFamily: 'GT America Trial, sans-serif', fontWeight: 500 }}
+              className="font-gtAmerica font-medium"
             >
               <p className="leading-[20px]">Connect</p>
             </div>
@@ -137,13 +137,13 @@ export const IntegrationCard: React.FC<IntegrationCardProps> = ({
         <div className="flex flex-col gap-1 items-start not-italic relative shrink-0 w-full">
           <p
             className="font-bold leading-[28px] relative shrink-0 text-forest-f60 text-lg tracking-tighter w-full"
-            style={{ fontFamily: 'GT America Trial, sans-serif' }}
+            className="font-gtAmerica"
           >
             {title}
           </p>
           <p
             className="font-medium leading-[20px] relative shrink-0 text-neutral-n300 text-sm w-full"
-            style={{ fontFamily: 'GT America Trial, sans-serif' }}
+            className="font-gtAmerica"
           >
             {description}
           </p>

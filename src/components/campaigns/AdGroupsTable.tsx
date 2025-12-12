@@ -34,18 +34,18 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
     <div className="rounded-2xl" style={{ backgroundColor: "#F5F5F0" }}>
       {/* Table Header */}
       <div
-        className="border border-[#E6E6E6] border-b-0 rounded-t-2xl px-[34px] pt-8 pb-0 shadow-[0px_8px_20px_0px_rgba(0,0,0,0.06)]"
+        className="border border-gray-200 border-b-0 rounded-t-2xl px-[34px] pt-8 pb-0 shadow-[0px_8px_20px_0px_rgba(0,0,0,0.06)]"
         style={{ backgroundColor: "#F5F5F0" }}
       ></div>
 
       {/* Table */}
       <div
-        className="border border-[#E6E6E6] border-t-0 rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden p-6"
+        className="border border-gray-200 border-t-0 rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden p-6"
         style={{ backgroundColor: "#F5F5F0" }}
       >
         <div className="bg-white rounded-xl overflow-hidden">
           {/* Table Header Row */}
-          <div className="border-b border-[#E6E6E6] flex items-center h-[48px] bg-white rounded-t-xl">
+          <div className="border-b border-gray-200 flex items-center h-[48px] bg-white rounded-t-xl">
             {/* Checkbox Header */}
             <div className="w-[35px] flex items-center justify-center">
               <Checkbox
@@ -98,7 +98,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
               </p>
             </div>
           </div>
-          <div className="divide-y divide-[#E6E6E6]">
+          <div className="divide-y divide-gray-200">
             {loading ? (
               <div
                 className="p-8 text-center text-[#556179]"
@@ -163,7 +163,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                   {/* Actions */}
                   <div className="w-[54px] text-center mr-4">
-                    <button className="text-[#A3A8B3] hover:text-black">
+                    <button className="text-[#A3A8B3] hover:text-black border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition-colors">
                       <svg
                         className="w-5 h-5 mx-auto"
                         fill="currentColor"

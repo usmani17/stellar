@@ -26,31 +26,8 @@ export const Sidebar: React.FC = () => {
     return location.pathname === path;
   };
 
-  const activeLinkStyle = {
-    width: "100%",
-    height: "100%",
-    padding: "8px",
-    background: "#072929",
-    borderRadius: "12px",
-    justifyContent: "flex-start",
-    alignItems: "center",
-    gap: "4px",
-    display: "inline-flex",
-    flexWrap: "wrap",
-    alignContent: "center",
-    color: "white",
-  };
-
-  const defaultLinkStyle = {
-    padding: "8px",
-    color: "black",
-  };
-
   return (
-    <div
-      className="w-[272px] border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto"
-      style={{ backgroundColor: "#F5F5F0" }}
-    >
+    <div className="sidebar-nav w-[272px] border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto bg-sandstorm-s20">
       <div className="p-4">
         {/* Logo */}
         <div className="mb-8 flex items-center gap-3">
@@ -66,10 +43,11 @@ export const Sidebar: React.FC = () => {
           <div className="space-y-1">
             <Link
               to="/accounts"
-              className={`flex items-center gap-2 rounded-xl transition-colors ${
-                isActive("/accounts") ? "" : "hover:bg-transparent"
+              className={`flex items-center gap-2 p-2 rounded-xl transition-colors ${
+                isActive("/accounts")
+                  ? "w-full bg-forest-f60 text-white"
+                  : "text-black hover:bg-transparent"
               }`}
-              style={isActive("/accounts") ? activeLinkStyle : defaultLinkStyle}
             >
               <span className="text-[11.2px] font-normal leading-[16px]">
                 Accounts
@@ -86,22 +64,18 @@ export const Sidebar: React.FC = () => {
           <div className="space-y-1">
             <Link
               to="/dashboards"
-              className={`flex items-center gap-2 rounded-xl transition-colors ${
-                isActive("/dashboards") ? "" : "hover:bg-transparent"
+              className={`flex items-center gap-2 p-2 rounded-xl transition-colors ${
+                isActive("/dashboards")
+                  ? "w-full bg-forest-f60 text-white"
+                  : "text-black hover:bg-transparent"
               }`}
-              style={
-                isActive("/dashboards") ? activeLinkStyle : defaultLinkStyle
-              }
             >
               <img
                 src={InstacartIcon}
                 alt=""
-                className="w-5 h-5"
-                style={{
-                  filter: isActive("/dashboards")
-                    ? "brightness(0) invert(1)"
-                    : "none",
-                }}
+                className={`w-5 h-5 ${
+                  isActive("/dashboards") ? "brightness-0 invert" : ""
+                }`}
               />
               <span className="text-[11.2px] font-normal leading-[16px]">
                 Overview
@@ -118,8 +92,7 @@ export const Sidebar: React.FC = () => {
           <div className="space-y-1">
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={CreateCampaignIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -128,22 +101,18 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/accounts"
-              className={`flex items-center gap-2 rounded-xl transition-colors ${
-                isActive("/campaigns") ? "" : "hover:bg-transparent"
+              className={`flex items-center gap-2 p-2 rounded-xl transition-colors ${
+                isActive("/campaigns")
+                  ? "w-full bg-forest-f60 text-white"
+                  : "text-black hover:bg-transparent"
               }`}
-              style={
-                isActive("/campaigns") ? activeLinkStyle : defaultLinkStyle
-              }
             >
               <img
                 src={CreateCampaignIcon}
                 alt=""
-                className="w-5 h-5"
-                style={{
-                  filter: isActive("/campaigns")
-                    ? "brightness(0) invert(1)"
-                    : "none",
-                }}
+                className={`w-5 h-5 ${
+                  isActive("/campaigns") ? "brightness-0 invert" : ""
+                }`}
               />
               <span className="text-[11.2px] font-normal leading-[16px]">
                 Campaigns
@@ -151,8 +120,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={AdGroupIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -161,8 +129,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -171,8 +138,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={GoogleIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -181,8 +147,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -191,8 +156,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -210,8 +174,7 @@ export const Sidebar: React.FC = () => {
           <div className="space-y-1">
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -220,8 +183,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -230,8 +192,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -240,8 +201,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -250,8 +210,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -269,8 +228,7 @@ export const Sidebar: React.FC = () => {
           <div className="space-y-1">
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -279,8 +237,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -289,8 +246,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -299,8 +255,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={TopKeywordsIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">
@@ -309,8 +264,7 @@ export const Sidebar: React.FC = () => {
             </Link>
             <Link
               to="/channels"
-              className="flex items-center gap-2 rounded-xl transition-colors hover:bg-transparent"
-              style={defaultLinkStyle}
+              className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={TopProductsIcon} alt="" className="w-5 h-5" />
               <span className="text-[11.2px] font-normal leading-[16px]">

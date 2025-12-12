@@ -131,14 +131,13 @@ export const Avatar: React.FC<AvatarProps> = ({
         />
       ) : isUserSm ? (
         // User Avatar sm uses flex layout (matching Figma exactly)
-        <div className="self-stretch justify-start text-white text-lg font-normal leading-7" style={{ fontFamily: 'PP Agrandir, sans-serif' }}>
+        <div className="self-stretch justify-start text-white text-lg font-normal leading-7 font-agrandir">
           {initials}
         </div>
       ) : (
         // All other sizes use flexbox for perfect centering
         <div 
-          className={`text-white font-normal ${sizeConfig.text} flex items-center justify-center`} 
-          style={{ fontFamily: 'PP Agrandir, sans-serif' }}
+          className={`text-white font-normal ${sizeConfig.text} flex items-center justify-center font-agrandir`}
         >
           {initials}
         </div>

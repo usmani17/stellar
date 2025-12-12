@@ -361,7 +361,7 @@ export const CampaignDetail: React.FC = () => {
                     onClick={() => setActiveTab(tab)}
                     className={`px-3 py-3 rounded-lg transition-colors ${
                       activeTab === tab
-                        ? "bg-white border border-[#EBEAED] text-[#072929] shadow-[0px_2px_4px_0px_rgba(0,0,0,0.06)]"
+                        ? "bg-white border border-gray-200 text-[#072929] shadow-[0px_2px_4px_0px_rgba(0,0,0,0.06)]"
                         : "bg-transparent text-[#072929]"
                     }`}
                     style={{
@@ -408,9 +408,9 @@ export const CampaignDetail: React.FC = () => {
                         Top Keywords
                       </h2>
                     </div>
-                    <div className="border border-[#E6E6E6] rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] bg-white">
+                    <div className="border border-gray-200 rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] bg-white">
                       {/* Table Header */}
-                      <div className="flex items-center h-[56px] px-5 border-b border-[#E6E6E6] bg-white">
+                      <div className="flex items-center h-[56px] px-5 border-b border-gray-200 bg-white">
                         <div className="w-[62px] flex items-center justify-center">
                           <Checkbox
                             checked={false}
@@ -497,7 +497,7 @@ export const CampaignDetail: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="divide-y divide-[#E6E6E6]">
+                      <div className="divide-y divide-gray-200">
                         {loading ? (
                           <div className="p-8 text-center text-[#556179]">
                             Loading keywords...
@@ -572,7 +572,7 @@ export const CampaignDetail: React.FC = () => {
                                 </p>
                               </div>
                               <div className="w-[94px] text-center">
-                                <button className="text-[#A3A8B3] hover:text-black">
+                                <button className="text-[#A3A8B3] hover:text-black border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition-colors">
                                   <svg
                                     className="w-6 h-6"
                                     fill="currentColor"

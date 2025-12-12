@@ -161,13 +161,13 @@ export const Signup: React.FC = () => {
           <div className="text-center">
             <p 
               className="text-base text-neutral-n1000 capitalize leading-normal"
-              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
+              className="font-poppins font-normal"
             >
               Already have an account?{' '}
               <Link 
                 to="/login" 
                 className="font-semibold text-forest-f60 hover:text-forest-f50"
-                style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
+                className="font-poppins font-semibold"
               >
                 Sign In
               </Link>

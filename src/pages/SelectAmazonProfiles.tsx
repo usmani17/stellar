@@ -344,7 +344,7 @@ export const SelectAmazonProfiles: React.FC = () => {
                         selectedProfileIds.size === profiles.length
                       }
                       onChange={toggleAll}
-                      className="w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                      className="w-4 h-4 text-[#072929] border-gray-200 rounded focus:ring-[#072929]"
                     />
                     <label className="text-[14px] font-medium text-[#072929]">
                       Select All ({selectedProfileIds.size}/{profiles.length})
@@ -395,7 +395,7 @@ export const SelectAmazonProfiles: React.FC = () => {
                             checked={isSelected}
                             onChange={() => toggleProfile(profileId)}
                             onClick={(e) => e.stopPropagation()}
-                            className="mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                            className="mt-1 w-4 h-4 text-[#072929] border-gray-200 rounded focus:ring-[#072929]"
                           />
                           <div className="flex-1">
                             <h3 className="text-[16px] font-medium text-[#072929] mb-1">

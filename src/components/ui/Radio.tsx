@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
-export type RadioSize = 'small' | 'large';
-export type RadioState = 'default' | 'hover' | 'press' | 'focus';
+export type RadioSize = "small" | "large";
+export type RadioState = "default" | "hover" | "press" | "focus";
 
 interface RadioProps {
   /** Whether the radio is checked */
@@ -24,20 +24,23 @@ interface RadioProps {
   className?: string;
 }
 
-const sizeClasses: Record<RadioSize, {
-  container: string;
-  radio: string;
-  focusRing: string;
-}> = {
+const sizeClasses: Record<
+  RadioSize,
+  {
+    container: string;
+    radio: string;
+    focusRing: string;
+  }
+> = {
   small: {
-    container: 'size-[24px]',
-    radio: 'size-[14px]',
-    focusRing: 'size-[14px]',
+    container: "size-[24px]",
+    radio: "size-[14px]",
+    focusRing: "size-[14px]",
   },
   large: {
-    container: 'w-[32px] h-[24px]',
-    radio: 'size-[20px]',
-    focusRing: 'size-[14px]',
+    container: "w-[32px] h-[24px]",
+    radio: "size-[20px]",
+    focusRing: "size-[14px]",
   },
 };
 
@@ -45,74 +48,87 @@ export const Radio: React.FC<RadioProps> = ({
   checked = false,
   disabled = false,
   invalid = false,
-  size = 'small',
+  size = "small",
   label,
   required = false,
   onChange,
   state: controlledState,
-  className = '',
+  className = "",
 }) => {
   const [internalHover, setInternalHover] = useState(false);
   const [internalPress, setInternalPress] = useState(false);
   const [internalFocus, setInternalFocus] = useState(false);
 
   // Determine current state
-  const currentState = controlledState || 
-    (internalFocus ? 'focus' : 
-     internalPress ? 'press' : 
-     internalHover ? 'hover' : 'default');
+  const currentState =
+    controlledState ||
+    (internalFocus
+      ? "focus"
+      : internalPress
+      ? "press"
+      : internalHover
+      ? "hover"
+      : "default");
 
   const sizeConfig = sizeClasses[size];
 
-  // Determine background and border colors based on state
-  let bgColor: string;
-  let borderColor: string;
-  let textColor: string;
-  let showFocusRing = false;
+  // Determine background and border color classes based on state
+  const getBgColorClass = (): string => {
+    if (disabled) {
+      if (checked) {
+        return "bg-[#89B6B6]"; // Disabled checked - lighter teal
+      }
+      return "bg-white";
+    } else if (checked) {
+      return "bg-forest-f60";
+    } else {
+      switch (currentState) {
+        case "hover":
+          return "bg-sandstorm-s30";
+        case "press":
+        case "focus":
+          return "bg-sandstorm-s0";
+        default:
+          return "bg-white";
+      }
+    }
+  };
 
-  if (disabled) {
-    if (checked) {
-      // Disabled checked - lighter teal
-      bgColor = '#89B6B6';
-      borderColor = '#89B6B6';
+  const getBorderColorClass = (): string => {
+    if (disabled) {
+      if (checked) {
+        return "border-[#89B6B6]";
+      }
+      return "border-sandstorm-s30";
+    } else if (checked) {
+      if (invalid || currentState === "hover") {
+        return "border-[#FF5630]"; // Red border for invalid/hover
+      }
+      return "border-forest-f60";
     } else {
-      bgColor = '#FFFFFF';
-      borderColor = '#F0F0ED';
+      switch (currentState) {
+        case "hover":
+          return "border-sandstorm-s50";
+        case "press":
+          return "border-sandstorm-s70";
+        case "focus":
+          return "border-sandstorm-s30";
+        default:
+          return "border-sandstorm-s50";
+      }
     }
-    textColor = '#CFCDC6'; // Disabled text
-  } else if (checked) {
-    if (invalid) {
-      // Invalid checked - red border
-      bgColor = '#072929';
-      borderColor = '#FF5630'; // Red border for invalid
-    } else {
-      bgColor = '#072929';
-      borderColor = currentState === 'hover' ? '#FF5630' : '#072929';
+  };
+
+  const getTextColorClass = (): string => {
+    if (disabled) {
+      return "text-[#CFCDC6]"; // Disabled text
     }
-    textColor = '#072929';
-    showFocusRing = currentState === 'focus';
-  } else {
-    // Unchecked states
-    switch (currentState) {
-      case 'hover':
-        bgColor = '#F0F0ED';
-        borderColor = '#E4E4D7';
-        break;
-      case 'press':
-        bgColor = '#F9F9F6';
-        borderColor = '#73726C';
-        break;
-      case 'focus':
-        bgColor = '#F9F9F6';
-        borderColor = '#F0F0ED';
-        showFocusRing = true;
-        break;
-      default:
-        bgColor = '#FFFFFF';
-        borderColor = '#E4E4D7';
-    }
-    textColor = '#072929';
-  }
+    return "text-forest-f60";
+  };
+
+  const showFocusRing =
+    (!disabled && checked && currentState === "focus") ||
+    (!disabled && !checked && currentState === "focus");
 
   const handleClick = () => {
     if (!disabled && onChange) {
@@ -167,7 +183,7 @@ export const Radio: React.FC<RadioProps> = ({
         relative
         shrink-0
         ${sizeConfig.container}
-        ${!disabled ? 'cursor-pointer' : 'cursor-not-allowed'}
+        ${!disabled ? "cursor-pointer" : "cursor-not-allowed"}
       `}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
@@ -192,11 +208,13 @@ export const Radio: React.FC<RadioProps> = ({
               inset-0
               w-full
               h-full
+              ${getBgColorClass()}
+              ${
+                invalid || currentState === "hover"
+                  ? `border-2 ${getBorderColorClass()}`
+                  : "border-none"
+              }
             `}
-            style={{
-              backgroundColor: bgColor,
-              border: invalid || currentState === 'hover' ? `2px solid ${borderColor}` : 'none',
-            }}
           />
           {/* Inner dot - centered (28.57% size, 35.71% inset on all sides) */}
           <div
@@ -207,22 +225,24 @@ export const Radio: React.FC<RadioProps> = ({
               right-[35.71%]
               bottom-[35.71%]
               left-[35.71%]
+              bg-sandstorm-s0
             `}
-            style={{
-              backgroundColor: '#F9F9F6',
-            }}
           />
           {showFocusRing && (
             <div
               className={`
-                absolute
-                border-2
-                border-[#0e4e4e]
-                border-solid
-                rounded-[20px]
-                ${size === 'small' ? 'left-[5px] top-[5px]' : 'left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]'}
-                ${sizeConfig.focusRing}
-              `}
+              absolute
+              border-2
+              border-forest-f50
+              border-solid
+              rounded-[20px]
+              ${
+                size === "small"
+                  ? "left-[5px] top-[5px]"
+                  : "left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]"
+              }
+              ${sizeConfig.focusRing}
+            `}
             />
           )}
         </div>
@@ -236,21 +256,23 @@ export const Radio: React.FC<RadioProps> = ({
               ${sizeConfig.radio}
               border-2
               border-solid
+              ${getBgColorClass()}
+              ${getBorderColorClass()}
             `}
-            style={{
-              backgroundColor: bgColor,
-              borderColor: borderColor,
-            }}
           />
           {showFocusRing && (
             <div
               className={`
                 absolute
                 border-2
-                border-[#0e4e4e]
+                border-forest-f50
                 border-solid
                 rounded-[20px]
-                ${size === 'small' ? 'bottom-[5px] left-1/2 top-[5px] translate-x-[-50%]' : 'bottom-[5px] left-1/2 top-[5px] translate-x-[-50%]'}
+                ${
+                  size === "small"
+                    ? "bottom-[5px] left-1/2 top-[5px] translate-x-[-50%]"
+                    : "bottom-[5px] left-1/2 top-[5px] translate-x-[-50%]"
+                }
                 ${sizeConfig.focusRing}
               `}
             />
@@ -271,7 +293,7 @@ export const Radio: React.FC<RadioProps> = ({
           justify-start
           h-6
           relative
-          ${!disabled ? 'cursor-pointer' : 'cursor-not-allowed'}
+          ${!disabled ? "cursor-pointer" : "cursor-not-allowed"}
           ${className}
         `}
         onClick={handleClick}
@@ -305,17 +327,14 @@ export const Radio: React.FC<RadioProps> = ({
               items-center
               justify-start
             `}
-            style={{
-              fontFamily: 'GT America Trial, sans-serif',
-              color: textColor,
-            }}
+            className={`font-gtAmerica ${getTextColorClass()}`}
           >
             {label}
           </div>
           {required && (
             <span
               className="text-[#ae2a19] text-[12px] leading-[16px] font-semibold ml-1"
-              style={{ fontFamily: 'SF Pro, sans-serif' }}
+              className="font-sans"
             >
               *
             </span>
@@ -325,10 +344,5 @@ export const Radio: React.FC<RadioProps> = ({
     );
   }
 
-  return (
-    <div className={className}>
-      {radioElement}
-    </div>
-  );
+  return <div className={className}>{radioElement}</div>;
 };
-

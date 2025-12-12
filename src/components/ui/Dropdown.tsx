@@ -140,7 +140,7 @@ export const Dropdown = <T extends string | number = string>({
         onClick={toggleDropdown}
         disabled={disabled}
         className={cn(
-          "flex items-center justify-between gap-2 px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white transition-colors",
+          "flex items-center justify-between gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-[10px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white transition-colors",
           disabled && "opacity-50 cursor-not-allowed",
           !disabled && "hover:border-[#556179] cursor-pointer",
           buttonClassName
@@ -212,7 +212,7 @@ export const Dropdown = <T extends string | number = string>({
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 bg-white border border-[#E6E6E6] rounded-lg shadow-lg overflow-hidden",
+            "absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden",
             width,
             maxHeight,
             alignClasses[align],
@@ -222,14 +222,14 @@ export const Dropdown = <T extends string | number = string>({
         >
           {/* Search Input */}
           {searchable && (
-            <div className="p-2 border-b border-[#E6E6E6]">
+            <div className="p-2 border-b border-gray-200">
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={searchPlaceholder}
-                className="w-full px-3 py-2 text-[11.2px] border border-[#E6E6E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                className="w-full px-3 py-2 text-[10px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
               />
             </div>
           )}
@@ -237,7 +237,7 @@ export const Dropdown = <T extends string | number = string>({
           {/* Options List */}
           <div className="overflow-y-auto" style={{ maxHeight: "inherit" }}>
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-[11.2px] text-[#556179] text-center">
+              <div className="px-3 py-2 text-[10px] text-[#556179] text-center">
                 {emptyMessage}
               </div>
             ) : (
@@ -250,7 +250,7 @@ export const Dropdown = <T extends string | number = string>({
                     onClick={() => handleSelect(option)}
                     disabled={option.disabled}
                     className={cn(
-                      "w-full text-left px-3 py-2 text-[11.2px] hover:bg-gray-50 transition-colors",
+                      "w-full text-left px-3 py-2 text-[10px] text-text-primary bg-background-field hover:bg-gray-50 transition-colors",
                       isSelected && "bg-[#F0F0ED] text-[#072929] font-medium",
                       !isSelected && "text-[#313850]",
                       option.disabled && "opacity-50 cursor-not-allowed",

@@ -82,14 +82,12 @@ export const RuleCard: React.FC<RuleCardProps> = ({
       <div className="flex flex-[1_0_0] gap-3 items-center min-h-0 min-w-0 relative shrink-0">
         <div className="flex flex-[1_0_0] flex-col gap-1 items-start justify-center leading-[0] min-h-0 min-w-0 not-italic relative shrink-0">
           <div
-            className="flex flex-col justify-center relative shrink-0 text-forest-f60 text-sm w-full"
-            style={{ fontFamily: 'GT America Trial, sans-serif', fontWeight: 500 }}
+            className="flex flex-col justify-center relative shrink-0 text-forest-f60 text-sm w-full font-gtAmerica font-medium"
           >
             <p className="leading-[20px]">{title}</p>
           </div>
           <div
-            className="flex flex-col justify-center relative shrink-0 text-neutral-n300 text-xs w-full"
-            style={{ fontFamily: 'GT America Trial, sans-serif', fontWeight: 400 }}
+            className="flex flex-col justify-center relative shrink-0 text-neutral-n300 text-xs w-full font-gtAmerica font-normal"
           >
             <p className="leading-[18px]">{description}</p>
           </div>

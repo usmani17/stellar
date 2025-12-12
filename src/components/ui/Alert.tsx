@@ -27,7 +27,7 @@ export const Alert: React.FC<AlertProps> = ({
       text-h700
       ${className}
     `}
-    style={{ fontFamily: 'Poppins, sans-serif' }}
+    className="font-poppins"
     >
       {children}
     </div>

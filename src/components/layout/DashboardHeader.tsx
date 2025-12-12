@@ -107,7 +107,7 @@ export const DashboardHeader: React.FC = () => {
             <button
               type="button"
               onClick={toggle}
-              className="flex items-center gap-2 px-2 py-1.5 bg-[#FEFEFB] border border-[#EBEAED] rounded-lg h-8 hover:bg-gray-50"
+              className="flex items-center gap-2 px-2 py-1.5 bg-background-field border border-gray-200 rounded-lg h-8 hover:bg-gray-50"
             >
               <div className="w-3 h-3 rounded bg-[#072929] text-white text-[6.4px] flex items-center justify-center font-semibold">
                 {option ? option.label[0]?.toUpperCase() : "A"}
@@ -140,9 +140,9 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={datePickerRef}>
           <button
             onClick={toggleDatePicker}
-            className={`flex items-center gap-2 h-10 px-4 bg-[#f9f9f6] border ${
+            className={`flex items-center gap-2 h-10 px-4 bg-background-field border ${
               isDatePickerOpen ? "border-[#072929]" : "border-[#e4e4d7]"
-            } rounded-[12px] shadow-[0_1px_2px_rgba(9,30,66,0.15)] hover:border-[#072929] transition-all`}
+            } rounded-[12px] hover:bg-gray-50 transition-all`}
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -157,7 +157,7 @@ export const DashboardHeader: React.FC = () => {
                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <span className="text-[12px] text-[#072929] font-medium">
+            <span className="text-[12px] text-[#072929]">
               {formatDateRange()}
             </span>
             <svg
@@ -200,7 +200,7 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={profileDropdownRef}>
           <button
             onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-[11.2px] font-semibold hover:bg-gray-300 transition-colors"
+            className="w-8 h-8 rounded-full bg-[#f9f9f6] border border-gray-200 flex items-center justify-center text-gray-600 text-[11.2px] font-semibold hover:bg-gray-50 transition-colors"
           >
             {user?.first_name?.[0] || "U"}
           </button>

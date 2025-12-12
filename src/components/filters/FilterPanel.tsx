@@ -127,11 +127,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className="border border-[#E6E6E6] rounded-xl shadow-sm w-full"
+      className="border border-gray-200 rounded-xl shadow-sm w-full"
       style={{ backgroundColor: "#F5F5F0" }}
     >
       {/* Filter Builder */}
-      <div className="p-4 border-b border-[#E6E6E6]">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-end gap-2">
           {/* Field Dropdown */}
           <div className="w-[200px]">
@@ -209,7 +209,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter budget"
-                  className="bg-white w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                 />
               ) : (
                 <input
@@ -217,7 +217,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter value"
-                  className="bg-white w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                 />
               )}
             </div>
@@ -240,7 +240,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
       {/* Active Filters Chips */}
       {activeFilters.length > 0 && (
-        <div className="p-4 border-b border-[#E6E6E6]">
+        <div className="p-4 border-b border-gray-200">
           <div className="flex flex-wrap gap-2">
             {activeFilters.map((filter) => (
               <Chip
@@ -259,13 +259,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <button
           onClick={handleClearAll}
           disabled={activeFilters.length === 0}
-          className="px-4 py-2 text-[11.2px] font-medium text-[#556179] hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-color-f60 bg-background-field px-2 py-1  text-normal   border border-gray-200 rounded-lg items-center hover:bg-gray-50 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Clear All
         </button>
         <button
           onClick={handleApply}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors"
+          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px]  rounded-lg hover:bg-[#0e5a5a] transition-colors text-normal"
         >
           Apply Filters
         </button>

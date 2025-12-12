@@ -81,13 +81,13 @@ export const SocialCard: React.FC<SocialCardProps> = ({
       <div className="flex flex-[1_0_0] flex-col gap-1 items-start min-h-0 min-w-0 not-italic relative shrink-0">
         <p
           className="font-bold leading-[28px] relative shrink-0 text-forest-f60 text-base w-full"
-          style={{ fontFamily: 'GT America Trial, sans-serif' }}
+          className="font-gtAmerica"
         >
           {title}
         </p>
         <p
           className="font-medium leading-[18px] relative shrink-0 text-neutral-n300 text-xs w-full"
-          style={{ fontFamily: 'GT America Trial, sans-serif' }}
+          className="font-gtAmerica"
         >
           {description}
         </p>
@@ -101,7 +101,7 @@ export const SocialCard: React.FC<SocialCardProps> = ({
         <div className="flex items-center justify-center relative shrink-0">
           <div
             className="flex flex-col justify-center leading-[0] not-italic relative shrink-0 text-sm text-center text-white whitespace-nowrap"
-            style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
+            className="font-inter font-medium"
           >
             <p className="leading-[20px]">{buttonText}</p>
           </div>

@@ -655,7 +655,7 @@ export const Campaigns: React.FC = () => {
               {/* Add Filter Button - Beside Campaign Manager */}
               <button
                 onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                className="px-3 py-2 bg-[#FEFEFB] border border-[#E3E3E3] rounded-xl flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
               >
                 <svg
                   className="w-5 h-5 text-[#072929]"
@@ -713,7 +713,7 @@ export const Campaigns: React.FC = () => {
 
           {/* Chart Section */}
           <div
-            className="border border-[#E6E6E6] rounded-[20px] p-4 mb-4"
+            className="border border-gray-200 rounded-[20px] p-4 mb-4"
             style={{ backgroundColor: "#F5F5F0" }}
           >
             {/* Title and Toggle Switches Row */}
@@ -797,7 +797,7 @@ export const Campaigns: React.FC = () => {
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#fff",
-                      border: "1px solid #E6E6E6",
+                      border: "1px solid #E5E7EB",
                       borderRadius: "8px",
                       fontSize: "9.6px",
                       boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
@@ -862,7 +862,7 @@ export const Campaigns: React.FC = () => {
           <div className="rounded-2xl" style={{ backgroundColor: "#F5F5F0" }}>
             {/* Table Header */}
             <div
-              className="border border-[#E6E6E6] border-b-0 rounded-t-2xl px-[28px] pt-4 pb-0 "
+              className="border border-gray-200 border-b-0 rounded-t-2xl px-[28px] pt-4 pb-0 "
               style={{ backgroundColor: "#F5F5F0" }}
             >
               <div className="relative">
@@ -879,7 +879,7 @@ export const Campaigns: React.FC = () => {
                   >
                     <Button
                       type="button"
-                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-xl flex items-center gap-1.5 h-8 hover:bg-gray-50 transition-colors text-[10px] text-[#072929] font-medium"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 transition-colors text-[10px] text-[#072929] font-medium"
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowBulkActions((prev) => !prev);
@@ -904,7 +904,7 @@ export const Campaigns: React.FC = () => {
                       </span>
                     </Button>
                     {showBulkActions && (
-                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-[#E6E6E6] rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                         <div className="overflow-y-auto">
                           {[
                             { value: "enable", label: "Enable" },
@@ -947,7 +947,7 @@ export const Campaigns: React.FC = () => {
             {/* Budget editor panel */}
             {selectedCampaigns.size > 0 && showBudgetPanel && (
               <div className="px-6 mb-4">
-                <div className="bg-white border border-[#E6E6E6] rounded-lg p-4">
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
                   <div className="flex flex-wrap items-end gap-3 justify-between">
                     <div className="w-[160px]">
                       <label className="block text-[11.2px] font-semibold text-[#556179] mb-1 uppercase">
@@ -981,10 +981,10 @@ export const Campaigns: React.FC = () => {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border ${
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
                               budgetUnit === "percent"
                                 ? "bg-forest-f40  border-forest-f40"
-                                : "bg-white text-forest-f60 border-[#E6E6E6]"
+                                : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
                             }`}
                             onClick={() => setBudgetUnit("percent")}
                           >
@@ -992,10 +992,10 @@ export const Campaigns: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border ${
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
                               budgetUnit === "amount"
                                 ? "bg-forest-f40  border-forest-f40"
-                                : "bg-white text-forest-f60 border-[#E6E6E6]"
+                                : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
                             }`}
                             onClick={() => setBudgetUnit("amount")}
                           >
@@ -1013,7 +1013,7 @@ export const Campaigns: React.FC = () => {
                           type="number"
                           value={budgetValue}
                           onChange={(e) => setBudgetValue(e.target.value)}
-                          className="bg-white w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11.2px] text-[#556179]">
                           {budgetUnit === "percent" ? "%" : "$"}
@@ -1029,7 +1029,7 @@ export const Campaigns: React.FC = () => {
                           type="number"
                           value={upperLimit}
                           onChange={(e) => setUpperLimit(e.target.value)}
-                          className="bg-white w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
                         />
                       </div>
                     )}
@@ -1042,7 +1042,7 @@ export const Campaigns: React.FC = () => {
                           type="number"
                           value={lowerLimit}
                           onChange={(e) => setLowerLimit(e.target.value)}
-                          className="bg-white w-full px-4 py-2.5 border border-[#E6E6E6] rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
                         />
                       </div>
                     )}
@@ -1053,7 +1053,7 @@ export const Campaigns: React.FC = () => {
                           setShowBudgetPanel(false);
                           setShowBulkActions(false);
                         }}
-                        className="px-4 py-2.5 bg-white border border-[#E6E6E6] text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1127,7 +1127,7 @@ export const Campaigns: React.FC = () => {
                                 } selected`}
                           </span>
                         </div>
-                        <div className="border border-[#E6E6E6] rounded-lg overflow-hidden">
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
                           <table className="w-full">
                             <thead className="bg-sandstorm-s20">
                               <tr>
@@ -1161,7 +1161,7 @@ export const Campaigns: React.FC = () => {
                                   return (
                                     <tr
                                       key={campaign.campaignId}
-                                      className="border-b border-[#E6E6E6] last:border-b-0"
+                                      className="border-b border-gray-200 last:border-b-0"
                                     >
                                       <td className="px-4 py-2 text-[11.2px] text-[#072929]">
                                         {campaign.campaign_name ||
@@ -1190,7 +1190,7 @@ export const Campaigns: React.FC = () => {
                   <div className="space-y-3 mb-6">
                     {isBudgetChange ? (
                       <>
-                        <div className="flex justify-between items-center py-2 border-b border-[#E6E6E6]">
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
                           <span className="text-[12.8px] text-[#556179]">
                             Action:
                           </span>
@@ -1205,7 +1205,7 @@ export const Campaigns: React.FC = () => {
 
                         {(budgetAction === "increase" ||
                           budgetAction === "decrease") && (
-                          <div className="flex justify-between items-center py-2 border-b border-[#E6E6E6]">
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.8px] text-[#556179]">
                               Unit:
                             </span>
@@ -1217,7 +1217,7 @@ export const Campaigns: React.FC = () => {
                           </div>
                         )}
 
-                        <div className="flex justify-between items-center py-2 border-b border-[#E6E6E6]">
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
                           <span className="text-[12.8px] text-[#556179]">
                             Value:
                           </span>
@@ -1227,7 +1227,7 @@ export const Campaigns: React.FC = () => {
                         </div>
 
                         {budgetAction === "increase" && upperLimit && (
-                          <div className="flex justify-between items-center py-2 border-b border-[#E6E6E6]">
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.8px] text-[#556179]">
                               Upper Limit:
                             </span>
@@ -1238,7 +1238,7 @@ export const Campaigns: React.FC = () => {
                         )}
 
                         {budgetAction === "decrease" && lowerLimit && (
-                          <div className="flex justify-between items-center py-2 border-b border-[#E6E6E6]">
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.8px] text-[#556179]">
                               Lower Limit:
                             </span>
@@ -1249,7 +1249,7 @@ export const Campaigns: React.FC = () => {
                         )}
                       </>
                     ) : (
-                      <div className="flex justify-between items-center py-2 border-b border-[#E6E6E6]">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
                         <span className="text-[12.8px] text-[#556179]">
                           New Status:
                         </span>
@@ -1270,7 +1270,7 @@ export const Campaigns: React.FC = () => {
                         setShowConfirmationModal(false);
                         setPendingStatusAction(null);
                       }}
-                      className="px-4 py-2 bg-white border border-[#E6E6E6] text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                      className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
                     >
                       Cancel
                     </button>
@@ -1361,7 +1361,7 @@ export const Campaigns: React.FC = () => {
                         setInlineEditOldValue("");
                         setInlineEditNewValue("");
                       }}
-                      className="px-4 py-2 bg-white border border-[#E6E6E6] text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                      className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
                     >
                       Cancel
                     </button>
@@ -1380,7 +1380,7 @@ export const Campaigns: React.FC = () => {
 
             {/* Table */}
             <div
-              className="border border-[#E6E6E6] border-t-0 rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden px-6 pb-6 pt-1"
+              className="border border-gray-200 border-t-0 rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden px-6 pb-6 pt-1"
               style={{ backgroundColor: "#F5F5F0" }}
             >
               {loading ? (
@@ -1400,7 +1400,7 @@ export const Campaigns: React.FC = () => {
               ) : (
                 <div className="bg-white rounded-xl overflow-hidden">
                   {/* Table Header Row */}
-                  <div className="border-b border-[#E6E6E6] flex items-center h-[48px] bg-white rounded-t-xl">
+                  <div className="border-b border-gray-200 flex items-center h-[48px] bg-white rounded-t-xl">
                     {/* Checkbox Header */}
                     <div className="w-[35px] flex items-center justify-center">
                       <Checkbox
@@ -1554,7 +1554,7 @@ export const Campaigns: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="divide-y divide-[#E6E6E6]">
+                  <div className="divide-y divide-gray-200">
                     {campaigns.map((campaign) => (
                       <div
                         key={campaign.campaignId}
@@ -1641,7 +1641,7 @@ export const Campaigns: React.FC = () => {
                               onClick={() =>
                                 startInlineEdit(campaign, "status")
                               }
-                              className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
+                              className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                             >
                               <StatusBadge
                                 status={campaign.status || "Enable"}
@@ -1675,7 +1675,7 @@ export const Campaigns: React.FC = () => {
                                   }
                                 }}
                                 autoFocus
-                                className="w-full px-2 py-1 text-[12.8px] text-black border border-[#E6E6E6] rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                className="w-full px-2 py-1 text-[12.8px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
                               />
                             </div>
                           ) : (
@@ -1683,7 +1683,7 @@ export const Campaigns: React.FC = () => {
                               onClick={() =>
                                 startInlineEdit(campaign, "budget")
                               }
-                              className="text-[12.8px] font-normal text-black cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
+                              className="text-[12.8px] font-normal text-black cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                             >
                               {formatCurrency(campaign.daily_budget || 0)}
                             </p>
@@ -1719,7 +1719,7 @@ export const Campaigns: React.FC = () => {
                               onClick={() =>
                                 startInlineEdit(campaign, "budgetType")
                               }
-                              className="text-[12.8px] font-normal text-black cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
+                              className="text-[12.8px] font-normal text-black cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                             >
                               {campaign.budgetType || "—"}
                             </p>
@@ -1797,7 +1797,7 @@ export const Campaigns: React.FC = () => {
 
                   {/* Pagination */}
                   <div
-                    className="border-t border-[#E6E6E6] py-4 flex items-center justify-end rounded-b-xl"
+                    className="border-t border-gray-200 py-4 flex items-center justify-end rounded-b-xl"
                     style={{ backgroundColor: "#F5F5F0" }}
                   >
                     <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
@@ -1806,7 +1806,7 @@ export const Campaigns: React.FC = () => {
                           handlePageChange(Math.max(1, currentPage - 1))
                         }
                         disabled={currentPage === 1}
-                        className="px-3 py-2 border-r border-[#E6E6E6] text-[11.2px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        className="px-3 py-2 border-r border-gray-200 text-[11.2px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                       >
                         Previous
                       </button>
@@ -1827,7 +1827,7 @@ export const Campaigns: React.FC = () => {
                             <button
                               key={pageNum}
                               onClick={() => handlePageChange(pageNum)}
-                              className={`px-3 py-2 border-r border-[#E6E6E6] text-[11.2px] min-w-[40px] cursor-pointer ${
+                              className={`px-3 py-2 border-r border-gray-200 text-[11.2px] min-w-[40px] cursor-pointer ${
                                 currentPage === pageNum
                                   ? "bg-white text-[#136D6D] font-semibold"
                                   : "text-black hover:bg-gray-50"
@@ -1839,14 +1839,14 @@ export const Campaigns: React.FC = () => {
                         }
                       )}
                       {totalPages > 5 && currentPage < totalPages - 2 && (
-                        <span className="px-3 py-2 border-r border-[#E6E6E6] text-[11.2px] text-[#222124]">
+                        <span className="px-3 py-2 border-r border-gray-200 text-[11.2px] text-[#222124]">
                           ...
                         </span>
                       )}
                       {totalPages > 5 && (
                         <button
                           onClick={() => handlePageChange(totalPages)}
-                          className={`px-3 py-2 border-r border-[#E6E6E6] text-[11.2px] cursor-pointer ${
+                          className={`px-3 py-2 border-r border-gray-200 text-[11.2px] cursor-pointer ${
                             currentPage === totalPages
                               ? "bg-white text-[#136D6D] font-semibold"
                               : "text-black hover:bg-gray-50"

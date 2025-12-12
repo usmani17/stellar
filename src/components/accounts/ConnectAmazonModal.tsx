@@ -104,7 +104,7 @@ export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
                     type="button"
                     onClick={handleAmazonOAuth}
                     disabled={oauthLoading}
-                    className="w-full h-14 bg-white border border-[#E6E6E6] rounded-2xl flex items-center justify-center gap-2.5 hover:bg-[#F0F0ED] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-14 bg-white border border-gray-200 rounded-2xl flex items-center justify-center gap-2.5 hover:bg-[#F0F0ED] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="w-8 h-8 flex items-center justify-center bg-[#FF9900] rounded">
                       <span className="text-white font-bold text-lg">A</span>
@@ -117,9 +117,9 @@ export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
 
                 {/* Divider */}
                 <div className="flex items-center gap-2.5 mb-6">
-                  <div className="flex-1 h-px bg-[#E6E6E6]"></div>
+                  <div className="flex-1 h-px bg-gray-200"></div>
                   <span className="text-[14px] font-medium text-black">or</span>
-                  <div className="flex-1 h-px bg-[#E6E6E6]"></div>
+                  <div className="flex-1 h-px bg-gray-200"></div>
                 </div>
 
                 {/* Manual Form */}

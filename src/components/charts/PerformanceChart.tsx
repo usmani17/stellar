@@ -41,7 +41,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
 
   return (
     <div
-      className="border border-[#E6E6E6] rounded-[20px] p-4 mb-4"
+      className="border border-gray-200 rounded-[20px] p-4 mb-4"
       style={{ backgroundColor: "#F5F5F0" }}
     >
       {/* Title and Toggle Switches Row */}
@@ -116,7 +116,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
             <Tooltip
               contentStyle={{
                 backgroundColor: "#fff",
-                border: "1px solid #E6E6E6",
+                border: "1px solid #E5E7EB",
                 borderRadius: "8px",
                 fontSize: "9.6px",
                 boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
