@@ -19,26 +19,27 @@ export const AuthFormField: React.FC<AuthFormFieldProps> = ({
     <div className={`flex-1 inline-flex flex-col justify-start items-start gap-1 ${containerClassName}`}>
       <div className="self-stretch pb-1 inline-flex justify-start items-start">
         <label 
-          className="justify-center text-black text-base font-medium leading-5" 
+          className="justify-center text-black text-sm sm:text-base font-medium leading-5" 
           style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 500 }}
         >
           {label}
         </label>
       </div>
       <div className={`
-        self-stretch h-12 px-3 py-2 
-        bg-[#f5f7fa] 
+        self-stretch h-12 sm:h-12 px-3 py-2 
+        bg-sandstorm-s5
         rounded-xl 
-        outline outline-1 outline-offset-[-1px] outline-[#e8e8e3]
+        border border-sandstorm-s40
         inline-flex justify-start items-center gap-2
-        ${error ? 'outline-red-500' : ''}
-        focus-within:ring-2 focus-within:ring-forest-f40 focus-within:outline-forest-f40
+        transition-all duration-200
+        ${error ? 'border-red-r30' : ''}
+        focus-within:border-forest-f40
       `}>
         <input
           className={`
             flex-1 h-5
             bg-transparent
-            text-sm 
+            text-sm sm:text-sm
             text-neutral-n1000
             placeholder:text-[#bfbfbf] 
             focus:outline-none 
@@ -49,12 +50,12 @@ export const AuthFormField: React.FC<AuthFormFieldProps> = ({
         />
       </div>
       {helperText && !error && (
-        <div className="self-stretch">
+        <div className="self-stretch mt-1">
           {helperText}
         </div>
       )}
       {error && (
-        <p className="self-stretch text-h700 text-red-600" style={{ fontFamily: 'Poppins, sans-serif' }}>{error}</p>
+        <p className="self-stretch text-xs sm:text-sm text-red-r30 mt-1" style={{ fontFamily: 'Poppins, sans-serif' }}>{error}</p>
       )}
     </div>
   );

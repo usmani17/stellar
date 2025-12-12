@@ -191,7 +191,7 @@ export const ChannelTable: React.FC<ChannelTableProps> = ({
                         <div className="flex items-center justify-center">
                           <button
                             onClick={() => onEdit(channel)}
-                            className="p-3 hover:bg-gray-100 rounded-lg"
+                            className="p-3 hover:bg-gray-100 rounded-lg cursor-pointer"
                           >
                             <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -223,16 +223,16 @@ export const ChannelTable: React.FC<ChannelTableProps> = ({
           </span>
         </div>
         <div className="bg-white border border-[#EBEBEB] rounded-lg flex items-center">
-          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] text-[14px] text-black hover:bg-gray-50">
+          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] text-[14px] text-black hover:bg-gray-50 cursor-pointer">
             Previous
           </button>
-          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-black hover:bg-gray-50">1</button>
-          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] font-semibold text-[#4e5cff] bg-white">2</button>
-          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-black hover:bg-gray-50">3</button>
-          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-[#222124] hover:bg-gray-50">...</button>
-          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-black hover:bg-gray-50">5</button>
-          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-black hover:bg-gray-50">6</button>
-          <button className="px-2.5 py-2.5 text-[14px] text-black hover:bg-gray-50">Next</button>
+          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-black hover:bg-gray-50 cursor-pointer">1</button>
+          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] font-semibold text-[#4e5cff] bg-white cursor-pointer">2</button>
+          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-black hover:bg-gray-50 cursor-pointer">3</button>
+          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-[#222124] hover:bg-gray-50 cursor-pointer">...</button>
+          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-black hover:bg-gray-50 cursor-pointer">5</button>
+          <button className="px-2.5 py-2.5 border-r border-[#E6E6E6] w-10 text-[14px] text-black hover:bg-gray-50 cursor-pointer">6</button>
+          <button className="px-2.5 py-2.5 text-[14px] text-black hover:bg-gray-50 cursor-pointer">Next</button>
         </div>
       </div>
     </div>

@@ -44,26 +44,25 @@ export const Login: React.FC = () => {
 
   return (
     <AuthPageLayout>
-      {/* Header Section - gap-16 from logo */}
-      <div className="self-stretch flex flex-col justify-start items-start gap-16">
-        <div className="self-stretch flex flex-col justify-start items-start gap-4">
+      {/* Header Section */}
+      <div className="self-stretch flex flex-col justify-start items-start gap-4 sm:gap-6">
+        <div className="self-stretch flex flex-col justify-start items-start gap-3 sm:gap-4">
           <AuthHeader
             title="Welcome back to PIXIS"
             description={
               <>
-                <p className="mb-0">Sign in to manage your business and stay on top of your</p>
-                <p>numbers.</p>
+                <p className="mb-0">Sign in to manage your business and stay on top of your numbers.</p>
               </>
             }
           />
         </div>
       </div>
 
-      {/* Form Section - gap-8 from header */}
-      <div className="self-stretch flex flex-col justify-start items-start gap-8">
-        <form onSubmit={handleSubmit} className="self-stretch flex flex-col justify-start items-start gap-8">
+      {/* Form Section */}
+      <div className="self-stretch flex flex-col justify-start items-start gap-5 sm:gap-6">
+        <form onSubmit={handleSubmit} className="self-stretch flex flex-col justify-start items-start gap-5 sm:gap-6">
           {/* Input Fields */}
-          <div className="self-stretch flex flex-col justify-start items-start gap-5">
+          <div className="self-stretch flex flex-col justify-start items-start gap-4 sm:gap-5">
             {error && (
               <Alert variant="error">{error}</Alert>
             )}
@@ -95,7 +94,7 @@ export const Login: React.FC = () => {
                   <div className="self-stretch text-right">
                     <Link
                       to="/forgot-password"
-                      className="text-xs font-semibold text-forest-f60 hover:text-forest-f50"
+                      className="text-xs font-semibold text-forest-f60 hover:text-forest-f50 focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:ring-offset-2 rounded transition-all cursor-pointer"
                       style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
                     >
                       Forget Password?
@@ -120,14 +119,14 @@ export const Login: React.FC = () => {
           {/* Sign Up Link */}
           <div className="self-stretch text-center">
             <p 
-              className="text-base text-neutral-n1000 capitalize leading-4 tracking-tight"
+              className="text-sm sm:text-base text-neutral-n1000 capitalize leading-tight sm:leading-4 tracking-tight"
               style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
             >
               <span>Don't have an account?</span>
               <span> </span>
               <Link 
                 to="/signup" 
-                className="text-forest-f60 font-semibold uppercase leading-4 tracking-tight hover:text-forest-f50"
+                className="text-forest-f60 font-semibold uppercase leading-tight sm:leading-4 tracking-tight hover:text-forest-f50 focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:ring-offset-2 rounded transition-all cursor-pointer"
                 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
               >
                 Sign up
@@ -137,11 +136,11 @@ export const Login: React.FC = () => {
         </form>
       </div>
 
-      {/* Divider and OAuth Buttons Section - gap-16 from form */}
-      <div className="self-stretch flex flex-col justify-start items-start gap-16">
+      {/* Divider and OAuth Buttons Section */}
+      <div className="self-stretch flex flex-col justify-start items-start gap-5 sm:gap-6">
         <Divider text="or" />
         
-        <div className="self-stretch flex flex-col justify-start items-start gap-5">
+        <div className="self-stretch flex flex-col justify-start items-start gap-4 sm:gap-5">
           <GoogleButton
             onClick={handleGoogleLogin}
             className="self-stretch"

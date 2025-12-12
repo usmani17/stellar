@@ -879,6 +879,7 @@ export const Campaigns: React.FC = () => {
                   >
                     <Button
                       type="button"
+                      variant="ghost"
                       className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-xl flex items-center gap-1.5 h-8 hover:bg-gray-50 transition-colors text-[10px] text-[#072929] font-medium"
                       onClick={(e) => {
                         e.stopPropagation();

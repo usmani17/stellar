@@ -466,7 +466,13 @@ export const Accounts: React.FC = () => {
                                               >
                                                 <td className="py-3 px-4">
                                                   <button
-                                                    onClick={() => navigate(`/accounts/${account.id}/campaigns`)}
+                                                    onClick={() => {
+                                                      if (channel.channel_type === 'google') {
+                                                        navigate(`/accounts/${account.id}/google-campaigns`);
+                                                      } else {
+                                                        navigate(`/accounts/${account.id}/campaigns`);
+                                                      }
+                                                    }}
                                                     className="text-[14px] text-[#313850] hover:text-[#0066ff] hover:underline cursor-pointer text-left"
                                                   >
                                                     {channel.channel_name}
@@ -487,6 +493,15 @@ export const Accounts: React.FC = () => {
                                                     {channel.channel_type === 'amazon' && (
                                                       <Button
                                                         onClick={() => navigate(`/channels/${channel.id}/select-profiles`)}
+                                                        size="sm"
+                                                        variant="outline"
+                                                      >
+                                                        Profiles
+                                                      </Button>
+                                                    )}
+                                                    {channel.channel_type === 'google' && (
+                                                      <Button
+                                                        onClick={() => navigate(`/channels/${channel.id}/select-google-accounts`)}
                                                         size="sm"
                                                         variant="outline"
                                                       >

@@ -13,6 +13,7 @@ interface GoogleAdsAccount {
   name: string;
   currency_code?: string;
   timezone?: string;
+  is_manager?: boolean;
 }
 
 export const SelectGoogleAdsAccounts: React.FC = () => {
@@ -26,6 +27,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [setupMessage, setSetupMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (channelId) {
@@ -125,11 +127,18 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
       }
 
       // Save selected profiles
-      await accountsService.saveGoogleProfiles(
+      const response = await accountsService.saveGoogleProfiles(
         parseInt(channelId),
         selectedIds,
         accounts
       );
+
+      // Show setup message if provided
+      if (response.setup_message) {
+        setSetupMessage(response.setup_message);
+        // Show message for 2 seconds before navigating
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
 
       // Refresh accounts to show the new channel
       await refreshAccounts();
@@ -164,81 +173,155 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
     );
   }
 
+  const toggleAll = () => {
+    if (selectedCustomerIds.size === accounts.length) {
+      setSelectedCustomerIds(new Set());
+    } else {
+      setSelectedCustomerIds(new Set(accounts.map((a) => a.customer_id)));
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white flex">
+      {/* Sidebar */}
       <Sidebar />
-      <div className="ml-64">
+
+      {/* Main Content */}
+      <div className="flex-1 ml-[272px]">
+        {/* Header */}
         <DashboardHeader />
-        <div className="p-8">
+
+        {/* Main Content Area */}
+        <div className="p-8 bg-white">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+            <div className="mb-6">
+              <h1 className="text-[24px] font-medium text-[#072929] mb-2">
                 Select Google Ads Accounts
               </h1>
-              <p className="text-gray-600 mb-6">
-                Choose which Google Ads accounts you want to connect to this channel.
-                You can select multiple accounts.
+              <p className="text-[14px] text-[#556179]">
+                Choose which Google Ads accounts you want to connect.
               </p>
+            </div>
 
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-                  {error}
-                </div>
-              )}
+            {error && (
+              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-[14px]">
+                {error}
+              </div>
+            )}
 
-              {accounts.length > 0 ? (
-                <div className="space-y-3 mb-6">
-                  {accounts.map((account) => (
-                    <label
-                      key={account.customer_id}
-                      className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        selectedCustomerIds.has(account.customer_id)
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        name="google_ads_account"
-                        value={account.customer_id}
-                        checked={selectedCustomerIds.has(account.customer_id)}
-                        onChange={() => toggleSelection(account.customer_id)}
-                        className="mr-4 h-4 w-4 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">
-                          {account.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Customer ID: {account.customer_id}
-                          {account.currency_code && ` • ${account.currency_code}`}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No Google Ads accounts found.
-                </div>
-              )}
+            {setupMessage && (
+              <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-[14px] flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
+                <span>{setupMessage}</span>
+              </div>
+            )}
 
-              <div className="flex justify-end space-x-3">
-                <Button
-                  onClick={() => navigate("/accounts")}
-                  variant="outline"
-                  disabled={saving}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={selectedCustomerIds.size === 0 || saving}
-                >
-                  {saving ? "Saving..." : `Connect ${selectedCustomerIds.size} Account${selectedCustomerIds.size !== 1 ? 's' : ''}`}
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#072929] mx-auto mb-4"></div>
+                <p className="text-[14px] text-[#556179]">
+                  Loading accounts...
+                </p>
+              </div>
+            ) : accounts.length === 0 ? (
+              <div className="text-center py-12 bg-[#FEFEFB] border border-[#E8E8E3] rounded-2xl">
+                <p className="text-[14px] text-[#556179] mb-4">
+                  No accounts found. Please check your Google Ads account
+                  connection.
+                </p>
+                <Button onClick={loadProfiles} variant="outline">
+                  Retry
                 </Button>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={
+                        accounts.length > 0 &&
+                        selectedCustomerIds.size === accounts.length
+                      }
+                      onChange={toggleAll}
+                      className="w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                    />
+                    <label className="text-[14px] font-medium text-[#072929]">
+                      Select All ({selectedCustomerIds.size}/{accounts.length})
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  {accounts.map((account) => {
+                    const isSelected = selectedCustomerIds.has(account.customer_id);
+
+                    return (
+                      <div
+                        key={account.customer_id}
+                        className={`bg-[#FEFEFB] border rounded-2xl p-4 cursor-pointer transition-all ${
+                          isSelected
+                            ? "border-[#072929] bg-[#F0F0ED]"
+                            : "border-[#E8E8E3] hover:border-[#D0D0C8]"
+                        }`}
+                        onClick={() => toggleSelection(account.customer_id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelection(account.customer_id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-[16px] font-medium text-[#072929]">
+                                {account.name}
+                              </h3>
+                              {account.is_manager && (
+                                <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F4F8] text-[#0066CC] rounded-full border border-[#B3D9E6]">
+                                  Manager Account
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-4 text-[14px] text-[#556179] flex-wrap">
+                              <span>Customer ID: {account.customer_id}</span>
+                              {account.currency_code && (
+                                <span>Currency: {account.currency_code}</span>
+                              )}
+                              {account.timezone && (
+                                <span>Timezone: {account.timezone}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/accounts")}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving || selectedCustomerIds.size === 0}
+                  >
+                    {saving
+                      ? "Saving..."
+                      : `Save ${selectedCustomerIds.size} Account${
+                          selectedCustomerIds.size !== 1 ? "s" : ""
+                        }`}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

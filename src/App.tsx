@@ -21,7 +21,10 @@ import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
 import { GoogleOAuthCallback } from "./pages/GoogleOAuthCallback";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
 import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
+import { GoogleCampaigns } from "./pages/google/GoogleCampaigns";
+import { GoogleCampaignDetail } from "./pages/google/GoogleCampaignDetail";
 import { Auth0Callback } from "./pages/Auth0Callback";
+import { Dashboards } from "./pages/Dashboards";
 
 function App() {
   return (
@@ -101,6 +104,16 @@ function App() {
               }
             />
             <Route
+              path="/dashboards"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboards />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/accounts"
               element={
                 <ProtectedRoute>
@@ -116,6 +129,26 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Campaigns />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounts/:accountId/google-campaigns"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <GoogleCampaigns />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounts/:accountId/google-campaigns/:campaignId"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <GoogleCampaignDetail />
                   </Layout>
                 </ProtectedRoute>
               }

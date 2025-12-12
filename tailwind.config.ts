@@ -7,29 +7,6 @@ const config = {
       colors: {
         // Neutral (Light) - Complete palette from Figma
         neutral: {
-<<<<<<< HEAD
-          red: '#00FF00',
-          n0: '#FFFFFF',
-          n10: '#FAFBFC',
-          n20: '#F4F5F7',
-          n30: '#EBECF0',
-          n40: '#DFE1E6',
-          n50: '#475467',
-          n60: '#B3BAC5',
-          n70: '#A5ADBA',
-          n80: '#97A0AF',
-          n90: '#8993A4',
-          n100: '#7D8799',
-          n200: '#6B7589',
-          n300: '#556179',
-          n400: '#414C62',
-          n500: '#313B50',
-          n600: '#29303F',
-          n700: '#212630',
-          n800: '#161B25',
-          n900: '#0B0F16',
-          n1000: '#000205',
-=======
           n0: "#FFFFFF",
           n10: "#FAFBFC",
           n20: "#F4F5F7",
@@ -50,7 +27,6 @@ const config = {
           n800: "#161B25",
           n900: "#0B0F16",
           n1000: "#000205",
->>>>>>> a441ac2c3c606389142cfb27a42eec71a3722d07
         },
         // Neutral Alpha - For dark theme support
         neutralAlpha: {

@@ -15,11 +15,18 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({
       className={`
         self-stretch h-14 
         rounded-2xl 
-        outline outline-1 outline-offset-[-1px] outline-[#e8e8e3]
+        border border-sandstorm-s40
         inline-flex justify-center items-center gap-2.5
         bg-white
-        hover:bg-sandstorm-s5 
-        transition-colors
+        hover:bg-sandstorm-s20
+        hover:border-sandstorm-s60
+        active:bg-sandstorm-s30
+        active:border-sandstorm-s60
+        focus:outline-none focus:ring-1 focus:ring-forest-f40 focus:ring-offset-1
+        transition-all duration-200
+        cursor-pointer
+        shadow-sm hover:shadow-md
+        transform hover:scale-[1.01]
         ${className}
       `}
       style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
@@ -33,7 +40,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({
           <path d="M16.2864 7.41333C18.9689 7.41333 20.7784 8.54885 21.8102 9.49778L25.8239 5.54C23.3658 3.17777 20.1435 2 16.2864 2C10.699 2 5.87359 5.14222 3.52441 9.71556L8.14352 13.2311C9.30252 9.85555 12.5091 7.41333 16.2864 7.41333Z" fill="#EB4335"/>
         </svg>
       </div>
-      <span className="justify-center text-black text-base font-normal" style={{ fontFamily: 'Poppins, sans-serif' }}>
+      <span className="justify-center text-black text-base font-normal" style={{ fontFamily: 'Poppins, sans-serif', color: 'black' }}>
         {children || 'Continue with Google'}
       </span>
     </button>
