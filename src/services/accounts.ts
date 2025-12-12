@@ -1,18 +1,5 @@
 import api from './api';
 
-export interface Account {
-  id: number;
-  name: string;
-  channels_count?: number;
-  channels?: Channel[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateAccountData {
-  name: string;
-}
-
 export interface Channel {
   id: number;
   channel_name: string;
@@ -25,6 +12,23 @@ export interface Channel {
   created_at: string;
   updated_at: string;
   needs_profile_selection?: boolean;
+}
+
+export interface Account {
+  id: number;
+  name: string;
+  channels_count?: number;
+  channels?: Channel[];
+  user_ids?: number[];
+  users?: Array<{ id: number; name: string; email: string }>;
+  created_by?: number;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAccountData {
+  name: string;
 }
 
 export const accountsService = {

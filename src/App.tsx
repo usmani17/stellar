@@ -20,6 +20,7 @@ import { CampaignDetail } from "./pages/CampaignDetail";
 import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
 import { GoogleOAuthCallback } from "./pages/GoogleOAuthCallback";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
+import { ListAmazonProfiles } from "./pages/ListAmazonProfiles";
 import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
 import { GoogleCampaigns } from "./pages/google/GoogleCampaigns";
 import { GoogleCampaignDetail } from "./pages/google/GoogleCampaignDetail";
@@ -77,6 +78,16 @@ function App() {
                 }
               />
               <Route
+                path="/channels/:channelId/list-profiles"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ListAmazonProfiles />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/"
                 element={
                   <ProtectedRoute>
@@ -128,6 +139,16 @@ function App() {
                 }
               />
               <Route
+                path="/accounts/:accountId/channels"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Channels />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/accounts/:accountId/campaigns"
                 element={
                   <ProtectedRoute>
@@ -163,16 +184,6 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <CampaignDetail />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/accounts/:accountId/channels"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Channels />
                     </Layout>
                   </ProtectedRoute>
                 }
