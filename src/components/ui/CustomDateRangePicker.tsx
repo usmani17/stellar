@@ -5,6 +5,7 @@ import DatePicker, {
   type DatePickerProps,
 } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { Dropdown, type DropdownOption } from "./Dropdown";
 
 type CustomDateRangePickerProps = {
   startDate: Date | null;
@@ -46,11 +47,15 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
   const [monthGridOpen, setMonthGridOpen] = useState<Record<number, boolean>>(
     {}
   );
+  const [isCustomSelection, setIsCustomSelection] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   // Update local state when props change (e.g., when parent updates)
   useEffect(() => {
     setTempStartDate(propStartDate);
     setTempEndDate(propEndDate);
+    // Reset custom selection when props change (preset was applied externally)
+    setIsCustomSelection(false);
   }, [propStartDate, propEndDate]);
 
   // Handle date range changes locally
@@ -58,6 +63,10 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
     const [start, end] = dates;
     setTempStartDate(start);
     setTempEndDate(end);
+    // Mark as custom selection when user manually selects dates
+    if (start || end) {
+      setIsCustomSelection(true);
+    }
   };
 
   // Apply the selected range to parent
@@ -75,6 +84,71 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
     setTempEndDate(propEndDate);
     onCancel?.();
   };
+
+  // Quick date range handlers
+  const handleQuickRange = (range: string) => {
+    // If "Select Dates" (custom), just show calendar without auto-applying
+    if (range === "custom") {
+      setIsCustomSelection(true);
+      setSelectedPreset(null);
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    let start: Date;
+    let end: Date = today;
+
+    switch (range) {
+      case "last7days":
+        start = new Date();
+        start.setDate(start.getDate() - 7);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case "last30days":
+        start = new Date();
+        start.setDate(start.getDate() - 30);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case "thismonth":
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case "thisyear":
+        start = new Date(today.getFullYear(), 0, 1);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case "lastyear":
+        start = new Date(today.getFullYear() - 1, 0, 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(today.getFullYear() - 1, 11, 31);
+        end.setHours(23, 59, 59, 999);
+        break;
+      default:
+        return;
+    }
+
+    // Auto-apply preset ranges immediately
+    setIsCustomSelection(false);
+    setSelectedPreset(range);
+    setTempStartDate(start);
+    setTempEndDate(end);
+
+    // Apply immediately
+    const dates: [Date | null, Date | null] = [start, end];
+    onChange(dates);
+    onApply?.(dates);
+  };
+
+  // Date range preset options for dropdown
+  const dateRangeOptions: DropdownOption<string>[] = [
+    { value: "last7days", label: "Last 7 Days" },
+    { value: "last30days", label: "Last 30 Days" },
+    { value: "thismonth", label: "This Month" },
+    { value: "thisyear", label: "This Year" },
+    { value: "lastyear", label: "Last Year" },
+    { value: "custom", label: "Select Dates" },
+  ];
 
   const renderHeader = ({
     monthDate,
@@ -205,40 +279,91 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
   } = datePickerProps;
 
   return (
-    <div className="bg-white rounded-3xl border-none overflow-hidden select-none">
-      <DatePicker
-        selected={tempStartDate}
-        onChange={handleDateChange}
-        startDate={tempStartDate}
-        endDate={tempEndDate}
-        selectsRange
-        inline
-        monthsShown={monthsShown}
-        showPopperArrow={false}
-        fixedHeight
-        renderCustomHeader={renderHeader}
-        formatWeekDay={(name) => name[0].toUpperCase()}
-        // Spread safe datePickerProps (minDate, maxDate, etc.)
-        {...safeDatePickerProps}
-      />
-
-      <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-[#f9f9f6]">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="px-5 py-2.5 text-sm font-medium text-[#374151] bg-background-field border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleApply}
-          disabled={!tempStartDate || !tempEndDate}
-          className="px-5 py-2.5 text-sm font-medium text-white bg-[#072929] rounded-xl hover:bg-[#051c1c] disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
-        >
-          Apply
-        </button>
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden select-none shadow-lg">
+      {/* Quick Date Range Options Dropdown */}
+      <div className="px-6 pt-4 pb-3 border-b border-gray-200 bg-[#f9f9f6]">
+        <Dropdown<string>
+          options={dateRangeOptions}
+          value={isCustomSelection ? "custom" : selectedPreset || undefined}
+          placeholder="Select Date Range"
+          onChange={(value) => handleQuickRange(value)}
+          width="w-full"
+          renderButton={(option, isOpen, toggle) => (
+            <button
+              type="button"
+              onClick={toggle}
+              className="flex items-center gap-2 px-2 py-1.5 bg-background-field border border-gray-200 rounded-lg h-8 hover:bg-gray-50 w-full"
+            >
+              <span className="text-[10.56px] text-[#072929] font-medium flex-1 text-left">
+                {option ? option.label : "Select Date Range"}
+              </span>
+              <svg
+                className={`w-4 h-4 text-[#072929] transition-transform ${
+                  isOpen ? "rotate-180" : ""
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+          )}
+        />
       </div>
+
+      {/* Only show calendar when "Select Dates" is clicked */}
+      {isCustomSelection && (
+        <DatePicker
+          selected={tempStartDate}
+          onChange={handleDateChange}
+          startDate={tempStartDate}
+          endDate={tempEndDate}
+          selectsRange
+          inline
+          monthsShown={monthsShown}
+          showPopperArrow={false}
+          fixedHeight
+          renderCustomHeader={renderHeader}
+          formatWeekDay={(name) => name[0].toUpperCase()}
+          // Spread safe datePickerProps (minDate, maxDate, etc.)
+          {...safeDatePickerProps}
+        />
+      )}
+
+      {/* Only show Apply/Cancel buttons for custom date selection */}
+      {isCustomSelection && (
+        <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-[#f9f9f6]">
+          <button
+            type="button"
+            onClick={() => {
+              handleCancel();
+              setIsCustomSelection(false);
+            }}
+            className="bg-[#f9f9f6] border border-[#072929] h-[36px] px-2 py-1.5 rounded-[8px] flex items-center justify-center transition"
+          >
+            <span className="text-[14px] font-semibold text-[#072929]">
+              Cancel
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              handleApply();
+              setIsCustomSelection(false);
+            }}
+            disabled={!tempStartDate || !tempEndDate}
+            className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            <span className="text-[14px] font-medium">Apply</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
