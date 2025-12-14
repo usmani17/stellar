@@ -5,7 +5,6 @@ import DatePicker, {
   type DatePickerProps,
 } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Dropdown, type DropdownOption } from "./Dropdown";
 
 type CustomDateRangePickerProps = {
   startDate: Date | null;
@@ -48,14 +47,34 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
     {}
   );
   const [isCustomSelection, setIsCustomSelection] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(
+    "last30days"
+  );
 
-  // Update local state when props change (e.g., when parent updates)
+  // Initialize with Last 30 Days if no dates provided
   useEffect(() => {
-    setTempStartDate(propStartDate);
-    setTempEndDate(propEndDate);
-    // Reset custom selection when props change (preset was applied externally)
-    setIsCustomSelection(false);
+    if (!propStartDate && !propEndDate && !tempStartDate && !tempEndDate) {
+      // Set default to Last 30 Days on initial mount only
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+
+      setTempStartDate(start);
+      setTempEndDate(today);
+      setSelectedPreset("last30days");
+      setIsCustomSelection(false);
+
+      // Apply default range
+      onChange([start, today]);
+    } else if (propStartDate || propEndDate) {
+      setTempStartDate(propStartDate);
+      setTempEndDate(propEndDate);
+      // Reset custom selection when props change (preset was applied externally)
+      setIsCustomSelection(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propStartDate, propEndDate]);
 
   // Handle date range changes locally
@@ -105,6 +124,11 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
         start.setDate(start.getDate() - 7);
         start.setHours(0, 0, 0, 0);
         break;
+      case "last14days":
+        start = new Date();
+        start.setDate(start.getDate() - 14);
+        start.setHours(0, 0, 0, 0);
+        break;
       case "last30days":
         start = new Date();
         start.setDate(start.getDate() - 30);
@@ -140,16 +164,6 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
     onApply?.(dates);
   };
 
-  // Date range preset options for dropdown
-  const dateRangeOptions: DropdownOption<string>[] = [
-    { value: "last7days", label: "Last 7 Days" },
-    { value: "last30days", label: "Last 30 Days" },
-    { value: "thismonth", label: "This Month" },
-    { value: "thisyear", label: "This Year" },
-    { value: "lastyear", label: "Last Year" },
-    { value: "custom", label: "Select Dates" },
-  ];
-
   const renderHeader = ({
     monthDate,
     customHeaderCount,
@@ -161,7 +175,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       <button
         type="button"
         onClick={decreaseMonth}
-        className={`p-2 border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition ${
+        className={`p-1 border border-gray-200 rounded-md items-center hover:bg-gray-50 transition ${
           customHeaderCount === 0 ? "visible" : "invisible"
         }`}
       >
@@ -172,7 +186,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       <div className="flex items-center gap-1 relative">
         <button
           type="button"
-          className="month-grid-trigger text-lg font-semibold text-[#072929] rounded-[10px] cursor-pointer"
+          className="month-grid-trigger text-sm font-semibold text-[#072929] rounded-[7px] cursor-pointer"
           onClick={() =>
             setMonthGridOpen((prev) => ({
               ...prev,
@@ -198,7 +212,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
             {monthDate.toLocaleDateString("en-US", { month: "short" })},
           </span>
         </button>
-        <span className="text-lg font-semibold text-[#072929]">
+        <span className="text-sm font-semibold text-[#072929]">
           {monthDate.getFullYear()}
         </span>
 
@@ -260,7 +274,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
       <button
         type="button"
         onClick={increaseMonth}
-        className={`p-2 border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition ${
+        className={`p-1 border border-gray-200 rounded-md items-center hover:bg-gray-50 transition ${
           customHeaderCount === 1 ? "visible" : "invisible"
         }`}
       >
@@ -279,43 +293,51 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
   } = datePickerProps;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden select-none shadow-lg">
-      {/* Quick Date Range Options Dropdown */}
-      <div className="px-6 pt-4 pb-3 border-b border-gray-200 bg-[#f9f9f6]">
-        <Dropdown<string>
-          options={dateRangeOptions}
-          value={isCustomSelection ? "custom" : selectedPreset || undefined}
-          placeholder="Select Date Range"
-          onChange={(value) => handleQuickRange(value)}
-          width="w-full"
-          renderButton={(option, isOpen, toggle) => (
-            <button
-              type="button"
-              onClick={toggle}
-              className="flex items-center gap-2 px-2 py-1.5 bg-background-field border border-gray-200 rounded-lg h-8 hover:bg-gray-50 w-full"
-            >
-              <span className="text-[10.56px] text-[#072929] font-medium flex-1 text-left">
-                {option ? option.label : "Select Date Range"}
-              </span>
-              <svg
-                className={`w-4 h-4 text-[#072929] transition-transform ${
-                  isOpen ? "rotate-180" : ""
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden select-none shadow-lg min-w-[240px]">
+      {/* Quick Date Range Options - Vertical List like Accounts Dropdown */}
+      {/* Hide options when "Select Dates" is active */}
+      {!isCustomSelection && (
+        <div className="py-1 bg-white">
+          {[
+            { value: "last7days", label: "Last 7 Days" },
+            { value: "last14days", label: "Last 14 Days" },
+            { value: "last30days", label: "Last 30 Days" },
+            { value: "thismonth", label: "This Month" },
+            { value: "thisyear", label: "This Year" },
+            { value: "lastyear", label: "Last Year" },
+            { value: "custom", label: "Select Dates" },
+          ].map((option) => {
+            const isSelected = option.value === selectedPreset;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleQuickRange(option.value)}
+                className={`w-full text-left px-2 py-1.5 text-[13.2px] transition-colors flex items-center justify-between ${
+                  isSelected
+                    ? "bg-gray-50 text-[#072929] font-medium"
+                    : "text-[#313850] bg-white hover:bg-gray-50"
                 }`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-          )}
-        />
-      </div>
+                <span>{option.label}</span>
+                {isSelected && (
+                  <svg
+                    className="w-3 h-3 text-[#136d6d] flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Only show calendar when "Select Dates" is clicked */}
       {isCustomSelection && (
@@ -331,6 +353,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
           fixedHeight
           renderCustomHeader={renderHeader}
           formatWeekDay={(name) => name[0].toUpperCase()}
+          maxDate={new Date()} // Prevent selecting future dates
           // Spread safe datePickerProps (minDate, maxDate, etc.)
           {...safeDatePickerProps}
         />
@@ -338,16 +361,16 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
 
       {/* Only show Apply/Cancel buttons for custom date selection */}
       {isCustomSelection && (
-        <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-[#f9f9f6]">
+        <div className="flex justify-between items-center px-4 py-3 border-t border-gray-200 bg-[#f9f9f6]">
           <button
             type="button"
             onClick={() => {
               handleCancel();
               setIsCustomSelection(false);
             }}
-            className="bg-[#f9f9f6] border border-[#072929] h-[36px] px-2 py-1.5 rounded-[8px] flex items-center justify-center transition"
+            className="bg-[#f9f9f6] border border-[#072929] h-[24px] px-2 py-1 rounded-[6px] flex items-center justify-center transition"
           >
-            <span className="text-[14px] font-semibold text-[#072929]">
+            <span className="text-[10px] font-semibold text-[#072929]">
               Cancel
             </span>
           </button>
@@ -358,9 +381,9 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
               setIsCustomSelection(false);
             }}
             disabled={!tempStartDate || !tempEndDate}
-            className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1 h-[24px] rounded-lg flex items-center gap-1.5 justify-center disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
-            <span className="text-[14px] font-medium">Apply</span>
+            <span className="text-[10px] font-medium">Apply</span>
           </button>
         </div>
       )}
@@ -370,7 +393,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
 
 const ChevronLeft = () => (
   <svg
-    className="w-5 h-5 text-[#072929] cursor-pointer"
+    className="w-3.5 h-3.5 text-[#072929] cursor-pointer"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -386,7 +409,7 @@ const ChevronLeft = () => (
 
 const ChevronRight = () => (
   <svg
-    className="w-5 h-5 text-[#072929]"
+    className="w-3.5 h-3.5 text-[#072929]"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
