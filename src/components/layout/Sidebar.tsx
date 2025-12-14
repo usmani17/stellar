@@ -49,7 +49,7 @@ export const Sidebar: React.FC = () => {
                   : "text-black hover:bg-transparent"
               }`}
             >
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Accounts
               </span>
             </Link>
@@ -58,7 +58,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Dashboards Section */}
         <div className="mb-6">
-          <h2 className="text-[11.2px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
+          <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
             Dashboards
           </h2>
           <div className="space-y-1">
@@ -77,7 +77,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/dashboards") ? "brightness-0 invert" : ""
                 }`}
               />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Overview
               </span>
             </Link>
@@ -86,7 +86,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Amazon Section */}
         <div className="mb-6">
-          <h2 className="text-[11.2px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
+          <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
             Amazon
           </h2>
           <div className="space-y-1">
@@ -95,7 +95,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={CreateCampaignIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Create Campaign
               </span>
             </Link>
@@ -114,7 +114,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/campaigns") ? "brightness-0 invert" : ""
                 }`}
               />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Campaigns
               </span>
             </Link>
@@ -123,7 +123,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={AdGroupIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Ad Groups
               </span>
             </Link>
@@ -132,7 +132,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Product Target
               </span>
             </Link>
@@ -141,7 +141,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={GoogleIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Analytics
               </span>
             </Link>
@@ -150,7 +150,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Blueprints
               </span>
             </Link>
@@ -159,7 +159,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Settings
               </span>
             </Link>
@@ -168,7 +168,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Marketing Channels Section */}
         <div className="mb-6">
-          <h2 className="text-[11.2px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
+          <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
             Marketing Channels
           </h2>
           <div className="space-y-1">
@@ -177,7 +177,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Google
               </span>
             </Link>
@@ -186,7 +186,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Meta
               </span>
             </Link>
@@ -195,7 +195,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Walmart
               </span>
             </Link>
@@ -204,7 +204,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Instacart
               </span>
             </Link>
@@ -213,7 +213,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Criteo
               </span>
             </Link>
@@ -222,7 +222,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Overview Section */}
         <div className="mb-6">
-          <h2 className="text-[11.2px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
+          <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
             Overview
           </h2>
           <div className="space-y-1">
@@ -231,7 +231,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Trend Chart
               </span>
             </Link>
@@ -240,7 +240,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 KPI Cards
               </span>
             </Link>
@@ -249,7 +249,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={InstacartIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Top Keywords
               </span>
             </Link>
@@ -258,7 +258,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={TopKeywordsIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Top Products
               </span>
             </Link>
@@ -267,7 +267,7 @@ export const Sidebar: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl transition-colors text-black hover:bg-transparent"
             >
               <img src={TopProductsIcon} alt="" className="w-5 h-5" />
-              <span className="text-[11.2px] font-normal leading-[16px]">
+              <span className="text-[12.32px] font-normal leading-[16px]">
                 Pixels-Like Box
               </span>
             </Link>

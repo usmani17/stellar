@@ -26,6 +26,24 @@ export const Campaigns: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const { startDate, endDate } = useDateRange();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [summary, setSummary] = useState<{
+    total_campaigns: number;
+    total_spends: number;
+    total_sales: number;
+    total_impressions: number;
+    total_clicks: number;
+    avg_acos: number;
+    avg_roas: number;
+  } | null>(null);
+  const [chartDataFromApi, setChartDataFromApi] = useState<
+    Array<{
+      date: string;
+      spend: number;
+      sales: number;
+      impressions?: number;
+      clicks?: number;
+    }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [selectedCampaigns, setSelectedCampaigns] = useState<
     Set<string | number>
@@ -34,7 +52,6 @@ export const Campaigns: React.FC = () => {
     sales: true,
     spend: true,
     clicks: false,
-    orders: false,
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
@@ -76,6 +93,8 @@ export const Campaigns: React.FC = () => {
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  const loadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -139,6 +158,15 @@ export const Campaigns: React.FC = () => {
   }, [editingCell, showInlineEditModal]);
 
   useEffect(() => {
+    // Cancel any pending request when dependencies change
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+    const currentController = abortControllerRef.current;
+
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
@@ -149,6 +177,14 @@ export const Campaigns: React.FC = () => {
     } else {
       setLoading(false);
     }
+
+    // Cleanup function to cancel request if component unmounts or dependencies change
+    return () => {
+      if (currentController) {
+        currentController.abort();
+      }
+      loadingRef.current = false;
+    };
   }, [
     accountId,
     currentPage,
@@ -204,7 +240,13 @@ export const Campaigns: React.FC = () => {
   };
 
   const loadCampaigns = async (accountId: number) => {
+    // Prevent duplicate simultaneous requests
+    if (loadingRef.current) {
+      return;
+    }
+
     try {
+      loadingRef.current = true;
       setLoading(true);
       const params: any = {
         sort_by: sortBy,
@@ -219,12 +261,19 @@ export const Campaigns: React.FC = () => {
       const response = await campaignsService.getCampaigns(accountId, params);
       setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
       setTotalPages(response.total_pages || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      if (response.chart_data) {
+        setChartDataFromApi(response.chart_data);
+      }
     } catch (error) {
       console.error("Failed to load campaigns:", error);
       setCampaigns([]);
       setTotalPages(0);
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   };
 
@@ -232,7 +281,13 @@ export const Campaigns: React.FC = () => {
     accountId: number,
     filterList: FilterValues
   ) => {
+    // Prevent duplicate simultaneous requests
+    if (loadingRef.current) {
+      return;
+    }
+
     try {
+      loadingRef.current = true;
       setLoading(true);
       const params: any = {
         sort_by: sortBy,
@@ -247,12 +302,19 @@ export const Campaigns: React.FC = () => {
       const response = await campaignsService.getCampaigns(accountId, params);
       setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
       setTotalPages(response.total_pages || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      if (response.chart_data) {
+        setChartDataFromApi(response.chart_data);
+      }
     } catch (error) {
       console.error("Failed to load campaigns:", error);
       setCampaigns([]);
       setTotalPages(0);
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   };
 
@@ -593,6 +655,17 @@ export const Campaigns: React.FC = () => {
 
   // Generate chart data based on campaigns and date range
   const chartData = useMemo(() => {
+    // Use chart data from API if available, otherwise generate from campaigns
+    if (chartDataFromApi.length > 0) {
+      return chartDataFromApi.map((item) => ({
+        date: item.date,
+        sales: item.sales,
+        spend: item.spend,
+        clicks: item.clicks || 0,
+      }));
+    }
+
+    // Fallback: generate from campaigns data
     const days = Math.ceil(
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -617,8 +690,6 @@ export const Campaigns: React.FC = () => {
       const sales = Math.max(0, avgSalesPerDay * variation * weekendFactor);
       const spend = Math.max(0, avgSpendsPerDay * variation * weekendFactor);
       const clicks = Math.floor(spend * (50 + Math.random() * 30)); // Estimate clicks from spend
-      const orders = Math.floor(sales / (50 + Math.random() * 30)); // Estimate orders from sales
-
       data.push({
         date: date.toLocaleDateString("en-US", {
           month: "short",
@@ -627,12 +698,11 @@ export const Campaigns: React.FC = () => {
         sales: Math.round(sales),
         spend: Math.round(spend),
         clicks: clicks,
-        orders: orders,
       });
     }
 
     return data;
-  }, [campaigns, startDate, endDate]);
+  }, [chartDataFromApi, campaigns, startDate, endDate]);
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -640,12 +710,12 @@ export const Campaigns: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
+      <div className="flex-1 ml-[272px] min-w-0">
         {/* Header */}
         <DashboardHeader />
 
         {/* Main Content Area */}
-        <div className="p-8 bg-white">
+        <div className="p-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             {/* Header with Filter Button */}
             <div className="flex items-center justify-between">
@@ -728,7 +798,6 @@ export const Campaigns: React.FC = () => {
                     { key: "sales", label: "Sales", color: "#136D6D" },
                     { key: "spend", label: "Spend", color: "#506766" },
                     { key: "clicks", label: "Clicks", color: "#169aa3" },
-                    { key: "orders", label: "Orders", color: "#072929" },
                   ].map((metric) => (
                     <div
                       key={metric.key}
@@ -844,24 +913,13 @@ export const Campaigns: React.FC = () => {
                         activeDot={{ r: 4 }}
                       />
                     )}
-                    {chartToggles.orders && (
-                      <Line
-                        type="monotone"
-                        dataKey="orders"
-                        stroke="#072929"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Orders"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* Campaigns Table Card */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6">
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
               {/* Table Header */}
               <div className="flex items-center justify-between">
                 <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
@@ -1377,8 +1435,8 @@ export const Campaigns: React.FC = () => {
               )}
 
               {/* Table */}
-              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px]">
-                <div className="overflow-x-auto">
+              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+                <div className="overflow-x-auto w-full">
                   {loading ? (
                     <div className="text-center py-8 text-[#556179] text-[13.3px]">
                       Loading campaigns...
@@ -1390,11 +1448,11 @@ export const Campaigns: React.FC = () => {
                       </p>
                     </div>
                   ) : (
-                    <table className="min-w-[1200px] w-full">
+                    <table className="min-w-[1200px]">
                       <thead>
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
-                          <th className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={
@@ -1423,7 +1481,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Campaign Name Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px]"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px]"
                             onClick={() => handleSort("campaign_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -1434,7 +1492,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Profile Name Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
                             onClick={() => handleSort("profile_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -1445,7 +1503,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Campaign Type Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSort("type")}
                           >
                             <div className="flex items-center gap-1">
@@ -1456,7 +1514,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* State Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSort("status")}
                           >
                             <div className="flex items-center gap-1">
@@ -1467,7 +1525,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Budget Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSort("budget")}
                           >
                             <div className="flex items-center gap-1">
@@ -1478,7 +1536,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Budget Type Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSort("budgetType")}
                           >
                             <div className="flex items-center gap-1">
@@ -1489,7 +1547,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Start Date Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 whitespace-nowrap"
                             onClick={() => handleSort("startDate")}
                           >
                             <div className="flex items-center gap-1">
@@ -1500,7 +1558,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Spends Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSort("spends")}
                           >
                             <div className="flex items-center gap-1">
@@ -1511,7 +1569,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Sales Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSort("sales")}
                           >
                             <div className="flex items-center gap-1">
@@ -1520,9 +1578,31 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
+                          {/* Impressions Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("impressions")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Impressions
+                              {getSortIcon("impressions")}
+                            </div>
+                          </th>
+
+                          {/* Clicks Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("clicks")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Clicks
+                              {getSortIcon("clicks")}
+                            </div>
+                          </th>
+
                           {/* ACOS Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSort("acos")}
                           >
                             <div className="flex items-center gap-1">
@@ -1533,7 +1613,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* ROAS Header */}
                           <th
-                            className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                             onClick={() => handleSort("roas")}
                           >
                             <div className="flex items-center gap-1">
@@ -1541,14 +1621,42 @@ export const Campaigns: React.FC = () => {
                               {getSortIcon("roas")}
                             </div>
                           </th>
-
-                          {/* Actions Header */}
-                          <th className="text-left py-3 px-5 text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                            Actions
-                          </th>
                         </tr>
                       </thead>
                       <tbody>
+                        {/* Summary Row */}
+                        {summary && (
+                          <tr className="bg-[#f5f5f0] font-semibold">
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              Total ({summary.total_campaigns})
+                            </td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {formatCurrency(summary.total_spends)}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {formatCurrency(summary.total_sales)}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {summary.total_impressions.toLocaleString()}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {summary.total_clicks.toLocaleString()}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {summary.avg_acos.toFixed(2)}%
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {summary.avg_roas.toFixed(2)}x
+                            </td>
+                          </tr>
+                        )}
                         {campaigns.map((campaign, index) => {
                           const isLastRow = index === campaigns.length - 1;
                           return (
@@ -1559,7 +1667,7 @@ export const Campaigns: React.FC = () => {
                               } hover:bg-gray-50 transition-colors`}
                             >
                               {/* Checkbox */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 <div className="flex items-center justify-center">
                                   <Checkbox
                                     checked={selectedCampaigns.has(
@@ -1586,35 +1694,38 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Campaign Name */}
-                              <td className="py-4 px-5 min-w-[300px]">
+                              <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
                                 <button
                                   onClick={() =>
                                     navigate(
                                       `/accounts/${accountId}/campaigns/${campaign.campaignId}`
                                     )
                                   }
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left whitespace-nowrap"
+                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
                                 >
                                   {campaign.campaign_name || "Unnamed Campaign"}
                                 </button>
                               </td>
 
                               {/* Profile Name */}
-                              <td className="py-4 px-5 min-w-[200px]">
+                              <td className="py-[10px] px-[10px] min-w-[200px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                  {campaign.profile_name || "—"}
+                                  {campaign.profile_name &&
+                                  campaign.profile_name.trim() !== ""
+                                    ? campaign.profile_name
+                                    : "—"}
                                 </span>
                               </td>
 
                               {/* Type */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
                                   {campaign.type || "SP"}
                                 </span>
                               </td>
 
                               {/* Status */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 {editingCell?.campaignId ===
                                   campaign.campaignId &&
                                 editingCell?.field === "status" ? (
@@ -1653,7 +1764,7 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Daily Budget */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 {editingCell?.campaignId ===
                                   campaign.campaignId &&
                                 editingCell?.field === "budget" ? (
@@ -1692,7 +1803,7 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Budget Type */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 {editingCell?.campaignId ===
                                   campaign.campaignId &&
                                 editingCell?.field === "budgetType" ? (
@@ -1728,8 +1839,8 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Start Date */}
-                              <td className="py-4 px-5">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
                                   {campaign.startDate
                                     ? new Date(
                                         campaign.startDate
@@ -1743,53 +1854,47 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Spends */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                   {formatCurrency(campaign.spends || 0)}
                                 </span>
                               </td>
 
                               {/* Sales */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                   {formatCurrency(campaign.sales || 0)}
                                 </span>
                               </td>
 
+                              {/* Impressions */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {(campaign.impressions || 0).toLocaleString()}
+                                </span>
+                              </td>
+
+                              {/* Clicks */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {(campaign.clicks || 0).toLocaleString()}
+                                </span>
+                              </td>
+
                               {/* ACOS */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                   {formatPercentage(campaign.acos || 0)}
                                 </span>
                               </td>
 
                               {/* ROAS */}
-                              <td className="py-4 px-5">
+                              <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                   {campaign.roas
                                     ? `${campaign.roas.toFixed(2)} x`
                                     : "0.00 x"}
                                 </span>
-                              </td>
-
-                              {/* Actions */}
-                              <td className="py-4 px-5">
-                                <button
-                                  onClick={() =>
-                                    navigate(
-                                      `/accounts/${accountId}/campaigns/${campaign.campaignId}`
-                                    )
-                                  }
-                                  className="text-[#A3A8B3] hover:text-black"
-                                >
-                                  <svg
-                                    className="w-5 h-5 mx-auto"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                                  </svg>
-                                </button>
                               </td>
                             </tr>
                           );

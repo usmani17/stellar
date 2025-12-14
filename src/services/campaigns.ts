@@ -9,6 +9,8 @@ export interface Campaign {
   daily_budget: number;
   spends: number;
   sales: number;
+  impressions?: number;
+  clicks?: number;
   acos: number;
   roas: number;
   last_sync: string;
@@ -18,8 +20,26 @@ export interface Campaign {
   profile_id?: string;  // Profile ID
 }
 
+export interface CampaignSummary {
+  total_campaigns: number;
+  total_spends: number;
+  total_sales: number;
+  total_impressions: number;
+  total_clicks: number;
+  avg_acos: number;
+  avg_roas: number;
+}
+
 export interface CampaignsResponse {
   campaigns: Campaign[];
+  summary?: CampaignSummary;
+  chart_data?: Array<{
+    date: string;
+    spend: number;
+    sales: number;
+    impressions?: number;
+    clicks?: number;
+  }>;
   total: number;
   page: number;
   page_size: number;

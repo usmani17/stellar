@@ -1,10 +1,18 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Dropdown, type DropdownOption } from "../ui/Dropdown";
 import { Chip } from "../ui/Chip";
 
 export interface FilterItem {
   id: string;
-  field: "campaign_name" | "state" | "budget" | "type" | "profile_name" | "status" | "advertising_channel_type" | "account_name";
+  field:
+    | "campaign_name"
+    | "state"
+    | "budget"
+    | "type"
+    | "profile_name"
+    | "status"
+    | "advertising_channel_type"
+    | "account_name";
   operator?: string; // For campaign_name, budget, profile_name, and account_name
   value: string | number;
 }
@@ -52,7 +60,17 @@ const NUMERIC_OPERATORS = [
 const STATE_OPTIONS = ["Enable", "Paused", "Archived"];
 const TYPE_OPTIONS = ["SP", "SB", "SD"];
 const STATUS_OPTIONS = ["ENABLED", "PAUSED", "REMOVED"];
-const CHANNEL_TYPE_OPTIONS = ["SEARCH", "DISPLAY", "SHOPPING", "PERFORMANCE_MAX", "VIDEO", "HOTEL", "MULTI_CHANNEL", "LOCAL", "SMART"];
+const CHANNEL_TYPE_OPTIONS = [
+  "SEARCH",
+  "DISPLAY",
+  "SHOPPING",
+  "PERFORMANCE_MAX",
+  "VIDEO",
+  "HOTEL",
+  "MULTI_CHANNEL",
+  "LOCAL",
+  "SMART",
+];
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   isOpen,
@@ -67,8 +85,48 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
   const panelRef = useRef<HTMLDivElement>(null);
-  
+
   const FILTER_FIELDS = filterFields || DEFAULT_FILTER_FIELDS;
+
+  // Get next available filter field that hasn't been used
+  const getNextAvailableField = (): string => {
+    const usedFields = new Set(activeFilters.map((f) => f.field));
+    const availableField = FILTER_FIELDS.find(
+      (f) => !usedFields.has(f.value as FilterItem["field"])
+    );
+    return availableField?.value || FILTER_FIELDS[0]?.value || "";
+  };
+
+  // Auto-select first filter and operator when panel opens
+  useEffect(() => {
+    if (isOpen && !selectedField && FILTER_FIELDS.length > 0) {
+      const firstField = getNextAvailableField();
+      if (firstField) {
+        setSelectedField(firstField);
+
+        // Auto-select first operator if field needs operator
+        const needsOp =
+          firstField === "campaign_name" ||
+          firstField === "budget" ||
+          firstField === "profile_name" ||
+          firstField === "account_name";
+
+        if (needsOp) {
+          // For string fields, use "contains", for numeric use "eq"
+          if (
+            firstField === "campaign_name" ||
+            firstField === "profile_name" ||
+            firstField === "account_name"
+          ) {
+            setSelectedOperator(STRING_OPERATORS[0]?.value || "");
+          } else if (firstField === "budget") {
+            setSelectedOperator(NUMERIC_OPERATORS[2]?.value || "eq"); // "=" operator
+          }
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleAddFilter = () => {
     if (!selectedField || !filterValue) return;
@@ -93,8 +151,37 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     };
 
     setActiveFilters([...activeFilters, newFilter]);
-    setSelectedField("");
-    setSelectedOperator("");
+
+    // Auto-select next available filter
+    const nextField = getNextAvailableField();
+    if (nextField) {
+      setSelectedField(nextField);
+
+      // Auto-select first operator if field needs operator
+      const needsOp =
+        nextField === "campaign_name" ||
+        nextField === "budget" ||
+        nextField === "profile_name" ||
+        nextField === "account_name";
+
+      if (needsOp) {
+        // For string fields, use "contains", for numeric use "eq"
+        if (
+          nextField === "campaign_name" ||
+          nextField === "profile_name" ||
+          nextField === "account_name"
+        ) {
+          setSelectedOperator(STRING_OPERATORS[0]?.value || "");
+        } else if (nextField === "budget") {
+          setSelectedOperator(NUMERIC_OPERATORS[2]?.value || "eq"); // "=" operator
+        }
+      } else {
+        setSelectedOperator("");
+      }
+    } else {
+      setSelectedField("");
+      setSelectedOperator("");
+    }
     setFilterValue("");
   };
 
@@ -137,7 +224,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     selectedField === "profile_name" ||
     selectedField === "account_name";
   const isStateOrType = selectedField === "state" || selectedField === "type";
-  const isStatusOrChannelType = selectedField === "status" || selectedField === "advertising_channel_type";
+  const isStatusOrChannelType =
+    selectedField === "status" || selectedField === "advertising_channel_type";
 
   if (!isOpen) return null;
 
@@ -164,8 +252,29 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               placeholder="Select Filter"
               onChange={(value) => {
                 setSelectedField(value);
-                setSelectedOperator("");
                 setFilterValue("");
+
+                // Auto-select first operator if field needs operator
+                const needsOp =
+                  value === "campaign_name" ||
+                  value === "budget" ||
+                  value === "profile_name" ||
+                  value === "account_name";
+
+                if (needsOp) {
+                  // For string fields, use "contains", for numeric use "eq"
+                  if (
+                    value === "campaign_name" ||
+                    value === "profile_name" ||
+                    value === "account_name"
+                  ) {
+                    setSelectedOperator(STRING_OPERATORS[0]?.value || "");
+                  } else if (value === "budget") {
+                    setSelectedOperator(NUMERIC_OPERATORS[2]?.value || "eq"); // "=" operator
+                  }
+                } else {
+                  setSelectedOperator("");
+                }
               }}
               buttonClassName="w-full"
             />

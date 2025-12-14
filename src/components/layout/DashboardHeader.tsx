@@ -109,10 +109,10 @@ export const DashboardHeader: React.FC = () => {
               onClick={toggle}
               className="flex items-center gap-2 px-2 py-1.5 bg-background-field border border-gray-200 rounded-lg h-8 hover:bg-gray-50"
             >
-              <div className="w-3 h-3 rounded bg-[#072929] text-white text-[6.4px] flex items-center justify-center font-semibold">
+              <div className="w-3 h-3 rounded bg-[#072929] text-white text-[7.04px] flex items-center justify-center font-semibold">
                 {option ? option.label[0]?.toUpperCase() : "A"}
               </div>
-              <span className="text-[9.6px] text-[#072929] font-medium">
+              <span className="text-[10.56px] text-[#072929] font-medium">
                 {option ? option.label : "Select Account"}
               </span>
               <svg
@@ -157,7 +157,7 @@ export const DashboardHeader: React.FC = () => {
                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <span className="text-[12px] text-[#072929]">
+            <span className="text-[13.2px] text-[#072929]">
               {formatDateRange()}
             </span>
             <svg
@@ -200,7 +200,7 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={profileDropdownRef}>
           <button
             onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-background-field border border-gray-200 flex items-center justify-center text-gray-600 text-[11.2px] font-semibold hover:bg-gray-50 transition-colors"
+            className="w-8 h-8 rounded-full bg-background-field border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:bg-gray-50 transition-colors"
           >
             {user?.first_name?.[0] || "U"}
           </button>
@@ -208,17 +208,17 @@ export const DashboardHeader: React.FC = () => {
           {isProfileDropdownOpen && (
             <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
               <div className="p-2">
-                <div className="px-3 py-2 text-[11.2px] text-[#313850] border-b border-gray-100">
+                <div className="px-3 py-2 text-[12.32px] text-[#313850] border-b border-gray-100">
                   <div className="font-medium">
                     {user?.first_name} {user?.last_name}
                   </div>
-                  <div className="text-[9.6px] text-[#556179] mt-1">
+                  <div className="text-[10.56px] text-[#556179] mt-1">
                     {user?.email}
                   </div>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-2 rounded text-[11.2px] text-[#313850] hover:bg-gray-50 transition-colors"
+                  className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
                 >
                   Logout
                 </button>
