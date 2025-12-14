@@ -191,7 +191,6 @@ export const StatusTag: React.FC<StatusTagProps> = ({
           ${sizeStyle.lineHeight}
         `}
         style={{
-          fontFamily: 'GT America Trial, sans-serif',
           color: appearanceStyle.text,
         }}
       >

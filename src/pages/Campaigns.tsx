@@ -1710,7 +1710,9 @@ export const Campaigns: React.FC = () => {
                                 <button
                                   onClick={() =>
                                     navigate(
-                                      `/accounts/${accountId}/campaigns/${campaign.campaignId}`
+                                      `/accounts/${accountId}/campaigns/${campaign.type.toLowerCase()}_${
+                                        campaign.campaignId
+                                      }`
                                     )
                                   }
                                   className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"

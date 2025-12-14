@@ -9,6 +9,9 @@ interface AdGroupsTableProps {
   onSelectAll?: (checked: boolean) => void;
   onSelect?: (id: number, checked: boolean) => void;
   selectedIds?: Set<number>;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  onSort?: (column: string) => void;
 }
 
 export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
@@ -17,7 +20,58 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   onSelectAll,
   onSelect,
   selectedIds = new Set(),
+  sortBy = "id",
+  sortOrder = "asc",
+  onSort,
 }) => {
+  const getSortIcon = (column: string) => {
+    if (sortBy !== column || !onSort) {
+      return (
+        <svg
+          className="w-4 h-4 ml-1 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+          />
+        </svg>
+      );
+    }
+    return sortOrder === "asc" ? (
+      <svg
+        className="w-4 h-4 ml-1 text-[#136D6D]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M5 15l7-7 7 7"
+        />
+      </svg>
+    ) : (
+      <svg
+        className="w-4 h-4 ml-1 text-[#136D6D]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 9l-7 7-7-7"
+        />
+      </svg>
+    );
+  };
   const allSelected =
     adgroups.length > 0 && adgroups.every((ag) => selectedIds.has(ag.id));
   const someSelected = adgroups.some((ag) => selectedIds.has(ag.id));
@@ -31,153 +85,173 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   };
 
   return (
-    <div className="rounded-2xl" style={{ backgroundColor: "#F5F5F0" }}>
-      {/* Table Header */}
-      <div
-        className="border border-gray-200 border-b-0 rounded-t-2xl px-[34px] pt-8 pb-0 shadow-[0px_8px_20px_0px_rgba(0,0,0,0.06)]"
-        style={{ backgroundColor: "#F5F5F0" }}
-      ></div>
-
-      {/* Table */}
-      <div
-        className="border border-gray-200 border-t-0 rounded-b-2xl shadow-[0px_14px_20px_0px_rgba(0,0,0,0.06)] overflow-hidden p-6"
-        style={{ backgroundColor: "#F5F5F0" }}
-      >
-        <div className="bg-white rounded-xl overflow-hidden">
-          {/* Table Header Row */}
-          <div className="border-b border-gray-200 flex items-center h-[48px] bg-white rounded-t-xl">
-            {/* Checkbox Header */}
-            <div className="w-[35px] flex items-center justify-center">
-              <Checkbox
-                checked={allSelected}
-                indeterminate={someSelected && !allSelected}
-                onChange={handleSelectAll}
-                size="small"
-              />
-            </div>
-
-            {/* Ad Group Name Header */}
-            <div className="w-[280px] px-4">
-              <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
-                Ad Group Name
-              </p>
-            </div>
-
-            {/* CTR Header */}
-            <div className="w-[100px] text-center">
-              <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
-                CTR
-              </p>
-            </div>
-
-            {/* Status Header */}
-            <div className="w-[100px] text-center">
-              <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
-                Status
-              </p>
-            </div>
-
-            {/* Spends Header */}
-            <div className="w-[100px] text-center">
-              <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
-                Spends
-              </p>
-            </div>
-
-            {/* Sales Header */}
-            <div className="text-center flex-1 min-w-[51px]">
-              <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
-                Sales
-              </p>
-            </div>
-
-            {/* Actions Header */}
-            <div className="w-[54px] text-center mr-4">
-              <p className="text-[9.6px] font-semibold text-[#556179] uppercase">
-                Actions
-              </p>
-            </div>
+    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+      <div className="overflow-x-auto w-full">
+        {loading ? (
+          <div className="text-center py-8 text-[#556179] text-[13.3px]">
+            Loading ad groups...
           </div>
-          <div className="divide-y divide-gray-200">
-            {loading ? (
-              <div
-                className="p-8 text-center text-[#556179]"
-                style={{ backgroundColor: "#F5F5F0" }}
-              >
-                Loading ad groups...
-              </div>
-            ) : adgroups.length === 0 ? (
-              <div
-                className="p-8 text-center text-[#556179]"
-                style={{ backgroundColor: "#F5F5F0" }}
-              >
-                No ad groups found
-              </div>
-            ) : (
-              adgroups.map((adgroup) => (
-                <div
-                  key={adgroup.id}
-                  className="flex items-center h-[48px] bg-white hover:bg-gray-50"
-                >
-                  {/* Checkbox */}
-                  <div className="w-[35px] flex items-center justify-center">
+        ) : adgroups.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-[13.3px] text-[#556179] mb-4">
+              No ad groups found
+            </p>
+          </div>
+        ) : (
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-[#e8e8e3]">
+                {/* Checkbox Header */}
+                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                  <div className="flex items-center justify-center">
                     <Checkbox
-                      checked={selectedIds.has(adgroup.id)}
-                      onChange={(checked) => handleSelect(adgroup.id, checked)}
+                      checked={allSelected}
+                      indeterminate={someSelected && !allSelected}
+                      onChange={handleSelectAll}
                       size="small"
                     />
                   </div>
+                </th>
 
-                  {/* Ad Group Name */}
-                  <div className="w-[280px] px-4">
-                    <p className="text-[12.8px] font-normal text-black truncate">
-                      {adgroup.name}
-                    </p>
+                {/* Ad Group Name Header */}
+                <th
+                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                  onClick={() => onSort?.("name")}
+                >
+                  <div className="flex items-center gap-1">
+                    Ad Group Name
+                    {getSortIcon("name")}
                   </div>
+                </th>
 
-                  {/* CTR */}
-                  <div className="w-[100px] text-center">
-                    <p className="text-[12.8px] font-normal text-black">
-                      {adgroup.ctr}
-                    </p>
+                {/* State Header */}
+                <th
+                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                  onClick={() => onSort?.("status")}
+                >
+                  <div className="flex items-center gap-1">
+                    State
+                    {getSortIcon("status")}
                   </div>
+                </th>
 
-                  {/* Status */}
-                  <div className="w-[100px] text-center">
-                    <StatusBadge status={adgroup.status} />
-                  </div>
+                {/* Default Bid Header */}
+                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  Default Bid
+                </th>
 
-                  {/* Spends */}
-                  <div className="w-[100px] text-center">
-                    <p className="text-[12.8px] font-normal text-black">
-                      {adgroup.spends}
-                    </p>
+                {/* CTR Header */}
+                <th
+                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                  onClick={() => onSort?.("ctr")}
+                >
+                  <div className="flex items-center gap-1">
+                    CTR
+                    {getSortIcon("ctr")}
                   </div>
+                </th>
 
-                  {/* Sales */}
-                  <div className="text-center flex-1 min-w-[51px]">
-                    <p className="text-[12.8px] font-normal text-black">
-                      {adgroup.sales}
-                    </p>
+                {/* Spends Header */}
+                <th
+                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                  onClick={() => onSort?.("spends")}
+                >
+                  <div className="flex items-center gap-1">
+                    Spends
+                    {getSortIcon("spends")}
                   </div>
+                </th>
 
-                  {/* Actions */}
-                  <div className="w-[54px] text-center mr-4">
-                    <button className="text-[#A3A8B3] hover:text-black border border-gray-200 rounded-lg items-center hover:bg-gray-50 transition-colors">
-                      <svg
-                        className="w-5 h-5 mx-auto"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                      </svg>
-                    </button>
+                {/* Sales Header */}
+                <th
+                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                  onClick={() => onSort?.("sales")}
+                >
+                  <div className="flex items-center gap-1">
+                    Sales
+                    {getSortIcon("sales")}
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {adgroups.map((adgroup, index) => {
+                const isLastRow = index === adgroups.length - 1;
+                return (
+                  <tr
+                    key={adgroup.id}
+                    className={`${
+                      !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                    } hover:bg-gray-50 transition-colors`}
+                  >
+                    {/* Checkbox */}
+                    <td className="py-[10px] px-[10px]">
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={selectedIds.has(adgroup.id)}
+                          onChange={(checked) =>
+                            handleSelect(adgroup.id, checked)
+                          }
+                          size="small"
+                        />
+                      </div>
+                    </td>
+
+                    {/* Ad Group Name */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {adgroup.name}
+                      </span>
+                    </td>
+
+                    {/* State */}
+                    <td className="py-[10px] px-[10px]">
+                      <StatusBadge status={adgroup.status} />
+                    </td>
+
+                    {/* Default Bid */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {adgroup.default_bid || "$0.00"}
+                      </span>
+                    </td>
+
+                    {/* CTR */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {adgroup.ctr}
+                      </span>
+                    </td>
+
+                    {/* Spends */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {adgroup.spends}
+                      </span>
+                    </td>
+
+                    {/* Sales */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {adgroup.sales}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

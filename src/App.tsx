@@ -179,7 +179,7 @@ function App() {
                 }
               />
               <Route
-                path="/accounts/:accountId/campaigns/:campaignId"
+                path="/accounts/:accountId/campaigns/:campaignTypeAndId"
                 element={
                   <ProtectedRoute>
                     <Layout>

@@ -205,7 +205,6 @@ export const Banner: React.FC<BannerProps> = ({
             shrink-0
           `}
           style={{ 
-            fontFamily: 'GT America Trial, sans-serif', 
             fontWeight: 700,
             lineHeight: '20px',
             color: type === 'error' || type === 'success' ? '#FFFFFF' : '#072929'
@@ -234,7 +233,6 @@ export const Banner: React.FC<BannerProps> = ({
             shrink-0
           `}
           style={{
-            fontFamily: 'GT America Trial, sans-serif',
             fontWeight: 500,
             lineHeight: '18px',
             color: type === 'error' || type === 'success' ? '#FFFFFF' : '#072929'

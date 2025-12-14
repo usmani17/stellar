@@ -146,7 +146,6 @@ export const Badge: React.FC<BadgeProps> = ({
             font-normal
           `}
           style={{
-            fontFamily: "GT America Trial, sans-serif",
             color: finalText,
           }}
         >

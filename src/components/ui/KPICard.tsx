@@ -34,27 +34,13 @@ export const KPICard: React.FC<KPICardProps> = ({
       }}
     >
       <p
-        style={{
-          color: "#072929",
-          fontSize: "14px",
-          fontFamily: "GT America Trial",
-          fontWeight: 400,
-          lineHeight: "100%",
-          wordWrap: "break-word",
-        }}
-        className="mb-0"
+        className="text-[#072929] text-[14px] leading-[100%] break-words mb-0"
       >
         {label}
       </p>
       <div className="flex items-center justify-between w-full">
         <p
-          style={{
-            color: "#072929",
-            fontSize: "24px",
-            fontFamily: "GT America Trial",
-            fontWeight: 500,
-            lineHeight: "100%",
-          }}
+          className="text-[#072929] text-[24px] font-medium leading-[100%]"
         >
           {typeof value === "number" ? value.toLocaleString() : value}
         </p>

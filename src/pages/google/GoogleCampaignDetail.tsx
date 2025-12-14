@@ -427,13 +427,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     : "Campaign Not Found"}
                 </h1>
                 <p
-                  style={{
-                    color: "#808080",
-                    fontSize: "16px",
-                    fontFamily: "GT America Trial",
-                    fontWeight: 400,
-                    lineHeight: "100%",
-                  }}
+                  className="text-[#808080] text-[16px] leading-[100%]"
                 >
                   {loading
                     ? "Loading..."
@@ -455,15 +449,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }`}
                     />
                   </button>
-                  <span
-                    style={{
-                      color: "#808080",
-                      fontSize: "16px",
-                      fontFamily: "GT America Trial",
-                      fontWeight: 400,
-                      lineHeight: "100%",
-                    }}
-                  >
+                  <span className="text-[#808080] text-[16px] leading-[100%]">
                     Status
                   </span>
                 </div>
@@ -488,7 +474,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                     ? "border-[#136D6D] text-[#136D6D]"
                     : "border-transparent text-[#556179] hover:text-[#072929]"
                 }`}
-                style={{ fontFamily: "GT America Trial" }}
               >
                 {tab}
               </button>

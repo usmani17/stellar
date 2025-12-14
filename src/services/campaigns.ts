@@ -76,8 +76,12 @@ export interface CampaignsQueryParams {
 export interface CampaignDetail {
   campaign: {
     id: number;
+    campaignId?: string | number;
     name: string;
     status: string;
+    budget?: number;
+    startDate?: string;
+    budgetType?: string;
     description: string;
   };
   kpi_cards: Array<{
@@ -111,6 +115,7 @@ export interface AdGroup {
   id: number;
   name: string;
   status: string;
+  default_bid?: string;
   ctr: string;
   spends: string;
   sales: string;
@@ -132,6 +137,7 @@ export interface Keyword {
   id: number;
   name: string;
   status: string;
+  bid?: string;
   adgroup_name?: string;
   ctr: string;
   spends: string;
@@ -230,7 +236,8 @@ export const campaignsService = {
     accountId: number,
     campaignId: string | number,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    campaignType?: string
   ): Promise<CampaignDetail> => {
     const params = new URLSearchParams();
     if (startDate) {
@@ -238,6 +245,9 @@ export const campaignsService = {
     }
     if (endDate) {
       params.append('end_date', endDate);
+    }
+    if (campaignType) {
+      params.append('type', campaignType);
     }
     
     const url = `/accounts/${accountId}/campaigns/${campaignId}/${params.toString() ? `?${params.toString()}` : ''}`;
