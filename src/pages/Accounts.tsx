@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAccounts } from "../contexts/AccountsContext";
 import { accountsService } from "../services/accounts";
 import { Sidebar } from "../components/layout/Sidebar";
-import { DashboardHeader } from "../components/layout/DashboardHeader";
+import { AccountsHeader } from "../components/layout/AccountsHeader";
 import { Button, Card, DeleteConfirmationModal, Menu } from "../components/ui";
 import AmazonIcon from "../assets/images/ri_amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
@@ -172,12 +172,12 @@ export const Accounts: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
-        {/* Header */}
-        <DashboardHeader />
+      <div className="flex-1 lg:ml-[272px] ml-0 w-full">
+        {/* Header without account selector/date range */}
+        <AccountsHeader />
 
         {/* Main Content Area */}
-        <div className="p-8 bg-white">
+        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
           {oauthError && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-[14px]">
               {oauthError}
@@ -192,8 +192,8 @@ export const Accounts: React.FC = () => {
 
           <div className="space-y-6">
             {/* Header with Create Button */}
-            <div className="flex items-center justify-between">
-              <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h1 className="text-[22px] sm:text-[24px] font-medium text-[#072929] leading-[normal]">
                 Accounts
               </h1>
               <Button
@@ -252,13 +252,13 @@ export const Accounts: React.FC = () => {
             )}
 
             {/* Accounts Table Card */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6">
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-4 sm:p-6 flex flex-col gap-4 sm:gap-6">
               {/* Header with Search */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-[24px] font-medium text-[#072929] leading-[normal]">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h2 className="text-[20px] sm:text-[22px] md:text-[24px] font-medium text-[#072929] leading-[normal]">
                   All Accounts
                 </h2>
-                <div className="bg-[#f0f0ed] border border-[#e8e8e3] rounded-[8px] h-[40px] w-[272px] flex items-center gap-2 px-[10px]">
+                <div className="bg-[#f0f0ed] border border-[#e8e8e3] rounded-[8px] h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
                   <svg
                     className="w-3 h-3 text-[#556179]"
                     fill="none"
@@ -316,7 +316,7 @@ export const Accounts: React.FC = () => {
                           <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
                             Created By
                           </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
+                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px] w-[180px] md:w-[220px]">
                             Actions
                           </th>
                         </tr>
@@ -366,7 +366,7 @@ export const Accounts: React.FC = () => {
                                 </span>
                               </td>
                               <td className="py-4 px-5 relative">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 justify-end md:justify-start">
                                   <Menu
                                     trigger={
                                       <Button

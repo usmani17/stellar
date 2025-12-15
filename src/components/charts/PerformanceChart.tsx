@@ -53,7 +53,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
           {metrics.map((metric) => (
             <div
               key={metric.key}
-              className="border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-3 bg-white"
+              className="border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-3 bg-[#fefefb]"
             >
               <div
                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -64,7 +64,9 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
               </span>
               <button
                 onClick={() =>
-                  onToggle(metric.key as "sales" | "spend" | "clicks" | "orders")
+                  onToggle(
+                    metric.key as "sales" | "spend" | "clicks" | "orders"
+                  )
                 }
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
                   toggles[metric.key as keyof typeof toggles]
@@ -178,4 +180,3 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
     </div>
   );
 };
-

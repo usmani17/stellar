@@ -710,16 +710,16 @@ export const Campaigns: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px] min-w-0">
+      <div className="flex-1 lg:ml-[272px] ml-0 min-w-0 w-full">
         {/* Header */}
         <DashboardHeader />
 
         {/* Main Content Area */}
-        <div className="p-8 bg-white overflow-x-hidden min-w-0">
+        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
             {/* Header with Filter Button */}
-            <div className="flex items-center justify-between">
-              <h1 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                 Campaign Manager
               </h1>
               {/* Add Filter Button */}
@@ -765,7 +765,11 @@ export const Campaigns: React.FC = () => {
             {isFilterPanelOpen && (
               <FilterPanel
                 isOpen={true}
-                onClose={() => setIsFilterPanelOpen(false)}
+                onClose={() => {
+                  // Check if filters changed before closing
+                  // The FilterPanel will have already applied changes via onApply when chips are removed
+                  setIsFilterPanelOpen(false);
+                }}
                 onApply={(newFilters) => {
                   setFilters(newFilters);
                   setCurrentPage(1); // Reset to first page when applying filters
@@ -1448,7 +1452,7 @@ export const Campaigns: React.FC = () => {
                       </p>
                     </div>
                   ) : (
-                    <table className="min-w-[1200px]">
+                    <table className="min-w-[1200px] w-full">
                       <thead>
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
@@ -1639,10 +1643,10 @@ export const Campaigns: React.FC = () => {
                         {summary && (
                           <tr className="bg-[#f5f5f0] font-semibold">
                             <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               Total ({summary.total_campaigns})
                             </td>
+                            <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
@@ -1937,7 +1941,7 @@ export const Campaigns: React.FC = () => {
               {/* Pagination */}
               {!loading && campaigns.length > 0 && (
                 <div className="flex items-center justify-end mt-4">
-                  <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                  <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                     <button
                       onClick={() =>
                         handlePageChange(Math.max(1, currentPage - 1))

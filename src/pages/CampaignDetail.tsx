@@ -12,9 +12,15 @@ import {
   type CampaignDetail as CampaignDetailData,
   type AdGroup,
   type Keyword,
+  type ProductAd,
 } from "../services/campaigns";
 import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 import { KeywordsTable } from "../components/campaigns/KeywordsTable";
+import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
+import {
+  FilterPanel,
+  type FilterValues,
+} from "../components/filters/FilterPanel";
 
 export const CampaignDetail: React.FC = () => {
   const { accountId, campaignTypeAndId } = useParams<{
@@ -78,6 +84,26 @@ export const CampaignDetail: React.FC = () => {
   const [keywordsSortOrder, setKeywordsSortOrder] = useState<"asc" | "desc">(
     "asc"
   );
+  const [isAdGroupsFilterPanelOpen, setIsAdGroupsFilterPanelOpen] =
+    useState(false);
+  const [adgroupsFilters, setAdgroupsFilters] = useState<FilterValues>([]);
+  const [isKeywordsFilterPanelOpen, setIsKeywordsFilterPanelOpen] =
+    useState(false);
+  const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
+  const [productads, setProductads] = useState<ProductAd[]>([]);
+  const [productadsLoading, setProductadsLoading] = useState(false);
+  const [selectedProductAdIds, setSelectedProductAdIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [productadsCurrentPage, setProductadsCurrentPage] = useState(1);
+  const [productadsTotalPages, setProductadsTotalPages] = useState(0);
+  const [productadsSortBy, setProductadsSortBy] = useState<string>("id");
+  const [productadsSortOrder, setProductadsSortOrder] = useState<
+    "asc" | "desc"
+  >("asc");
+  const [isProductAdsFilterPanelOpen, setIsProductAdsFilterPanelOpen] =
+    useState(false);
+  const [productadsFilters, setProductadsFilters] = useState<FilterValues>([]);
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
@@ -100,18 +126,215 @@ export const CampaignDetail: React.FC = () => {
     }
   }, [accountId, campaignId, startDate, endDate]);
 
-  // Reset pagination when date range or tab changes
+  // Reset pagination when date range, tab, or filters change
   useEffect(() => {
     if (activeTab === "Ad Groups") {
       setAdgroupsCurrentPage(1);
     }
-  }, [activeTab, startDate, endDate]);
+  }, [activeTab, startDate, endDate, adgroupsFilters]);
 
   useEffect(() => {
     if (activeTab === "Keywords") {
       setKeywordsCurrentPage(1);
     }
-  }, [activeTab, startDate, endDate]);
+  }, [activeTab, startDate, endDate, keywordsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Product Ads") {
+      setProductadsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, productadsFilters]);
+
+  const buildKeywordsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "name") {
+        if (filter.operator === "contains") {
+          params.name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.name = filter.value;
+        }
+      } else if (filter.field === "state") {
+        params.state = filter.value;
+      } else if (filter.field === "bid") {
+        if (filter.operator === "lt") {
+          params.bid__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.bid__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.bid = filter.value;
+        } else if (filter.operator === "lte") {
+          params.bid__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.bid__gte = filter.value;
+        }
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
+        }
+      } else if (filter.field === "spends") {
+        if (filter.operator === "lt") {
+          params.spends__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.spends__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.spends = filter.value;
+        } else if (filter.operator === "lte") {
+          params.spends__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.spends__gte = filter.value;
+        }
+      } else if (filter.field === "sales") {
+        if (filter.operator === "lt") {
+          params.sales__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.sales__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.sales = filter.value;
+        } else if (filter.operator === "lte") {
+          params.sales__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.sales__gte = filter.value;
+        }
+      } else if (filter.field === "ctr") {
+        if (filter.operator === "lt") {
+          params.ctr__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.ctr__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.ctr = filter.value;
+        } else if (filter.operator === "lte") {
+          params.ctr__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.ctr__gte = filter.value;
+        }
+      }
+    });
+
+    return params;
+  };
+
+  const buildAdGroupsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "name") {
+        if (filter.operator === "contains") {
+          params.name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.name = filter.value;
+        }
+      } else if (filter.field === "state") {
+        params.state = filter.value;
+      } else if (filter.field === "default_bid") {
+        if (filter.operator === "lt") {
+          params.default_bid__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.default_bid__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.default_bid = filter.value;
+        } else if (filter.operator === "lte") {
+          params.default_bid__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.default_bid__gte = filter.value;
+        }
+      } else if (filter.field === "spends") {
+        if (filter.operator === "lt") {
+          params.spends__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.spends__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.spends = filter.value;
+        } else if (filter.operator === "lte") {
+          params.spends__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.spends__gte = filter.value;
+        }
+      } else if (filter.field === "sales") {
+        if (filter.operator === "lt") {
+          params.sales__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.sales__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.sales = filter.value;
+        } else if (filter.operator === "lte") {
+          params.sales__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.sales__gte = filter.value;
+        }
+      } else if (filter.field === "ctr") {
+        if (filter.operator === "lt") {
+          params.ctr__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.ctr__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.ctr = filter.value;
+        } else if (filter.operator === "lte") {
+          params.ctr__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.ctr__gte = filter.value;
+        }
+      }
+    });
+
+    return params;
+  };
+
+  const buildProductAdsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "adId") {
+        if (filter.operator === "contains") {
+          params.adId__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adId__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adId = filter.value;
+        }
+      } else if (filter.field === "asin") {
+        if (filter.operator === "contains") {
+          params.asin__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.asin__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.asin = filter.value;
+        }
+      } else if (filter.field === "sku") {
+        if (filter.operator === "contains") {
+          params.sku__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.sku__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.sku = filter.value;
+        }
+      } else if (filter.field === "state") {
+        params.state = filter.value;
+      } else if (filter.field === "adGroupId") {
+        if (filter.operator === "contains") {
+          params.adGroupId__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adGroupId__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adGroupId = filter.value;
+        }
+      }
+    });
+
+    return params;
+  };
 
   useEffect(() => {
     if (accountId && campaignId && activeTab === "Ad Groups") {
@@ -126,6 +349,7 @@ export const CampaignDetail: React.FC = () => {
     adgroupsCurrentPage,
     adgroupsSortBy,
     adgroupsSortOrder,
+    adgroupsFilters,
   ]);
 
   useEffect(() => {
@@ -141,6 +365,23 @@ export const CampaignDetail: React.FC = () => {
     keywordsCurrentPage,
     keywordsSortBy,
     keywordsSortOrder,
+    keywordsFilters,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Product Ads") {
+      loadProductAds();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    productadsCurrentPage,
+    productadsSortBy,
+    productadsSortOrder,
+    productadsFilters,
   ]);
 
   const loadCampaignDetail = async () => {
@@ -192,6 +433,7 @@ export const CampaignDetail: React.FC = () => {
           page_size: 10,
           sort_by: adgroupsSortBy,
           order: adgroupsSortOrder,
+          ...buildAdGroupsFilterParams(adgroupsFilters),
         }
       );
 
@@ -293,6 +535,7 @@ export const CampaignDetail: React.FC = () => {
           page_size: 10,
           sort_by: keywordsSortBy,
           order: keywordsSortOrder,
+          ...buildKeywordsFilterParams(keywordsFilters),
         }
       );
 
@@ -373,6 +616,76 @@ export const CampaignDetail: React.FC = () => {
 
   const handleKeywordsPageChange = (page: number) => {
     setKeywordsCurrentPage(page);
+  };
+
+  const loadProductAds = async () => {
+    try {
+      setProductadsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setProductadsLoading(false);
+        return;
+      }
+
+      // campaignId is now the Amazon campaignId (string), pass it directly
+      const data = await campaignsService.getProductAds(
+        accountIdNum,
+        campaignId,
+        startDate.toISOString().split("T")[0],
+        endDate.toISOString().split("T")[0],
+        {
+          page: productadsCurrentPage,
+          page_size: 10,
+          sort_by: productadsSortBy,
+          order: productadsSortOrder,
+          ...buildProductAdsFilterParams(productadsFilters),
+        }
+      );
+
+      setProductads(data.productads);
+      setProductadsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load product ads:", error);
+      setProductads([]);
+      setProductadsTotalPages(0);
+    } finally {
+      setProductadsLoading(false);
+    }
+  };
+
+  const handleSelectAllProductAds = (checked: boolean) => {
+    if (checked) {
+      setSelectedProductAdIds(new Set(productads.map((pa) => pa.id)));
+    } else {
+      setSelectedProductAdIds(new Set());
+    }
+  };
+
+  const handleSelectProductAd = (id: number, checked: boolean) => {
+    setSelectedProductAdIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleProductAdsSort = (column: string) => {
+    if (productadsSortBy === column) {
+      setProductadsSortOrder(productadsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setProductadsSortBy(column);
+      setProductadsSortOrder("asc");
+    }
+    setProductadsCurrentPage(1);
+  };
+
+  const handleProductAdsPageChange = (page: number) => {
+    setProductadsCurrentPage(page);
   };
 
   const toggleChartMetric = (
@@ -882,6 +1195,80 @@ export const CampaignDetail: React.FC = () => {
 
             {activeTab === "Ad Groups" && (
               <>
+                {/* Header with Filter Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Ad Groups
+                  </h2>
+                  {/* Add Filter Button */}
+                  <button
+                    onClick={() =>
+                      setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen)
+                    }
+                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5 text-[#072929]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                    <span className="text-[10.64px] text-[#072929] font-normal">
+                      Add Filter
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                        isAdGroupsFilterPanelOpen ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Filter Panel */}
+                {isAdGroupsFilterPanelOpen && (
+                  <div className="mb-4">
+                    <FilterPanel
+                      isOpen={true}
+                      onClose={() => {
+                        // Check if filters changed before closing
+                        // The FilterPanel will have already applied changes via onApply when chips are removed
+                        setIsAdGroupsFilterPanelOpen(false);
+                      }}
+                      onApply={(newFilters) => {
+                        setAdgroupsFilters(newFilters);
+                        setAdgroupsCurrentPage(1); // Reset to first page when applying filters
+                        // Data will refresh automatically via useEffect dependency on adgroupsFilters
+                      }}
+                      initialFilters={adgroupsFilters}
+                      filterFields={[
+                        { value: "name", label: "Ad Group Name" },
+                        { value: "state", label: "State" },
+                        { value: "default_bid", label: "Default Bid" },
+                        { value: "spends", label: "Spends" },
+                        { value: "sales", label: "Sales" },
+                        { value: "ctr", label: "CTR" },
+                      ]}
+                    />
+                  </div>
+                )}
+
                 <div className="mb-4">
                   <AdGroupsTable
                     adgroups={adgroups}
@@ -986,6 +1373,81 @@ export const CampaignDetail: React.FC = () => {
 
             {activeTab === "Keywords" && (
               <>
+                {/* Header with Filter Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Keywords
+                  </h2>
+                  {/* Add Filter Button */}
+                  <button
+                    onClick={() =>
+                      setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen)
+                    }
+                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5 text-[#072929]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                    <span className="text-[10.64px] text-[#072929] font-normal">
+                      Add Filter
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                        isKeywordsFilterPanelOpen ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Filter Panel */}
+                {isKeywordsFilterPanelOpen && (
+                  <div className="mb-4">
+                    <FilterPanel
+                      isOpen={true}
+                      onClose={() => {
+                        // Check if filters changed before closing
+                        // The FilterPanel will have already applied changes via onApply when chips are removed
+                        setIsKeywordsFilterPanelOpen(false);
+                      }}
+                      onApply={(newFilters) => {
+                        setKeywordsFilters(newFilters);
+                        setKeywordsCurrentPage(1); // Reset to first page when applying filters
+                        // Data will refresh automatically via useEffect dependency on keywordsFilters
+                      }}
+                      initialFilters={keywordsFilters}
+                      filterFields={[
+                        { value: "name", label: "Keyword" },
+                        { value: "state", label: "State" },
+                        { value: "bid", label: "Bid" },
+                        { value: "adgroup_name", label: "Ad Group" },
+                        { value: "spends", label: "Spends" },
+                        { value: "sales", label: "Sales" },
+                        { value: "ctr", label: "CTR" },
+                      ]}
+                    />
+                  </div>
+                )}
+
                 <div className="mb-4">
                   <KeywordsTable
                     keywords={keywords}
@@ -1088,9 +1550,191 @@ export const CampaignDetail: React.FC = () => {
               </>
             )}
 
+            {activeTab === "Product Ads" && (
+              <>
+                {/* Header with Filter Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Product Ads
+                  </h2>
+                  {/* Add Filter Button */}
+                  <button
+                    onClick={() =>
+                      setIsProductAdsFilterPanelOpen(
+                        !isProductAdsFilterPanelOpen
+                      )
+                    }
+                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5 text-[#072929]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                    <span className="text-[10.64px] text-[#072929] font-normal">
+                      Add Filter
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                        isProductAdsFilterPanelOpen ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Filter Panel */}
+                {isProductAdsFilterPanelOpen && (
+                  <div className="mb-4">
+                    <FilterPanel
+                      isOpen={true}
+                      onClose={() => {
+                        // Check if filters changed before closing
+                        // The FilterPanel will have already applied changes via onApply when chips are removed
+                        setIsProductAdsFilterPanelOpen(false);
+                      }}
+                      onApply={(newFilters) => {
+                        setProductadsFilters(newFilters);
+                        setProductadsCurrentPage(1); // Reset to first page when applying filters
+                        // Data will refresh automatically via useEffect dependency on productadsFilters
+                      }}
+                      initialFilters={productadsFilters}
+                      filterFields={[
+                        { value: "adId", label: "Ad ID" },
+                        { value: "asin", label: "ASIN" },
+                        { value: "sku", label: "SKU" },
+                        { value: "state", label: "State" },
+                        { value: "adGroupId", label: "Ad Group ID" },
+                      ]}
+                    />
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <ProductAdsTable
+                    productads={productads}
+                    loading={productadsLoading}
+                    onSelectAll={handleSelectAllProductAds}
+                    onSelect={handleSelectProductAd}
+                    selectedIds={selectedProductAdIds}
+                    sortBy={productadsSortBy}
+                    sortOrder={productadsSortOrder}
+                    onSort={handleProductAdsSort}
+                  />
+                </div>
+                {/* Pagination */}
+                {!productadsLoading &&
+                  productads.length > 0 &&
+                  productadsTotalPages > 0 && (
+                    <div className="flex items-center justify-end mt-4">
+                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                        <button
+                          onClick={() =>
+                            handleProductAdsPageChange(
+                              Math.max(1, productadsCurrentPage - 1)
+                            )
+                          }
+                          disabled={productadsCurrentPage === 1}
+                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Previous
+                        </button>
+                        {Array.from(
+                          { length: Math.min(5, productadsTotalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (productadsTotalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (productadsCurrentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              productadsCurrentPage >=
+                              productadsTotalPages - 2
+                            ) {
+                              pageNum = productadsTotalPages - 4 + i;
+                            } else {
+                              pageNum = productadsCurrentPage - 2 + i;
+                            }
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() =>
+                                  handleProductAdsPageChange(pageNum)
+                                }
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                  productadsCurrentPage === pageNum
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          }
+                        )}
+                        {productadsTotalPages > 5 &&
+                          productadsCurrentPage < productadsTotalPages - 2 && (
+                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                              ...
+                            </span>
+                          )}
+                        {productadsTotalPages > 5 && (
+                          <button
+                            onClick={() =>
+                              handleProductAdsPageChange(productadsTotalPages)
+                            }
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                              productadsCurrentPage === productadsTotalPages
+                                ? "bg-white text-[#136D6D] font-semibold"
+                                : "text-black hover:bg-gray-50"
+                            }`}
+                          >
+                            {productadsTotalPages}
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            handleProductAdsPageChange(
+                              Math.min(
+                                productadsTotalPages,
+                                productadsCurrentPage + 1
+                              )
+                            )
+                          }
+                          disabled={
+                            productadsCurrentPage === productadsTotalPages
+                          }
+                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
+
             {activeTab !== "Overview" &&
               activeTab !== "Ad Groups" &&
-              activeTab !== "Keywords" && (
+              activeTab !== "Keywords" &&
+              activeTab !== "Product Ads" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
                 </div>

@@ -8,15 +8,15 @@ import {
   AuthButton,
   Alert,
   Divider,
-  GoogleButton,
 } from "../components/ui";
+import auth0Icon from "../assets/images/auth0.svg";
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, loginWithAuth0, loginWithGoogle } = useAuth();
+  const { login, loginWithAuth0 } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,10 +36,6 @@ export const Login: React.FC = () => {
 
   const handleAuth0Login = async () => {
     await loginWithAuth0();
-  };
-
-  const handleGoogleLogin = async () => {
-    await loginWithGoogle();
   };
 
   return (
@@ -98,8 +94,7 @@ export const Login: React.FC = () => {
                   <div className="self-stretch text-right">
                     <Link
                       to="/forgot-password"
-                      className="text-xs font-semibold text-forest-f60 hover:text-forest-f50"
-                      className="font-poppins font-semibold"
+                      className="text-xs font-semibold font-poppins text-forest-f60 hover:text-forest-f50"
                     >
                       Forget Password?
                     </Link>
@@ -122,16 +117,12 @@ export const Login: React.FC = () => {
 
           {/* Sign Up Link */}
           <div className="self-stretch text-center">
-            <p
-              className="text-base text-neutral-n1000 capitalize leading-4 tracking-tight"
-              className="font-poppins font-normal"
-            >
+            <p className="text-base text-neutral-n1000 capitalize leading-4 tracking-tight font-poppins font-normal">
               <span>Don't have an account?</span>
               <span> </span>
               <Link
                 to="/signup"
-                className="text-forest-f60 font-semibold uppercase leading-4 tracking-tight hover:text-forest-f50"
-                className="font-poppins font-semibold"
+                className="text-forest-f60 font-semibold font-poppins uppercase leading-4 tracking-tight hover:text-forest-f50"
               >
                 Sign up
               </Link>
@@ -145,17 +136,16 @@ export const Login: React.FC = () => {
         <Divider text="or" />
 
         <div className="self-stretch flex flex-col justify-start items-start gap-4 sm:gap-5">
-          <GoogleButton onClick={handleGoogleLogin} className="self-stretch">
-            Continue with Google
-          </GoogleButton>
-
           <AuthButton
             onClick={handleAuth0Login}
             className="self-stretch"
             variant="oauth"
             type="button"
           >
-            Sign in with Auth0
+            <div className="flex items-center gap-2">
+              <img src={auth0Icon} alt="Auth0" className="w-5 h-5" />
+              <span>Sign in with Auth0</span>
+            </div>
           </AuthButton>
         </div>
       </div>

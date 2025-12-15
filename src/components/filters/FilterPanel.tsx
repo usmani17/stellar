@@ -12,8 +12,19 @@ export interface FilterItem {
     | "profile_name"
     | "status"
     | "advertising_channel_type"
-    | "account_name";
-  operator?: string; // For campaign_name, budget, profile_name, and account_name
+    | "account_name"
+    | "name"
+    | "default_bid"
+    | "spends"
+    | "sales"
+    | "ctr"
+    | "bid"
+    | "adgroup_name"
+    | "sku"
+    | "adId"
+    | "asin"
+    | "adGroupId";
+  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId
   value: string | number;
 }
 
@@ -86,6 +97,24 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const [filterValue, setFilterValue] = useState<string>("");
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Sync activeFilters with initialFilters when they change externally
+  useEffect(() => {
+    setActiveFilters(initialFilters);
+  }, [initialFilters]);
+
+  // Apply filters when component unmounts (panel closes) if they changed
+  useEffect(() => {
+    return () => {
+      // Cleanup function runs when component unmounts
+      // Check if filters changed and apply them
+      const filtersChanged =
+        JSON.stringify(activeFilters) !== JSON.stringify(initialFilters);
+      if (filtersChanged) {
+        onApply(activeFilters);
+      }
+    };
+  }, [activeFilters, initialFilters, onApply]);
+
   const FILTER_FIELDS = filterFields || DEFAULT_FILTER_FIELDS;
 
   // Get next available filter field that hasn't been used
@@ -109,17 +138,33 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           firstField === "campaign_name" ||
           firstField === "budget" ||
           firstField === "profile_name" ||
-          firstField === "account_name";
+          firstField === "account_name" ||
+          firstField === "name" ||
+          firstField === "default_bid" ||
+          firstField === "spends" ||
+          firstField === "sales" ||
+          firstField === "ctr" ||
+          firstField === "bid" ||
+          firstField === "adgroup_name";
 
         if (needsOp) {
           // For string fields, use "contains", for numeric use "eq"
           if (
             firstField === "campaign_name" ||
             firstField === "profile_name" ||
-            firstField === "account_name"
+            firstField === "account_name" ||
+            firstField === "name" ||
+            firstField === "adgroup_name"
           ) {
             setSelectedOperator(STRING_OPERATORS[0]?.value || "");
-          } else if (firstField === "budget") {
+          } else if (
+            firstField === "budget" ||
+            firstField === "default_bid" ||
+            firstField === "spends" ||
+            firstField === "sales" ||
+            firstField === "ctr" ||
+            firstField === "bid"
+          ) {
             setSelectedOperator(NUMERIC_OPERATORS[2]?.value || "eq"); // "=" operator
           }
         }
@@ -136,7 +181,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       (selectedField === "campaign_name" ||
         selectedField === "budget" ||
         selectedField === "profile_name" ||
-        selectedField === "account_name") &&
+        selectedField === "account_name" ||
+        selectedField === "name" ||
+        selectedField === "default_bid" ||
+        selectedField === "spends" ||
+        selectedField === "sales" ||
+        selectedField === "ctr" ||
+        selectedField === "bid" ||
+        selectedField === "adgroup_name" ||
+        selectedField === "sku" ||
+        selectedField === "adId" ||
+        selectedField === "asin" ||
+        selectedField === "adGroupId") &&
       !selectedOperator
     ) {
       return;
@@ -147,7 +203,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       field: selectedField as FilterItem["field"],
       operator: selectedOperator || undefined,
       value:
-        selectedField === "budget" ? parseFloat(filterValue) || 0 : filterValue,
+        selectedField === "budget" ||
+        selectedField === "default_bid" ||
+        selectedField === "spends" ||
+        selectedField === "sales" ||
+        selectedField === "ctr" ||
+        selectedField === "bid"
+          ? parseFloat(filterValue) || 0
+          : filterValue,
     };
 
     setActiveFilters([...activeFilters, newFilter]);
@@ -162,17 +225,41 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         nextField === "campaign_name" ||
         nextField === "budget" ||
         nextField === "profile_name" ||
-        nextField === "account_name";
+        nextField === "account_name" ||
+        nextField === "name" ||
+        nextField === "default_bid" ||
+        nextField === "spends" ||
+        nextField === "sales" ||
+        nextField === "ctr" ||
+        nextField === "bid" ||
+        nextField === "adgroup_name" ||
+        nextField === "sku" ||
+        nextField === "adId" ||
+        nextField === "asin" ||
+        nextField === "adGroupId";
 
       if (needsOp) {
         // For string fields, use "contains", for numeric use "eq"
         if (
           nextField === "campaign_name" ||
           nextField === "profile_name" ||
-          nextField === "account_name"
+          nextField === "account_name" ||
+          nextField === "name" ||
+          nextField === "adgroup_name" ||
+          nextField === "sku" ||
+          nextField === "adId" ||
+          nextField === "asin" ||
+          nextField === "adGroupId"
         ) {
           setSelectedOperator(STRING_OPERATORS[0]?.value || "");
-        } else if (nextField === "budget") {
+        } else if (
+          nextField === "budget" ||
+          nextField === "default_bid" ||
+          nextField === "spends" ||
+          nextField === "sales" ||
+          nextField === "ctr" ||
+          nextField === "bid"
+        ) {
           setSelectedOperator(NUMERIC_OPERATORS[2]?.value || "eq"); // "=" operator
         }
       } else {
@@ -186,7 +273,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   };
 
   const handleRemoveFilter = (filterId: string) => {
-    setActiveFilters(activeFilters.filter((f) => f.id !== filterId));
+    const updatedFilters = activeFilters.filter((f) => f.id !== filterId);
+    setActiveFilters(updatedFilters);
+    // Automatically apply the updated filters to refresh data
+    onApply(updatedFilters);
   };
 
   const handleApply = () => {
@@ -222,7 +312,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     selectedField === "campaign_name" ||
     selectedField === "budget" ||
     selectedField === "profile_name" ||
-    selectedField === "account_name";
+    selectedField === "account_name" ||
+    selectedField === "name" ||
+    selectedField === "default_bid" ||
+    selectedField === "spends" ||
+    selectedField === "sales" ||
+    selectedField === "ctr" ||
+    selectedField === "bid" ||
+    selectedField === "adgroup_name" ||
+    selectedField === "sku" ||
+    selectedField === "adId" ||
+    selectedField === "asin" ||
+    selectedField === "adGroupId";
   const isStateOrType = selectedField === "state" || selectedField === "type";
   const isStatusOrChannelType =
     selectedField === "status" || selectedField === "advertising_channel_type";
@@ -259,17 +360,41 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value === "campaign_name" ||
                   value === "budget" ||
                   value === "profile_name" ||
-                  value === "account_name";
+                  value === "account_name" ||
+                  value === "name" ||
+                  value === "default_bid" ||
+                  value === "spends" ||
+                  value === "sales" ||
+                  value === "ctr" ||
+                  value === "bid" ||
+                  value === "adgroup_name" ||
+                  value === "sku" ||
+                  value === "adId" ||
+                  value === "asin" ||
+                  value === "adGroupId";
 
                 if (needsOp) {
                   // For string fields, use "contains", for numeric use "eq"
                   if (
                     value === "campaign_name" ||
                     value === "profile_name" ||
-                    value === "account_name"
+                    value === "account_name" ||
+                    value === "name" ||
+                    value === "adgroup_name" ||
+                    value === "sku" ||
+                    value === "adId" ||
+                    value === "asin" ||
+                    value === "adGroupId"
                   ) {
                     setSelectedOperator(STRING_OPERATORS[0]?.value || "");
-                  } else if (value === "budget") {
+                  } else if (
+                    value === "budget" ||
+                    value === "default_bid" ||
+                    value === "spends" ||
+                    value === "sales" ||
+                    value === "ctr" ||
+                    value === "bid"
+                  ) {
                     setSelectedOperator(NUMERIC_OPERATORS[2]?.value || "eq"); // "=" operator
                   }
                 } else {
@@ -290,7 +415,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 options={
                   selectedField === "campaign_name" ||
                   selectedField === "profile_name" ||
-                  selectedField === "account_name"
+                  selectedField === "account_name" ||
+                  selectedField === "name" ||
+                  selectedField === "adgroup_name" ||
+                  selectedField === "sku" ||
+                  selectedField === "adId" ||
+                  selectedField === "asin" ||
+                  selectedField === "adGroupId"
                     ? STRING_OPERATORS.map((op) => ({
                         value: op.value,
                         label: op.label,

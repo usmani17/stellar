@@ -1,6 +1,6 @@
-import React, { type ReactNode } from 'react';
-import { Logo } from './Logo';
-import { AuthSidebar } from './AuthSidebar';
+import React, { type ReactNode } from "react";
+import { Logo } from "./Logo";
+import { AuthSidebar } from "./AuthSidebar";
 
 interface AuthPageLayoutProps {
   children: ReactNode;
@@ -9,14 +9,14 @@ interface AuthPageLayoutProps {
   showGetStarted?: boolean;
 }
 
-export const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({ 
-  children, 
+export const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({
+  children,
   showLogo = true,
   sidebarContent,
-  showGetStarted = false
+  showGetStarted = false,
 }) => {
   return (
-    <div className="h-screen bg-white flex flex-col lg:flex-row overflow-hidden">
+    <div className="h-screen bg-[#f5f5f0] flex flex-col lg:flex-row overflow-hidden">
       {/* Left side - Form */}
       <div className="flex-1 flex flex-col relative px-4 sm:px-6 md:px-8 lg:px-12 overflow-y-auto">
         <div className="flex-1 flex items-center justify-center py-6 sm:py-8 md:py-12 lg:py-16">
@@ -30,7 +30,7 @@ export const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({
           </div>
         </div>
       </div>
-      
+
       {/* Right side - Sidebar */}
       <AuthSidebar showGetStarted={showGetStarted}>
         {sidebarContent}
@@ -38,4 +38,3 @@ export const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({
     </div>
   );
 };
-

@@ -28,7 +28,7 @@ export const Channels: React.FC = () => {
 
   useEffect(() => {
     if (accountId) {
-      loadData();
+    loadData();
     } else {
       // If no accountId, redirect to accounts page
       navigate("/accounts");
@@ -328,10 +328,10 @@ export const Channels: React.FC = () => {
                               </td>
                               <td className="py-4 px-5 relative">
                                 <div className="flex items-center gap-3">
-                                  <Button
+            <Button
                                     size="sm"
                                     className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
-                                    onClick={() => {
+              onClick={() => {
                                       if (channel.channel_type === "google") {
                                         navigate(
                                           `/channels/${channel.id}/select-google-accounts`
@@ -362,8 +362,8 @@ export const Channels: React.FC = () => {
                                     <span className="text-[14px] font-medium">
                                       Delete
                                     </span>
-                                  </Button>
-                                </div>
+            </Button>
+          </div>
                               </td>
                             </tr>
                           );
@@ -372,7 +372,7 @@ export const Channels: React.FC = () => {
                     </table>
                   </div>
                 )}
-              </div>
+          </div>
             </div>
           </div>
         </div>
