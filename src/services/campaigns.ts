@@ -285,144 +285,31 @@ export const campaignsService = {
       page_size?: number;
       sort_by?: string;
       order?: 'asc' | 'desc';
-      // Filter parameters
-      name?: string;
-      name__icontains?: string;
-      name__not_icontains?: string;
-      state?: string;
-      default_bid?: number | string;
-      default_bid__lt?: number | string;
-      default_bid__gt?: number | string;
-      default_bid__lte?: number | string;
-      default_bid__gte?: number | string;
-      spends?: number | string;
-      spends__lt?: number | string;
-      spends__gt?: number | string;
-      spends__lte?: number | string;
-      spends__gte?: number | string;
-      sales?: number | string;
-      sales__lt?: number | string;
-      sales__gt?: number | string;
-      sales__lte?: number | string;
-      sales__gte?: number | string;
-      ctr?: number | string;
-      ctr__lt?: number | string;
-      ctr__gt?: number | string;
-      ctr__lte?: number | string;
-      ctr__gte?: number | string;
+      type?: string; // Campaign type (SP, SB, SD)
+      // Filter parameters (flat object format expected by backend)
+      [key: string]: any;
     }
   ): Promise<AdGroupsResponse> => {
-    const queryParams = new URLSearchParams();
+    // Build filters object for POST request
+    const filters: any = {
+      ...params,
+    };
     if (startDate) {
-      queryParams.append('start_date', startDate);
+      filters.start_date = startDate;
     }
     if (endDate) {
-      queryParams.append('end_date', endDate);
-    }
-    if (params?.page) {
-      queryParams.append('page', params.page.toString());
-    }
-    if (params?.page_size) {
-      queryParams.append('page_size', params.page_size.toString());
-    }
-    if (params?.sort_by) {
-      queryParams.append('sort_by', params.sort_by);
-    }
-    if (params?.order) {
-      queryParams.append('order', params.order);
-    }
-    // Filter parameters
-    if (params?.name) {
-      queryParams.append('name', params.name);
-    }
-    if (params?.name__icontains) {
-      queryParams.append('name__icontains', params.name__icontains);
-    }
-    if (params?.name__not_icontains) {
-      queryParams.append('name__not_icontains', params.name__not_icontains);
-    }
-    if (params?.state) {
-      queryParams.append('state', params.state);
-    }
-    if (params?.default_bid !== undefined) {
-      queryParams.append('default_bid', params.default_bid.toString());
-    }
-    if (params?.default_bid__lt !== undefined) {
-      queryParams.append('default_bid__lt', params.default_bid__lt.toString());
-    }
-    if (params?.default_bid__gt !== undefined) {
-      queryParams.append('default_bid__gt', params.default_bid__gt.toString());
-    }
-    if (params?.default_bid__lte !== undefined) {
-      queryParams.append('default_bid__lte', params.default_bid__lte.toString());
-    }
-    if (params?.default_bid__gte !== undefined) {
-      queryParams.append('default_bid__gte', params.default_bid__gte.toString());
-    }
-    if (params?.spends !== undefined) {
-      queryParams.append('spends', params.spends.toString());
-    }
-    if (params?.spends__lt !== undefined) {
-      queryParams.append('spends__lt', params.spends__lt.toString());
-    }
-    if (params?.spends__gt !== undefined) {
-      queryParams.append('spends__gt', params.spends__gt.toString());
-    }
-    if (params?.spends__lte !== undefined) {
-      queryParams.append('spends__lte', params.spends__lte.toString());
-    }
-    if (params?.spends__gte !== undefined) {
-      queryParams.append('spends__gte', params.spends__gte.toString());
-    }
-    if (params?.sales !== undefined) {
-      queryParams.append('sales', params.sales.toString());
-    }
-    if (params?.sales__lt !== undefined) {
-      queryParams.append('sales__lt', params.sales__lt.toString());
-    }
-    if (params?.sales__gt !== undefined) {
-      queryParams.append('sales__gt', params.sales__gt.toString());
-    }
-    if (params?.sales__lte !== undefined) {
-      queryParams.append('sales__lte', params.sales__lte.toString());
-    }
-    if (params?.sales__gte !== undefined) {
-      queryParams.append('sales__gte', params.sales__gte.toString());
-    }
-    if (params?.ctr !== undefined) {
-      queryParams.append('ctr', params.ctr.toString());
-    }
-    if (params?.ctr__lt !== undefined) {
-      queryParams.append('ctr__lt', params.ctr__lt.toString());
-    }
-    if (params?.ctr__gt !== undefined) {
-      queryParams.append('ctr__gt', params.ctr__gt.toString());
-    }
-    if (params?.ctr__lte !== undefined) {
-      queryParams.append('ctr__lte', params.ctr__lte.toString());
-    }
-    if (params?.ctr__gte !== undefined) {
-      queryParams.append('ctr__gte', params.ctr__gte.toString());
+      filters.end_date = endDate;
     }
     
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    try {
-      const response = await api.get<AdGroupsResponse>(url);
-      return response.data;
-    } catch (error: any) {
-      // If endpoint doesn't exist yet, return empty response
-      if (error.response?.status === 404) {
-        return {
-          adgroups: [],
-          total: 0,
-          page: 1,
-          page_size: 10,
-          total_pages: 0,
-        };
-      }
-      throw error;
+    // Build URL with type query parameter if provided
+    const queryParams = new URLSearchParams();
+    if (params?.type) {
+      queryParams.append('type', params.type);
     }
+    const queryString = queryParams.toString();
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${queryString ? `?${queryString}` : ''}`;
+    const response = await api.post<AdGroupsResponse>(url, { filters });
+    return response.data;
   },
 
   getKeywords: async (
@@ -435,156 +322,31 @@ export const campaignsService = {
       page_size?: number;
       sort_by?: string;
       order?: 'asc' | 'desc';
-      // Filter parameters
-      name?: string;
-      name__icontains?: string;
-      name__not_icontains?: string;
-      state?: string;
-      bid?: number | string;
-      bid__lt?: number | string;
-      bid__gt?: number | string;
-      bid__lte?: number | string;
-      bid__gte?: number | string;
-      adgroup_name?: string;
-      adgroup_name__icontains?: string;
-      adgroup_name__not_icontains?: string;
-      spends?: number | string;
-      spends__lt?: number | string;
-      spends__gt?: number | string;
-      spends__lte?: number | string;
-      spends__gte?: number | string;
-      sales?: number | string;
-      sales__lt?: number | string;
-      sales__gt?: number | string;
-      sales__lte?: number | string;
-      sales__gte?: number | string;
-      ctr?: number | string;
-      ctr__lt?: number | string;
-      ctr__gt?: number | string;
-      ctr__lte?: number | string;
-      ctr__gte?: number | string;
+      type?: string; // Campaign type (SP, SB, SD)
+      // Filter parameters (flat object format expected by backend)
+      [key: string]: any;
     }
   ): Promise<KeywordsResponse> => {
-    const queryParams = new URLSearchParams();
+    // Build filters object for POST request
+    const filters: any = {
+      ...params,
+    };
     if (startDate) {
-      queryParams.append('start_date', startDate);
+      filters.start_date = startDate;
     }
     if (endDate) {
-      queryParams.append('end_date', endDate);
-    }
-    if (params?.page) {
-      queryParams.append('page', params.page.toString());
-    }
-    if (params?.page_size) {
-      queryParams.append('page_size', params.page_size.toString());
-    }
-    if (params?.sort_by) {
-      queryParams.append('sort_by', params.sort_by);
-    }
-    if (params?.order) {
-      queryParams.append('order', params.order);
-    }
-    // Filter parameters
-    if (params?.name) {
-      queryParams.append('name', params.name);
-    }
-    if (params?.name__icontains) {
-      queryParams.append('name__icontains', params.name__icontains);
-    }
-    if (params?.name__not_icontains) {
-      queryParams.append('name__not_icontains', params.name__not_icontains);
-    }
-    if (params?.state) {
-      queryParams.append('state', params.state);
-    }
-    if (params?.bid !== undefined) {
-      queryParams.append('bid', params.bid.toString());
-    }
-    if (params?.bid__lt !== undefined) {
-      queryParams.append('bid__lt', params.bid__lt.toString());
-    }
-    if (params?.bid__gt !== undefined) {
-      queryParams.append('bid__gt', params.bid__gt.toString());
-    }
-    if (params?.bid__lte !== undefined) {
-      queryParams.append('bid__lte', params.bid__lte.toString());
-    }
-    if (params?.bid__gte !== undefined) {
-      queryParams.append('bid__gte', params.bid__gte.toString());
-    }
-    if (params?.adgroup_name) {
-      queryParams.append('adgroup_name', params.adgroup_name);
-    }
-    if (params?.adgroup_name__icontains) {
-      queryParams.append('adgroup_name__icontains', params.adgroup_name__icontains);
-    }
-    if (params?.adgroup_name__not_icontains) {
-      queryParams.append('adgroup_name__not_icontains', params.adgroup_name__not_icontains);
-    }
-    if (params?.spends !== undefined) {
-      queryParams.append('spends', params.spends.toString());
-    }
-    if (params?.spends__lt !== undefined) {
-      queryParams.append('spends__lt', params.spends__lt.toString());
-    }
-    if (params?.spends__gt !== undefined) {
-      queryParams.append('spends__gt', params.spends__gt.toString());
-    }
-    if (params?.spends__lte !== undefined) {
-      queryParams.append('spends__lte', params.spends__lte.toString());
-    }
-    if (params?.spends__gte !== undefined) {
-      queryParams.append('spends__gte', params.spends__gte.toString());
-    }
-    if (params?.sales !== undefined) {
-      queryParams.append('sales', params.sales.toString());
-    }
-    if (params?.sales__lt !== undefined) {
-      queryParams.append('sales__lt', params.sales__lt.toString());
-    }
-    if (params?.sales__gt !== undefined) {
-      queryParams.append('sales__gt', params.sales__gt.toString());
-    }
-    if (params?.sales__lte !== undefined) {
-      queryParams.append('sales__lte', params.sales__lte.toString());
-    }
-    if (params?.sales__gte !== undefined) {
-      queryParams.append('sales__gte', params.sales__gte.toString());
-    }
-    if (params?.ctr !== undefined) {
-      queryParams.append('ctr', params.ctr.toString());
-    }
-    if (params?.ctr__lt !== undefined) {
-      queryParams.append('ctr__lt', params.ctr__lt.toString());
-    }
-    if (params?.ctr__gt !== undefined) {
-      queryParams.append('ctr__gt', params.ctr__gt.toString());
-    }
-    if (params?.ctr__lte !== undefined) {
-      queryParams.append('ctr__lte', params.ctr__lte.toString());
-    }
-    if (params?.ctr__gte !== undefined) {
-      queryParams.append('ctr__gte', params.ctr__gte.toString());
+      filters.end_date = endDate;
     }
     
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    try {
-      const response = await api.get<KeywordsResponse>(url);
-      return response.data;
-    } catch (error: any) {
-      // If endpoint doesn't exist yet, return empty response
-      if (error.response?.status === 404) {
-        return {
-          keywords: [],
-          total: 0,
-          page: 1,
-          page_size: 10,
-          total_pages: 0,
-        };
-      }
-      throw error;
+    // Build URL with type query parameter if provided
+    const queryParams = new URLSearchParams();
+    if (params?.type) {
+      queryParams.append('type', params.type);
     }
+    const queryString = queryParams.toString();
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${queryString ? `?${queryString}` : ''}`;
+    const response = await api.post<KeywordsResponse>(url, { filters });
+    return response.data;
   },
 
   getProductAds: async (
@@ -597,100 +359,31 @@ export const campaignsService = {
       page_size?: number;
       sort_by?: string;
       order?: 'asc' | 'desc';
-      // Filter parameters
-      adId?: string;
-      adId__icontains?: string;
-      adId__not_icontains?: string;
-      asin?: string;
-      asin__icontains?: string;
-      asin__not_icontains?: string;
-      sku?: string;
-      sku__icontains?: string;
-      sku__not_icontains?: string;
-      state?: string;
-      adGroupId?: string;
-      adGroupId__icontains?: string;
-      adGroupId__not_icontains?: string;
+      type?: string; // Campaign type (SP, SB, SD)
+      // Filter parameters (flat object format expected by backend)
+      [key: string]: any;
     }
   ): Promise<ProductAdsResponse> => {
-    const queryParams = new URLSearchParams();
+    // Build filters object for POST request
+    const filters: any = {
+      ...params,
+    };
     if (startDate) {
-      queryParams.append('start_date', startDate);
+      filters.start_date = startDate;
     }
     if (endDate) {
-      queryParams.append('end_date', endDate);
-    }
-    if (params?.page) {
-      queryParams.append('page', params.page.toString());
-    }
-    if (params?.page_size) {
-      queryParams.append('page_size', params.page_size.toString());
-    }
-    if (params?.sort_by) {
-      queryParams.append('sort_by', params.sort_by);
-    }
-    if (params?.order) {
-      queryParams.append('order', params.order);
-    }
-    // Filter parameters
-    if (params?.adId) {
-      queryParams.append('adId', params.adId);
-    }
-    if (params?.adId__icontains) {
-      queryParams.append('adId__icontains', params.adId__icontains);
-    }
-    if (params?.adId__not_icontains) {
-      queryParams.append('adId__not_icontains', params.adId__not_icontains);
-    }
-    if (params?.asin) {
-      queryParams.append('asin', params.asin);
-    }
-    if (params?.asin__icontains) {
-      queryParams.append('asin__icontains', params.asin__icontains);
-    }
-    if (params?.asin__not_icontains) {
-      queryParams.append('asin__not_icontains', params.asin__not_icontains);
-    }
-    if (params?.sku) {
-      queryParams.append('sku', params.sku);
-    }
-    if (params?.sku__icontains) {
-      queryParams.append('sku__icontains', params.sku__icontains);
-    }
-    if (params?.sku__not_icontains) {
-      queryParams.append('sku__not_icontains', params.sku__not_icontains);
-    }
-    if (params?.state) {
-      queryParams.append('state', params.state);
-    }
-    if (params?.adGroupId) {
-      queryParams.append('adGroupId', params.adGroupId);
-    }
-    if (params?.adGroupId__icontains) {
-      queryParams.append('adGroupId__icontains', params.adGroupId__icontains);
-    }
-    if (params?.adGroupId__not_icontains) {
-      queryParams.append('adGroupId__not_icontains', params.adGroupId__not_icontains);
+      filters.end_date = endDate;
     }
     
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    try {
-      const response = await api.get<ProductAdsResponse>(url);
-      return response.data;
-    } catch (error: any) {
-      // If endpoint doesn't exist yet, return empty response
-      if (error.response?.status === 404) {
-        return {
-          productads: [],
-          total: 0,
-          page: 1,
-          page_size: 10,
-          total_pages: 0,
-        };
-      }
-      throw error;
+    // Build URL with type query parameter if provided
+    const queryParams = new URLSearchParams();
+    if (params?.type) {
+      queryParams.append('type', params.type);
     }
+    const queryString = queryParams.toString();
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${queryString ? `?${queryString}` : ''}`;
+    const response = await api.post<ProductAdsResponse>(url, { filters });
+    return response.data;
   },
 
   bulkUpdateCampaigns: async (
