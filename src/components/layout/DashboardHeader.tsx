@@ -32,6 +32,7 @@ export const DashboardHeader: React.FC = () => {
   const [channelsLoadingId, setChannelsLoadingId] = useState<number | null>(
     null
   );
+  const isAccountScoped = !!params.accountId;
 
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
@@ -154,6 +155,37 @@ export const DashboardHeader: React.FC = () => {
     setIsDatePickerOpen(false);
   };
 
+  const loadChannelsForAccount = async (accountId: number) => {
+    if (channelsByAccount[accountId] || channelsLoadingId === accountId) {
+      return;
+    }
+
+    const accountFromList = accounts.find((a) => a.id === accountId);
+    if (accountFromList && accountFromList.channels) {
+      setChannelsByAccount((prev) => ({
+        ...prev,
+        [accountId]: accountFromList.channels!,
+      }));
+      return;
+    }
+
+    setChannelsLoadingId(accountId);
+    try {
+      const channels = await accountsService.getAccountChannels(accountId);
+      setChannelsByAccount((prev) => ({
+        ...prev,
+        [accountId]: channels,
+      }));
+    } catch (e) {
+      console.error("Failed to load channels for account", accountId, e);
+    } finally {
+      setChannelsLoadingId((prev) => (prev === accountId ? null : prev));
+    }
+  };
+
+  const accountsToShow =
+    isAccountScoped && selectedAccount ? [selectedAccount] : accounts;
+
   return (
     <div className="h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center justify-between px-7">
       {/* Left: Breadcrumb */}
@@ -163,7 +195,11 @@ export const DashboardHeader: React.FC = () => {
       >
         <button
           type="button"
-          onClick={() => setIsAccountDropdownOpen((prev) => !prev)}
+          onClick={async () => {
+            setIsAccountDropdownOpen((prev) => !prev);
+            if (!isAccountScoped || !selectedAccount) return;
+            await loadChannelsForAccount(selectedAccount.id);
+          }}
           className="flex items-center gap-2 px-2 py-1.5 bg-background-field border border-gray-200 rounded-lg h-8 hover:bg-gray-50"
         >
           <div className="w-3 h-3 rounded bg-[#072929] text-white text-[7.04px] flex items-center justify-center font-semibold">
@@ -192,7 +228,7 @@ export const DashboardHeader: React.FC = () => {
         {isAccountDropdownOpen && (
           <div className="absolute top-[60px] left-0 z-40 bg-white border border-gray-200 rounded-lg shadow-lg w-72">
             <ul className="max-h-80 overflow-y-auto py-1">
-              {accounts.map((account) => (
+              {accountsToShow.map((account) => (
                 <li
                   key={account.id}
                   className="relative"

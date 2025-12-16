@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAccounts } from "../contexts/AccountsContext";
+import { useSidebar } from "../contexts/SidebarContext";
 import { accountsService } from "../services/accounts";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
@@ -13,6 +14,7 @@ import GoogleIcon from "../assets/images/ri_google-fill.svg";
 
 export const Accounts: React.FC = () => {
   const { accounts, loading: accountsLoading, refreshAccounts } = useAccounts();
+  const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -172,7 +174,7 @@ export const Accounts: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-[272px] ml-0 w-full">
+      <div className="flex-1 w-full" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header without account selector/date range */}
         <AccountsHeader />
 
@@ -283,7 +285,7 @@ export const Accounts: React.FC = () => {
               </div>
 
               {/* Table */}
-              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
+              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible">
                 {loading || accountsLoading ? (
                   <div className="text-center py-8 text-[#556179] text-[14px]">
                     Loading accounts...
@@ -300,8 +302,8 @@ export const Accounts: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto relative">
-                    <table className="w-full relative">
+                  <div className="overflow-x-auto overflow-y-visible">
+                    <table className="w-full">
                       <thead>
                         <tr className="border-b border-[#e8e8e3]">
                           <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
@@ -365,8 +367,8 @@ export const Accounts: React.FC = () => {
                                   {account.created_by_name || "—"}
                                 </span>
                               </td>
-                              <td className="py-4 px-5 relative">
-                                <div className="flex items-center gap-2 justify-end md:justify-start">
+                              <td className="py-4 px-5 relative z-10">
+                                <div className="flex items-center gap-2 justify-end md:justify-start relative">
                                   <Menu
                                     trigger={
                                       <Button

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
+import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button } from "../components/ui";
@@ -31,6 +32,7 @@ interface AmazonProfile {
 export const ListAmazonProfiles: React.FC = () => {
   const { channelId } = useParams<{ channelId: string }>();
   const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
   const [profiles, setProfiles] = useState<AmazonProfile[]>([]);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(
     new Set()
@@ -317,7 +319,7 @@ export const ListAmazonProfiles: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header */}
         <DashboardHeader />
 

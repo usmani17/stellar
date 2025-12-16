@@ -7,6 +7,7 @@ import {
 import { AuthProvider } from "./contexts/AuthContext";
 import { DateRangeProvider } from "./contexts/DateRangeContext";
 import { AccountsProvider } from "./contexts/AccountsContext";
+import { SidebarProvider } from "./contexts/SidebarContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { Layout } from "./components/layout/Layout";
 import { Login } from "./pages/Login";
@@ -33,7 +34,8 @@ function App() {
     <AuthProvider>
       <DateRangeProvider>
         <AccountsProvider>
-          <Router>
+          <SidebarProvider>
+            <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
@@ -200,6 +202,7 @@ function App() {
               />
             </Routes>
           </Router>
+          </SidebarProvider>
         </AccountsProvider>
       </DateRangeProvider>
     </AuthProvider>

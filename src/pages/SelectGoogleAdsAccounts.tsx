@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 import { useAccounts } from "../contexts/AccountsContext";
+import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button } from "../components/ui";
@@ -20,6 +21,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
   const { channelId } = useParams<{ channelId: string }>();
   const navigate = useNavigate();
   const { refreshAccounts } = useAccounts();
+  const { sidebarWidth } = useSidebar();
   const [accounts, setAccounts] = useState<GoogleAdsAccount[]>([]);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(
     new Set()
@@ -187,7 +189,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header */}
         <DashboardHeader />
 
