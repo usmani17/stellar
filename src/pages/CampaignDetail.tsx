@@ -107,7 +107,10 @@ export const CampaignDetail: React.FC = () => {
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
+    impressions: false,
     clicks: false,
+    acos: false,
+    roas: false,
     orders: false,
   });
 
@@ -689,7 +692,14 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const toggleChartMetric = (
-    metric: "sales" | "spend" | "clicks" | "orders"
+    metric:
+      | "sales"
+      | "spend"
+      | "impressions"
+      | "clicks"
+      | "orders"
+      | "acos"
+      | "roas"
   ) => {
     setChartToggles((prev) => ({
       ...prev,

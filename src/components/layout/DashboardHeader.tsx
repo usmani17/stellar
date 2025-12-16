@@ -164,7 +164,7 @@ export const DashboardHeader: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsAccountDropdownOpen((prev) => !prev)}
-          className="flex items-center gap-2 px-2 py-1.5 bg-background-field border border-gray-200 rounded-lg h-8 hover:bg-gray-50"
+          className="flex items-center gap-2 px-2 py-1.5 bg-background-field border border-gray-200 rounded-lg h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
         >
           <div className="w-3 h-3 rounded bg-[#072929] text-white text-[7.04px] flex items-center justify-center font-semibold">
             {selectedAccount?.name?.[0]?.toUpperCase() || "A"}
@@ -308,7 +308,7 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={datePickerRef}>
           <button
             onClick={toggleDatePicker}
-            className="flex items-center gap-2 h-10 px-4 bg-background-field border border-gray-200 rounded-[12px] hover:bg-gray-50 transition-all"
+            className="flex items-center gap-2 h-10 px-4 bg-background-field border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -367,7 +367,7 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={profileDropdownRef}>
           <button
             onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-background-field border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:bg-gray-50 transition-colors"
+            className="w-8 h-8 rounded-full bg-background-field border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
           >
             {user?.first_name?.[0] || "U"}
           </button>

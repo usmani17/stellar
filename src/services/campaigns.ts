@@ -94,8 +94,11 @@ export interface CampaignDetail {
     date: string;
     spend: number;
     sales: number;
+    impressions?: number;
     clicks: number;
-    orders: number;
+    orders?: number;
+    acos?: number;
+    roas?: number;
   }>;
   top_keywords: Array<{
     name: string;

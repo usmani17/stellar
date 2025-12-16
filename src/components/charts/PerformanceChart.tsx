@@ -13,16 +13,22 @@ interface PerformanceChartProps {
     date: string;
     sales?: number;
     spend?: number;
+    impressions?: number;
     clicks?: number;
     orders?: number;
+    acos?: number;
+    roas?: number;
   }>;
   toggles: {
     sales: boolean;
     spend: boolean;
+    impressions: boolean;
     clicks: boolean;
     orders: boolean;
+    acos: boolean;
+    roas: boolean;
   };
-  onToggle: (metric: "sales" | "spend" | "clicks" | "orders") => void;
+  onToggle: (metric: "sales" | "spend" | "impressions" | "clicks" | "orders" | "acos" | "roas") => void;
   title?: string;
 }
 
@@ -35,7 +41,10 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
   const metrics = [
     { key: "sales", label: "Sales", color: "#136D6D" },
     { key: "spend", label: "Spend", color: "#506766" },
+    { key: "impressions", label: "Impressions", color: "#7C3AED" },
     { key: "clicks", label: "Clicks", color: "#169aa3" },
+    { key: "acos", label: "ACOS", color: "#DC2626" },
+    { key: "roas", label: "ROAS", color: "#059669" },
     { key: "orders", label: "Orders", color: "#072929" },
   ];
 
@@ -45,11 +54,11 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
       style={{ backgroundColor: "#F5F5F0" }}
     >
       {/* Title and Toggle Switches Row */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-3 mb-4">
         <h3 className="text-[12.8px] font-semibold text-black">{title}</h3>
 
         {/* Toggle Switches */}
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-wrap gap-3 items-center">
           {metrics.map((metric) => (
             <div
               key={metric.key}
@@ -65,7 +74,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
               <button
                 onClick={() =>
                   onToggle(
-                    metric.key as "sales" | "spend" | "clicks" | "orders"
+                    metric.key as "sales" | "spend" | "impressions" | "clicks" | "orders" | "acos" | "roas"
                   )
                 }
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
@@ -127,6 +136,12 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 if (name === "Sales" || name === "Spend") {
                   return [`$${value.toLocaleString()}`, name];
                 }
+                if (name === "ACOS") {
+                  return [`${value.toFixed(2)}%`, name];
+                }
+                if (name === "ROAS") {
+                  return [`${value.toFixed(2)} x`, name];
+                }
                 return [value.toLocaleString(), name];
               }}
             />
@@ -152,6 +167,17 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 activeDot={{ r: 4 }}
               />
             )}
+            {toggles.impressions && (
+              <Line
+                type="monotone"
+                dataKey="impressions"
+                stroke="#7C3AED"
+                strokeWidth={1.5}
+                dot={false}
+                name="Impressions"
+                activeDot={{ r: 4 }}
+              />
+            )}
             {toggles.clicks && (
               <Line
                 type="monotone"
@@ -160,6 +186,28 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 strokeWidth={1.5}
                 dot={false}
                 name="Clicks"
+                activeDot={{ r: 4 }}
+              />
+            )}
+            {toggles.acos && (
+              <Line
+                type="monotone"
+                dataKey="acos"
+                stroke="#DC2626"
+                strokeWidth={1.5}
+                dot={false}
+                name="ACOS"
+                activeDot={{ r: 4 }}
+              />
+            )}
+            {toggles.roas && (
+              <Line
+                type="monotone"
+                dataKey="roas"
+                stroke="#059669"
+                strokeWidth={1.5}
+                dot={false}
+                name="ROAS"
                 activeDot={{ r: 4 }}
               />
             )}

@@ -4,6 +4,8 @@ import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
 import InstacartIcon from "../../assets/images/cib_instacart.svg";
 import CreateCampaignIcon from "../../assets/images/ri_amazon-fill.svg";
 import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
+import CampaignIconRegular from "../../assets/images/campaign.svg";
+import CampaignWhiteIcon from "../../assets/campaign-white.svg";
 import AdGroupIcon from "../../assets/images/adgroups.svg";
 import ProductTargetIcon from "../../assets/images/producttarget.svg";
 import AnalyticsIcon from "../../assets/images/majesticons_analytics.svg";
@@ -108,11 +110,9 @@ export const Sidebar: React.FC = () => {
               }`}
             >
               <img
-                src={CreateCampaignIcon}
+                src={isActive("/campaigns") ? CampaignWhiteIcon : CampaignIconRegular}
                 alt=""
-                className={`w-5 h-5 ${
-                  isActive("/campaigns") ? "brightness-0 invert" : ""
-                }`}
+                className="w-5 h-5"
               />
               <span className="text-[12.32px] font-normal leading-[16px]">
                 Campaigns

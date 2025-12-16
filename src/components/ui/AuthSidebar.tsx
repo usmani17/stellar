@@ -73,7 +73,7 @@ export const AuthSidebar: React.FC<AuthSidebarProps> = ({
               </div>
 
               {/* Dashboard previews */}
-              <div className="relative mt-6">
+              <div className="absolute mt-6 right-0 bottom-[18%]">
                 <img
                   src={authDashboard1}
                   alt="Dashboard preview 1"
@@ -82,7 +82,7 @@ export const AuthSidebar: React.FC<AuthSidebarProps> = ({
                 <img
                   src={authDashboard2}
                   alt="Dashboard preview 2"
-                  className="absolute left-8 -bottom-10 w-[220px] rounded-[12px] border border-white/10 shadow-2xl backdrop-blur"
+                  className="absolute left-[-100px] -bottom-10 w-[220px] rounded-[12px] border border-white/10 shadow-2xl backdrop-blur"
                 />
               </div>
             </div>

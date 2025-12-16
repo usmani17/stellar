@@ -42,6 +42,8 @@ export const Campaigns: React.FC = () => {
       sales: number;
       impressions?: number;
       clicks?: number;
+      acos?: number;
+      roas?: number;
     }>
   >([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,10 @@ export const Campaigns: React.FC = () => {
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
+    impressions: false,
     clicks: false,
+    acos: false,
+    roas: false,
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
@@ -76,6 +81,18 @@ export const Campaigns: React.FC = () => {
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const metricOptions = [
+    { key: "sales", label: "Sales", color: "#136D6D" },
+    { key: "spend", label: "Spend", color: "#506766" },
+    { key: "impressions", label: "Impressions", color: "#7C3AED" },
+    { key: "clicks", label: "Clicks", color: "#169aa3" },
+    { key: "acos", label: "ACOS", color: "#DC2626" },
+    { key: "roas", label: "ROAS", color: "#059669" },
+  ] as const;
+
+  const selectedMetricCount =
+    Object.values(chartToggles).filter(Boolean).length;
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
@@ -661,7 +678,10 @@ export const Campaigns: React.FC = () => {
         date: item.date,
         sales: item.sales,
         spend: item.spend,
+        impressions: item.impressions || 0,
         clicks: item.clicks || 0,
+        acos: item.acos || 0,
+        roas: item.roas || 0,
       }));
     }
 
@@ -690,6 +710,9 @@ export const Campaigns: React.FC = () => {
       const sales = Math.max(0, avgSalesPerDay * variation * weekendFactor);
       const spend = Math.max(0, avgSpendsPerDay * variation * weekendFactor);
       const clicks = Math.floor(spend * (50 + Math.random() * 30)); // Estimate clicks from spend
+      const impressions = Math.floor(clicks * (10 + Math.random() * 20)); // Estimate impressions from clicks
+      const acos = sales > 0 ? (spend / sales) * 100 : 0; // Calculate ACOS
+      const roas = spend > 0 ? sales / spend : 0; // Calculate ROAS
       data.push({
         date: date.toLocaleDateString("en-US", {
           month: "short",
@@ -697,7 +720,10 @@ export const Campaigns: React.FC = () => {
         }),
         sales: Math.round(sales),
         spend: Math.round(spend),
+        impressions: impressions,
         clicks: clicks,
+        acos: Math.round(acos * 10) / 10,
+        roas: Math.round(roas * 100) / 100,
       });
     }
 
@@ -725,7 +751,7 @@ export const Campaigns: React.FC = () => {
               {/* Add Filter Button */}
               <button
                 onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
               >
                 <svg
                   className="w-5 h-5 text-[#072929]"
@@ -790,55 +816,92 @@ export const Campaigns: React.FC = () => {
               className="border border-gray-200 rounded-[20px] p-4 mb-4"
               style={{ backgroundColor: "#F5F5F0" }}
             >
-              {/* Title and Toggle Switches Row */}
+              {/* Title and Metrics Dropdown */}
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[12.16px] font-semibold text-black">
                   Performance Trends
                 </h3>
-
-                {/* Toggle Switches */}
-                <div className="flex gap-3 items-center">
-                  {[
-                    { key: "sales", label: "Sales", color: "#136D6D" },
-                    { key: "spend", label: "Spend", color: "#506766" },
-                    { key: "clicks", label: "Clicks", color: "#169aa3" },
-                  ].map((metric) => (
-                    <div
-                      key={metric.key}
-                      className="border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-3 bg-white"
-                    >
-                      <div
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: metric.color }}
-                      />
-                      <span className="text-[9.88px] font-normal text-black whitespace-nowrap">
-                        {metric.label}
-                      </span>
+                <Dropdown
+                  options={metricOptions.map((m) => ({
+                    value: m.key,
+                    label: m.label,
+                    disabled: !chartToggles[m.key] && selectedMetricCount >= 3,
+                    color: m.color,
+                  }))}
+                  value={undefined}
+                  closeOnSelect={false}
+                  showCheckmark={false}
+                  align="right"
+                  width="w-56"
+                  renderButton={(_, isOpen, toggle) => {
+                    const selectedLabels = metricOptions
+                      .filter((m) => chartToggles[m.key])
+                      .map((m) => m.label)
+                      .join(", ");
+                    return (
                       <button
-                        onClick={() =>
-                          toggleChartMetric(
-                            metric.key as keyof typeof chartToggles
-                          )
-                        }
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
-                          chartToggles[metric.key as keyof typeof chartToggles]
-                            ? "bg-[#136D6D]"
-                            : "bg-[#a3a8b3]"
-                        }`}
+                        type="button"
+                        onClick={toggle}
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-[11px] text-[#072929] shadow-sm hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
                       >
-                        <span
-                          className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                            chartToggles[
-                              metric.key as keyof typeof chartToggles
-                            ]
-                              ? "translate-x-5"
-                              : "translate-x-0.5"
+                        <span className="truncate">
+                          {selectedLabels || "Select metrics"}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 text-[#072929] transition-transform ${
+                            isOpen ? "rotate-180" : ""
                           }`}
-                        />
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
                       </button>
-                    </div>
-                  ))}
-                </div>
+                    );
+                  }}
+                  renderOption={(option) => {
+                    const key = option.value as keyof typeof chartToggles;
+                    const selected = chartToggles[key];
+                    const disabled = !selected && selectedMetricCount >= 3;
+                    const metric = metricOptions.find((m) => m.key === key);
+                    return (
+                      <div className="flex items-center justify-between w-full px-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{
+                              backgroundColor: metric?.color || "#ccc",
+                            }}
+                          />
+                          <span className="text-[11px] text-[#313850]">
+                            {option.label}
+                          </span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5 accent-[#136D6D]"
+                          checked={selected}
+                          disabled={disabled}
+                          readOnly
+                        />
+                      </div>
+                    );
+                  }}
+                  onChange={(value) => {
+                    const key = value as keyof typeof chartToggles;
+                    const isOn = chartToggles[key];
+                    if (!isOn && selectedMetricCount >= 3) {
+                      return;
+                    }
+                    toggleChartMetric(key);
+                  }}
+                />
               </div>
 
               {/* Chart */}
@@ -881,6 +944,12 @@ export const Campaigns: React.FC = () => {
                         if (name === "Sales" || name === "Spend") {
                           return [`$${value.toLocaleString()}`, name];
                         }
+                        if (name === "ACOS") {
+                          return [`${value.toFixed(2)}%`, name];
+                        }
+                        if (name === "ROAS") {
+                          return [`${value.toFixed(2)} x`, name];
+                        }
                         return [value.toLocaleString(), name];
                       }}
                     />
@@ -906,6 +975,17 @@ export const Campaigns: React.FC = () => {
                         activeDot={{ r: 4 }}
                       />
                     )}
+                    {chartToggles.impressions && (
+                      <Line
+                        type="monotone"
+                        dataKey="impressions"
+                        stroke="#7C3AED"
+                        strokeWidth={1.5}
+                        dot={false}
+                        name="Impressions"
+                        activeDot={{ r: 4 }}
+                      />
+                    )}
                     {chartToggles.clicks && (
                       <Line
                         type="monotone"
@@ -914,6 +994,28 @@ export const Campaigns: React.FC = () => {
                         strokeWidth={1.5}
                         dot={false}
                         name="Clicks"
+                        activeDot={{ r: 4 }}
+                      />
+                    )}
+                    {chartToggles.acos && (
+                      <Line
+                        type="monotone"
+                        dataKey="acos"
+                        stroke="#DC2626"
+                        strokeWidth={1.5}
+                        dot={false}
+                        name="ACOS"
+                        activeDot={{ r: 4 }}
+                      />
+                    )}
+                    {chartToggles.roas && (
+                      <Line
+                        type="monotone"
+                        dataKey="roas"
+                        stroke="#059669"
+                        strokeWidth={1.5}
+                        dot={false}
+                        name="ROAS"
                         activeDot={{ r: 4 }}
                       />
                     )}
@@ -935,7 +1037,7 @@ export const Campaigns: React.FC = () => {
                 >
                   <Button
                     type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 transition-colors text-[9.5px] text-[#072929] font-medium"
+                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowBulkActions((prev) => !prev);

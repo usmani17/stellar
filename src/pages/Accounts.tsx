@@ -316,7 +316,7 @@ export const Accounts: React.FC = () => {
                           <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
                             Created By
                           </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px] w-[180px] md:w-[220px]">
+                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
                             Actions
                           </th>
                         </tr>
