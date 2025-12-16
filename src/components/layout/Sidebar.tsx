@@ -1,5 +1,6 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getCurrentAccountId, buildMarketplaceRoute } from "../../utils/urlHelpers";
 import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
 import InstacartIcon from "../../assets/images/cib_instacart.svg";
 import CreateCampaignIcon from "../../assets/images/ri_amazon-fill.svg";
@@ -20,12 +21,29 @@ import PixelsLikeBoxIcon from "../../assets/images/cib_instacart.svg";
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const accountId = getCurrentAccountId(location.pathname);
 
   const isActive = (path: string) => {
     if (path === "/campaigns") {
       return location.pathname.includes("/campaigns");
     }
     return location.pathname === path;
+  };
+
+  const handleAccountRequiredClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    buildRoute: () => string | null
+  ) => {
+    if (!accountId) {
+      e.preventDefault();
+      const route = buildRoute();
+      if (route) {
+        navigate(`/accounts?returnUrl=${encodeURIComponent(route)}`);
+      } else {
+        navigate('/accounts');
+      }
+    }
   };
 
   return (
@@ -102,7 +120,10 @@ export const Sidebar: React.FC = () => {
               </span>
             </Link>
             <Link
-              to="/accounts"
+              to={accountId ? buildMarketplaceRoute(accountId, 'amazon', 'campaigns') : '/accounts'}
+              onClick={(e) => handleAccountRequiredClick(e, () => 
+                accountId ? buildMarketplaceRoute(accountId, 'amazon', 'campaigns') : '/accounts/1/amazon/campaigns'
+              )}
               className={`flex items-center gap-2 p-2 rounded-xl transition-colors ${
                 isActive("/campaigns")
                   ? "w-full bg-forest-f60 text-white"

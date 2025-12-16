@@ -1,9 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import "react-datepicker/dist/react-datepicker.css";
 import { useAccounts } from "../../contexts/AccountsContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
+import {
+  buildMarketplaceRoute,
+  getMarketplaceFromUrl,
+  getEntityFromUrl,
+} from "../../utils/urlHelpers";
 import {
   accountsService,
   type Account,
@@ -16,6 +21,7 @@ export const DashboardHeader: React.FC = () => {
   const { accounts } = useAccounts();
   const { startDate, endDate, setDateRange, formatDateRange } = useDateRange();
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams<{ accountId?: string }>();
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -134,7 +140,19 @@ export const DashboardHeader: React.FC = () => {
     const account = accounts.find((a) => a.id === value);
     if (account) {
       setSelectedAccount(account);
-      navigate(`/accounts/${account.id}/campaigns`);
+      // Try to preserve current marketplace and entity, or default to amazon/campaigns
+      const currentMarketplace = getMarketplaceFromUrl(location.pathname);
+      const currentEntity = getEntityFromUrl(location.pathname);
+
+      if (currentMarketplace && currentEntity) {
+        // Preserve marketplace and entity
+        navigate(
+          buildMarketplaceRoute(value, currentMarketplace, currentEntity)
+        );
+      } else {
+        // Default to amazon campaigns
+        navigate(buildMarketplaceRoute(value, "amazon", "campaigns"));
+      }
     }
   };
 
@@ -262,13 +280,21 @@ export const DashboardHeader: React.FC = () => {
                                 onClick={() => {
                                   if (channel.channel_type === "google") {
                                     navigate(
-                                      `/accounts/${account.id}/google-campaigns`
+                                      buildMarketplaceRoute(
+                                        account.id,
+                                        "google",
+                                        "campaigns"
+                                      )
                                     );
                                   } else if (
                                     channel.channel_type === "amazon"
                                   ) {
                                     navigate(
-                                      `/accounts/${account.id}/campaigns`
+                                      buildMarketplaceRoute(
+                                        account.id,
+                                        "amazon",
+                                        "campaigns"
+                                      )
                                     );
                                   } else if (
                                     channel.channel_type === "walmart"

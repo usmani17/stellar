@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { buildMarketplaceRoute } from "../../utils/urlHelpers";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { Button } from "../../components/ui";
@@ -1234,7 +1235,7 @@ export const GoogleCampaigns: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/accounts/${accountId}/google-campaigns/${campaign.campaign_id}`);
+                            navigate(buildMarketplaceRoute(accountId, 'google', 'campaigns', campaign.campaign_id));
                           }}
                           className="text-[12.8px] font-normal text-black truncate hover:text-[#0066ff] hover:underline cursor-pointer text-left w-full"
                         >

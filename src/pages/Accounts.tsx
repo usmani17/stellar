@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { useAccounts } from "../contexts/AccountsContext";
 import { accountsService } from "../services/accounts";
 import { Sidebar } from "../components/layout/Sidebar";
@@ -15,6 +16,7 @@ export const Accounts: React.FC = () => {
   const { accounts, loading: accountsLoading, refreshAccounts } = useAccounts();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(
     null
@@ -340,11 +342,20 @@ export const Accounts: React.FC = () => {
                             >
                               <td className="py-4 px-5">
                                 <button
-                                  onClick={() =>
-                                    navigate(
-                                      `/accounts/${account.id}/campaigns`
-                                    )
-                                  }
+                                  onClick={() => {
+                                    const returnUrl = searchParams.get('returnUrl');
+                                    if (returnUrl) {
+                                      // Replace account ID in return URL if it exists
+                                      const urlWithAccount = returnUrl.replace(
+                                        /\/accounts\/\d+\//,
+                                        `/accounts/${account.id}/`
+                                      );
+                                      navigate(urlWithAccount, { replace: true });
+                                    } else {
+                                      // Default to amazon campaigns
+                                      navigate(buildMarketplaceRoute(account.id, 'amazon', 'campaigns'), { replace: true });
+                                    }
+                                  }}
                                   className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
                                 >
                                   {account.name}

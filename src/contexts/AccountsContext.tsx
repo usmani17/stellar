@@ -4,9 +4,11 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import { accountsService, type Account } from "../services/accounts";
+import { getAccountIdFromUrl } from "../utils/urlHelpers";
 
 interface AccountsContextType {
   accounts: Account[];
@@ -14,6 +16,8 @@ interface AccountsContextType {
   error: Error | null;
   loadAccounts: () => Promise<void>;
   refreshAccounts: () => Promise<void>;
+  getAccountById: (accountId: number) => Account | undefined;
+  getCurrentAccount: (pathname: string) => Account | null;
 }
 
 const AccountsContext = createContext<AccountsContextType | undefined>(undefined);
@@ -45,6 +49,20 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     await loadAccounts();
   }, [loadAccounts]);
 
+  // Helper to get account by ID
+  const getAccountById = useCallback((accountId: number): Account | undefined => {
+    return accounts.find((account) => account.id === accountId);
+  }, [accounts]);
+
+  // Helper to get current account from URL pathname
+  const getCurrentAccount = useCallback((pathname: string): Account | null => {
+    const accountId = getAccountIdFromUrl(pathname);
+    if (accountId === null) {
+      return null;
+    }
+    return getAccountById(accountId) || null;
+  }, [getAccountById]);
+
   // Load accounts on mount
   useEffect(() => {
     loadAccounts();
@@ -58,6 +76,8 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
         error,
         loadAccounts,
         refreshAccounts,
+        getAccountById,
+        getCurrentAccount,
       }}
     >
       {children}

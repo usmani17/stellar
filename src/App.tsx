@@ -8,6 +8,8 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { DateRangeProvider } from "./contexts/DateRangeContext";
 import { AccountsProvider } from "./contexts/AccountsContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { AccountRequiredRoute } from "./components/auth/AccountRequiredRoute";
+import { LegacyRedirect } from "./components/auth/LegacyRedirect";
 import { Layout } from "./components/layout/Layout";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
@@ -138,23 +140,75 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              {/* Account-scoped routes requiring account ID */}
               <Route
                 path="/accounts/:accountId/channels"
                 element={
                   <ProtectedRoute>
-                    <Layout>
-                      <Channels />
-                    </Layout>
+                    <AccountRequiredRoute>
+                      <Layout>
+                        <Channels />
+                      </Layout>
+                    </AccountRequiredRoute>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Amazon marketplace routes */}
+              <Route
+                path="/accounts/:accountId/amazon/campaigns"
+                element={
+                  <ProtectedRoute>
+                    <AccountRequiredRoute>
+                      <Layout>
+                        <Campaigns />
+                      </Layout>
+                    </AccountRequiredRoute>
                   </ProtectedRoute>
                 }
               />
               <Route
+                path="/accounts/:accountId/amazon/campaigns/:campaignTypeAndId"
+                element={
+                  <ProtectedRoute>
+                    <AccountRequiredRoute>
+                      <Layout>
+                        <CampaignDetail />
+                      </Layout>
+                    </AccountRequiredRoute>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Google marketplace routes */}
+              <Route
+                path="/accounts/:accountId/google/campaigns"
+                element={
+                  <ProtectedRoute>
+                    <AccountRequiredRoute>
+                      <Layout>
+                        <GoogleCampaigns />
+                      </Layout>
+                    </AccountRequiredRoute>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/accounts/:accountId/google/campaigns/:campaignId"
+                element={
+                  <ProtectedRoute>
+                    <AccountRequiredRoute>
+                      <Layout>
+                        <GoogleCampaignDetail />
+                      </Layout>
+                    </AccountRequiredRoute>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Legacy routes for backward compatibility - redirect to new structure */}
+              <Route
                 path="/accounts/:accountId/campaigns"
                 element={
                   <ProtectedRoute>
-                    <Layout>
-                      <Campaigns />
-                    </Layout>
+                    <LegacyRedirect pattern="amazon/campaigns" />
                   </ProtectedRoute>
                 }
               />
@@ -162,9 +216,7 @@ function App() {
                 path="/accounts/:accountId/google-campaigns"
                 element={
                   <ProtectedRoute>
-                    <Layout>
-                      <GoogleCampaigns />
-                    </Layout>
+                    <LegacyRedirect pattern="google/campaigns" />
                   </ProtectedRoute>
                 }
               />
@@ -172,9 +224,7 @@ function App() {
                 path="/accounts/:accountId/google-campaigns/:campaignId"
                 element={
                   <ProtectedRoute>
-                    <Layout>
-                      <GoogleCampaignDetail />
-                    </Layout>
+                    <LegacyRedirect pattern="google/campaigns/:campaignId" />
                   </ProtectedRoute>
                 }
               />
@@ -182,9 +232,7 @@ function App() {
                 path="/accounts/:accountId/campaigns/:campaignTypeAndId"
                 element={
                   <ProtectedRoute>
-                    <Layout>
-                      <CampaignDetail />
-                    </Layout>
+                    <LegacyRedirect pattern="amazon/campaigns/:campaignTypeAndId" />
                   </ProtectedRoute>
                 }
               />
@@ -207,3 +255,4 @@ function App() {
 }
 
 export default App;
+

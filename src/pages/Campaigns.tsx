@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import {
   LineChart,
   Line,
@@ -1814,13 +1815,20 @@ export const Campaigns: React.FC = () => {
                               {/* Campaign Name */}
                               <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
                                 <button
-                                  onClick={() =>
-                                    navigate(
-                                      `/accounts/${accountId}/campaigns/${campaign.type.toLowerCase()}_${
-                                        campaign.campaignId
-                                      }`
-                                    )
-                                  }
+                                  onClick={() => {
+                                    if (accountId) {
+                                      navigate(
+                                        buildMarketplaceRoute(
+                                          parseInt(accountId),
+                                          "amazon",
+                                          "campaigns",
+                                          `${campaign.type.toLowerCase()}_${
+                                            campaign.campaignId
+                                          }`
+                                        )
+                                      );
+                                    }
+                                  }}
                                   className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
                                 >
                                   {campaign.campaign_name || "Unnamed Campaign"}

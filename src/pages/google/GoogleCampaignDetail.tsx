@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { buildMarketplaceRoute } from "../../utils/urlHelpers";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { Button } from "../../components/ui";
@@ -455,7 +456,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                 </div>
                 <Button 
                   variant="primary"
-                  onClick={() => navigate(`/accounts/${accountId}/google-campaigns`)}
+                  onClick={() => navigate(buildMarketplaceRoute(accountId, 'google', 'campaigns'))}
                 >
                   Back to Campaigns
                 </Button>
