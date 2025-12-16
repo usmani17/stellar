@@ -1,15 +1,18 @@
 import React from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { DashboardHeader } from '../components/layout/DashboardHeader';
+import { useSidebar } from '../contexts/SidebarContext';
 
 export const Dashboards: React.FC = () => {
+  const { sidebarWidth } = useSidebar();
+  
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header */}
         <DashboardHeader />
 

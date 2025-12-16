@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { useAccounts } from "../contexts/AccountsContext";
+import { useSidebar } from "../contexts/SidebarContext";
 import { accountsService } from "../services/accounts";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
@@ -14,6 +15,7 @@ import GoogleIcon from "../assets/images/ri_google-fill.svg";
 
 export const Accounts: React.FC = () => {
   const { accounts, loading: accountsLoading, refreshAccounts } = useAccounts();
+  const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -174,7 +176,10 @@ export const Accounts: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-[272px] ml-0 w-full">
+      <div
+        className="flex-1 w-full"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Header without account selector/date range */}
         <AccountsHeader />
 
@@ -285,7 +290,7 @@ export const Accounts: React.FC = () => {
               </div>
 
               {/* Table */}
-              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
+              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible">
                 {loading || accountsLoading ? (
                   <div className="text-center py-8 text-[#556179] text-[14px]">
                     Loading accounts...
@@ -302,8 +307,8 @@ export const Accounts: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto relative">
-                    <table className="w-full relative">
+                  <div className="overflow-x-auto overflow-y-visible">
+                    <table className="w-full">
                       <thead>
                         <tr className="border-b border-[#e8e8e3]">
                           <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
@@ -343,17 +348,27 @@ export const Accounts: React.FC = () => {
                               <td className="py-4 px-5">
                                 <button
                                   onClick={() => {
-                                    const returnUrl = searchParams.get('returnUrl');
+                                    const returnUrl =
+                                      searchParams.get("returnUrl");
                                     if (returnUrl) {
                                       // Replace account ID in return URL if it exists
                                       const urlWithAccount = returnUrl.replace(
                                         /\/accounts\/\d+\//,
                                         `/accounts/${account.id}/`
                                       );
-                                      navigate(urlWithAccount, { replace: true });
+                                      navigate(urlWithAccount, {
+                                        replace: true,
+                                      });
                                     } else {
                                       // Default to amazon campaigns
-                                      navigate(buildMarketplaceRoute(account.id, 'amazon', 'campaigns'), { replace: true });
+                                      navigate(
+                                        buildMarketplaceRoute(
+                                          account.id,
+                                          "amazon",
+                                          "campaigns"
+                                        ),
+                                        { replace: true }
+                                      );
                                     }
                                   }}
                                   className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
@@ -376,8 +391,8 @@ export const Accounts: React.FC = () => {
                                   {account.created_by_name || "—"}
                                 </span>
                               </td>
-                              <td className="py-4 px-5 relative">
-                                <div className="flex items-center gap-2 justify-end md:justify-start">
+                              <td className="py-4 px-5 relative z-10">
+                                <div className="flex items-center gap-2 justify-end md:justify-start relative">
                                   <Menu
                                     trigger={
                                       <Button

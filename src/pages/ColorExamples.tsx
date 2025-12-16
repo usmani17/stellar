@@ -1,6 +1,7 @@
 import React from "react";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
+import { useSidebar } from "../contexts/SidebarContext";
 import {
   ExampleButton,
   Alert,
@@ -322,6 +323,7 @@ const ColorScale: React.FC<{ name: string; shades: string[] }> = ({
 );
 
 export const ColorExamples: React.FC = () => {
+  const { sidebarWidth } = useSidebar();
   const tableItems = [
     { id: "1", name: "Item 1", status: "active" },
     { id: "2", name: "Item 2", status: "pending" },
@@ -371,7 +373,7 @@ export const ColorExamples: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header */}
         <DashboardHeader />
 

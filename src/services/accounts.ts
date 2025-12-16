@@ -12,6 +12,10 @@ export interface Channel {
   created_at: string;
   updated_at: string;
   needs_profile_selection?: boolean;
+  profile_counts?: {
+    total: number;
+    selected: number;
+  };
 }
 
 export interface Account {

@@ -20,7 +20,9 @@ interface AccountsContextType {
   getCurrentAccount: (pathname: string) => Account | null;
 }
 
-const AccountsContext = createContext<AccountsContextType | undefined>(undefined);
+const AccountsContext = createContext<AccountsContextType | undefined>(
+  undefined
+);
 
 export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   children,
@@ -36,9 +38,10 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
       const accountsData = await accountsService.getAccounts();
       setAccounts(Array.isArray(accountsData) ? accountsData : []);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to load accounts');
+      const error =
+        err instanceof Error ? err : new Error("Failed to load accounts");
       setError(error);
-      console.error('Failed to load accounts:', err);
+      console.error("Failed to load accounts:", err);
       setAccounts([]);
     } finally {
       setLoading(false);
@@ -50,18 +53,24 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   }, [loadAccounts]);
 
   // Helper to get account by ID
-  const getAccountById = useCallback((accountId: number): Account | undefined => {
-    return accounts.find((account) => account.id === accountId);
-  }, [accounts]);
+  const getAccountById = useCallback(
+    (accountId: number): Account | undefined => {
+      return accounts.find((account) => account.id === accountId);
+    },
+    [accounts]
+  );
 
   // Helper to get current account from URL pathname
-  const getCurrentAccount = useCallback((pathname: string): Account | null => {
-    const accountId = getAccountIdFromUrl(pathname);
-    if (accountId === null) {
-      return null;
-    }
-    return getAccountById(accountId) || null;
-  }, [getAccountById]);
+  const getCurrentAccount = useCallback(
+    (pathname: string): Account | null => {
+      const accountId = getAccountIdFromUrl(pathname);
+      if (accountId === null) {
+        return null;
+      }
+      return getAccountById(accountId) || null;
+    },
+    [getAccountById]
+  );
 
   // Load accounts on mount
   useEffect(() => {
@@ -92,4 +101,3 @@ export const useAccounts = (): AccountsContextType => {
   }
   return context;
 };
-

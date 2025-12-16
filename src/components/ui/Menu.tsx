@@ -25,6 +25,7 @@ export const Menu: React.FC<MenuProps> = ({
   className,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,7 +34,9 @@ export const Menu: React.FC<MenuProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
+        !containerRef.current.contains(event.target as Node) &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
       }
@@ -48,49 +51,73 @@ export const Menu: React.FC<MenuProps> = ({
     };
   }, [isOpen]);
 
-  const alignClasses = {
-    left: 'left-0',
-    right: 'right-0',
-  };
-
-  const positionClasses = {
-    bottom: 'top-full mt-1',
-    top: 'bottom-full mb-1',
-  };
-
-  const defaultTrigger = (
-    <button
-      type="button"
-      onClick={() => setIsOpen(!isOpen)}
-      className="flex items-center justify-center p-3 rounded-[9.6px] hover:bg-gray-100 transition-colors"
-    >
-      <svg
-        className="w-3 h-3 text-[#072929]"
-        fill="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-      </svg>
-    </button>
-  );
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const menuWidth = 175; // min-w-[175px]
+      const menuHeight = items.length * 36 + 8; // approximate height
+      
+      let top = triggerRect.bottom + 4; // mt-1 = 4px
+      let left = triggerRect.left;
+      
+      if (position === 'top') {
+        top = triggerRect.top - menuHeight - 4; // mb-1 = 4px
+      }
+      
+      if (align === 'right') {
+        left = triggerRect.right - menuWidth;
+      }
+      
+      // Ensure menu stays within viewport
+      if (left + menuWidth > window.innerWidth) {
+        left = window.innerWidth - menuWidth - 8;
+      }
+      if (left < 8) {
+        left = 8;
+      }
+      if (top + menuHeight > window.innerHeight) {
+        top = window.innerHeight - menuHeight - 8;
+      }
+      if (top < 8) {
+        top = 8;
+      }
+      
+      setMenuPosition({ top, left });
+    } else {
+      setMenuPosition(null);
+    }
+  }, [isOpen, align, position, items.length]);
 
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       {trigger ? (
         <div ref={triggerRef} onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
       ) : (
-        defaultTrigger
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-center p-3 rounded-[9.6px] hover:bg-gray-100 transition-colors"
+        >
+          <svg
+            className="w-3 h-3 text-[#072929]"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+          </svg>
+        </button>
       )}
 
-      {isOpen && (
+      {isOpen && menuPosition && (
         <div
           ref={menuRef}
-          className={cn(
-            'absolute z-[99999] bg-[#fcfcf9] border border-[#e3e3e3] rounded-[12px] shadow-[0px_20px_40px_0px_rgba(0,0,0,0.1)] overflow-hidden min-w-[175px]',
-            alignClasses[align],
-            positionClasses[position]
-          )}
-          style={{ zIndex: 99999 }}
+          className="fixed z-[99999] bg-[#fcfcf9] border border-[#e3e3e3] rounded-[12px] shadow-[0px_20px_40px_0px_rgba(0,0,0,0.1)] overflow-hidden min-w-[175px]"
+          style={{ 
+            zIndex: 99999,
+            top: `${menuPosition.top}px`,
+            left: `${menuPosition.left}px`
+          }}
         >
           <div className="flex flex-col items-center justify-center">
             {items.map((item, index) => (

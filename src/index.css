@@ -206,6 +206,34 @@ body .cursor-pointer:hover {
   color: inherit;
 }
 
+/* Apply cursor pointer to all buttons and clickable elements */
+body button:not(:disabled),
+body a,
+body [role="button"]:not(:disabled),
+body input[type="button"]:not(:disabled),
+body input[type="submit"]:not(:disabled),
+body .cursor-pointer {
+  cursor: pointer;
+}
+
+/* Ensure hover states also show pointer cursor */
+body button:hover:not(:disabled),
+body a:hover,
+body [role="button"]:hover:not(:disabled),
+body input[type="button"]:hover:not(:disabled),
+body input[type="submit"]:hover:not(:disabled),
+body .cursor-pointer:hover {
+  cursor: pointer;
+}
+
+/* Disabled buttons should show default cursor */
+body button:disabled,
+body [role="button"]:disabled,
+body input[type="button"]:disabled,
+body input[type="submit"]:disabled {
+  cursor: default;
+}
+
 /* ============================================
    EXAMPLES: How to use CSS Custom Properties
    ============================================ */

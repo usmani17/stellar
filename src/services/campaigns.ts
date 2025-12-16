@@ -717,6 +717,54 @@ export const campaignsService = {
     return response.data;
   },
 
+  syncGoogleCampaignAnalytics: async (
+    accountId: number,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{synced: number; rows_inserted?: number; rows_updated?: number; rows_deleted?: number; errors?: string[]; message?: string; customer_stats?: any; date_range?: any}> => {
+    const payload: any = {};
+    if (startDate) payload.start_date = startDate;
+    if (endDate) payload.end_date = endDate;
+    const response = await api.post(`/accounts/${accountId}/google-campaigns/analytics-sync/`, payload);
+    return response.data;
+  },
+
+  syncGoogleAdGroupAnalytics: async (
+    accountId: number,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{synced: number; rows_inserted?: number; rows_updated?: number; rows_deleted?: number; errors?: string[]; message?: string; customer_stats?: any; date_range?: any}> => {
+    const payload: any = {};
+    if (startDate) payload.start_date = startDate;
+    if (endDate) payload.end_date = endDate;
+    const response = await api.post(`/accounts/${accountId}/google-adgroups/analytics-sync/`, payload);
+    return response.data;
+  },
+
+  syncGoogleAdAnalytics: async (
+    accountId: number,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{synced: number; rows_inserted?: number; rows_updated?: number; rows_deleted?: number; errors?: string[]; message?: string; customer_stats?: any; date_range?: any}> => {
+    const payload: any = {};
+    if (startDate) payload.start_date = startDate;
+    if (endDate) payload.end_date = endDate;
+    const response = await api.post(`/accounts/${accountId}/google-ads/analytics-sync/`, payload);
+    return response.data;
+  },
+
+  syncGoogleKeywordAnalytics: async (
+    accountId: number,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{synced: number; rows_inserted?: number; rows_updated?: number; rows_deleted?: number; errors?: string[]; message?: string; customer_stats?: any; date_range?: any}> => {
+    const payload: any = {};
+    if (startDate) payload.start_date = startDate;
+    if (endDate) payload.end_date = endDate;
+    const response = await api.post(`/accounts/${accountId}/google-keywords/analytics-sync/`, payload);
+    return response.data;
+  },
+
   getGoogleCampaigns: async (
     accountId: number,
     params?: {
@@ -724,6 +772,8 @@ export const campaignsService = {
       order?: 'asc' | 'desc';
       page?: number;
       page_size?: number;
+      start_date?: string;
+      end_date?: string;
       campaign_name?: string;
       campaign_name__icontains?: string;
       campaign_name__not_icontains?: string;
@@ -744,6 +794,16 @@ export const campaignsService = {
     page: number;
     page_size: number;
     total_pages: number;
+    chart_data?: Array<{ date: string; spend: number; sales: number; impressions?: number; clicks?: number; }>;
+    summary?: {
+      total_campaigns: number;
+      total_spends: number;
+      total_sales: number;
+      total_impressions: number;
+      total_clicks: number;
+      avg_acos: number;
+      avg_roas: number;
+    };
   }> => {
     const filters: any = {};
     
@@ -751,6 +811,8 @@ export const campaignsService = {
     if (params?.order) filters.order = params.order;
     if (params?.page) filters.page = params.page;
     if (params?.page_size) filters.page_size = params.page_size;
+    if (params?.start_date) filters.start_date = params.start_date;
+    if (params?.end_date) filters.end_date = params.end_date;
     if (params?.campaign_name) filters.campaign_name = params.campaign_name;
     if (params?.campaign_name__icontains) filters.campaign_name__icontains = params.campaign_name__icontains;
     if (params?.campaign_name__not_icontains) filters.campaign_name__not_icontains = params.campaign_name__not_icontains;
@@ -790,12 +852,92 @@ export const campaignsService = {
     return response.data;
   },
 
+  exportGoogleCampaigns: async (
+    accountId: number,
+    params?: {
+      sort_by?: string;
+      order?: 'asc' | 'desc';
+      start_date?: string;
+      end_date?: string;
+      campaign_name?: string;
+      campaign_name__icontains?: string;
+      campaign_name__not_icontains?: string;
+      status?: string;
+      advertising_channel_type?: string;
+      budget?: number | string;
+      budget__lt?: number | string;
+      budget__gt?: number | string;
+      budget__lte?: number | string;
+      budget__gte?: number | string;
+      account_name?: string;
+      account_name__icontains?: string;
+      account_name__not_icontains?: string;
+    }
+  ): Promise<void> => {
+    const filters: any = {};
+    
+    if (params?.sort_by) filters.sort_by = params.sort_by;
+    if (params?.order) filters.order = params.order;
+    if (params?.start_date) filters.start_date = params.start_date;
+    if (params?.end_date) filters.end_date = params.end_date;
+    if (params?.campaign_name) filters.campaign_name = params.campaign_name;
+    if (params?.campaign_name__icontains) filters.campaign_name__icontains = params.campaign_name__icontains;
+    if (params?.campaign_name__not_icontains) filters.campaign_name__not_icontains = params.campaign_name__not_icontains;
+    if (params?.status) filters.status = params.status;
+    if (params?.advertising_channel_type) filters.advertising_channel_type = params.advertising_channel_type;
+    if (params?.budget !== undefined) filters.budget = params.budget;
+    if (params?.budget__lt !== undefined) filters.budget__lt = params.budget__lt;
+    if (params?.budget__gt !== undefined) filters.budget__gt = params.budget__gt;
+    if (params?.budget__lte !== undefined) filters.budget__lte = params.budget__lte;
+    if (params?.budget__gte !== undefined) filters.budget__gte = params.budget__gte;
+    if (params?.account_name) filters.account_name = params.account_name;
+    if (params?.account_name__icontains) filters.account_name__icontains = params.account_name__icontains;
+    if (params?.account_name__not_icontains) filters.account_name__not_icontains = params.account_name__not_icontains;
+    
+    // Make request with responseType blob to handle CSV file
+    const response = await api.post(
+      `/accounts/${accountId}/google-campaigns/export/`,
+      { filters },
+      {
+        responseType: 'blob',
+      }
+    );
+    
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'google_campaigns_export.csv';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
   // Google Campaign Detail
   getGoogleCampaignDetail: async (
     accountId: number,
-    campaignId: string | number
+    campaignId: string | number,
+    startDate?: string,
+    endDate?: string
   ): Promise<any> => {
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/`;
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const queryString = params.toString();
+    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/${queryString ? `?${queryString}` : ''}`;
     const response = await api.get(url);
     return response.data;
   },
@@ -936,6 +1078,47 @@ export const campaignsService = {
 
   syncGoogleKeywords: async (accountId: number): Promise<{synced: number; errors?: string[]; message?: string}> => {
     const response = await api.post(`/accounts/${accountId}/google-keywords/sync/`);
+    return response.data;
+  },
+
+  // Bulk update functions
+  bulkUpdateGoogleAds: async (
+    accountId: number,
+    payload: {
+      adIds: Array<string | number>;
+      action: 'status';
+      status?: 'ENABLED' | 'PAUSED' | 'REMOVED';
+    }
+  ) => {
+    const url = `/accounts/${accountId}/google-ads/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkUpdateGoogleKeywords: async (
+    accountId: number,
+    payload: {
+      keywordIds: Array<string | number>;
+      action: 'status' | 'bid';
+      status?: 'ENABLED' | 'PAUSED';
+      bid?: number;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/google-keywords/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkUpdateGoogleAdGroups: async (
+    accountId: number,
+    payload: {
+      adgroupIds: Array<string | number>;
+      action: 'status';
+      status?: 'ENABLED' | 'PAUSED';
+    }
+  ) => {
+    const url = `/accounts/${accountId}/google-adgroups/bulk-update/`;
+    const response = await api.post(url, payload);
     return response.data;
   },
 };

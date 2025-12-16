@@ -7,6 +7,7 @@ import { KPICard } from "../components/ui/KPICard";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { Checkbox } from "../components/ui/Checkbox";
 import { useDateRange } from "../contexts/DateRangeContext";
+import { useSidebar } from "../contexts/SidebarContext";
 import {
   campaignsService,
   type CampaignDetail as CampaignDetailData,
@@ -28,6 +29,7 @@ export const CampaignDetail: React.FC = () => {
     campaignTypeAndId: string;
   }>();
   const { startDate, endDate } = useDateRange();
+  const { sidebarWidth } = useSidebar();
 
   // Parse campaign type and ID from URL format: sp_123456, sb_123456, or sd_123456
   const parseCampaignTypeAndId = (typeAndId: string | undefined) => {
@@ -723,7 +725,7 @@ export const CampaignDetail: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header */}
         <DashboardHeader />
 

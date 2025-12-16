@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 import type { Channel } from "../services/accounts";
+import { useAccounts } from "../contexts/AccountsContext";
+import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button, Menu } from "../components/ui";
@@ -11,6 +13,8 @@ import GoogleIcon from "../assets/images/ri_google-fill.svg";
 export const Channels: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
+  const { accounts } = useAccounts();
+  const { sidebarWidth } = useSidebar();
   const [account, setAccount] = useState<{ id: number; name: string } | null>(
     null
   );
@@ -26,63 +30,44 @@ export const Channels: React.FC = () => {
     provider: "amazon" | "google";
   } | null>(null);
 
-  useEffect(() => {
-    if (accountId) {
-    loadData();
-    } else {
-      // If no accountId, redirect to accounts page
+  const loadData = useCallback(async () => {
+    if (!accountId) {
       navigate("/accounts");
+      return;
     }
-  }, [accountId, navigate]);
-
-  const loadData = async () => {
-    if (!accountId) return;
 
     try {
       setLoading(true);
       const accountIdNum = parseInt(accountId, 10);
 
-      // Fetch account details
-      const accounts = await accountsService.getAccounts();
+      // Only fetch channels - account name comes from context or channel response
+      const channelsData = await accountsService.getAccountChannels(accountIdNum);
+      const channelsArray = Array.isArray(channelsData) ? channelsData : [];
+
+      // Set account name from context (already loaded) or from channel response
       const foundAccount = accounts.find((acc) => acc.id === accountIdNum);
       if (foundAccount) {
         setAccount({ id: foundAccount.id, name: foundAccount.name });
+      } else if (channelsArray.length > 0 && channelsArray[0].account_name) {
+        // Fallback: use account_name from channel if available
+        setAccount({ id: accountIdNum, name: channelsArray[0].account_name });
+      } else {
+        // Last resort: set with just the ID
+        setAccount({ id: accountIdNum, name: `Account ${accountIdNum}` });
       }
 
-      // Fetch channels for this account
-      const channelsData = await accountsService.getAccountChannels(
-        accountIdNum
-      );
-      const channelsArray = Array.isArray(channelsData) ? channelsData : [];
+      // Set channels immediately so UI can render
       setChannels(channelsArray);
 
-      // Fetch profile counts for each channel
+      // Extract profile counts from channel data (now included in API response)
       const counts: Record<number, { selected: number; total: number }> = {};
-      for (const channel of channelsArray) {
-        try {
-          if (channel.channel_type === "google") {
-            const profileData = await accountsService.getGoogleProfiles(
-              channel.id
-            );
-            counts[channel.id] = {
-              selected: profileData.selected,
-              total: profileData.total,
-            };
-          } else if (channel.channel_type === "amazon") {
-            const profileData = await accountsService.getProfiles(channel.id);
-            counts[channel.id] = {
-              selected: profileData.selected,
-              total: profileData.total,
-            };
-          }
-        } catch (error) {
-          console.error(
-            `Failed to fetch profiles for channel ${channel.id}:`,
-            error
-          );
+      channelsArray.forEach((channel) => {
+        if (channel.profile_counts) {
+          counts[channel.id] = channel.profile_counts;
+        } else {
           counts[channel.id] = { selected: 0, total: 0 };
         }
-      }
+      });
       setProfileCounts(counts);
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -90,7 +75,11 @@ export const Channels: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [accountId, accounts, navigate]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleConnectAmazon = async () => {
     if (!account) return;
@@ -163,7 +152,7 @@ export const Channels: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header */}
         <DashboardHeader />
 
@@ -305,9 +294,18 @@ export const Channels: React.FC = () => {
                               } hover:bg-gray-50 transition-colors`}
                             >
                               <td className="py-4 px-5">
-                                <span className="text-[14px] text-[#0b0f16] leading-[normal]">
+                                <button
+                                  onClick={() => {
+                                    if (channel.channel_type === "amazon") {
+                                      navigate(`/accounts/${accountId}/campaigns`);
+                                    } else if (channel.channel_type === "google") {
+                                      navigate(`/accounts/${accountId}/google-campaigns`);
+                                    }
+                                  }}
+                                  className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
+                                >
                                   {channel.channel_name}
-                                </span>
+                                </button>
                               </td>
                               <td className="py-4 px-5">
                                 <span className="text-[14px] text-[#0b0f16] leading-[normal]">

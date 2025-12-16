@@ -12,6 +12,7 @@ import {
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
+import { useSidebar } from "../contexts/SidebarContext";
 import { campaignsService, type Campaign } from "../services/campaigns";
 import { Checkbox } from "../components/ui/Checkbox";
 import { Dropdown } from "../components/ui/Dropdown";
@@ -26,6 +27,7 @@ export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
   const { startDate, endDate } = useDateRange();
+  const { sidebarWidth } = useSidebar();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [summary, setSummary] = useState<{
     total_campaigns: number;
@@ -737,7 +739,10 @@ export const Campaigns: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-[272px] ml-0 min-w-0 w-full">
+      <div
+        className="flex-1 min-w-0 w-full"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Header */}
         <DashboardHeader />
 
