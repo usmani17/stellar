@@ -327,7 +327,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const isStateOrType = selectedField === "state" || selectedField === "type";
   const isStatusOrChannelType =
     selectedField === "status" || selectedField === "advertising_channel_type";
->>>>>>> @{-1}
 
   if (!isOpen) return null;
 
