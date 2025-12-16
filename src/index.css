@@ -1,189 +1,355 @@
 @import "tailwindcss";
+@import "./styles/typography.css";
+@import "./styles/datepicker.css";
 
+@theme {
+  --color-neutral-50: #FAFAFA;
+  --color-neutral-100: #F5F5F5;
+  --color-neutral-200: #E5E5E5;
+  --color-neutral-300: #D4D4D4;
+  --color-neutral-400: #A1A1A1;
+  --color-neutral-500: #737373;
+  --color-neutral-600: #525252;
+  --color-neutral-700: #404040;
+  --color-neutral-750: #0A0A0A;
+  --color-neutral-800: #262626;
+  --color-neutral-900: #171717;
+  --color-neutral-950: #0A0A0A;
+  --color-neutral-n0: #FFFFFF;
+  --color-neutral-n10: #3E6993;
+  --color-neutral-n20: #F4F5F7;
+  --color-neutral-n30: #EBECF0;
+  --color-neutral-n40: #DFE1E6;
+  --color-neutral-n50: #475467;
+  --color-neutral-n60: #B3BAC5;
+  --color-neutral-n70: #A5ADBA;
+  --color-neutral-n80: #97A0AF;
+  --color-neutral-n90: #8993A4;
+  --color-neutral-n100: #7D8799;
+  --color-neutral-n200: #6B7589;
+  --color-neutral-n300: #556179;
+  --color-neutral-n400: #414C62;
+  --color-neutral-n500: #313B50;
+  --color-neutral-n600: #29303F;
+  --color-neutral-n700: #212630;
+  --color-neutral-n800: #161B25;
+  --color-neutral-n900: #0B0F16;
+  --color-neutral-n1000: #000205;
+  --color-neutralAlpha-n10A: rgba(9, 30, 66, 0.02);
+  --color-neutralAlpha-n20A: rgba(9, 30, 66, 0.04);
+  --color-neutralAlpha-n30A: rgba(9, 30, 66, 0.08);
+  --color-neutralAlpha-n40A: rgba(9, 30, 66, 0.13);
+  --color-neutralAlpha-n50A: rgba(9, 30, 66, 0.25);
+  --color-neutralAlpha-n60A: rgba(9, 30, 66, 0.31);
+  --color-neutralAlpha-n70A: rgba(9, 30, 66, 0.36);
+  --color-neutralAlpha-n80A: rgba(9, 30, 66, 0.42);
+  --color-neutralAlpha-n90A: rgba(9, 30, 66, 0.48);
+  --color-neutralAlpha-n100A: rgba(9, 30, 66, 0.54);
+  --color-neutralAlpha-n200A: rgba(9, 30, 66, 0.60);
+  --color-neutralAlpha-n300A: rgba(9, 30, 66, 0.66);
+  --color-neutralAlpha-n400A: rgba(9, 30, 66, 0.71);
+  --color-neutralAlpha-n500A: rgba(9, 30, 66, 0.77);
+  --color-neutralAlpha-n600A: rgba(9, 30, 66, 0.82);
+  --color-neutralAlpha-n700A: rgba(9, 30, 66, 0.89);
+  --color-neutralAlpha-n800A: rgba(9, 30, 66, 0.95);
+  --color-neutralAlpha-n900A: #091E42;
+  --color-sandstorm-s0: #F9F9F6;
+  --color-sandstorm-s5: #FEFEFB;
+  --color-sandstorm-s10: #FCFCF9;
+  --color-sandstorm-s20: #F5F4EF;
+  --color-sandstorm-s30: #F0F0ED;
+  --color-sandstorm-s40: #E8E8E3;
+  --color-sandstorm-s50: #E4E4D7;
+  --color-sandstorm-s60: #D1D1C7;
+  --color-sandstorm-s70: #73726C;
+  --color-forest-f0: #DCF1E8;
+  --color-forest-f10: #D6E5E5;
+  --color-forest-f20: #9BB1B0;
+  --color-forest-f30: #506766;
+  --color-forest-f40: #136D6D;
+  --color-forest-f50: #0E4E4E;
+  --color-forest-f60: #072929;
+  --color-blue-b0: #E3EEFF;
+  --color-blue-b10: #3370FF;
+  --color-blue-b10Alt: #0869FB;
+  --color-blue-b20: #0350C3;
+  --color-blue-b30: #0346AB;
+  --color-blue-b100: #74AAFD;
+  --color-blue-b400: #0350C3;
+  --color-red-r0: #FFEBE6;
+  --color-red-r10: #FFD6CC;
+  --color-red-r20: #FFAD99;
+  --color-red-r30: #CE1313;
+  --color-red-r40: #B51111;
+  --color-red-r50: #950E0E;
+  --color-yellow-y0: #FFECD6;
+  --color-yellow-y10: #FF991F;
+  --color-yellow-y50: #FFFAE6;
+  --color-orange-o0: #FF5C33;
+  --color-pink-p0: #FD357C;
+  --color-teal-t0: #258DC1;
+  --color-purple-p500: #403294;
+  --color-common-white: #FFFFFF;
+  --color-common-black: #000000;
+  --color-semantic-text-primary: #072929;
+  --color-semantic-text-secondary: #506766;
+  --color-semantic-text-disabled: #D6E5E5;
+  --color-semantic-text-inverse: #F9F9F6;
+  --color-semantic-background-primary: #F9F9F6;
+  --color-semantic-background-secondary: #F5F4EF;
+  --color-semantic-background-tertiary: #FCFCF9;
+  --color-semantic-background-field: #FEFEFB;
+  --color-semantic-border-default: #E8E8E3;
+  --color-semantic-border-light: #E4E4D7;
+  --color-semantic-border-medium: #D1D1C7;
+  --color-semantic-border-common: #E6E6E6;
+  --color-semantic-status-primary: #136D6D;
+  --color-semantic-status-danger: #CE1313;
+  --color-semantic-status-warning: #FF991F;
+  --color-semantic-status-success: #136D6D;
+  --font-family-sans: "GT America Trial", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif";
+  --font-family-agrandir: "PP Agrandir", "system-ui", "sans-serif";
+  --font-family-gtAmerica: "GT America Trial", "system-ui", "sans-serif";
+  --font-family-inter: "Inter", "system-ui", "sans-serif";
+  --font-family-poppins: "Poppins", "system-ui", "sans-serif";
+  --letter-spacing-tight: -1px;
+  --letter-spacing-tighter: -0.2px;
+  --letter-spacing-normal: 0;
+  --font-size-h1300: 32px;
+  --line-height-h1300: 32px;
+  --letter-spacing-h1300: -1px;
+  --font-size-h1250: 28px;
+  --line-height-h1250: 40px;
+  --letter-spacing-h1250: 0;
+  --font-size-h1100: 24px;
+  --line-height-h1100: 40px;
+  --letter-spacing-h1100: -1px;
+  --font-size-h1050: 24px;
+  --line-height-h1050: 40px;
+  --letter-spacing-h1050: 0;
+  --font-size-h1000: 20px;
+  --line-height-h1000: 32px;
+  --letter-spacing-h1000: 0;
+  --font-size-h900: 18px;
+  --line-height-h900: 24px;
+  --letter-spacing-h900: 0;
+  --font-size-h800: 18px;
+  --line-height-h800: 28px;
+  --letter-spacing-h800: -0.2px;
+  --font-size-h750: 18px;
+  --line-height-h750: 28px;
+  --letter-spacing-h750: 0;
+  --font-size-h700: 16px;
+  --line-height-h700: 28px;
+  --letter-spacing-h700: 0;
+  --font-size-h600: 16px;
+  --line-height-h600: 26px;
+  --letter-spacing-h600: 0;
+  --font-size-h550: 16px;
+  --line-height-h550: 26px;
+  --letter-spacing-h550: 0;
+  --font-size-h500: 14px;
+  --line-height-h500: 20px;
+  --letter-spacing-h500: 0;
+  --font-size-h450: 14px;
+  --line-height-h450: 20px;
+  --letter-spacing-h450: 0;
+  --font-size-h400: 14px;
+  --line-height-h400: 20px;
+  --letter-spacing-h400: 0;
+  --font-size-h300: 12px;
+  --line-height-h300: 18px;
+  --letter-spacing-h300: 0;
+  --font-size-h200: 12px;
+  --line-height-h200: 18px;
+  --letter-spacing-h200: 0;
+  --font-size-h100: 10px;
+  --line-height-h100: 14px;
+  --letter-spacing-h100: 0;
+  --font-size-button-text: 11.2px;
+}
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "GT America Trial", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light;
-  color: #072929;
-  background-color: #F9F9F6;
+  color-scheme: light; 
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: "GT America Trial", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* React DatePicker Styles */
-.react-datepicker {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.12);
-  background-color: white;
-  padding: 20px;
-  width: 320px;
+/* Apply highlight color to all hover states in the body */
+body a:hover,
+body button:hover,
+body [role="button"]:hover,
+body input[type="button"]:hover,
+body input[type="submit"]:hover,
+body .cursor-pointer:hover {
+  color: var(--color-highlight);
 }
 
-.react-datepicker__header {
-  background-color: white;
-  border-bottom: none;
-  border-radius: 0;
-  padding: 0 0 12px 0;
-  position: relative;
+/* Exclude sidebar from hover highlight - reset to inherit */
+.sidebar-nav a:hover,
+.sidebar-nav button:hover,
+.sidebar-nav [role="button"]:hover,
+.sidebar-nav input[type="button"]:hover,
+.sidebar-nav input[type="submit"]:hover,
+.sidebar-nav .cursor-pointer:hover {
+  color: inherit;
 }
 
-.react-datepicker__current-month {
-  font-weight: 600;
-  font-size: 16px;
-  color: #072929;
-  margin-bottom: 12px;
-  text-align: center;
-}
-
-.react-datepicker__day-names {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  padding: 0;
-}
-
-.react-datepicker__day-name {
-  color: #556179;
-  font-weight: 500;
-  font-size: 12px;
-  width: 40px;
-  line-height: 40px;
-  margin: 0;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.react-datepicker__month {
-  margin: 0;
-  padding: 0;
-}
-
-.react-datepicker__week {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.react-datepicker__day {
-  color: #313850;
-  width: 40px;
-  height: 40px;
-  line-height: 40px;
-  margin: 0;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 400;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* Apply cursor pointer to all buttons and clickable elements */
+body button:not(:disabled),
+body a,
+body [role="button"]:not(:disabled),
+body input[type="button"]:not(:disabled),
+body input[type="submit"]:not(:disabled),
+body .cursor-pointer {
   cursor: pointer;
 }
 
-.react-datepicker__day:hover:not(.react-datepicker__day--disabled):not(.react-datepicker__day--selected):not(.react-datepicker__day--in-range) {
-  background-color: rgba(0, 0, 0, 0.04);
+/* Ensure hover states also show pointer cursor */
+body button:hover:not(:disabled),
+body a:hover,
+body [role="button"]:hover:not(:disabled),
+body input[type="button"]:hover:not(:disabled),
+body input[type="submit"]:hover:not(:disabled),
+body .cursor-pointer:hover {
+  cursor: pointer;
+}
+
+/* Disabled buttons should show default cursor */
+body button:disabled,
+body [role="button"]:disabled,
+body input[type="button"]:disabled,
+body input[type="submit"]:disabled {
+  cursor: default;
+}
+
+/* ============================================
+   EXAMPLES: How to use CSS Custom Properties
+   ============================================ */
+
+/* Example 1: Using semantic border colors in CSS */
+.example-button-secondary {
+  background-color: var(--color-common-white);
+  border: 1px solid var(--color-semantic-border-default);
+  color: var(--color-semantic-text-primary);
+}
+
+.example-button-secondary:hover {
+  border-color: var(--color-semantic-border-medium);
+}
+
+/* Example 2: Using semantic status colors */
+.status-primary {
+  background-color: var(--color-semantic-status-primary);
+  color: var(--color-semantic-text-inverse);
+}
+
+.status-danger {
+  background-color: var(--color-semantic-status-danger);
+  color: var(--color-semantic-text-inverse);
+}
+
+.status-warning {
+  background-color: var(--color-semantic-status-warning);
+  color: var(--color-semantic-text-primary);
+}
+
+.status-success {
+  background-color: var(--color-semantic-status-success);
+  color: var(--color-semantic-text-inverse);
+}
+
+/* Example 3: Using semantic background colors */
+.card-primary {
+  background-color: var(--color-semantic-background-primary);
+  border: 1px solid var(--color-semantic-border-light);
+}
+
+.card-secondary {
+  background-color: var(--color-semantic-background-secondary);
+  border: 1px solid var(--color-semantic-border-default);
+}
+
+.input-field {
+  background-color: var(--color-semantic-background-field);
+  border: 1px solid var(--color-semantic-border-default);
+  color: var(--color-semantic-text-primary);
+}
+
+/* Example 4: Using semantic text colors */
+.text-primary {
+  color: var(--color-semantic-text-primary);
+}
+
+.text-secondary {
+  color: var(--color-semantic-text-secondary);
+}
+
+.text-disabled {
+  color: var(--color-semantic-text-disabled);
+}
+
+.text-inverse {
+  color: var(--color-semantic-text-inverse);
+}
+
+/* Example 5: Combining multiple semantic colors */
+.alert-box {
+  background-color: var(--color-semantic-background-tertiary);
+  border: 2px solid var(--color-semantic-border-medium);
+  color: var(--color-semantic-text-primary);
+  padding: 1rem;
   border-radius: 8px;
 }
 
-.react-datepicker__day--selected,
-.react-datepicker__day--in-range {
-  background-color: #0066ff;
-  color: white;
-  font-weight: 500;
-  border-radius: 8px;
+/* Example 6: Using in pseudo-elements */
+.button-with-icon::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-color: var(--color-semantic-status-primary);
+  margin-right: 8px;
 }
 
-.react-datepicker__day--in-selecting-range {
-  background-color: rgba(0, 102, 255, 0.15);
-  color: #313850;
+/* Example 7: Using in media queries (for responsive design) */
+@media (max-width: 768px) {
+  .responsive-card {
+    background-color: var(--color-semantic-background-primary);
+    border-color: var(--color-semantic-border-light);
+  }
 }
 
-.react-datepicker__day--in-selecting-range:hover {
-  background-color: rgba(0, 102, 255, 0.25);
+/* Example 8: Using with CSS calc() */
+.spacing-with-border {
+  padding: calc(1rem + var(--color-semantic-border-default));
+  border: 2px solid var(--color-semantic-border-default);
 }
 
-.react-datepicker__day--range-start,
-.react-datepicker__day--range-end {
-  background-color: #0066ff;
-  color: white;
-  font-weight: 600;
-  border-radius: 8px;
+/* Example 9: Using in box-shadow */
+.card-shadow {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-semantic-border-default);
+  background-color: var(--color-semantic-background-primary);
 }
 
-.react-datepicker__day--keyboard-selected {
-  background-color: rgba(0, 102, 255, 0.1);
-  border-radius: 8px;
+/* Example 10: Using in gradients */
+.gradient-background {
+  background: linear-gradient(
+    to right,
+    var(--color-semantic-status-primary),
+    var(--color-semantic-status-success)
+  );
 }
 
-.react-datepicker__day--outside-month {
-  color: #A3A8B3;
-  opacity: 0.6;
-}
-
-.react-datepicker__day--disabled {
-  color: #E6E6E6;
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-.react-datepicker__day--disabled:hover {
-  background-color: transparent;
-}
-
-.react-datepicker__navigation {
-  top: 16px;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
-}
-
-.react-datepicker__navigation:hover {
-  background-color: rgba(0, 0, 0, 0.04);
-}
-
-.react-datepicker__navigation-icon::before {
-  border-color: #556179;
-  border-width: 2px 2px 0 0;
-  width: 7px;
-  height: 7px;
-  top: 12px;
-}
-
-.react-datepicker__navigation:hover *::before {
-  border-color: #072929;
-}
-
-.react-datepicker__navigation--previous {
-  left: 12px;
-}
-
-.react-datepicker__navigation--next {
-  right: 12px;
-}
-
-.react-datepicker__triangle {
-  display: none;
-}
-
-/* Custom datepicker wrapper */
-.custom-datepicker .react-datepicker {
-  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-.custom-datepicker .react-datepicker__month-container {
-  padding: 0;
-  width: 100%;
-}

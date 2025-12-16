@@ -1,6 +1,6 @@
-import React, { type ReactNode } from 'react';
-import { Logo } from './Logo';
-import { AuthSidebar } from './AuthSidebar';
+import React, { type ReactNode } from "react";
+import { Logo } from "./Logo";
+import { AuthSidebar } from "./AuthSidebar";
 
 interface AuthPageLayoutProps {
   children: ReactNode;
@@ -9,20 +9,20 @@ interface AuthPageLayoutProps {
   showGetStarted?: boolean;
 }
 
-export const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({ 
-  children, 
+export const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({
+  children,
   showLogo = true,
   sidebarContent,
-  showGetStarted = false
+  showGetStarted = false,
 }) => {
   return (
-    <div className="min-h-screen bg-white flex flex-col lg:flex-row">
+    <div className="h-screen bg-[#f5f5f0] flex flex-col lg:flex-row overflow-hidden">
       {/* Left side - Form */}
-      <div className="flex-1 flex flex-col relative px-4 sm:px-8 lg:px-0">
-        <div className="flex-1 flex items-center justify-center py-8 sm:py-12 lg:py-0">
-          <div className="w-full max-w-[576px] inline-flex flex-col justify-start items-start gap-16">
+      <div className="flex-1 flex flex-col relative px-4 sm:px-6 md:px-8 lg:px-12 overflow-y-auto">
+        <div className="flex-1 flex items-center justify-center py-6 sm:py-8 md:py-12 lg:py-16">
+          <div className="w-full max-w-[576px] inline-flex flex-col justify-start items-start gap-6 sm:gap-8 md:gap-10">
             {showLogo && (
-              <div className="w-40 h-9 relative">
+              <div className="w-32 h-8 sm:w-36 sm:h-9 md:w-40 md:h-9 relative flex-shrink-0">
                 <Logo />
               </div>
             )}
@@ -30,7 +30,7 @@ export const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({
           </div>
         </div>
       </div>
-      
+
       {/* Right side - Sidebar */}
       <AuthSidebar showGetStarted={showGetStarted}>
         {sidebarContent}
@@ -38,4 +38,3 @@ export const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({
     </div>
   );
 };
-

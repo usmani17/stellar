@@ -90,7 +90,7 @@ export const AmazonAccountCard: React.FC<AmazonAccountCardProps> = ({
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="text-[14px] font-medium text-[#0b0f16] mb-1">
-            {account.account_name}
+            {account.name}
           </h3>
           {account.amazon_account_id && (
             <p className="text-[14px] text-[#556179] mb-2">
@@ -129,7 +129,7 @@ export const AmazonAccountCard: React.FC<AmazonAccountCardProps> = ({
             return (
               <div
                 key={profile.id}
-                className="p-3 rounded-lg hover:bg-[#F0F0ED] transition-colors border border-[#E8E8E3]"
+                className="p-3 rounded-lg hover:bg-gray-50 transition-colors border border-[#E8E8E3]"
               >
                 <div className="flex items-start gap-3">
                   <input
@@ -137,7 +137,7 @@ export const AmazonAccountCard: React.FC<AmazonAccountCardProps> = ({
                     checked={profile.is_selected}
                     onChange={() => toggleProfile(profile.profile_id)}
                     disabled={saving}
-                    className="mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929] cursor-pointer"
+                    className="mt-1 w-4 h-4 text-[#072929] border-gray-200 rounded focus:ring-[#072929] cursor-pointer"
                   />
                   <div className="flex-1 cursor-pointer" onClick={() => toggleProfile(profile.profile_id)}>
                     <div className="flex items-center gap-2 mb-1">

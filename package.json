@@ -7,27 +7,31 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:tailwind-colors": "npx tsx scripts/generate-tailwind-from-tokens.ts"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.10.0",
     "@headlessui/react": "^2.2.9",
     "@types/react-datepicker": "^7.0.0",
     "axios": "^1.13.2",
+    "clsx": "^2.1.1",
     "react": "^19.2.0",
     "react-datepicker": "^9.0.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.10.1",
-    "recharts": "^3.5.1"
+    "recharts": "^3.5.1",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.1.17",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.10.3",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.22",
+    "culori": "^4.0.2",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",

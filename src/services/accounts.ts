@@ -1,17 +1,5 @@
 import api from './api';
 
-export interface Account {
-  id: number;
-  account_name: string;
-  channels_count?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateAccountData {
-  account_name: string;
-}
-
 export interface Channel {
   id: number;
   channel_name: string;
@@ -24,6 +12,27 @@ export interface Channel {
   created_at: string;
   updated_at: string;
   needs_profile_selection?: boolean;
+  profile_counts?: {
+    total: number;
+    selected: number;
+  };
+}
+
+export interface Account {
+  id: number;
+  name: string;
+  channels_count?: number;
+  channels?: Channel[];
+  user_ids?: number[];
+  users?: Array<{ id: number; name: string; email: string }>;
+  created_by?: number;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAccountData {
+  name: string;
 }
 
 export const accountsService = {
@@ -83,6 +92,40 @@ export const accountsService = {
       state,
     });
     console.log('OAuth callback service response:', response.data);
+    return response.data;
+  },
+
+  // Google OAuth
+  initiateGoogleOAuth: async (accountId: number): Promise<{ auth_url: string }> => {
+    const response = await api.get<{ auth_url: string }>(`/accounts/google-oauth/initiate/?account_id=${accountId}`);
+    return response.data;
+  },
+
+  handleGoogleOAuthCallback: async (code: string, state?: string): Promise<any> => {
+    const response = await api.post<any>('/accounts/google-oauth/callback/', {
+      code,
+      state,
+    });
+    console.log('Google OAuth callback service response:', response.data);
+    return response.data;
+  },
+
+  // Google Profiles (now using channel_id, similar to Amazon profiles)
+  getGoogleProfiles: async (channelId: number): Promise<{ profiles: any[]; total: number; selected: number }> => {
+    const response = await api.get<{ profiles: any[]; total: number; selected: number }>(`/accounts/channels/${channelId}/google-profiles/`);
+    return response.data;
+  },
+
+  fetchGoogleProfiles: async (channelId: number): Promise<any[]> => {
+    const response = await api.get<{ profiles: any[] }>(`/accounts/channels/${channelId}/google-profiles/fetch/`);
+    return response.data.profiles || [];
+  },
+
+  saveGoogleProfiles: async (channelId: number, profileIds: string[], profiles?: any[]): Promise<any> => {
+    const response = await api.post(`/accounts/channels/${channelId}/google-profiles/save/`, {
+      profile_ids: profileIds,
+      profiles: profiles || [],
+    });
     return response.data;
   },
 

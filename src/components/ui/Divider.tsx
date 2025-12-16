@@ -14,7 +14,7 @@ export const Divider: React.FC<DividerProps> = ({
       <div className="flex-1 h-0 outline outline-1 outline-offset-[-0.50px] outline-black"></div>
       <span 
         className="justify-start text-black text-sm font-medium leading-5"
-        style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
+        className="font-inter font-medium"
       >
         {text}
       </span>

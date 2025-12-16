@@ -11,4 +11,11 @@ export { Alert } from './Alert';
 export { Divider } from './Divider';
 export { Logo } from './Logo';
 export { GoogleButton } from './GoogleButton';
+export { Checkbox } from './Checkbox';
+export { Dropdown } from './Dropdown';
+export type { DropdownOption, DropdownProps } from './Dropdown';
+export { DeleteConfirmationModal } from './DeleteConfirmationModal';
+export { Chip } from './Chip';
+export { Menu } from './Menu';
+export type { MenuItem, MenuProps } from './Menu';
 

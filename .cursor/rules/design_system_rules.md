@@ -1,304 +1,282 @@
-# Design System Rules for Stellar Frontend
+# PIXIS Design System Rules
 
-This document outlines the design system structure, patterns, and conventions used in the Stellar Frontend codebase to help integrate Figma designs using the Model Context Protocol.
+This document defines the design system rules and patterns for the PIXIS frontend application. **Always follow these rules when implementing new features or components to maintain design consistency.**
 
-**Last Updated:** Complete Figma Brand Kit Implementation (December 2024)
-**Figma File:** PIXIS---Design-File (YTJsGwRne4kXLpWchqRqKH)
-**Brand Kit Nodes:** Colors (438:34735), Typography (438:35262), Components (30+ nodes)
+## Table of Contents
 
-## Key Design Specifications from Figma
+1. [Design Tokens](#design-tokens)
+2. [Typography](#typography)
+3. [Color System](#color-system)
+4. [Component Library](#component-library)
+5. [Styling Approach](#styling-approach)
+6. [Asset Management](#asset-management)
+7. [Icon System](#icon-system)
+8. [Spacing & Layout](#spacing--layout)
+9. [Component Patterns](#component-patterns)
+10. [Project Structure](#project-structure)
 
-### Typography (Complete Brand Kit)
-- **Primary Font Families**:
-  - **PP Agrandir**: Used for headings (H1300, H1250, H1100)
-  - **GT America Trial**: Used for body text and UI elements (Regular 400, Medium 500, Bold 700)
-  - **Inter**: Used for UI text and labels (Regular 400, Medium 500, Semi Bold 600)
-  - **Poppins**: Legacy support (Regular 400, Medium 500, SemiBold 600, Bold 700)
-- **Complete Text Size Scale** (H100-H1300):
-  - H1300: 32px (2rem), auto line-height, -1px letter-spacing (PP Agrandir)
-  - H1250: 28px (1.75rem), 40px line-height (PP Agrandir)
-  - H1100: 24px (1.5rem), 40px line-height, -1px letter-spacing (PP Agrandir/Inter)
-  - H1050: 24px (1.5rem), 40px line-height (GT America Medium)
-  - H1000: 20px (1.25rem), 32px line-height (GT America Medium)
-  - H900: 18px (1.125rem), 24px line-height (GT America Medium)
-  - H800: 18px (1.125rem), 28px line-height, -0.2px letter-spacing (GT America Medium/Inter Semi Bold)
-  - H750: 18px (1.125rem), 28px line-height (GT America Regular)
-  - H700: 16px (1rem), 28px line-height (GT America Bold)
-  - H600: 16px (1rem), 26px line-height (GT America Medium)
-  - H550: 16px (1rem), 26px line-height (GT America Regular)
-  - H500: 14px (0.875rem), 20px line-height (GT America Bold)
-  - H450: 14px (0.875rem), 20px line-height (GT America Medium/Inter Medium)
-  - H400: 14px (0.875rem), 20px line-height (GT America Regular)
-  - H300: 12px (0.75rem), 18px line-height (GT America Medium)
-  - H200: 12px (0.75rem), 18px line-height (GT America Regular)
-  - H100: 10px (0.625rem), 14px line-height (GT America Medium)
+---
 
-### Input Fields
-- **Background**: `#f5f7fa` (not white)
-- **Border**: `#e8e8e3` (1px solid)
-- **Border Radius**: 12px (`rounded-xl`)
-- **Height**: 48px (`h-12`)
-- **Padding**: 12px horizontal (`px-3`)
-- **Text Color**: `#bfbfbf` for placeholder
-- **Label**: 16px, Poppins Medium, `#000000`
-
-### Buttons
-- **Primary Button**: 
-  - Background: `#136d6d`
-  - Hover: `#0e5a5a`
-  - Height: 64px (`h-16`)
-  - Border Radius: 12px (`rounded-xl`)
-  - Font: Poppins SemiBold, 16px
-- **OAuth Button**:
-  - Background: White
-  - Border: `#e8e8e3`
-  - Border Radius: 16px (`rounded-2xl`)
-  - Height: 56px (`h-14`)
-
-### Layout
-- **Split Screen**: 
-  - Left: Form area (flex-1)
-  - Right: Sidebar (720px fixed width, hidden on mobile)
-- **Form Width**: 576px
-- **Sidebar Background**: `#062121` with gradient overlay
-- **Sidebar Border Radius**: Top-left and bottom-left corners (40px)
-
-## 1. Token Definitions
+## Design Tokens
 
 ### Location
-Design tokens are primarily defined in:
-- **Tailwind Config**: `/stellar-frontend/tailwind.config.ts`
-- **Global Styles**: `/stellar-frontend/src/index.css`
+Design tokens are defined in **`tailwind.config.ts`** using Tailwind CSS's theme extension system.
 
-### Color System
-
-The design system uses a structured color palette defined in Tailwind config:
+### Token Structure
+All design tokens follow a semantic naming convention organized by category:
 
 ```typescript
-// tailwind.config.ts - Complete Brand Kit Color System
-colors: {
-  // Neutral (Light) - Complete palette N0-N1000
-  neutral: {
-    n0: '#FFFFFF',      // Pure white
-    n10: '#FAFBFC',     // Lightest gray
-    n20: '#F4F5F7',
-    n30: '#EBECF0',
-    n40: '#DFE1E6',
-    n50: '#475467',     // Base gray
-    n60: '#B3BAC5',     // Updated from previous
-    n70: '#A5ADBA',
-    n80: '#97A0AF',
-    n90: '#8993A4',     // Updated from previous
-    n100: '#7D8799',    // Updated from previous
-    n200: '#6B7589',    // Updated from previous
-    n300: '#556179',
-    n400: '#414C62',
-    n500: '#313B50',    // Updated from previous
-    n600: '#29303F',
-    n700: '#212630',    // NEW
-    n800: '#161B25',    // NEW
-    n900: '#0B0F16',    // NEW
-    n1000: '#000205',   // NEW - Darkest
-  },
-  // Neutral Alpha - For dark theme support (rgba values)
-  neutralAlpha: {
-    n10A: 'rgba(9, 30, 66, 0.02)',
-    n20A: 'rgba(9, 30, 66, 0.04)',
-    n30A: 'rgba(9, 30, 66, 0.08)',
-    n40A: 'rgba(9, 30, 66, 0.13)',
-    n50A: 'rgba(9, 30, 66, 0.25)',
-    n60A: 'rgba(9, 30, 66, 0.31)',
-    n70A: 'rgba(9, 30, 66, 0.36)',
-    n80A: 'rgba(9, 30, 66, 0.42)',
-    n90A: 'rgba(9, 30, 66, 0.48)',
-    n100A: 'rgba(9, 30, 66, 0.54)',
-    n200A: 'rgba(9, 30, 66, 0.60)',
-    n300A: 'rgba(9, 30, 66, 0.66)',
-    n400A: 'rgba(9, 30, 66, 0.71)',
-    n500A: 'rgba(9, 30, 66, 0.77)',
-    n600A: 'rgba(9, 30, 66, 0.82)',
-    n700A: 'rgba(9, 30, 66, 0.89)',
-    n800A: 'rgba(9, 30, 66, 0.95)',
-    n900A: '#091E42',
-  },
-  // Pixis Sandstorm - Complete palette with semantic meanings
-  sandstorm: {
-    s0: '#F9F9F6',      // Background 1
-    s5: '#FEFEFB',      // Text Field BG
-    s10: '#FCFCF9',     // Background 1
-    s20: '#F5F4EF',     // Background 2
-    s30: '#F0F0ED',     // Hover 1 (updated from #F0FDED)
-    s40: '#E8E8E3',     // Press 1 / Border (updated from #EBEBE3)
-    s50: '#E4E4D7',     // Border 1
-    s60: '#D1D1C7',     // Border 2
-    s70: '#73726C',
-  },
-  // Pixis Forest Green - Complete palette with semantic meanings
-  forest: {
-    f0: '#DCF1E8',
-    f10: '#D6E5E5',     // Disabled Text
-    f20: '#9BB1B0',     // Updated from #98B1B0
-    f30: '#506766',     // Secondary Text (Note: Also #78B0B0 in some contexts)
-    f40: '#136D6D',     // Primary action color (updated from #13606D)
-    f50: '#0E4E4E',
-    f60: '#072929',     // Primary Text
-  },
-  // Blue - Complete palette
-  blue: {
-    b0: '#E3EEFF',
-    b10: '#3370FF',     // Primary blue
-    b10Alt: '#0869FB',
-    b20: '#0350C3',
-    b30: '#0346AB',
-    b100: '#74AAFD',    // NEW - Link color, border highlights
-    b400: '#0350C3',    // NEW - Semantic token (same as b20)
-  },
-  // Red - Complete palette
-  red: {
-    r0: '#FFEBE6',
-    r10: '#FFD6CC',
-    r20: '#FFAD99',
-    r30: '#CE1313',     // Primary danger color
-    r40: '#B51111',
-    r50: '#950E0E',
-  },
-  // Yellow - Complete palette
-  yellow: {
-    y0: '#FFECD6',
-    y10: '#FF991F',     // Warning color
-    y50: '#FFFAE6',     // Warning backgrounds
-  },
-  // Orange - Complete palette
-  orange: {
-    o0: '#FF5C33',
-  },
-  // Pink - Complete palette
-  pink: {
-    p0: '#FD357C',
-  },
-  // Teal - Complete palette
-  teal: {
-    t0: '#258DC1',
-  },
-  // Purple - Complete palette
-  purple: {
-    p500: '#403294',    // Status indicators, design tokens
-  },
-  // Semantic color mappings for convenience
-  text: {
-    primary: '#072929',      // forest-f60
-    secondary: '#506766',    // forest-f30
-    disabled: '#D6E5E5',     // forest-f10
-    inverse: '#F9F9F6',      // sandstorm-s0
-  },
-  background: {
-    primary: '#F9F9F6',      // sandstorm-s0
-    secondary: '#F5F4EF',    // sandstorm-s20
-    tertiary: '#FCFCF9',    // sandstorm-s10
-    field: '#FEFEFB',       // sandstorm-s5
-  },
-  border: {
-    default: '#E8E8E3',      // sandstorm-s40
-    light: '#E4E4D7',        // sandstorm-s50
-    medium: '#D1D1C7',       // sandstorm-s60
-  },
-  status: {
-    primary: '#136D6D',      // forest-f40
-    danger: '#CE1313',       // red-r30
-    warning: '#FF991F',      // yellow-y10
-    success: '#136D6D',      // forest-f40 (can be customized)
-  },
+// File: tailwind.config.ts
+theme: {
+  extend: {
+    colors: { /* Color tokens */ },
+    fontFamily: { /* Typography tokens */ },
+    fontSize: { /* Font size tokens */ },
+    // ... other tokens
+  }
 }
 ```
 
-**Usage Pattern:**
-- Use `forest-f40` for primary actions (buttons, links)
-- Use `forest-f60` for primary text
-- Use `forest-f30` for secondary text
-- Use `forest-f10` for disabled text
-- Use `neutral` scale for borders, backgrounds, and UI elements
-- Use `sandstorm` for subtle backgrounds and surfaces
-- Use `sandstorm-s5` for text field backgrounds
-- Use `sandstorm-s40` for borders
-- Use semantic tokens (`text-primary`, `background-primary`, `status-danger`) for consistent theming
-- Use `neutralAlpha` colors for dark theme support
+### Token Categories
 
-### Typography System
+1. **Colors**: Organized by palette (neutral, sandstorm, forest, blue, red, yellow, etc.)
+2. **Typography**: Font families, sizes, line heights, letter spacing
+3. **Spacing**: Standard spacing scale (via Tailwind defaults + custom)
+4. **Border Radius**: Standard border radius values
+5. **Shadows**: Elevation and shadow definitions
 
-Typography tokens are defined using a hierarchical naming system:
+### Usage Rules
+
+- **ALWAYS** use design tokens from `tailwind.config.ts` instead of hardcoded values
+- Use semantic color names (e.g., `text-primary`, `background-primary`) when available
+- Prefer Tailwind utility classes over inline styles
+- For custom values not in tokens, add them to `tailwind.config.ts` first
+
+### Example
+```tsx
+// ✅ CORRECT - Using design tokens
+<div className="bg-sandstorm-s0 text-forest-f60 border border-sandstorm-s40">
+
+// ❌ WRONG - Hardcoded values
+<div style={{ backgroundColor: '#F9F9F6', color: '#072929' }}>
+```
+
+---
+
+## Typography
+
+### Font Families
+
+Defined in `tailwind.config.ts`:
+
+- **Primary**: `Inter` (system fallback: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif)
+- **Brand**: `PP Agrandir` (for headings)
+- **Secondary**: `GT America Trial` (for specific UI elements)
+- **Auth Pages**: `Poppins` (for authentication pages)
+
+### Font Size Scale
+
+The typography scale uses a hierarchical naming system (h1300 → h100):
 
 ```typescript
-// tailwind.config.ts - Complete Typography System
-fontSize: {
-  'h1300': ['32px', { lineHeight: 'auto', letterSpacing: '-1px' }],  // PP Agrandir Regular
-  'h1250': ['28px', { lineHeight: '40px', letterSpacing: '0' }],      // PP Agrandir Regular
-  'h1100': ['24px', { lineHeight: '40px', letterSpacing: '-1px' }],  // PP Agrandir Regular / Inter Medium
-  'h1050': ['24px', { lineHeight: '40px', letterSpacing: '0' }],     // GT America Trial Medium
-  'h1000': ['20px', { lineHeight: '32px', letterSpacing: '0' }],     // GT America Trial Medium
-  'h900': ['18px', { lineHeight: '24px', letterSpacing: '0' }],      // GT America Trial Medium
-  'h800': ['18px', { lineHeight: '28px', letterSpacing: '-0.2px' }], // GT America Trial Medium / Inter Semi Bold
-  'h750': ['18px', { lineHeight: '28px', letterSpacing: '0' }],       // GT America Trial Regular
-  'h700': ['16px', { lineHeight: '28px', letterSpacing: '0' }],       // GT America Trial Bold
-  'h600': ['16px', { lineHeight: '26px', letterSpacing: '0' }],      // GT America Trial Medium
-  'h550': ['16px', { lineHeight: '26px', letterSpacing: '0' }],       // GT America Trial Regular
-  'h500': ['14px', { lineHeight: '20px', letterSpacing: '0' }],      // GT America Trial Bold
-  'h450': ['14px', { lineHeight: '20px', letterSpacing: '0' }],      // GT America Trial Medium / Inter Medium
-  'h400': ['14px', { lineHeight: '20px', letterSpacing: '0' }],     // GT America Trial Regular
-  'h300': ['12px', { lineHeight: '18px', letterSpacing: '0' }],      // GT America Trial Medium
-  'h200': ['12px', { lineHeight: '18px', letterSpacing: '0' }],      // GT America Trial Regular
-  'h100': ['10px', { lineHeight: '14px', letterSpacing: '0' }],      // GT America Trial Medium
+// Typography scale (from largest to smallest)
+h1300: 32px  // PP Agrandir Regular, -1px letter spacing
+h1250: 28px  // PP Agrandir Regular
+h1100: 24px  // PP Agrandir Regular / Inter Medium, -1px letter spacing
+h1050: 24px  // GT America Trial Medium
+h1000: 20px  // GT America Trial Medium
+h900: 18px   // GT America Trial Medium
+h800: 18px   // GT America Trial Medium / Inter Semi Bold, -0.2px letter spacing
+h750: 18px   // GT America Trial Regular
+h700: 16px   // GT America Trial Bold
+h600: 16px   // GT America Trial Medium
+h550: 16px   // GT America Trial Regular
+h500: 14px   // GT America Trial Bold
+h450: 14px   // GT America Trial Medium / Inter Medium
+h400: 14px   // GT America Trial Regular
+h300: 12px   // GT America Trial Medium
+h200: 12px   // GT America Trial Regular
+h100: 10px   // GT America Trial Medium
+```
+
+### Typography Usage Rules
+
+1. **Headings**: Use `PP Agrandir` or `GT America Trial` for headings
+2. **Body Text**: Use `Inter` for body text and general UI
+3. **Auth Pages**: Use `Poppins` specifically for authentication pages
+4. **Font Weights**: 
+   - Regular: 400
+   - Medium: 500
+   - Semi Bold: 600
+   - Bold: 700
+5. **Line Heights**: Defined per font size in the config
+6. **Letter Spacing**: Use `-1px`, `-0.2px`, or `0` as defined in scale
+
+### Example
+```tsx
+// ✅ CORRECT
+<h1 className="text-h1300 font-agrandir">Welcome</h1>
+<p className="text-h400 font-inter text-text-primary">Body text</p>
+
+// ❌ WRONG
+<h1 style={{ fontSize: '32px' }}>Welcome</h1>
+```
+
+---
+
+## Color System
+
+### Color Palettes
+
+#### 1. Neutral Palette (Light Theme)
+- **n0** to **n1000**: Complete grayscale from white (#FFFFFF) to near-black (#000205)
+- **n10A** to **n900A**: Alpha variants for transparency effects
+
+#### 2. Sandstorm Palette (Backgrounds & Borders)
+- **s0** (#F9F9F6): Primary background
+- **s5** (#FEFEFB): Text field background
+- **s10** (#FCFCF9): Background 1
+- **s20** (#F5F4EF): Background 2
+- **s30** (#F0F0ED): Hover state
+- **s40** (#E8E8E3): Press state / Border
+- **s50** (#E4E4D7): Border 1
+- **s60** (#D1D1C7): Border 2
+- **s70** (#73726C): Dark border
+
+#### 3. Forest Green Palette (Primary Brand Colors)
+- **f0** (#DCF1E8): Lightest
+- **f10** (#D6E5E5): Disabled text
+- **f20** (#9BB1B0): Light accent
+- **f30** (#506766): Secondary text
+- **f40** (#136D6D): **PRIMARY ACTION COLOR** - Use for primary buttons, links, active states
+- **f50** (#0E4E4E): Darker variant
+- **f60** (#072929): Primary text color
+
+#### 4. Blue Palette
+- **b0** (#E3EEFF): Lightest
+- **b10** (#3370FF): Primary blue
+- **b10Alt** (#0869FB): Alternative blue
+- **b20** (#0350C3): Darker blue
+- **b30** (#0346AB): Darkest blue
+- **b100** (#74AAFD): Link color, border highlights
+- **b400** (#0350C3): Semantic token
+
+#### 5. Status Colors
+- **Red** (r0-r50): Error states, destructive actions
+- **Yellow** (y0-y50): Warning states
+- **Orange** (o0): Alert states
+- **Pink** (p0): Special highlights
+- **Teal** (t0): Information states
+- **Purple** (p500): Status indicators
+
+### Semantic Color Mappings
+
+Use semantic names when available:
+
+```typescript
+text: {
+  primary: '#072929',      // forest-f60
+  secondary: '#506766',    // forest-f30
+  disabled: '#D6E5E5',     // forest-f10
+  inverse: '#F9F9F6',      // sandstorm-s0
+}
+
+background: {
+  primary: '#F9F9F6',      // sandstorm-s0
+  secondary: '#F5F4EF',    // sandstorm-s20
+  tertiary: '#FCFCF9',    // sandstorm-s10
+  field: '#FEFEFB',        // sandstorm-s5
+}
+
+status: {
+  primary: '#136D6D',      // forest-f40
+  danger: '#CE1313',       // red-r30
+  warning: '#FF991F',      // yellow-y10
+  success: '#136D6D',      // forest-f40
 }
 ```
 
-**Font Family:**
-```typescript
-fontFamily: {
-  sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-  agrandir: ['PP Agrandir', 'system-ui', 'sans-serif'],
-  gtAmerica: ['GT America Trial', 'system-ui', 'sans-serif'],
-  inter: ['Inter', 'system-ui', 'sans-serif'],
-  poppins: ['Poppins', 'system-ui', 'sans-serif'],
-}
+### Color Usage Rules
+
+1. **Primary Actions**: Always use `forest-f40` (#136D6D) for primary buttons and CTAs
+2. **Text Colors**: 
+   - Primary text: `text-forest-f60` or `text-text-primary`
+   - Secondary text: `text-forest-f30` or `text-text-secondary`
+   - Disabled text: `text-forest-f10` or `text-text-disabled`
+3. **Backgrounds**: Use sandstorm palette for backgrounds
+4. **Borders**: Use sandstorm palette (s40, s50, s60) for borders
+5. **Status Colors**: Use semantic status colors for alerts, errors, warnings
+6. **Hover States**: Use `forest-f50` (#0E4E4E) for primary button hovers
+
+### Example
+```tsx
+// ✅ CORRECT
+<button className="bg-forest-f40 hover:bg-forest-f50 text-white">
+<Text className="text-text-primary">Content</Text>
+
+// ❌ WRONG
+<button className="bg-green-600">  // Don't use generic colors
 ```
 
-**Usage Pattern:**
-- Use `text-h1300` through `text-h1000` for large headings (with `font-agrandir` or `font-gtAmerica`)
-- Use `text-h800` through `text-h600` for body text and UI labels
-- Use `text-h700` and smaller for labels, captions, and metadata
-- Apply appropriate font family classes: `font-agrandir`, `font-gtAmerica`, `font-inter`
-- Use semantic font sizes that match Figma text styles
+---
 
-### Spacing System
-
-Uses Tailwind's default spacing scale (4px base unit):
-- `gap-1` = 4px
-- `gap-4` = 16px
-- `gap-5` = 20px
-- `gap-8` = 32px
-- `gap-16` = 64px
-
-**Common Patterns:**
-- Form fields: `gap-5` (20px)
-- Section spacing: `gap-8` (32px)
-- Large sections: `gap-16` (64px)
-
-### Border Radius
-
-- `rounded-lg` = 8px (small elements)
-- `rounded-xl` = 12px (inputs, buttons)
-- `rounded-2xl` = 16px (cards, modals)
-
-## 2. Component Library
+## Component Library
 
 ### Location
-UI components are located in: `/stellar-frontend/src/components/ui/`
+Components are organized in **`src/components/`** with the following structure:
+
+```
+components/
+  ├── ui/              # Base UI components (Button, Input, Card, etc.)
+  ├── auth/            # Authentication-specific components
+  ├── layout/          # Layout components (Header, Sidebar, Layout)
+  ├── accounts/        # Feature-specific components
+  ├── channels/        # Feature-specific components
+  └── ...
+```
+
+### Base UI Components
+
+Located in **`src/components/ui/`**:
+
+1. **Button** (`Button.tsx`): Base button component with variants
+2. **AuthButton** (`AuthButton.tsx`): Specialized button for auth pages
+3. **Input** (`Input.tsx`): Form input component
+4. **Card** (`Card.tsx`): Container component
+5. **AuthCard** (`AuthCard.tsx`): Specialized card for auth pages
+6. **Alert** (`Alert.tsx`): Alert/notification component
+7. **Divider** (`Divider.tsx`): Divider component
+8. **Logo** (`Logo.tsx`): Logo component
+9. **GoogleButton** (`GoogleButton.tsx`): OAuth button component
+10. **AuthFormField** (`AuthFormField.tsx`): Form field wrapper
+11. **AuthHeader** (`AuthHeader.tsx`): Header for auth pages
+12. **AuthPageLayout** (`AuthPageLayout.tsx`): Layout wrapper for auth pages
+13. **AuthSidebar** (`AuthSidebar.tsx`): Sidebar for auth pages
+
+### Component Export Pattern
+
+All UI components are exported from **`src/components/ui/index.ts`**:
+
+```typescript
+// ✅ CORRECT - Import from index
+import { Button, Input, Card } from '../components/ui';
+
+// ❌ WRONG - Direct import
+import { Button } from '../components/ui/Button';
+```
 
 ### Component Architecture
 
-Components follow a functional component pattern with TypeScript:
+1. **Functional Components**: All components use React functional components with TypeScript
+2. **Props Interface**: Each component defines a TypeScript interface for props
+3. **Default Props**: Use default parameters for optional props
+4. **Composition**: Prefer composition over configuration
+5. **Accessibility**: Include proper ARIA attributes and semantic HTML
 
-```typescript
-// Example: Button.tsx
+### Component Patterns
+
+#### Button Component Pattern
+```tsx
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
@@ -316,108 +294,58 @@ export const Button: React.FC<ButtonProps> = ({
 };
 ```
 
-### Existing Components
+#### Input Component Pattern
+```tsx
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+}
 
-1. **Button** (`/src/components/ui/Button.tsx`)
-   - Variants: `primary`, `secondary`, `outline`, `ghost`
-   - Sizes: `sm`, `md`, `lg`
-   - Uses design tokens for colors
-
-2. **Input** (`/src/components/ui/Input.tsx`)
-   - Supports label and error states
-   - Uses consistent styling with design tokens
-
-3. **Card** (`/src/components/ui/Card.tsx`)
-   - Supports title and actions
-   - Uses sandstorm background colors
-
-### Component Export Pattern
-
-All UI components are exported from `/src/components/ui/index.ts`:
-
-```typescript
-export { Button } from './Button';
-export { Input } from './Input';
-export { Card } from './Card';
+export const Input: React.FC<InputProps> = ({
+  label,
+  error,
+  className = '',
+  ...props
+}) => {
+  // Implementation
+};
 ```
 
-## 3. Frameworks & Libraries
+### Component Usage Rules
 
-### Core Framework
-- **React**: ^19.2.0 (with TypeScript)
-- **React Router DOM**: ^7.10.1 (routing)
+1. **Always use base UI components** from `src/components/ui/` when available
+2. **Extend, don't duplicate**: Create new components by extending base components
+3. **TypeScript**: All components must have proper TypeScript interfaces
+4. **Props spreading**: Use `{...props}` to pass through HTML attributes
+5. **ClassName merging**: Always allow `className` prop and merge with base styles
+6. **Consistent naming**: Use PascalCase for component names
 
-### Styling
-- **Tailwind CSS**: ^4.1.17 (utility-first CSS)
-- **@tailwindcss/vite**: ^4.1.17 (Vite plugin)
-- **PostCSS**: ^8.5.6 (CSS processing)
-- **Autoprefixer**: ^10.4.22 (browser compatibility)
+---
 
-### Build System
-- **Vite**: ^7.2.4 (build tool and dev server)
-- **TypeScript**: ~5.9.3
-- **ESLint**: ^9.39.1 (code quality)
+## Styling Approach
 
-### Additional Libraries
-- **@headlessui/react**: ^2.2.9 (accessible UI components)
-- **axios**: ^1.13.2 (HTTP client)
-- **recharts**: ^3.5.1 (data visualization)
-- **react-datepicker**: ^9.0.0 (date selection)
+### Framework
+- **Tailwind CSS v4.1.17**: Primary styling framework
+- **PostCSS**: CSS processing
+- **Vite**: Build tool with Tailwind plugin
 
-## 4. Asset Management
+### Configuration
+- **Config File**: `tailwind.config.ts`
+- **Global Styles**: `src/index.css`
+- **Component Styles**: Inline Tailwind classes (preferred) or component-specific CSS files
 
-### Location
-Assets are stored in: `/stellar-frontend/src/assets/`
+### Styling Methodology
 
-### Asset Types
-- **SVG Icons**: 105+ SVG files (hash-based naming)
-- **Images**: PNG files (e.g., `df808745d4eeae509bbfb902288411fb819999c2.png`)
-
-### Asset Naming Convention
-Assets use hash-based filenames (likely from a build process or asset pipeline):
-- Format: `{hash}.svg` or `{hash}.png`
-- Example: `0032ab45b12b02437247aac5951d4c124c2223cc.svg`
-
-### Asset Import Pattern
-```typescript
-import iconName from '../assets/{hash}.svg';
-```
-
-### Optimization
-- Vite handles asset optimization automatically
-- SVGs are inlined or optimized during build
-- No explicit CDN configuration found
-
-## 5. Icon System
-
-### Current State
-- Icons are stored as individual SVG files in `/src/assets/`
-- No centralized icon component found
-- Icons are imported directly as needed
-
-### Usage Pattern
-```typescript
-// Inline SVG (current pattern in Login.tsx)
-<svg width="32" height="32" viewBox="0 0 32 32">
-  <path d="..." fill="#4285F4"/>
-</svg>
-```
-
-### Recommendations for Figma Integration
-- Create an `Icon` component that accepts a name prop
-- Map Figma icon names to asset imports
-- Support size and color props for consistency
-
-## 6. Styling Approach
-
-### Methodology
-**Utility-First CSS with Tailwind CSS**
+1. **Utility-First**: Use Tailwind utility classes for styling
+2. **Component Classes**: Extract repeated patterns into component classes when needed
+3. **Custom CSS**: Only use custom CSS for complex animations or third-party library overrides
+4. **Responsive Design**: Use Tailwind's responsive prefixes (`sm:`, `md:`, `lg:`, etc.)
 
 ### Global Styles
-Located in `/src/index.css`:
-```css
-@import "tailwindcss";
 
+Global styles are defined in **`src/index.css`**:
+
+```css
 :root {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
@@ -428,226 +356,547 @@ Located in `/src/index.css`:
 }
 ```
 
-### Component Styling Pattern
-Components use Tailwind utility classes directly:
+### Styling Rules
 
-```typescript
-className="w-full h-12 px-3 bg-white border border-[#e6e6e6] rounded-xl text-sm text-[#bfbfbf] placeholder:text-[#bfbfbf] focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+1. **Prefer Tailwind utilities** over inline styles
+2. **Use design tokens** from `tailwind.config.ts`
+3. **Responsive breakpoints**: Follow Tailwind's default breakpoints
+4. **State variants**: Use Tailwind's state variants (`hover:`, `focus:`, `active:`, `disabled:`)
+5. **Custom values**: Add to `tailwind.config.ts` if used multiple times
+
+### Example
+```tsx
+// ✅ CORRECT - Tailwind utilities
+<div className="bg-sandstorm-s0 text-forest-f60 p-6 rounded-xl border border-sandstorm-s40 hover:bg-sandstorm-s10">
+
+// ❌ WRONG - Inline styles
+<div style={{ backgroundColor: '#F9F9F6', padding: '24px' }}>
 ```
 
-### Responsive Design
-- Uses Tailwind's responsive breakpoints:
-  - `sm:` (640px)
-  - `md:` (768px)
-  - `lg:` (1024px)
-  - `xl:` (1280px)
-- Example: `hidden lg:flex` (hidden on mobile, flex on large screens)
+---
 
-### Focus States
-Consistent focus ring pattern:
-```typescript
-focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40
+## Asset Management
+
+### Location
+Assets are stored in **`src/assets/`** directory.
+
+### Asset Types
+- **Icons**: SVG files (105 SVG files)
+- **Images**: PNG files (1 PNG file)
+- **Other**: Additional media assets
+
+### Asset Naming Convention
+Assets use hash-based naming (e.g., `0032ab45b12b02437247aac5951d4c124c2223cc.svg`)
+
+### Asset Usage
+
+1. **Import assets** directly in components:
+```tsx
+import logo from '../assets/react.svg';
+<img src={logo} alt="Logo" />
 ```
 
-## 7. Project Structure
+2. **SVG Icons**: Can be imported as React components or used as image sources
+3. **Optimization**: Vite handles asset optimization automatically
 
-### Overall Organization
+### Asset Rules
+
+1. **Store in `src/assets/`**: All static assets go in the assets directory
+2. **Optimize before commit**: Ensure images are optimized
+3. **Use appropriate formats**: SVG for icons, PNG/JPG for photos
+4. **Alt text**: Always include alt text for images
+
+---
+
+## Icon System
+
+### Location
+Icons are stored in **`src/assets/`** as SVG files.
+
+### Icon Usage Patterns
+
+1. **As Image Source**:
+```tsx
+import icon from '../assets/icon-name.svg';
+<img src={icon} alt="Icon" />
+```
+
+2. **Inline SVG** (for custom styling):
+```tsx
+<svg width="32" height="32" viewBox="0 0 32 32">
+  {/* SVG content */}
+</svg>
+```
+
+### Icon Guidelines
+
+1. **Size**: Standard icon sizes: 16px, 20px, 24px, 32px
+2. **Color**: Icons should inherit text color or use design tokens
+3. **Accessibility**: Include proper ARIA labels
+4. **Consistency**: Use consistent icon style throughout the app
+
+### Google Icon Example
+The GoogleButton component includes an inline SVG with specific colors:
+- Blue: `#4285F4`
+- Green: `#34A853`
+- Yellow: `#FBBC05`
+- Red: `#EB4335`
+
+---
+
+## Spacing & Layout
+
+### Spacing Scale
+Use Tailwind's default spacing scale (4px base unit):
+- `p-1` = 4px
+- `p-2` = 8px
+- `p-4` = 16px
+- `p-6` = 24px
+- `p-8` = 32px
+- etc.
+
+### Layout Patterns
+
+#### Auth Pages Layout
+- **Card Width**: 576px (fixed)
+- **Card Padding**: 40px
+- **Section Gap**: 64px (gap-16)
+- **Form Gap**: 32px (gap-8)
+- **Input Gap**: 20px (gap-5)
+- **Field Gap**: 4px (gap-1)
+
+#### Dashboard Layout
+- Uses flexbox and grid layouts
+- Responsive breakpoints for mobile/tablet/desktop
+
+### Spacing Rules
+
+1. **Consistent spacing**: Use the spacing scale consistently
+2. **Gap utilities**: Prefer `gap-*` for flex/grid containers
+3. **Padding/Margin**: Use `p-*` and `m-*` utilities
+4. **Responsive spacing**: Adjust spacing for different screen sizes
+
+### Example
+```tsx
+// ✅ CORRECT
+<div className="flex flex-col gap-8 p-6">
+
+// ❌ WRONG
+<div style={{ display: 'flex', gap: '32px', padding: '24px' }}>
+```
+
+---
+
+## Component Patterns
+
+### Form Components
+
+#### Input Fields
+- **Height**: 48px standard
+- **Border Radius**: 12px (rounded-xl)
+- **Border**: 1px solid `sandstorm-s40` (#E8E8E3)
+- **Focus**: 2px ring `forest-f40` (#136D6D)
+- **Padding**: 12px horizontal
+- **Font**: Inter, 14px
+
+#### Buttons
+- **Primary Button**:
+  - Background: `forest-f40` (#136D6D)
+  - Hover: `forest-f50` (#0E4E4E)
+  - Border Radius: 12px (rounded-xl)
+  - Padding: 20px vertical, 24px horizontal (py-5 px-6)
+  - Font: Poppins, 16px, semibold (600)
+
+- **OAuth Button**:
+  - Background: White
+  - Border: 1px solid `sandstorm-s40` (#e8e8e3)
+  - Height: 56px (h-14)
+  - Border Radius: 16px (rounded-2xl)
+  - Hover: `sandstorm-s5` (#FEFEFB)
+
+#### Cards
+- **Background**: `sandstorm-s0` (#F9F9F6)
+- **Border**: 1px solid `sandstorm-s40` (#E8E8E3)
+- **Border Radius**: 16px (rounded-2xl) for auth cards, 12px (rounded-xl) for dashboard cards
+- **Padding**: 40px for auth cards, 24px (p-6) for dashboard cards
+
+### State Patterns
+
+#### Hover States
+- **Primary Button**: Darker shade of primary color
+- **Links**: Darker shade of link color
+- **Interactive Elements**: Lighter background (`sandstorm-s30` or `sandstorm-s5`)
+
+#### Focus States
+- **Inputs**: 2px ring in primary color (`forest-f40`)
+- **Buttons**: 2px ring in primary color
+- **Accessibility**: Always include focus states for keyboard navigation
+
+#### Disabled States
+- **Opacity**: 0.5 (50%)
+- **Cursor**: `not-allowed`
+- **Pointer Events**: Disabled
+
+#### Error States
+- **Border Color**: Red (`red-r30` or `#CE1313`)
+- **Text Color**: Red (`red-r40` or `#B51111`)
+- **Background**: Light red (`red-r0` or `#FFEBE6`)
+
+### Example
+```tsx
+// ✅ CORRECT - Complete form field with states
+<AuthFormField
+  label="Email"
+  type="email"
+  value={email}
+  onChange={handleChange}
+  error={errors.email}
+  required
+/>
+
+// Button with all states
+<AuthButton
+  loading={isLoading}
+  loadingText="Signing in..."
+  disabled={!isValid}
+>
+  Sign In
+</AuthButton>
+```
+
+---
+
+## Project Structure
+
+### Directory Organization
+
 ```
 stellar-frontend/
 ├── src/
-│   ├── assets/           # Images, icons, SVGs
+│   ├── assets/           # Static assets (icons, images)
 │   ├── components/       # React components
-│   │   ├── accounts/     # Account-related components
-│   │   ├── auth/         # Authentication components
-│   │   ├── channels/     # Channel-related components
-│   │   ├── layout/       # Layout components (Header, Sidebar)
-│   │   └── ui/           # Reusable UI components
-│   ├── contexts/         # React contexts (Auth, DateRange)
-│   ├── pages/            # Page components (routes)
-│   ├── services/         # API service functions
-│   ├── styles/           # Additional styles/config
-│   ├── App.tsx           # Main app component
-│   ├── main.tsx          # Entry point
-│   └── index.css         # Global styles
-├── public/               # Static assets
-├── tailwind.config.ts    # Tailwind configuration
-├── vite.config.ts        # Vite configuration
-└── package.json          # Dependencies
+│   │   ├── ui/          # Base UI components
+│   │   ├── auth/        # Auth-specific components
+│   │   ├── layout/      # Layout components
+│   │   ├── accounts/    # Feature components
+│   │   └── channels/    # Feature components
+│   ├── contexts/        # React contexts (Auth, DateRange)
+│   ├── pages/           # Page components
+│   ├── services/        # API services
+│   ├── styles/          # Style definitions (JSON, CSS)
+│   ├── App.tsx          # Main app component
+│   ├── main.tsx         # Entry point
+│   └── index.css        # Global styles
+├── public/              # Public assets
+├── .cursor/             # Cursor IDE rules
+│   └── rules/          # Design system rules (this file)
+├── tailwind.config.ts   # Tailwind configuration
+├── vite.config.ts       # Vite configuration
+└── package.json         # Dependencies
 ```
 
-### Feature Organization Pattern
-- **Feature-based folders**: Components grouped by feature (accounts, auth, channels)
-- **Shared UI components**: Common components in `ui/` folder
-- **Page-level components**: Route components in `pages/`
-- **Service layer**: API calls separated in `services/`
+### File Naming Conventions
 
-### Naming Conventions
-- **Components**: PascalCase (e.g., `Login.tsx`, `AuthLayout.tsx`)
-- **Files**: Match component name
-- **Exports**: Named exports (e.g., `export const Button`)
-- **Props interfaces**: `{ComponentName}Props` (e.g., `ButtonProps`)
+1. **Components**: PascalCase (e.g., `Button.tsx`, `AuthButton.tsx`)
+2. **Utilities**: camelCase (e.g., `api.ts`, `auth.ts`)
+3. **Constants**: UPPER_SNAKE_CASE (e.g., `API_BASE_URL`)
+4. **Types/Interfaces**: PascalCase (e.g., `User`, `AuthContextType`)
 
-## 8. Authentication Pages Pattern
+### Import Organization
 
-### Current Structure
-Auth pages follow a consistent pattern:
-- Logo positioned at top-left (`absolute left-20 top-20`)
-- Centered card container with form
-- Card background: `bg-[#f5f7fa]` with border `border-[#e6e6e6]`
-- Card padding: `p-10`
-- Card width: `w-[576px]`
-- Card border radius: `rounded-2xl`
+1. **React imports** first
+2. **Third-party libraries** second
+3. **Internal components** third
+4. **Utilities/services** fourth
+5. **Types** last (or inline with components)
 
-### Common Elements
-1. **Header Section**: Title and description
-2. **Form Section**: Input fields with consistent styling
-3. **Action Button**: Full-width primary button
-4. **Footer Links**: Navigation to other auth pages
-5. **Divider/OR Section**: For OAuth options
+### Example
+```tsx
+// ✅ CORRECT - Organized imports
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { Button, Input } from '../components/ui';
+import { authService } from '../services/auth';
+import type { User } from '../services/auth';
+```
 
-### Input Field Pattern
-```typescript
-<div className="flex flex-col gap-1">
-  <label className="text-base font-medium text-black leading-5">
-    Label Text
-  </label>
-  <input
-    className="w-full h-12 px-3 bg-white border border-[#e6e6e6] rounded-xl text-sm text-[#bfbfbf] placeholder:text-[#bfbfbf] focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-  />
+---
+
+## Frameworks & Libraries
+
+### Core Stack
+- **React 19.2.0**: UI library
+- **TypeScript 5.9.3**: Type safety
+- **Vite 7.2.4**: Build tool and dev server
+- **Tailwind CSS 4.1.17**: Styling framework
+
+### Key Dependencies
+- **@auth0/auth0-react**: Authentication
+- **react-router-dom**: Routing
+- **axios**: HTTP client
+- **react-datepicker**: Date picker component
+- **recharts**: Charting library
+- **@headlessui/react**: Headless UI components
+
+### Build System
+- **Vite**: Fast build tool with HMR
+- **Tailwind Vite Plugin**: Direct integration
+- **TypeScript**: Type checking and compilation
+- **ESLint**: Code linting
+
+---
+
+## Authentication Pages Specific Rules
+
+### Auth Page Styling
+Auth pages have specific styling defined in **`src/styles/auth-styles.json`**:
+
+#### Layout
+- **Page Background**: White (#FFFFFF)
+- **Card Background**: Light gray (#f5f7fa)
+- **Card Border**: 1px solid #e6e6e6
+- **Card Border Radius**: 16px
+- **Card Width**: 576px (fixed)
+- **Card Padding**: 40px
+
+#### Typography
+- **Font Family**: Poppins (specifically for auth pages)
+- **Heading**: 32px, font-weight 600, color #000205
+- **Subtitle**: 20px, color #808080
+- **Label**: 16px, font-weight 500, color #000000
+- **Body Text**: 16px, color #000000
+- **Small Text**: 12px, font-weight 600
+
+#### Colors
+- **Primary Button**: #136d6d (forest-f40)
+- **Primary Button Hover**: #0e5a5a (forest-f50)
+- **Text Primary**: #000205 (neutral-n1000)
+- **Text Secondary**: #808080
+- **Link Color**: #072929 (forest-f60)
+- **Link Hover**: #0E4E4E (forest-f50)
+
+#### Components
+- Use `AuthPageLayout` for page wrapper
+- Use `AuthButton` for primary actions
+- Use `AuthFormField` for form inputs
+- Use `AuthHeader` for page headers
+- Use `GoogleButton` for OAuth buttons
+
+### Auth Page Rules
+
+1. **Always use Poppins font** for auth pages
+2. **Use Auth-specific components** from `components/ui/`
+3. **Follow spacing guidelines** from auth-styles.json
+4. **Maintain 576px card width** for consistency
+5. **Use semantic colors** from the design system
+
+---
+
+## Responsive Design
+
+### Breakpoints
+Use Tailwind's default breakpoints:
+- **sm**: 640px
+- **md**: 768px
+- **lg**: 1024px
+- **xl**: 1280px
+- **2xl**: 1536px
+
+### Responsive Patterns
+
+1. **Mobile-First**: Design for mobile, then enhance for larger screens
+2. **Flexible Layouts**: Use flexbox and grid for responsive layouts
+3. **Responsive Typography**: Adjust font sizes for different screen sizes
+4. **Touch Targets**: Ensure minimum 44px touch targets on mobile
+
+### Example
+```tsx
+// ✅ CORRECT - Responsive design
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div className="text-h900 md:text-h1000 lg:text-h1100">Content</div>
 </div>
 ```
 
-## 9. Integration Guidelines for Figma Designs
+---
 
-### When Implementing from Figma:
+## Accessibility Guidelines
 
-1. **Extract Design Tokens**
-   - Map Figma colors to Tailwind config tokens
-   - Use existing token names when possible
-   - Add new tokens if needed, following naming convention
+### Requirements
 
-2. **Component Creation**
-   - Create reusable components in `/src/components/ui/`
-   - Follow existing component patterns (props interface, TypeScript)
-   - Export from `index.ts`
+1. **Semantic HTML**: Use proper HTML elements
+2. **ARIA Labels**: Include ARIA labels for interactive elements
+3. **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+4. **Focus States**: Always include visible focus states
+5. **Color Contrast**: Maintain WCAG AA contrast ratios
+6. **Alt Text**: Include alt text for all images
 
-3. **Styling**
-   - Use Tailwind utility classes
-   - Reference design tokens from config
-   - Maintain consistent spacing (gap-4, gap-5, gap-8, gap-16)
-   - Use consistent border radius (rounded-xl, rounded-2xl)
+### Example
+```tsx
+// ✅ CORRECT - Accessible button
+<button
+  type="button"
+  aria-label="Close dialog"
+  className="focus:outline-none focus:ring-2 focus:ring-forest-f40"
+>
+  Close
+</button>
+```
 
-4. **Responsive Design**
-   - Use Tailwind breakpoints
-   - Test mobile-first approach
-   - Hide/show elements with `hidden lg:flex` pattern
+---
 
-5. **Icons**
-   - Extract SVG from Figma
-   - Save to `/src/assets/` if not already present
-   - Consider creating Icon component for reusability
+## Code Quality Standards
 
-6. **Typography**
-   - Map Figma text styles to existing `text-h{number}` classes
-   - Use `font-semibold` or `font-medium` for weights
-   - Maintain line-height consistency
+### TypeScript
 
-7. **Spacing**
-   - Use Tailwind spacing scale
-   - Common gaps: `gap-4` (16px), `gap-5` (20px), `gap-8` (32px), `gap-16` (64px)
+1. **Strict Types**: Always define proper types for props and state
+2. **Interface Definitions**: Use interfaces for component props
+3. **Type Exports**: Export types when shared across components
+4. **No `any` Types**: Avoid using `any` type
 
-## 10. Common Patterns
+### React Patterns
 
-### Button Styles
-```typescript
+1. **Functional Components**: Use functional components with hooks
+2. **Custom Hooks**: Extract reusable logic into custom hooks
+3. **Context API**: Use contexts for global state (Auth, Theme, etc.)
+4. **Error Boundaries**: Implement error boundaries for error handling
+
+### Performance
+
+1. **Code Splitting**: Use React.lazy for route-based code splitting
+2. **Memoization**: Use React.memo, useMemo, useCallback when appropriate
+3. **Image Optimization**: Optimize images before adding to assets
+4. **Bundle Size**: Monitor and optimize bundle size
+
+---
+
+## Testing Considerations
+
+### Component Testing
+
+1. **Test Component Rendering**: Ensure components render correctly
+2. **Test User Interactions**: Test button clicks, form submissions, etc.
+3. **Test Accessibility**: Verify ARIA labels and keyboard navigation
+4. **Test Responsive Behavior**: Test on different screen sizes
+
+---
+
+## Common Patterns & Examples
+
+### Button Variants
+```tsx
 // Primary button
-className="w-full bg-[#136d6d] hover:bg-[#0e5a5a] text-white font-semibold text-base px-6 py-5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+<Button variant="primary" size="md">Submit</Button>
 
-// OAuth button
-className="w-full h-14 bg-white border border-[#e6e6e6] rounded-2xl flex items-center justify-center gap-2.5 hover:bg-sandstorm-s5 transition-colors"
+// Outline button
+<Button variant="outline" size="md">Cancel</Button>
+
+// Auth button (specialized)
+<AuthButton loading={isLoading}>Sign In</AuthButton>
 ```
 
-### Card Container
-```typescript
-className="bg-[#f5f7fa] border border-[#e6e6e6] rounded-2xl p-10"
+### Form Fields
+```tsx
+// Standard input
+<Input
+  label="Email"
+  type="email"
+  value={email}
+  onChange={handleChange}
+  error={errors.email}
+/>
+
+// Auth form field (specialized)
+<AuthFormField
+  label="Password"
+  type="password"
+  value={password}
+  onChange={handleChange}
+  required
+/>
 ```
 
-### Error Messages
-```typescript
-className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-h700"
+### Cards
+```tsx
+// Standard card
+<Card title="Card Title" actions={<Button>Action</Button>}>
+  Content here
+</Card>
+
+// Auth card (specialized)
+<AuthCard>
+  <AuthHeader title="Welcome" description="Sign in to continue" />
+  {/* Form content */}
+</AuthCard>
 ```
 
-### Links
-```typescript
-className="font-semibold text-forest-f60 hover:text-forest-f50"
-```
+---
 
-## 11. Brand Kit Reference
+## Important Reminders
 
-### Figma Brand Kit Source
-- **Figma File**: PIXIS---Design-File
-- **File Key**: YTJsGwRne4kXLpWchqRqKH
-- **Primary Brand Kit Nodes**:
-  - **Colors**: node-id `438:34735` - Complete color system with all palettes
-  - **Typography**: node-id `438:35262` - Complete typography system
-  - **Components**: 30+ component specification nodes (Badges, Buttons, Avatars, etc.)
+### ⚠️ Critical Rules
 
-### Brand Kit Structure
-The brand kit is organized into two key layers:
+1. **ALWAYS use design tokens** from `tailwind.config.ts` - never hardcode colors, spacing, or typography
+2. **ALWAYS use base UI components** when available - don't create duplicate components
+3. **ALWAYS follow the color system** - use semantic color names and palette tokens
+4. **ALWAYS use Poppins font** for authentication pages
+5. **ALWAYS maintain 576px card width** for auth pages
+6. **ALWAYS include TypeScript types** for all components
+7. **ALWAYS use Tailwind utilities** instead of inline styles
+8. **ALWAYS follow the project structure** - organize files correctly
+9. **ALWAYS test responsive behavior** - ensure mobile compatibility
+10. **ALWAYS include accessibility features** - ARIA labels, keyboard navigation, focus states
 
-1. **Core Palette** - Base colors organized by hue and scale
-   - Neutral (N0-N1000) + Neutral Alpha variants
-   - Pixis Sandstorm (S0-S70)
-   - Pixis Forest Green (F0-F60)
-   - Blue (B0-B30, B100, B400)
-   - Red (R0-R50)
-   - Yellow (Y0-Y10, Y50)
-   - Orange (O0)
-   - Pink (P0)
-   - Teal (T0)
-   - Purple (P500)
+### ✅ Best Practices
 
-2. **Semantic Tokens** - Contextual tokens mapped to purpose
-   - Text colors (primary, secondary, disabled, inverse)
-   - Background colors (primary, secondary, tertiary, field)
-   - Border colors (default, light, medium)
-   - Status colors (primary, danger, warning, success)
+- Use semantic HTML elements
+- Follow the component composition pattern
+- Export components from index files
+- Use consistent naming conventions
+- Document complex logic
+- Keep components focused and reusable
+- Use TypeScript for type safety
+- Follow React best practices
 
-### Font Resources
-- **PP Agrandir** and **GT America Trial** are custom fonts
-- Download link: https://drive.google.com/drive/folders/1ScEH9LWDqYYFzqE5OQ9QoL-B-mV_k4sT?usp=sharing
-- These fonts need to be downloaded and hosted locally or via a font service
-- Currently using Inter and Poppins as fallbacks until custom fonts are set up
+### ❌ Common Mistakes to Avoid
 
-### Component Specifications
-The brand kit includes detailed specifications for:
-- **Badges**: Variants (added, important, primary, removed, low priority)
-- **Buttons**: Multiple appearances (primary, secondary, tertiary, link, danger, special)
-- **Text Fields**: Multiple sizes (48px, 40px, 36px, 28px)
-- **Form Elements**: Checkboxes, radio buttons, toggles
-- **Cards**: Default, hover, pressed/selected states
-- **Tabs**: Box tabs, line tabs, chips
-- **Tags**: Status variants (default, rejected, pending, warning, failed, executed)
+- Hardcoding colors, spacing, or font sizes
+- Creating duplicate components instead of extending base components
+- Using inline styles instead of Tailwind utilities
+- Ignoring the design system tokens
+- Mixing font families incorrectly
+- Not including TypeScript types
+- Skipping accessibility features
+- Breaking responsive design patterns
 
-### Using the Brand Kit
-1. **Reference Tailwind Config**: All brand kit values are in `tailwind.config.ts`
-2. **Use Semantic Tokens**: Prefer semantic tokens (`text-primary`, `status-danger`) over raw colors
-3. **Follow Typography Scale**: Use `text-h{number}` classes matching Figma text styles
-4. **Match Component Specs**: Refer to Figma component nodes for exact specifications
-5. **Maintain Consistency**: Always use brand kit tokens instead of hardcoded values
+---
 
-## 12. Best Practices
+## Quick Reference
 
-1. **Always use design tokens** from Tailwind config instead of hardcoded colors
-2. **Reference the brand kit** in Figma for component specifications
-3. **Use semantic tokens** (`text-primary`, `status-danger`) when available
-4. **Create reusable components** for repeated UI patterns
-5. **Maintain consistent spacing** using Tailwind's spacing scale
-6. **Use TypeScript** for all component props
-7. **Follow existing naming conventions** for files and components
-8. **Export components** from index files for cleaner imports
-9. **Test responsive behavior** at different breakpoints
-10. **Maintain accessibility** with proper focus states and ARIA attributes
-11. **Match Figma specifications** exactly when implementing new components
-12. **Use appropriate font families** (`font-agrandir`, `font-gtAmerica`, `font-inter`) based on Figma text styles
+### Primary Colors
+- **Primary Action**: `forest-f40` (#136D6D)
+- **Primary Text**: `forest-f60` (#072929)
+- **Background**: `sandstorm-s0` (#F9F9F6)
+- **Border**: `sandstorm-s40` (#E8E8E3)
 
+### Typography
+- **Auth Pages**: Poppins
+- **Headings**: PP Agrandir or GT America Trial
+- **Body**: Inter
+
+### Spacing
+- **Card Padding**: 40px (auth), 24px (dashboard)
+- **Section Gap**: 64px (gap-16)
+- **Form Gap**: 32px (gap-8)
+- **Input Gap**: 20px (gap-5)
+
+### Border Radius
+- **Cards**: 16px (auth), 12px (dashboard)
+- **Buttons**: 12px (primary), 16px (OAuth)
+- **Inputs**: 12px
+
+---
+
+**Last Updated**: December 2025
+**Version**: 1.0.0
+**Maintained By**: Development Team

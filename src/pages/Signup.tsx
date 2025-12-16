@@ -1,28 +1,28 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { 
-  AuthPageLayout, 
-  AuthHeader, 
-  AuthFormField, 
-  AuthButton, 
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  AuthPageLayout,
+  AuthHeader,
+  AuthFormField,
+  AuthButton,
   Alert,
   Divider,
-  GoogleButton
-} from '../components/ui';
+} from "../components/ui";
+import auth0Icon from "../assets/images/auth0.svg";
 
 export const Signup: React.FC = () => {
   const [formData, setFormData] = useState({
-    email: '',
-    first_name: '',
-    last_name: '',
-    company_name: '',
-    password: '',
-    password2: '',
+    email: "",
+    first_name: "",
+    last_name: "",
+    company_name: "",
+    password: "",
+    password2: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { register, registerWithAuth0, registerWithGoogle } = useAuth();
+  const { register, registerWithAuth0 } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,10 +31,10 @@ export const Signup: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (formData.password !== formData.password2) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
 
@@ -42,11 +42,12 @@ export const Signup: React.FC = () => {
 
     try {
       await register(formData);
-      navigate('/accounts');
+      navigate("/accounts");
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error || 
-                          err.response?.data?.password?.[0] ||
-                          'Registration failed. Please try again.';
+      const errorMessage =
+        err.response?.data?.error ||
+        err.response?.data?.password?.[0] ||
+        "Registration failed. Please try again.";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -55,10 +56,6 @@ export const Signup: React.FC = () => {
 
   const handleAuth0Signup = async () => {
     await registerWithAuth0();
-  };
-
-  const handleGoogleSignup = async () => {
-    await registerWithGoogle();
   };
 
   return (
@@ -76,9 +73,7 @@ export const Signup: React.FC = () => {
         <form onSubmit={handleSubmit} className="flex flex-col gap-8 w-full">
           {/* Input Fields */}
           <div className="flex flex-col gap-5">
-            {error && (
-              <Alert variant="error">{error}</Alert>
-            )}
+            {error && <Alert variant="error">{error}</Alert>}
 
             {/* First Name and Last Name */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -149,25 +144,22 @@ export const Signup: React.FC = () => {
 
           {/* Create Account Button */}
           <div className="flex flex-col items-center w-full">
-            <AuthButton
-              loading={loading}
-              loadingText="Creating account..."
-            >
+            <AuthButton loading={loading} loadingText="Creating account...">
               Create account
             </AuthButton>
           </div>
 
           {/* Sign In Link */}
           <div className="text-center">
-            <p 
+            <p
               className="text-base text-neutral-n1000 capitalize leading-normal"
-              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 400 }}
+              className="font-poppins font-normal"
             >
-              Already have an account?{' '}
-              <Link 
-                to="/login" 
+              Already have an account?{" "}
+              <Link
+                to="/login"
                 className="font-semibold text-forest-f60 hover:text-forest-f50"
-                style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
+                className="font-poppins font-semibold"
               >
                 Sign In
               </Link>
@@ -176,26 +168,20 @@ export const Signup: React.FC = () => {
         </form>
 
         {/* Divider and OAuth Buttons Section */}
-        <div className="flex flex-col gap-8 w-full">
+        <div className="flex flex-col gap-6 w-full">
           <Divider text="or" />
-          
-          <div className="flex flex-col gap-5 w-full">
-            <GoogleButton
-              onClick={handleGoogleSignup}
-              className="w-full"
-            >
-              Continue with Google
-            </GoogleButton>
-            
-            <AuthButton
-              onClick={handleAuth0Signup}
-              variant="oauth"
-              type="button"
-              className="w-full"
-            >
-              Create account with Auth0
-            </AuthButton>
-          </div>
+
+          <AuthButton
+            onClick={handleAuth0Signup}
+            variant="oauth"
+            type="button"
+            className="w-full"
+          >
+            <div className="flex items-center gap-2">
+              <img src={auth0Icon} alt="Auth0" className="w-5 h-5" />
+              <span>Create account with Auth0</span>
+            </div>
+          </AuthButton>
         </div>
       </div>
     </AuthPageLayout>

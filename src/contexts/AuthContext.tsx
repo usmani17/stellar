@@ -54,29 +54,107 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       if (isAuthenticated && auth0User) {
         try {
-          // Get Auth0 access token
-          const token = await getAccessTokenSilently();
+          // Get Auth0 access token with audience and scope
+          // With audience configured, Auth0 returns a proper JWT access token (not encrypted)
+          const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
+
+          console.log("Auth0 Audience:", audience);
+          const token = await getAccessTokenSilently({
+            authorizationParams: audience ? { 
+              audience,
+              scope: 'openid profile email offline_access'
+            } : { scope: 'openid profile email offline_access' },
+          });
+
+          // Decode JWT token to see what's inside (without verification)
           if (token) {
+            try {
+              const base64Url = token.split('.')[1];
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const jsonPayload = decodeURIComponent(
+                atob(base64)
+                  .split('')
+                  .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                  .join('')
+              );
+              const decodedToken = JSON.parse(jsonPayload);
+              console.log("🔓 [FRONTEND] Decoded Access Token Payload:", decodedToken);
+              console.log("🔓 [FRONTEND] Token Claims:", {
+                sub: decodedToken.sub,
+                email: decodedToken.email,
+                aud: decodedToken.aud,
+                iss: decodedToken.iss,
+                exp: decodedToken.exp,
+                iat: decodedToken.iat,
+                allKeys: Object.keys(decodedToken),
+              });
+            } catch (error) {
+              console.error("Failed to decode token:", error);
+            }
+            
             localStorage.setItem("accessToken", token);
+            console.log("Stored access token for backend authentication", { hasAudience: !!audience });
             
             // Fetch user profile from backend
+            // The backend will automatically create the user if it doesn't exist
             try {
+              console.log("Fetching user profile from backend...");
               const backendUser = await authService.getProfile();
+              console.log("User profile fetched:", backendUser);
               setUser(backendUser);
               localStorage.setItem("user", JSON.stringify(backendUser));
-            } catch (error) {
-              // If profile doesn't exist, the backend will create it on first authenticated request
-              // For now, create a user object from Auth0 data
-              const tempUser: User = {
-                id: 0,
-                email: auth0User.email || '',
-                first_name: auth0User.given_name || auth0User.name?.split(' ')[0] || '',
-                last_name: auth0User.family_name || auth0User.name?.split(' ').slice(1).join(' ') || '',
-                company_name: '',
-                created_at: new Date().toISOString(),
+              setLoading(false);
+            } catch (error: any) {
+              // If profile fetch fails, it might be because:
+              // 1. User is being created (first request)
+              // 2. Token validation issue
+              // 3. Network error
+              console.error("Error fetching user profile:", error);
+              console.error("Error details:", {
+                status: error?.response?.status,
+                data: error?.response?.data,
+                message: error?.message
+              });
+              
+              // Retry with exponential backoff
+              const maxRetries = 3;
+              const retry = async (retryCount: number) => {
+                if (retryCount >= maxRetries) {
+                  console.error("Max retries reached. User profile fetch failed.");
+                  setLoading(false);
+                  return;
+                }
+                
+                const attemptNumber = retryCount + 1;
+                const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+                console.log(`Retrying user profile fetch (attempt ${attemptNumber}/${maxRetries}) after ${delay}ms...`);
+                
+                setTimeout(async () => {
+                  try {
+                    const backendUser = await authService.getProfile();
+                    console.log("User profile fetched on retry:", backendUser);
+                    setUser(backendUser);
+                    localStorage.setItem("user", JSON.stringify(backendUser));
+                    setLoading(false);
+                  } catch (retryError: any) {
+                    console.error(`Error fetching user profile on retry ${attemptNumber}:`, retryError);
+                    retry(retryCount + 1);
+                  }
+                }, delay);
               };
-              setUser(tempUser);
+              
+              // Start retry if it's a 403, 401, or network error
+              if (error?.response?.status === 403 || 
+                  error?.response?.status === 401 || 
+                  error?.code === 'NETWORK_ERROR' ||
+                  !error?.response) {
+                retry(0);
+              } else {
+                setLoading(false);
+              }
             }
+          } else {
+            console.error("No token received from Auth0");
           }
         } catch (error) {
           console.error("Error syncing user:", error);
@@ -127,18 +205,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const loginWithAuth0 = async () => {
+    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
         screen_hint: 'login',
+        scope: 'openid profile email offline_access',
+        ...(audience ? { audience } : {}),
       },
     });
   };
 
   const loginWithGoogle = async () => {
+    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
         connection: 'google-oauth2',
         screen_hint: 'login',
+        scope: 'openid profile email offline_access',
+        ...(audience ? { audience } : {}),
       },
     });
   };
@@ -152,18 +236,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const registerWithAuth0 = async () => {
+    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
         screen_hint: 'signup',
+        scope: 'openid profile email offline_access',
+        ...(audience ? { audience } : {}),
       },
     });
   };
 
   const registerWithGoogle = async () => {
+    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
         connection: 'google-oauth2',
         screen_hint: 'signup',
+        scope: 'openid profile email offline_access',
+        ...(audience ? { audience } : {}),
       },
     });
   };
@@ -190,11 +280,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const getAccessToken = async (): Promise<string | null> => {
     try {
-      const token = await getAccessTokenSilently();
+      // Get access token with audience and scope (returns JWT when audience is configured)
+      const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
+      const token = await getAccessTokenSilently({
+        authorizationParams: audience ? { 
+          audience,
+          scope: 'openid profile email offline_access'
+        } : { scope: 'openid profile email offline_access' },
+      });
       if (token) {
         localStorage.setItem("accessToken", token);
       }
-      return token;
+      return token || null;
     } catch (error) {
       console.error("Error getting access token:", error);
       return null;

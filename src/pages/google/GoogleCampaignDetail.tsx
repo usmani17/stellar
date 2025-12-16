@@ -1,0 +1,1825 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { buildMarketplaceRoute } from "../../utils/urlHelpers";
+import { Sidebar } from "../../components/layout/Sidebar";
+import { DashboardHeader } from "../../components/layout/DashboardHeader";
+import { KPICard } from "../../components/ui/KPICard";
+import { StatusBadge } from "../../components/ui/StatusBadge";
+import { Dropdown } from "../../components/ui/Dropdown";
+import { useDateRange } from "../../contexts/DateRangeContext";
+import { useSidebar } from "../../contexts/SidebarContext";
+import { campaignsService } from "../../services/campaigns";
+import type { FilterValues } from "../../components/filters/FilterPanel";
+import { OverviewTab } from "./components/tabs/OverviewTab";
+import { AdGroupsTab } from "./components/tabs/AdGroupsTab";
+import { AdsTab } from "./components/tabs/AdsTab";
+import { KeywordsTab } from "./components/tabs/KeywordsTab";
+import type {
+  GoogleAdGroup,
+  GoogleAd,
+  GoogleKeyword,
+} from "./components/tabs/types";
+
+interface GoogleCampaignDetail {
+  campaign: {
+    id: number;
+    campaign_id: number;
+    name: string;
+    status: string;
+    advertising_channel_type: string;
+    advertising_channel_sub_type?: string;
+    start_date?: string;
+    end_date?: string;
+    daily_budget: number;
+    account_name?: string;
+    customer_id?: string;
+    last_sync?: string;
+  };
+  description?: string;
+  chart_data?: Array<{
+    date: string;
+    spend?: number;
+    sales?: number;
+    clicks?: number;
+    impressions?: number;
+  }>;
+  kpi_cards?: Array<{
+    label: string;
+    value: string;
+    change?: string;
+    isPositive?: boolean;
+  }>;
+}
+
+// Types are now imported from ./components/tabs/types
+
+export const GoogleCampaignDetail: React.FC = () => {
+  const { accountId, campaignId } = useParams<{
+    accountId: string;
+    campaignId: string;
+  }>();
+  const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
+  const { startDate, endDate } = useDateRange();
+  const [activeTab, setActiveTab] = useState("Overview");
+  const [loading, setLoading] = useState(true);
+  const [campaignDetail, setCampaignDetail] =
+    useState<GoogleCampaignDetail | null>(null);
+
+  // Inline edit state
+  const [editingField, setEditingField] = useState<
+    "budget" | "status" | "start_date" | "end_date" | null
+  >(null);
+  const [editedValue, setEditedValue] = useState<string>("");
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
+  const [inlineEditField, setInlineEditField] = useState<
+    "budget" | "status" | "start_date" | "end_date" | null
+  >(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+
+  // Ad Groups state
+  const [adgroups, setAdgroups] = useState<GoogleAdGroup[]>([]);
+  const [adgroupsLoading, setAdgroupsLoading] = useState(false);
+  const [selectedAdGroupIds, setSelectedAdGroupIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [adgroupsCurrentPage, setAdgroupsCurrentPage] = useState(1);
+  const [adgroupsTotalPages, setAdgroupsTotalPages] = useState(0);
+  const [adgroupsSortBy, setAdgroupsSortBy] = useState<string>("id");
+  const [adgroupsSortOrder, setAdgroupsSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+  const [isAdGroupsFilterPanelOpen, setIsAdGroupsFilterPanelOpen] =
+    useState(false);
+  const [adgroupsFilters, setAdgroupsFilters] = useState<FilterValues>([]);
+
+  // Ads state
+  const [ads, setAds] = useState<GoogleAd[]>([]);
+  const [adsLoading, setAdsLoading] = useState(false);
+  const [selectedAdIds, setSelectedAdIds] = useState<Set<number>>(new Set());
+  const [adsCurrentPage, setAdsCurrentPage] = useState(1);
+  const [adsTotalPages, setAdsTotalPages] = useState(0);
+  const [adsSortBy, setAdsSortBy] = useState<string>("id");
+  const [adsSortOrder, setAdsSortOrder] = useState<"asc" | "desc">("asc");
+  const [isAdsFilterPanelOpen, setIsAdsFilterPanelOpen] = useState(false);
+  const [adsFilters, setAdsFilters] = useState<FilterValues>([]);
+
+  // Keywords state
+  const [keywords, setKeywords] = useState<GoogleKeyword[]>([]);
+  const [keywordsLoading, setKeywordsLoading] = useState(false);
+  const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [keywordsCurrentPage, setKeywordsCurrentPage] = useState(1);
+  const [keywordsTotalPages, setKeywordsTotalPages] = useState(0);
+  const [keywordsSortBy, setKeywordsSortBy] = useState<string>("id");
+  const [keywordsSortOrder, setKeywordsSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+  const [isKeywordsFilterPanelOpen, setIsKeywordsFilterPanelOpen] =
+    useState(false);
+  const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
+
+  // Sync state
+  const [syncingAdGroups, setSyncingAdGroups] = useState(false);
+  const [syncingAds, setSyncingAds] = useState(false);
+  const [syncingKeywords, setSyncingKeywords] = useState(false);
+  const [syncingAdGroupsAnalytics, setSyncingAdGroupsAnalytics] =
+    useState(false);
+  const [syncingAdsAnalytics, setSyncingAdsAnalytics] = useState(false);
+  const [syncingKeywordsAnalytics, setSyncingKeywordsAnalytics] =
+    useState(false);
+  const [syncMessage, setSyncMessage] = useState<{
+    type: "adgroups" | "ads" | "keywords" | null;
+    message: string | null;
+  }>({ type: null, message: null });
+
+  const [chartToggles, setChartToggles] = useState({
+    sales: true,
+    spend: true,
+    clicks: false,
+    orders: false,
+  });
+
+  const tabs = ["Overview", "Ad Groups", "Ads", "Keywords"];
+
+  useEffect(() => {
+    // Reset state when campaignId changes
+    setCampaignDetail(null);
+    setAdgroups([]);
+    setAds([]);
+    setKeywords([]);
+    setSelectedAdGroupIds(new Set());
+    setSelectedAdIds(new Set());
+    setSelectedKeywordIds(new Set());
+    setAdgroupsCurrentPage(1);
+    setAdsCurrentPage(1);
+    setKeywordsCurrentPage(1);
+    setSyncMessage({ type: null, message: null });
+
+    if (accountId && campaignId) {
+      loadCampaignDetail();
+    }
+  }, [accountId, campaignId, startDate, endDate]);
+
+  // Reset pagination when date range, tab, or filters change
+  useEffect(() => {
+    if (activeTab === "Ad Groups") {
+      setAdgroupsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, adgroupsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Ads") {
+      setAdsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, adsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Keywords") {
+      setKeywordsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, keywordsFilters]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Ad Groups") {
+      loadAdGroups();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    adgroupsCurrentPage,
+    adgroupsSortBy,
+    adgroupsSortOrder,
+    adgroupsFilters,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Ads") {
+      loadAds();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    adsCurrentPage,
+    adsSortBy,
+    adsSortOrder,
+    adsFilters,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Keywords") {
+      loadKeywords();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    keywordsCurrentPage,
+    keywordsSortBy,
+    keywordsSortOrder,
+    keywordsFilters,
+  ]);
+
+  const loadCampaignDetail = async () => {
+    try {
+      setLoading(true);
+      // Clear previous data immediately
+      setCampaignDetail(null);
+      const accountIdNum = parseInt(accountId!, 10);
+      const currentCampaignId = campaignId; // Capture current campaignId
+
+      if (isNaN(accountIdNum) || !currentCampaignId) {
+        setLoading(false);
+        return;
+      }
+
+      // Parse campaignId - it's a string from URL params
+      const campaignIdNum = parseInt(currentCampaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        console.error("Invalid campaign ID:", currentCampaignId);
+        setLoading(false);
+        return;
+      }
+
+      const data = await campaignsService.getGoogleCampaignDetail(
+        accountIdNum,
+        campaignIdNum,
+        startDate ? startDate.toISOString().split("T")[0] : undefined,
+        endDate ? endDate.toISOString().split("T")[0] : undefined
+      );
+
+      // Only set data if we're still on the same campaign (check for race conditions)
+      if (currentCampaignId === campaignId) {
+        setCampaignDetail(data);
+      }
+    } catch (error) {
+      console.error("Failed to load Google campaign detail:", error);
+      setCampaignDetail(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const buildAdGroupsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+    filterList.forEach((filter) => {
+      if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
+        }
+      } else if (filter.field === "status") {
+        params.status = filter.value;
+      }
+    });
+    return params;
+  };
+
+  const buildAdsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+    filterList.forEach((filter) => {
+      if (filter.field === "name") {
+        // Map "name" field to "ad_type" for Google Ads
+        params.ad_type = filter.value;
+      } else if (filter.field === "status") {
+        params.status = filter.value;
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
+        }
+      }
+    });
+    return params;
+  };
+
+  const buildKeywordsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+    filterList.forEach((filter) => {
+      if (filter.field === "name") {
+        // Map "name" field to "keyword_text" for Google Keywords
+        if (filter.operator === "contains") {
+          params.keyword_text__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.keyword_text__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.keyword_text = filter.value;
+        }
+      } else if (filter.field === "type") {
+        // Map "type" field to "match_type" for Google Keywords
+        params.match_type = filter.value;
+      } else if (filter.field === "status") {
+        params.status = filter.value;
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
+        }
+      }
+    });
+    return params;
+  };
+
+  const loadAdGroups = async () => {
+    try {
+      setAdgroupsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setAdgroupsLoading(false);
+        return;
+      }
+
+      const data = await campaignsService.getGoogleAdGroups(
+        accountIdNum,
+        parseInt(campaignId, 10),
+        {
+          page: adgroupsCurrentPage,
+          page_size: 10,
+          sort_by: adgroupsSortBy,
+          order: adgroupsSortOrder,
+          ...buildAdGroupsFilterParams(adgroupsFilters),
+        }
+      );
+
+      setAdgroups(data.adgroups || []);
+      setAdgroupsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load ad groups:", error);
+      setAdgroups([]);
+      setAdgroupsTotalPages(0);
+    } finally {
+      setAdgroupsLoading(false);
+    }
+  };
+
+  const loadAds = async () => {
+    try {
+      setAdsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setAdsLoading(false);
+        return;
+      }
+
+      const data = await campaignsService.getGoogleAds(
+        accountIdNum,
+        parseInt(campaignId, 10),
+        undefined,
+        {
+          page: adsCurrentPage,
+          page_size: 10,
+          sort_by: adsSortBy,
+          order: adsSortOrder,
+          ...buildAdsFilterParams(adsFilters),
+        }
+      );
+
+      setAds(data.ads || []);
+      setAdsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load ads:", error);
+      setAds([]);
+      setAdsTotalPages(0);
+    } finally {
+      setAdsLoading(false);
+    }
+  };
+
+  const loadKeywords = async () => {
+    try {
+      setKeywordsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setKeywordsLoading(false);
+        return;
+      }
+
+      const data = await campaignsService.getGoogleKeywords(
+        accountIdNum,
+        parseInt(campaignId, 10),
+        undefined,
+        {
+          page: keywordsCurrentPage,
+          page_size: 10,
+          sort_by: keywordsSortBy,
+          order: keywordsSortOrder,
+          ...buildKeywordsFilterParams(keywordsFilters),
+        }
+      );
+
+      setKeywords(data.keywords || []);
+      setKeywordsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load keywords:", error);
+      setKeywords([]);
+      setKeywordsTotalPages(0);
+    } finally {
+      setKeywordsLoading(false);
+    }
+  };
+
+  const runInlineEdit = async () => {
+    if (!inlineEditField || !accountId || !campaignDetail) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (inlineEditField === "status") {
+        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          REMOVED: "REMOVED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+          Removed: "REMOVED",
+        };
+        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+
+        await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+          campaignIds: [campaignDetail.campaign.campaign_id],
+          action: "status",
+          status: statusValue,
+        });
+      } else if (inlineEditField === "budget") {
+        const budgetValue = parseFloat(
+          inlineEditNewValue.replace(/[^0-9.]/g, "")
+        );
+        if (isNaN(budgetValue)) {
+          throw new Error("Invalid budget value");
+        }
+
+        await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+          campaignIds: [campaignDetail.campaign.campaign_id],
+          action: "budget",
+          budgetAction: "set",
+          unit: "amount",
+          value: budgetValue,
+        });
+      } else if (inlineEditField === "start_date") {
+        await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+          campaignIds: [campaignDetail.campaign.campaign_id],
+          action: "start_date",
+          start_date: inlineEditNewValue,
+        });
+      } else if (inlineEditField === "end_date") {
+        await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+          campaignIds: [campaignDetail.campaign.campaign_id],
+          action: "end_date",
+          end_date: inlineEditNewValue,
+        });
+      }
+
+      await loadCampaignDetail();
+      setShowInlineEditModal(false);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
+      setEditingField(null);
+      setEditedValue("");
+    } catch (error) {
+      console.error("Error updating campaign:", error);
+      alert("Failed to update campaign. Please try again.");
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  const cancelInlineEdit = () => {
+    setShowInlineEditModal(false);
+    setInlineEditField(null);
+    setInlineEditOldValue("");
+    setInlineEditNewValue("");
+    setEditingField(null);
+    setEditedValue("");
+  };
+
+  const handleSelectAllAdGroups = (checked: boolean) => {
+    if (checked) {
+      setSelectedAdGroupIds(new Set(adgroups.map((ag) => ag.id)));
+    } else {
+      setSelectedAdGroupIds(new Set());
+    }
+  };
+
+  const handleSelectAdGroup = (id: number, checked: boolean) => {
+    setSelectedAdGroupIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllAds = (checked: boolean) => {
+    if (checked) {
+      setSelectedAdIds(new Set(ads.map((ad) => ad.id)));
+    } else {
+      setSelectedAdIds(new Set());
+    }
+  };
+
+  const handleSelectAd = (id: number, checked: boolean) => {
+    setSelectedAdIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllKeywords = (checked: boolean) => {
+    if (checked) {
+      setSelectedKeywordIds(new Set(keywords.map((kw) => kw.id)));
+    } else {
+      setSelectedKeywordIds(new Set());
+    }
+  };
+
+  const handleSelectKeyword = (id: number, checked: boolean) => {
+    setSelectedKeywordIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAdGroupsSort = (column: string) => {
+    if (adgroupsSortBy === column) {
+      setAdgroupsSortOrder(adgroupsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setAdgroupsSortBy(column);
+      setAdgroupsSortOrder("asc");
+    }
+    setAdgroupsCurrentPage(1);
+  };
+
+  const handleAdsSort = (column: string) => {
+    if (adsSortBy === column) {
+      setAdsSortOrder(adsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setAdsSortBy(column);
+      setAdsSortOrder("asc");
+    }
+    setAdsCurrentPage(1);
+  };
+
+  const handleKeywordsSort = (column: string) => {
+    if (keywordsSortBy === column) {
+      setKeywordsSortOrder(keywordsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setKeywordsSortBy(column);
+      setKeywordsSortOrder("asc");
+    }
+    setKeywordsCurrentPage(1);
+  };
+
+  const handleAdGroupsPageChange = (page: number) => {
+    setAdgroupsCurrentPage(page);
+  };
+
+  const handleAdsPageChange = (page: number) => {
+    setAdsCurrentPage(page);
+  };
+
+  const handleKeywordsPageChange = (page: number) => {
+    setKeywordsCurrentPage(page);
+  };
+
+  const handleSyncAdGroups = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingAdGroups(true);
+      setSyncMessage({ type: null, message: null });
+      const result = await campaignsService.syncGoogleAdGroups(accountIdNum);
+      let message =
+        result.message || `Successfully synced ${result.synced} ad groups`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorText = result.errors.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage({ type: "adgroups", message });
+
+      // Reset to first page and reload adgroups after sync
+      if (result.synced > 0) {
+        setAdgroupsCurrentPage(1);
+        // Small delay to ensure database is updated
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      await loadAdGroups();
+
+      if (result.synced > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync ad groups:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync ad groups from Google Ads";
+      setSyncMessage({ type: "adgroups", message: errorMessage });
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+    } finally {
+      setSyncingAdGroups(false);
+    }
+  };
+
+  const handleSyncAds = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingAds(true);
+      setSyncMessage({ type: null, message: null });
+      const result = await campaignsService.syncGoogleAds(accountIdNum);
+      let message =
+        result.message || `Successfully synced ${result.synced} ads`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorText = result.errors.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage({ type: "ads", message });
+
+      // Reset to first page and reload ads after sync
+      if (result.synced > 0) {
+        setAdsCurrentPage(1);
+        // Small delay to ensure database is updated
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      await loadAds();
+
+      if (result.synced > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync ads:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync ads from Google Ads";
+      setSyncMessage({ type: "ads", message: errorMessage });
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+    } finally {
+      setSyncingAds(false);
+    }
+  };
+
+  const handleSyncKeywords = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingKeywords(true);
+      setSyncMessage({ type: null, message: null });
+      const result = await campaignsService.syncGoogleKeywords(accountIdNum);
+      let message =
+        result.message || `Successfully synced ${result.synced} keywords`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorText = result.errors.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage({ type: "keywords", message });
+
+      // Reset to first page and reload keywords after sync
+      if (result.synced > 0) {
+        setKeywordsCurrentPage(1);
+        // Small delay to ensure database is updated
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      await loadKeywords();
+
+      if (result.synced > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync keywords:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync keywords from Google Ads";
+      setSyncMessage({ type: "keywords", message: errorMessage });
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+    } finally {
+      setSyncingKeywords(false);
+    }
+  };
+
+  const handleSyncAdGroupsAnalytics = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingAdGroupsAnalytics(true);
+      setSyncMessage({ type: null, message: null });
+      const result = await campaignsService.syncGoogleAdGroupAnalytics(
+        accountIdNum,
+        startDate ? startDate.toISOString() : undefined,
+        endDate ? endDate.toISOString() : undefined
+      );
+
+      let message =
+        result.message ||
+        `Successfully synced adgroup analytics: ${
+          result.rows_inserted || 0
+        } inserted, ${result.rows_updated || 0} updated`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorText = result.errors.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage({ type: "adgroups", message });
+
+      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
+        setAdgroupsCurrentPage(1);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await loadAdGroups();
+      }
+
+      if ((result.rows_inserted || 0) > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync adgroup analytics:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync adgroup analytics from Google Ads";
+      setSyncMessage({ type: "adgroups", message: errorMessage });
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+    } finally {
+      setSyncingAdGroupsAnalytics(false);
+    }
+  };
+
+  const handleSyncAdsAnalytics = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingAdsAnalytics(true);
+      setSyncMessage({ type: null, message: null });
+      const result = await campaignsService.syncGoogleAdAnalytics(
+        accountIdNum,
+        startDate ? startDate.toISOString() : undefined,
+        endDate ? endDate.toISOString() : undefined
+      );
+
+      let message =
+        result.message ||
+        `Successfully synced ad analytics: ${
+          result.rows_inserted || 0
+        } inserted, ${result.rows_updated || 0} updated`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorText = result.errors.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage({ type: "ads", message });
+
+      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
+        setAdsCurrentPage(1);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await loadAds();
+      }
+
+      if ((result.rows_inserted || 0) > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync ad analytics:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync ad analytics from Google Ads";
+      setSyncMessage({ type: "ads", message: errorMessage });
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+    } finally {
+      setSyncingAdsAnalytics(false);
+    }
+  };
+
+  const handleSyncKeywordsAnalytics = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingKeywordsAnalytics(true);
+      setSyncMessage({ type: null, message: null });
+      const result = await campaignsService.syncGoogleKeywordAnalytics(
+        accountIdNum,
+        startDate ? startDate.toISOString() : undefined,
+        endDate ? endDate.toISOString() : undefined
+      );
+
+      let message =
+        result.message ||
+        `Successfully synced keyword analytics: ${
+          result.rows_inserted || 0
+        } inserted, ${result.rows_updated || 0} updated`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorText = result.errors.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage({ type: "keywords", message });
+
+      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
+        setKeywordsCurrentPage(1);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await loadKeywords();
+      }
+
+      if ((result.rows_inserted || 0) > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync keyword analytics:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync keyword analytics from Google Ads";
+      setSyncMessage({ type: "keywords", message: errorMessage });
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+    } finally {
+      setSyncingKeywordsAnalytics(false);
+    }
+  };
+
+  const toggleChartMetric = (
+    metric: "sales" | "spend" | "clicks" | "orders"
+  ) => {
+    setChartToggles((prev) => ({
+      ...prev,
+      [metric]: !prev[metric],
+    }));
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatCurrency2Decimals = (value: number | string | undefined) => {
+    if (value === undefined || value === null) return "$0.00";
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+    if (isNaN(numValue)) return "$0.00";
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numValue);
+  };
+
+  const formatPercentage = (value: number | string | undefined) => {
+    if (value === undefined || value === null) return "0.00%";
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+    if (isNaN(numValue)) return "0.00%";
+    return `${numValue.toFixed(2)}%`;
+  };
+
+  const getSortIcon = (
+    column: string,
+    currentSortBy: string,
+    currentSortOrder: "asc" | "desc"
+  ) => {
+    if (currentSortBy !== column) {
+      return (
+        <svg
+          className="w-4 h-4 ml-1 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+          />
+        </svg>
+      );
+    }
+    return currentSortOrder === "asc" ? (
+      <svg
+        className="w-4 h-4 ml-1 text-[#556179]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M5 15l7-7 7 7"
+        />
+      </svg>
+    ) : (
+      <svg
+        className="w-4 h-4 ml-1 text-[#556179]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 9l-7 7-7-7"
+        />
+      </svg>
+    );
+  };
+
+  // Use chart data from API, or generate fallback if empty
+  const chartData = useMemo(() => {
+    if (campaignDetail?.chart_data && campaignDetail.chart_data.length > 0) {
+      return campaignDetail.chart_data.map((item) => ({
+        date: item.date,
+        sales: item.sales || 0,
+        spend: item.spend || 0,
+        clicks: item.clicks || 0,
+        orders: 0, // Google doesn't have orders, but chart expects it
+      }));
+    }
+    return [];
+  }, [campaignDetail]);
+
+  return (
+    <div className="min-h-screen bg-white flex">
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content */}
+      <div
+        className="flex-1 min-w-0 w-full"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
+        {/* Header */}
+        <DashboardHeader />
+
+        {/* Main Content Area */}
+        <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
+          <div className="space-y-6">
+            {/* Campaign Header - Matching Campaigns page style */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() =>
+                  navigate(`/accounts/${accountId}/google-campaigns`)
+                }
+                className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+                <span className="text-[14px] font-medium">
+                  Back to Campaigns
+                </span>
+              </button>
+              <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
+                {loading
+                  ? "Loading..."
+                  : campaignDetail
+                  ? campaignDetail.campaign.name
+                  : "Campaign Not Found"}
+              </h1>
+            </div>
+
+            {/* Campaign Entity Information Card */}
+            {campaignDetail && (
+              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
+                <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
+                  Campaign Information
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Campaign Name */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Campaign Name
+                    </label>
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {campaignDetail.campaign.name || "—"}
+                    </div>
+                  </div>
+
+                  {/* Campaign ID */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Campaign ID
+                    </label>
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {campaignDetail.campaign.campaign_id}
+                    </div>
+                  </div>
+
+                  {/* Status - Editable */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Status
+                    </label>
+                    {editingField === "status" ? (
+                      <div className="flex items-center gap-2">
+                        <Dropdown
+                          options={[
+                            { value: "ENABLED", label: "Enabled" },
+                            { value: "PAUSED", label: "Paused" },
+                            { value: "REMOVED", label: "Removed" },
+                          ]}
+                          value={editedValue}
+                          onChange={(val) => {
+                            const newValue = val as string;
+                            setEditedValue(newValue);
+                            if (newValue !== campaignDetail.campaign.status) {
+                              setInlineEditField("status");
+                              setInlineEditOldValue(
+                                campaignDetail.campaign.status
+                              );
+                              setInlineEditNewValue(newValue);
+                              setShowInlineEditModal(true);
+                            } else {
+                              setEditingField(null);
+                              setEditedValue("");
+                            }
+                          }}
+                          defaultOpen={true}
+                          closeOnSelect={true}
+                          buttonClassName="w-full text-[13.3px] px-2 py-1"
+                          width="w-full"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        onClick={() => {
+                          setEditingField("status");
+                          setEditedValue(
+                            campaignDetail.campaign.status || "ENABLED"
+                          );
+                        }}
+                      >
+                        <StatusBadge
+                          status={
+                            campaignDetail.campaign.status === "ENABLED"
+                              ? "Enabled"
+                              : campaignDetail.campaign.status === "PAUSED"
+                              ? "Paused"
+                              : "Removed"
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Budget - Editable */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Budget
+                    </label>
+                    {editingField === "budget" ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={editedValue}
+                          onChange={(e) => setEditedValue(e.target.value)}
+                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
+                          autoFocus
+                          onBlur={() => {
+                            const budgetValue = parseFloat(editedValue);
+                            const oldBudget =
+                              campaignDetail.campaign.daily_budget || 0;
+                            if (
+                              !isNaN(budgetValue) &&
+                              budgetValue !== oldBudget
+                            ) {
+                              setInlineEditField("budget");
+                              setInlineEditOldValue(formatCurrency(oldBudget));
+                              setInlineEditNewValue(editedValue);
+                              setShowInlineEditModal(true);
+                            } else {
+                              setEditingField(null);
+                              setEditedValue("");
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const budgetValue = parseFloat(editedValue);
+                              const oldBudget =
+                                campaignDetail.campaign.daily_budget || 0;
+                              if (
+                                !isNaN(budgetValue) &&
+                                budgetValue !== oldBudget
+                              ) {
+                                setInlineEditField("budget");
+                                setInlineEditOldValue(
+                                  formatCurrency(oldBudget)
+                                );
+                                setInlineEditNewValue(editedValue);
+                                setShowInlineEditModal(true);
+                              } else {
+                                setEditingField(null);
+                                setEditedValue("");
+                              }
+                            } else if (e.key === "Escape") {
+                              setEditingField(null);
+                              setEditedValue("");
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        onClick={() => {
+                          setEditingField("budget");
+                          setEditedValue(
+                            (
+                              campaignDetail.campaign.daily_budget || 0
+                            ).toString()
+                          );
+                        }}
+                      >
+                        {formatCurrency(
+                          campaignDetail.campaign.daily_budget || 0
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Channel Type */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Channel Type
+                    </label>
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {campaignDetail.campaign.advertising_channel_type || "—"}
+                    </div>
+                  </div>
+
+                  {/* Account Name */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Account
+                    </label>
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {campaignDetail.campaign.account_name ||
+                        campaignDetail.campaign.customer_id ||
+                        "—"}
+                    </div>
+                  </div>
+
+                  {/* Start Date - Editable */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Start Date
+                    </label>
+                    {editingField === "start_date" ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={editedValue}
+                          onChange={(e) => setEditedValue(e.target.value)}
+                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
+                          autoFocus
+                          onBlur={() => {
+                            const oldDate = campaignDetail.campaign.start_date
+                              ? new Date(campaignDetail.campaign.start_date)
+                                  .toISOString()
+                                  .split("T")[0]
+                              : "";
+                            if (editedValue && editedValue !== oldDate) {
+                              setInlineEditField("start_date");
+                              setInlineEditOldValue(oldDate || "Not set");
+                              setInlineEditNewValue(editedValue);
+                              setShowInlineEditModal(true);
+                            } else {
+                              setEditingField(null);
+                              setEditedValue("");
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const oldDate = campaignDetail.campaign.start_date
+                                ? new Date(campaignDetail.campaign.start_date)
+                                    .toISOString()
+                                    .split("T")[0]
+                                : "";
+                              if (editedValue && editedValue !== oldDate) {
+                                setInlineEditField("start_date");
+                                setInlineEditOldValue(oldDate || "Not set");
+                                setInlineEditNewValue(editedValue);
+                                setShowInlineEditModal(true);
+                              } else {
+                                setEditingField(null);
+                                setEditedValue("");
+                              }
+                            } else if (e.key === "Escape") {
+                              setEditingField(null);
+                              setEditedValue("");
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        onClick={() => {
+                          setEditingField("start_date");
+                          const startDate = campaignDetail.campaign.start_date
+                            ? new Date(campaignDetail.campaign.start_date)
+                                .toISOString()
+                                .split("T")[0]
+                            : "";
+                          setEditedValue(startDate);
+                        }}
+                      >
+                        {campaignDetail.campaign.start_date
+                          ? new Date(
+                              campaignDetail.campaign.start_date
+                            ).toLocaleDateString()
+                          : "—"}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* End Date - Editable */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      End Date
+                    </label>
+                    {editingField === "end_date" ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={editedValue}
+                          onChange={(e) => setEditedValue(e.target.value)}
+                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
+                          autoFocus
+                          onBlur={() => {
+                            const oldDate = campaignDetail.campaign.end_date
+                              ? new Date(campaignDetail.campaign.end_date)
+                                  .toISOString()
+                                  .split("T")[0]
+                              : "";
+                            if (editedValue && editedValue !== oldDate) {
+                              setInlineEditField("end_date");
+                              setInlineEditOldValue(oldDate || "Not set");
+                              setInlineEditNewValue(editedValue);
+                              setShowInlineEditModal(true);
+                            } else {
+                              setEditingField(null);
+                              setEditedValue("");
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const oldDate = campaignDetail.campaign.end_date
+                                ? new Date(campaignDetail.campaign.end_date)
+                                    .toISOString()
+                                    .split("T")[0]
+                                : "";
+                              if (editedValue && editedValue !== oldDate) {
+                                setInlineEditField("end_date");
+                                setInlineEditOldValue(oldDate || "Not set");
+                                setInlineEditNewValue(editedValue);
+                                setShowInlineEditModal(true);
+                              } else {
+                                setEditingField(null);
+                                setEditedValue("");
+                              }
+                            } else if (e.key === "Escape") {
+                              setEditingField(null);
+                              setEditedValue("");
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        onClick={() => {
+                          setEditingField("end_date");
+                          const endDate = campaignDetail.campaign.end_date
+                            ? new Date(campaignDetail.campaign.end_date)
+                                .toISOString()
+                                .split("T")[0]
+                            : "";
+                          setEditedValue(endDate);
+                        }}
+                      >
+                        {campaignDetail.campaign.end_date
+                          ? new Date(
+                              campaignDetail.campaign.end_date
+                            ).toLocaleDateString()
+                          : "—"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* KPI Cards */}
+            {loading ? (
+              <div className="flex flex-col gap-4 mb-4">
+                <div className="text-center py-8">Loading campaign data...</div>
+              </div>
+            ) : campaignDetail ? (
+              <div className="flex flex-col gap-4 mb-4">
+                <div className="flex flex-wrap gap-4 md:gap-7">
+                  {campaignDetail.kpi_cards &&
+                  campaignDetail.kpi_cards.length > 0 ? (
+                    campaignDetail.kpi_cards.map((card, index) => (
+                      <KPICard
+                        key={index}
+                        label={card.label}
+                        value={card.value}
+                        change={card.change}
+                        isPositive={card.isPositive}
+                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
+                      />
+                    ))
+                  ) : (
+                    // Default KPI cards with zero values if no data available - matching Amazon's 6 stats
+                    <>
+                      <KPICard
+                        label="Spends "
+                        value="$0"
+                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
+                      />
+                      <KPICard
+                        label="Sales "
+                        value="$0"
+                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
+                      />
+                      <KPICard
+                        label="Impressions"
+                        value="0"
+                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
+                      />
+                      <KPICard
+                        label="Clicks"
+                        value="0"
+                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
+                      />
+                      <KPICard
+                        label="ACOS"
+                        value="0.0%"
+                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
+                      />
+                      <KPICard
+                        label="ROAS"
+                        value="0.00 x"
+                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4 mb-4">
+                <div className="text-center py-8 text-red-500">
+                  Campaign not found
+                </div>
+              </div>
+            )}
+
+            {/* Tab Navigation & Chart Section */}
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
+              {/* Tabs */}
+              <div className="flex items-center gap-2 mb-8 border-b border-[#E6E6E6]">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
+                      activeTab === tab
+                        ? "border-[#136D6D] text-[#136D6D]"
+                        : "border-transparent text-[#556179] hover:text-[#072929]"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab Content */}
+              {activeTab === "Overview" && (
+                <OverviewTab
+                  chartData={chartData}
+                  chartToggles={chartToggles}
+                  onToggleChartMetric={toggleChartMetric}
+                />
+              )}
+
+              {activeTab === "Ad Groups" && (
+                <AdGroupsTab
+                  adgroups={adgroups}
+                  loading={adgroupsLoading}
+                  selectedAdGroupIds={selectedAdGroupIds}
+                  onSelectAll={handleSelectAllAdGroups}
+                  onSelectAdGroup={handleSelectAdGroup}
+                  sortBy={adgroupsSortBy}
+                  sortOrder={adgroupsSortOrder}
+                  onSort={handleAdGroupsSort}
+                  currentPage={adgroupsCurrentPage}
+                  totalPages={adgroupsTotalPages}
+                  onPageChange={handleAdGroupsPageChange}
+                  isFilterPanelOpen={isAdGroupsFilterPanelOpen}
+                  onToggleFilterPanel={() =>
+                    setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen)
+                  }
+                  filters={adgroupsFilters}
+                  onApplyFilters={(newFilters) => {
+                    setAdgroupsFilters(newFilters);
+                    setAdgroupsCurrentPage(1);
+                  }}
+                  syncing={syncingAdGroups}
+                  onSync={handleSyncAdGroups}
+                  syncingAnalytics={syncingAdGroupsAnalytics}
+                  onSyncAnalytics={handleSyncAdGroupsAnalytics}
+                  syncMessage={
+                    syncMessage.type === "adgroups" ? syncMessage.message : null
+                  }
+                  formatPercentage={formatPercentage}
+                  formatCurrency2Decimals={formatCurrency2Decimals}
+                  getSortIcon={getSortIcon}
+                  onUpdateAdGroupStatus={async (
+                    adgroupId: number,
+                    status: string
+                  ) => {
+                    try {
+                      const accountIdNum = parseInt(accountId!, 10);
+                      if (isNaN(accountIdNum)) return;
+
+                      // Find the adgroup to get adgroup_id
+                      const adgroup = adgroups.find(
+                        (ag) => ag.id === adgroupId
+                      );
+                      if (!adgroup || !adgroup.adgroup_id) {
+                        alert("Ad group not found");
+                        return;
+                      }
+
+                      // Call API
+                      await campaignsService.bulkUpdateGoogleAdGroups(
+                        accountIdNum,
+                        {
+                          adgroupIds: [adgroup.adgroup_id],
+                          action: "status",
+                          status: status as "ENABLED" | "PAUSED",
+                        }
+                      );
+
+                      // Update local state
+                      setAdgroups((prevAdgroups) =>
+                        prevAdgroups.map((ag) =>
+                          ag.id === adgroupId ? { ...ag, status } : ag
+                        )
+                      );
+                    } catch (error: any) {
+                      console.error("Failed to update adgroup status:", error);
+                      alert(
+                        error.response?.data?.error ||
+                          "Failed to update adgroup status"
+                      );
+                    }
+                  }}
+                />
+              )}
+
+              {activeTab === "Ads" && (
+                <AdsTab
+                  ads={ads}
+                  loading={adsLoading}
+                  selectedAdIds={selectedAdIds}
+                  onSelectAll={handleSelectAllAds}
+                  onSelectAd={handleSelectAd}
+                  sortBy={adsSortBy}
+                  sortOrder={adsSortOrder}
+                  onSort={handleAdsSort}
+                  currentPage={adsCurrentPage}
+                  totalPages={adsTotalPages}
+                  onPageChange={handleAdsPageChange}
+                  isFilterPanelOpen={isAdsFilterPanelOpen}
+                  onToggleFilterPanel={() =>
+                    setIsAdsFilterPanelOpen(!isAdsFilterPanelOpen)
+                  }
+                  filters={adsFilters}
+                  onApplyFilters={(newFilters) => {
+                    setAdsFilters(newFilters);
+                    setAdsCurrentPage(1);
+                  }}
+                  syncing={syncingAds}
+                  onSync={handleSyncAds}
+                  syncingAnalytics={syncingAdsAnalytics}
+                  onSyncAnalytics={handleSyncAdsAnalytics}
+                  syncMessage={
+                    syncMessage.type === "ads" ? syncMessage.message : null
+                  }
+                  getSortIcon={getSortIcon}
+                  onUpdateAdStatus={async (adId: number, status: string) => {
+                    try {
+                      const accountIdNum = parseInt(accountId!, 10);
+                      if (isNaN(accountIdNum)) return;
+
+                      // Find the ad to get ad_id
+                      const ad = ads.find((a) => a.id === adId);
+                      if (!ad || !ad.ad_id) {
+                        alert("Ad not found");
+                        return;
+                      }
+
+                      // Call API
+                      await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+                        adIds: [ad.ad_id],
+                        action: "status",
+                        status: status as "ENABLED" | "PAUSED" | "REMOVED",
+                      });
+
+                      // Update local state
+                      setAds((prevAds) =>
+                        prevAds.map((a) =>
+                          a.id === adId ? { ...a, status } : a
+                        )
+                      );
+                    } catch (error: any) {
+                      console.error("Failed to update ad status:", error);
+                      alert(
+                        error.response?.data?.error ||
+                          "Failed to update ad status"
+                      );
+                    }
+                  }}
+                />
+              )}
+
+              {activeTab === "Keywords" && (
+                <KeywordsTab
+                  keywords={keywords}
+                  loading={keywordsLoading}
+                  selectedKeywordIds={selectedKeywordIds}
+                  onSelectAll={handleSelectAllKeywords}
+                  onSelectKeyword={handleSelectKeyword}
+                  sortBy={keywordsSortBy}
+                  sortOrder={keywordsSortOrder}
+                  onSort={handleKeywordsSort}
+                  currentPage={keywordsCurrentPage}
+                  totalPages={keywordsTotalPages}
+                  onPageChange={handleKeywordsPageChange}
+                  isFilterPanelOpen={isKeywordsFilterPanelOpen}
+                  onToggleFilterPanel={() =>
+                    setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen)
+                  }
+                  filters={keywordsFilters}
+                  onApplyFilters={(newFilters) => {
+                    setKeywordsFilters(newFilters);
+                    setKeywordsCurrentPage(1);
+                  }}
+                  syncing={syncingKeywords}
+                  onSync={handleSyncKeywords}
+                  syncingAnalytics={syncingKeywordsAnalytics}
+                  onSyncAnalytics={handleSyncKeywordsAnalytics}
+                  syncMessage={
+                    syncMessage.type === "keywords" ? syncMessage.message : null
+                  }
+                  getSortIcon={getSortIcon}
+                  onUpdateKeywordStatus={async (
+                    keywordId: number,
+                    status: string
+                  ) => {
+                    try {
+                      const accountIdNum = parseInt(accountId!, 10);
+                      if (isNaN(accountIdNum)) return;
+
+                      // Find the keyword to get keyword_id
+                      const keyword = keywords.find((k) => k.id === keywordId);
+                      if (!keyword || !keyword.keyword_id) {
+                        alert("Keyword not found");
+                        return;
+                      }
+
+                      // Call API
+                      await campaignsService.bulkUpdateGoogleKeywords(
+                        accountIdNum,
+                        {
+                          keywordIds: [keyword.keyword_id],
+                          action: "status",
+                          status: status as "ENABLED" | "PAUSED",
+                        }
+                      );
+
+                      // Update local state
+                      setKeywords((prevKeywords) =>
+                        prevKeywords.map((k) =>
+                          k.id === keywordId ? { ...k, status } : k
+                        )
+                      );
+                    } catch (error: any) {
+                      console.error("Failed to update keyword status:", error);
+                      alert(
+                        error.response?.data?.error ||
+                          "Failed to update keyword status"
+                      );
+                    }
+                  }}
+                  onUpdateKeywordBid={async (
+                    keywordId: number,
+                    bid: number
+                  ) => {
+                    try {
+                      const accountIdNum = parseInt(accountId!, 10);
+                      if (isNaN(accountIdNum)) return;
+
+                      // Find the keyword to get keyword_id
+                      const keyword = keywords.find((k) => k.id === keywordId);
+                      if (!keyword || !keyword.keyword_id) {
+                        alert("Keyword not found");
+                        return;
+                      }
+
+                      // Call API
+                      await campaignsService.bulkUpdateGoogleKeywords(
+                        accountIdNum,
+                        {
+                          keywordIds: [keyword.keyword_id],
+                          action: "bid",
+                          bid: bid,
+                        }
+                      );
+
+                      // Update local state
+                      setKeywords((prevKeywords) =>
+                        prevKeywords.map((k) =>
+                          k.id === keywordId
+                            ? { ...k, cpc_bid_dollars: bid }
+                            : k
+                        )
+                      );
+                    } catch (error: any) {
+                      console.error("Failed to update keyword bid:", error);
+                      alert(
+                        error.response?.data?.error ||
+                          "Failed to update keyword bid"
+                      );
+                    }
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Inline Edit Confirmation Modal */}
+      {showInlineEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Confirm Change</h3>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">
+                {inlineEditField === "status"
+                  ? "Status"
+                  : inlineEditField === "budget"
+                  ? "Budget"
+                  : inlineEditField === "start_date"
+                  ? "Start Date"
+                  : "End Date"}
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">From:</span>
+                <span className="text-sm font-medium">
+                  {inlineEditOldValue}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm text-gray-500">To:</span>
+                <span className="text-sm font-medium">
+                  {inlineEditField === "status"
+                    ? inlineEditNewValue
+                    : inlineEditField === "budget"
+                    ? `$${parseFloat(
+                        inlineEditNewValue || "0"
+                      ).toLocaleString()}`
+                    : inlineEditNewValue}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelInlineEdit}
+                disabled={inlineEditLoading}
+                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={runInlineEdit}
+                disabled={inlineEditLoading}
+                className="px-4 py-2 text-sm bg-[#136D6D] text-white rounded hover:bg-[#0f5a5a] disabled:opacity-50"
+              >
+                {inlineEditLoading ? "Saving..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

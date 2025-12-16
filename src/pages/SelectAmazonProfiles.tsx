@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
+import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button } from "../components/ui";
@@ -12,6 +13,7 @@ interface AmazonProfile {
   type?: string;
   validPaymentMethod?: boolean;
   marketplaceStringId?: string;
+  sellerId?: string;
   // Alternative field names (for compatibility)
   profileId?: string;
   profile_id?: string;
@@ -23,11 +25,15 @@ interface AmazonProfile {
   timezone?: string;
   accountInfo?: any;
   account_info?: any;
+  // Database fields (from backend)
+  seller_id?: string;
+  marketplace_id?: string;
 }
 
 export const SelectAmazonProfiles: React.FC = () => {
   const { channelId } = useParams<{ channelId: string }>();
   const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
   const [profiles, setProfiles] = useState<AmazonProfile[]>([]);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(
     new Set()
@@ -49,70 +55,66 @@ export const SelectAmazonProfiles: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch profiles from Amazon API
-      const profilesData = await accountsService.fetchProfiles(
+      // First, try to load profiles from our DB
+      const savedProfilesResponse = await accountsService.getProfiles(
         parseInt(channelId)
       );
-      console.log("Fetched profiles from API:", profilesData);
-      console.log("First profile structure:", profilesData[0]);
+      const savedProfiles = savedProfilesResponse.profiles || [];
+      console.log("Saved profiles from DB:", savedProfiles);
 
-      // Load saved profiles from database to see which ones are selected
-      let selectedIds = new Set<string>();
-      try {
-        const savedProfilesResponse = await accountsService.getProfiles(
-          parseInt(channelId)
-        );
-        const savedProfiles = savedProfilesResponse.profiles || [];
-        console.log("Saved profiles from DB:", savedProfiles);
+      // If no profiles in DB, fetch from Amazon
+      if (savedProfiles.length === 0) {
+        console.log("No profiles in DB, fetching from Amazon...");
+        try {
+          const amazonProfiles = await accountsService.fetchProfiles(
+            parseInt(channelId)
+          );
+          console.log("Profiles fetched from Amazon:", amazonProfiles);
 
-        // Set selected profile IDs based on is_selected flag
-        // Use profile_id from saved profiles (this matches the 'id' field from Amazon API)
-        savedProfiles.forEach((savedProfile: any) => {
-          if (savedProfile.is_selected) {
-            // Use profile_id from database (this is the same as 'id' from Amazon API)
-            const profileId = savedProfile.profile_id || savedProfile.id;
-            if (profileId) {
-              selectedIds.add(String(profileId));
-            }
+          if (amazonProfiles.length > 0) {
+            // Use profiles from Amazon
+            setProfiles(amazonProfiles);
+            setSelectedProfileIds(new Set());
+            return;
           }
-        });
-
-        console.log("Selected profile IDs from DB:", Array.from(selectedIds));
-      } catch (err: any) {
-        console.warn("Failed to load saved profiles (may be first time):", err);
-        // If no saved profiles exist yet, that's okay - just start with empty selection
+        } catch (fetchErr: any) {
+          console.error("Failed to fetch profiles from Amazon:", fetchErr);
+          // Continue with empty profiles - will show error message
+        }
       }
 
-      // Now set both profiles and selected IDs
-      setProfiles(profilesData);
+      // Set selected profile IDs based on is_selected flag
+      const selectedIds = new Set<string>();
+      savedProfiles.forEach((savedProfile: any) => {
+        if (savedProfile.is_selected) {
+          const profileId =
+            savedProfile.profileId ||
+            savedProfile.profile_id ||
+            savedProfile.id;
+          if (profileId) {
+            selectedIds.add(String(profileId));
+          }
+        }
+      });
 
-      // Verify which profile IDs from Amazon match the selected ones
-      const amazonProfileIds = profilesData
-        .map((p) => {
+      // Now set both profiles and selected IDs
+      setProfiles(savedProfiles);
+
+      // Ensure selected IDs exist in the returned list
+      const dbProfileIds = savedProfiles
+        .map((p: any) => {
           const id = p.id || p.profileId || p.profile_id;
           return id ? String(id) : null;
         })
         .filter(Boolean);
 
-      console.log("Amazon API profile IDs:", amazonProfileIds);
-      console.log("Selected IDs to set:", Array.from(selectedIds));
-
-      // Only keep IDs that exist in the Amazon API response
       const validSelectedIds = new Set<string>();
       selectedIds.forEach((id) => {
-        if (amazonProfileIds.includes(id)) {
+        if (dbProfileIds.includes(id)) {
           validSelectedIds.add(id);
-        } else {
-          console.warn(
-            `Profile ID ${id} from DB not found in Amazon API response`
-          );
         }
       });
 
-      console.log(
-        "Valid selected IDs (matching Amazon API):",
-        Array.from(validSelectedIds)
-      );
       setSelectedProfileIds(validSelectedIds);
     } catch (err: any) {
       setError(
@@ -160,6 +162,52 @@ export const SelectAmazonProfiles: React.FC = () => {
         const profileId = getProfileId(profile);
         const profileName = getProfileName(profile);
 
+        // Extract sellerId from accountInfo or profile
+        const sellerId =
+          profile.sellerId ||
+          profile.seller_id ||
+          profile.accountInfo?.id ||
+          profile.accountInfo?.sellerId ||
+          profile.account_info?.id ||
+          profile.account_info?.sellerId ||
+          "";
+
+        // Extract marketplaceId from accountInfo or profile
+        const marketplaceId =
+          profile.marketplaceStringId ||
+          profile.marketplace_id ||
+          profile.accountInfo?.marketplaceStringId ||
+          profile.accountInfo?.marketplaceId ||
+          profile.account_info?.marketplaceStringId ||
+          profile.account_info?.marketplaceId ||
+          "";
+
+        // Build accountInfo object with all necessary fields
+        const accountInfo = {
+          ...(profile.accountInfo || profile.account_info || {}),
+          // Ensure sellerId and marketplaceId are in accountInfo for backend compatibility
+          id:
+            sellerId ||
+            profile.accountInfo?.id ||
+            profile.account_info?.id ||
+            "",
+          sellerId:
+            sellerId ||
+            profile.accountInfo?.sellerId ||
+            profile.account_info?.sellerId ||
+            "",
+          marketplaceStringId:
+            marketplaceId ||
+            profile.accountInfo?.marketplaceStringId ||
+            profile.account_info?.marketplaceStringId ||
+            "",
+          marketplaceId:
+            marketplaceId ||
+            profile.accountInfo?.marketplaceId ||
+            profile.account_info?.marketplaceId ||
+            "",
+        };
+
         // Return profile in the format expected by backend
         return {
           id: profileId,
@@ -169,16 +217,14 @@ export const SelectAmazonProfiles: React.FC = () => {
             profile.validPaymentMethod ||
             profile.accountInfo?.validPaymentMethod ||
             false,
-          marketplaceStringId:
-            profile.marketplaceStringId ||
-            profile.accountInfo?.marketplaceStringId ||
-            "",
+          marketplaceStringId: marketplaceId,
+          sellerId: sellerId,
           countryCode:
             getCountryCode(profile) !== "N/A" ? getCountryCode(profile) : "",
           currencyCode:
             getCurrencyCode(profile) !== "N/A" ? getCurrencyCode(profile) : "",
           timezone: profile.timezone || "",
-          accountInfo: profile.accountInfo || profile.account_info || {},
+          accountInfo: accountInfo,
         };
       });
 
@@ -218,7 +264,7 @@ export const SelectAmazonProfiles: React.FC = () => {
   const getProfileId = (profile: AmazonProfile): string => {
     // Amazon API returns 'id' field, not 'profileId'
     // Make sure we return a string and handle all possible field names
-    const id = profile.id || profile.profileId || profile.profile_id;
+    const id = profile.profileId;
     return id ? String(id) : "";
   };
 
@@ -250,7 +296,7 @@ export const SelectAmazonProfiles: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[272px]">
+      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header */}
         <DashboardHeader />
 
@@ -300,7 +346,7 @@ export const SelectAmazonProfiles: React.FC = () => {
                         selectedProfileIds.size === profiles.length
                       }
                       onChange={toggleAll}
-                      className="w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                      className="w-4 h-4 text-[#072929] border-gray-200 rounded focus:ring-[#072929]"
                     />
                     <label className="text-[14px] font-medium text-[#072929]">
                       Select All ({selectedProfileIds.size}/{profiles.length})
@@ -314,7 +360,26 @@ export const SelectAmazonProfiles: React.FC = () => {
                     const isSelected = selectedProfileIds.has(profileId);
                     const profileName = getProfileName(profile);
                     const profileType = profile.type || "";
-                    const marketplaceId = profile.marketplaceStringId || "";
+
+                    // Extract sellerId from various possible locations
+                    const sellerId =
+                      profile.sellerId ||
+                      profile.seller_id ||
+                      profile.accountInfo?.id ||
+                      profile.accountInfo?.sellerId ||
+                      profile.account_info?.id ||
+                      profile.account_info?.sellerId ||
+                      "";
+
+                    // Extract marketplaceId from various possible locations
+                    const marketplaceId =
+                      profile.marketplaceStringId ||
+                      profile.marketplace_id ||
+                      profile.accountInfo?.marketplaceStringId ||
+                      profile.accountInfo?.marketplaceId ||
+                      profile.account_info?.marketplaceStringId ||
+                      profile.account_info?.marketplaceId ||
+                      "";
 
                     return (
                       <div
@@ -332,17 +397,18 @@ export const SelectAmazonProfiles: React.FC = () => {
                             checked={isSelected}
                             onChange={() => toggleProfile(profileId)}
                             onClick={(e) => e.stopPropagation()}
-                            className="mt-1 w-4 h-4 text-[#072929] border-[#E6E6E6] rounded focus:ring-[#072929]"
+                            className="mt-1 w-4 h-4 text-[#072929] border-gray-200 rounded focus:ring-[#072929]"
                           />
                           <div className="flex-1">
                             <h3 className="text-[16px] font-medium text-[#072929] mb-1">
                               {profileName}
                             </h3>
                             <div className="flex gap-4 text-[14px] text-[#556179] flex-wrap">
-                              <span>ID: {profileId}</span>
+                              <span>ProfileId: {profileId}</span>
                               {profileType && <span>Type: {profileType}</span>}
+                              {sellerId && <span>SellerId: {sellerId}</span>}
                               {marketplaceId && (
-                                <span>Marketplace: {marketplaceId}</span>
+                                <span>MarketplaceId: {marketplaceId}</span>
                               )}
                               {getCountryCode(profile) !== "N/A" && (
                                 <span>Country: {getCountryCode(profile)}</span>
