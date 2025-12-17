@@ -170,10 +170,15 @@ export interface AdGroupsResponse {
 
 export interface Keyword {
   id: number;
+  keywordId?: string | number;
   name: string;
   status: string;
   bid?: string;
   adgroup_name?: string;
+  campaign_name?: string;
+  campaignId?: string | number;
+  profile_name?: string;
+  type?: string;
   ctr: string;
   spends: string;
   sales: string;
@@ -183,12 +188,130 @@ export interface Keyword {
   roas?: string;
 }
 
+export interface KeywordsSummary {
+  total_keywords: number;
+  total_spends: number;
+  total_sales: number;
+  total_impressions: number;
+  total_clicks: number;
+  avg_acos: number;
+  avg_roas: number;
+}
+
 export interface KeywordsResponse {
   keywords: Keyword[];
+  summary?: KeywordsSummary;
+  chart_data?: Array<{
+    date: string;
+    spend: number;
+    sales: number;
+    impressions?: number;
+    clicks?: number;
+  }>;
   total: number;
   page: number;
   page_size: number;
   total_pages: number;
+}
+
+export interface KeywordsQueryParams {
+  sort_by?: string;
+  order?: 'asc' | 'desc';
+  page?: number;
+  page_size?: number;
+  start_date?: string;
+  end_date?: string;
+  // Name filters
+  name?: string;
+  name__icontains?: string;
+  name__not_icontains?: string;
+  // State and Type filters
+  state?: string;
+  type?: string;
+  // Bid filters
+  bid?: number | string;
+  bid__lt?: number | string;
+  bid__gt?: number | string;
+  bid__lte?: number | string;
+  bid__gte?: number | string;
+  // Campaign name filters
+  campaign_name?: string;
+  campaign_name__icontains?: string;
+  campaign_name__not_icontains?: string;
+  // Adgroup name filters
+  adgroup_name?: string;
+  adgroup_name__icontains?: string;
+  adgroup_name__not_icontains?: string;
+  // Profile name filters
+  profile_name?: string;
+  profile_name__icontains?: string;
+  profile_name__not_icontains?: string;
+  // Spends, sales, ctr filters
+  spends?: number | string;
+  spends__lt?: number | string;
+  spends__gt?: number | string;
+  spends__lte?: number | string;
+  spends__gte?: number | string;
+  sales?: number | string;
+  sales__lt?: number | string;
+  sales__gt?: number | string;
+  sales__lte?: number | string;
+  sales__gte?: number | string;
+  ctr?: number | string;
+  ctr__lt?: number | string;
+  ctr__gt?: number | string;
+  ctr__lte?: number | string;
+  ctr__gte?: number | string;
+}
+
+export interface TargetsQueryParams {
+  sort_by?: string;
+  order?: 'asc' | 'desc';
+  page?: number;
+  page_size?: number;
+  start_date?: string;
+  end_date?: string;
+  // Name filters
+  name?: string;
+  name__icontains?: string;
+  name__not_icontains?: string;
+  // State and Type filters
+  state?: string;
+  type?: string;
+  // Bid filters
+  bid?: number | string;
+  bid__lt?: number | string;
+  bid__gt?: number | string;
+  bid__lte?: number | string;
+  bid__gte?: number | string;
+  // Campaign name filters
+  campaign_name?: string;
+  campaign_name__icontains?: string;
+  campaign_name__not_icontains?: string;
+  // Adgroup name filters
+  adgroup_name?: string;
+  adgroup_name__icontains?: string;
+  adgroup_name__not_icontains?: string;
+  // Profile name filters
+  profile_name?: string;
+  profile_name__icontains?: string;
+  profile_name__not_icontains?: string;
+  // Spends, sales, ctr filters
+  spends?: number | string;
+  spends__lt?: number | string;
+  spends__gt?: number | string;
+  spends__lte?: number | string;
+  spends__gte?: number | string;
+  sales?: number | string;
+  sales__lt?: number | string;
+  sales__gt?: number | string;
+  sales__lte?: number | string;
+  sales__gte?: number | string;
+  ctr?: number | string;
+  ctr__lt?: number | string;
+  ctr__gt?: number | string;
+  ctr__lte?: number | string;
+  ctr__gte?: number | string;
 }
 
 export interface ProductAd {
@@ -210,16 +333,20 @@ export interface ProductAdsResponse {
 
 export interface Target {
   id: number;
+  targetId?: string | number;
   name: string;
   status: string;
   bid?: string;
   adgroup_name?: string;
+  campaign_name?: string;
+  campaignId?: string | number;
   profile_name?: string;
   keyword?: string;
   keyword_type?: string;
   keyword_bid?: string;
   match_type?: string;
   targeting?: string;
+  type?: string;
   ctr: string;
   spends: string;
   sales: string;
@@ -227,6 +354,34 @@ export interface Target {
   impressions?: number;
   acos?: string;
   roas?: string;
+}
+
+export interface TargetsSummary {
+  total_targets: number;
+  total_spends: number;
+  total_sales: number;
+  total_impressions: number;
+  total_clicks: number;
+  avg_acos: number;
+  avg_roas: number;
+}
+
+export interface TargetsListResponse {
+  targets: Target[];
+  summary?: TargetsSummary;
+  chart_data?: Array<{
+    date: string;
+    spend: number;
+    sales: number;
+    impressions?: number;
+    clicks?: number;
+    acos?: number;
+    roas?: number;
+  }>;
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export interface TargetsResponse {
@@ -686,6 +841,316 @@ export const campaignsService = {
     }
   ) => {
     const url = `/accounts/${accountId}/adgroups/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  getKeywordsList: async (
+    accountId: number,
+    params?: KeywordsQueryParams
+  ): Promise<KeywordsResponse> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+    
+    if (params?.sort_by) {
+      filters.sort_by = params.sort_by;
+    }
+    if (params?.order) {
+      filters.order = params.order;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+    // Name filters
+    if (params?.name) {
+      filters.name = params.name;
+    }
+    if (params?.name__icontains) {
+      filters.name__icontains = params.name__icontains;
+    }
+    if (params?.name__not_icontains) {
+      filters.name__not_icontains = params.name__not_icontains;
+    }
+    // State and Type filters
+    if (params?.state) {
+      filters.state = params.state;
+    }
+    if (params?.type) {
+      filters.type = params.type;
+    }
+    // Bid filters
+    if (params?.bid !== undefined) {
+      filters.bid = params.bid;
+    }
+    if (params?.bid__lt !== undefined) {
+      filters.bid__lt = params.bid__lt;
+    }
+    if (params?.bid__gt !== undefined) {
+      filters.bid__gt = params.bid__gt;
+    }
+    if (params?.bid__lte !== undefined) {
+      filters.bid__lte = params.bid__lte;
+    }
+    if (params?.bid__gte !== undefined) {
+      filters.bid__gte = params.bid__gte;
+    }
+    // Campaign name filters
+    if (params?.campaign_name) {
+      filters.campaign_name = params.campaign_name;
+    }
+    if (params?.campaign_name__icontains) {
+      filters.campaign_name__icontains = params.campaign_name__icontains;
+    }
+    if (params?.campaign_name__not_icontains) {
+      filters.campaign_name__not_icontains = params.campaign_name__not_icontains;
+    }
+    // Adgroup name filters
+    if (params?.adgroup_name) {
+      filters.adgroup_name = params.adgroup_name;
+    }
+    if (params?.adgroup_name__icontains) {
+      filters.adgroup_name__icontains = params.adgroup_name__icontains;
+    }
+    if (params?.adgroup_name__not_icontains) {
+      filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
+    }
+    // Profile name filters
+    if (params?.profile_name) {
+      filters.profile_name = params.profile_name;
+    }
+    if (params?.profile_name__icontains) {
+      filters.profile_name__icontains = params.profile_name__icontains;
+    }
+    if (params?.profile_name__not_icontains) {
+      filters.profile_name__not_icontains = params.profile_name__not_icontains;
+    }
+    // Spends, sales, ctr filters
+    if (params?.spends !== undefined) {
+      filters.spends = params.spends;
+    }
+    if (params?.spends__lt !== undefined) {
+      filters.spends__lt = params.spends__lt;
+    }
+    if (params?.spends__gt !== undefined) {
+      filters.spends__gt = params.spends__gt;
+    }
+    if (params?.spends__lte !== undefined) {
+      filters.spends__lte = params.spends__lte;
+    }
+    if (params?.spends__gte !== undefined) {
+      filters.spends__gte = params.spends__gte;
+    }
+    if (params?.sales !== undefined) {
+      filters.sales = params.sales;
+    }
+    if (params?.sales__lt !== undefined) {
+      filters.sales__lt = params.sales__lt;
+    }
+    if (params?.sales__gt !== undefined) {
+      filters.sales__gt = params.sales__gt;
+    }
+    if (params?.sales__lte !== undefined) {
+      filters.sales__lte = params.sales__lte;
+    }
+    if (params?.sales__gte !== undefined) {
+      filters.sales__gte = params.sales__gte;
+    }
+    if (params?.ctr !== undefined) {
+      filters.ctr = params.ctr;
+    }
+    if (params?.ctr__lt !== undefined) {
+      filters.ctr__lt = params.ctr__lt;
+    }
+    if (params?.ctr__gt !== undefined) {
+      filters.ctr__gt = params.ctr__gt;
+    }
+    if (params?.ctr__lte !== undefined) {
+      filters.ctr__lte = params.ctr__lte;
+    }
+    if (params?.ctr__gte !== undefined) {
+      filters.ctr__gte = params.ctr__gte;
+    }
+    
+    // Send POST request with filters in body
+    const url = `/accounts/${accountId}/keywords/`;
+    const response = await api.post<KeywordsResponse>(url, { filters });
+    return response.data;
+  },
+
+  bulkUpdateKeywords: async (
+    accountId: number,
+    payload: {
+      keywordIds: Array<string | number>;
+      action: 'status' | 'bid';
+      status?: 'enable' | 'pause' | 'archive';
+      bid?: number;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/keywords/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  getTargetsList: async (
+    accountId: number,
+    params?: TargetsQueryParams
+  ): Promise<TargetsListResponse> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+    
+    if (params?.sort_by) {
+      filters.sort_by = params.sort_by;
+    }
+    if (params?.order) {
+      filters.order = params.order;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+    // Name filters
+    if (params?.name) {
+      filters.name = params.name;
+    }
+    if (params?.name__icontains) {
+      filters.name__icontains = params.name__icontains;
+    }
+    if (params?.name__not_icontains) {
+      filters.name__not_icontains = params.name__not_icontains;
+    }
+    // State and Type filters
+    if (params?.state) {
+      filters.state = params.state;
+    }
+    if (params?.type) {
+      filters.type = params.type;
+    }
+    // Bid filters
+    if (params?.bid !== undefined) {
+      filters.bid = params.bid;
+    }
+    if (params?.bid__lt !== undefined) {
+      filters.bid__lt = params.bid__lt;
+    }
+    if (params?.bid__gt !== undefined) {
+      filters.bid__gt = params.bid__gt;
+    }
+    if (params?.bid__lte !== undefined) {
+      filters.bid__lte = params.bid__lte;
+    }
+    if (params?.bid__gte !== undefined) {
+      filters.bid__gte = params.bid__gte;
+    }
+    // Campaign name filters
+    if (params?.campaign_name) {
+      filters.campaign_name = params.campaign_name;
+    }
+    if (params?.campaign_name__icontains) {
+      filters.campaign_name__icontains = params.campaign_name__icontains;
+    }
+    if (params?.campaign_name__not_icontains) {
+      filters.campaign_name__not_icontains = params.campaign_name__not_icontains;
+    }
+    // Adgroup name filters
+    if (params?.adgroup_name) {
+      filters.adgroup_name = params.adgroup_name;
+    }
+    if (params?.adgroup_name__icontains) {
+      filters.adgroup_name__icontains = params.adgroup_name__icontains;
+    }
+    if (params?.adgroup_name__not_icontains) {
+      filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
+    }
+    // Profile name filters
+    if (params?.profile_name) {
+      filters.profile_name = params.profile_name;
+    }
+    if (params?.profile_name__icontains) {
+      filters.profile_name__icontains = params.profile_name__icontains;
+    }
+    if (params?.profile_name__not_icontains) {
+      filters.profile_name__not_icontains = params.profile_name__not_icontains;
+    }
+    // Spends, sales, ctr filters
+    if (params?.spends !== undefined) {
+      filters.spends = params.spends;
+    }
+    if (params?.spends__lt !== undefined) {
+      filters.spends__lt = params.spends__lt;
+    }
+    if (params?.spends__gt !== undefined) {
+      filters.spends__gt = params.spends__gt;
+    }
+    if (params?.spends__lte !== undefined) {
+      filters.spends__lte = params.spends__lte;
+    }
+    if (params?.spends__gte !== undefined) {
+      filters.spends__gte = params.spends__gte;
+    }
+    if (params?.sales !== undefined) {
+      filters.sales = params.sales;
+    }
+    if (params?.sales__lt !== undefined) {
+      filters.sales__lt = params.sales__lt;
+    }
+    if (params?.sales__gt !== undefined) {
+      filters.sales__gt = params.sales__gt;
+    }
+    if (params?.sales__lte !== undefined) {
+      filters.sales__lte = params.sales__lte;
+    }
+    if (params?.sales__gte !== undefined) {
+      filters.sales__gte = params.sales__gte;
+    }
+    if (params?.ctr !== undefined) {
+      filters.ctr = params.ctr;
+    }
+    if (params?.ctr__lt !== undefined) {
+      filters.ctr__lt = params.ctr__lt;
+    }
+    if (params?.ctr__gt !== undefined) {
+      filters.ctr__gt = params.ctr__gt;
+    }
+    if (params?.ctr__lte !== undefined) {
+      filters.ctr__lte = params.ctr__lte;
+    }
+    if (params?.ctr__gte !== undefined) {
+      filters.ctr__gte = params.ctr__gte;
+    }
+    
+    // Send POST request with filters in body
+    const url = `/accounts/${accountId}/targets/`;
+    const response = await api.post<TargetsListResponse>(url, { filters });
+    return response.data;
+  },
+
+  bulkUpdateTargets: async (
+    accountId: number,
+    payload: {
+      targetIds: Array<string | number>;
+      action: 'status' | 'bid';
+      status?: 'enable' | 'pause' | 'archive';
+      bid?: number;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/targets/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },

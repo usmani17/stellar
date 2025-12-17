@@ -12,8 +12,6 @@ import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
 import CampaignIconRegular from "../../assets/images/campaign.svg";
 import CampaignWhiteIcon from "../../assets/campaign-white.svg";
 import AdGroupIcon from "../../assets/images/adgroups.svg";
-import ProductTargetIcon from "../../assets/images/producttarget.svg";
-import AnalyticsIcon from "../../assets/images/majesticons_analytics.svg";
 import BlueprintsIcon from "../../assets/images/ph_fingerprint-fill.svg";
 import SettingsIcon from "../../assets/images/settings.svg";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
@@ -35,6 +33,12 @@ export const Sidebar: React.FC = () => {
     }
     if (path === "/adgroups") {
       return location.pathname.includes("/adgroups");
+    }
+    if (path === "/keywords") {
+      return location.pathname.includes("/keywords");
+    }
+    if (path === "/targets") {
+      return location.pathname.includes("/targets");
     }
     return location.pathname === path;
   };
@@ -266,30 +270,72 @@ export const Sidebar: React.FC = () => {
               )}
             </Link>
             <Link
-              to="/channels"
-              className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
+              to={
+                accountId
+                  ? buildMarketplaceRoute(accountId, "amazon", "keywords")
+                  : "/accounts"
+              }
+              onClick={(e) =>
+                handleAccountRequiredClick(e, () =>
+                  accountId
+                    ? buildMarketplaceRoute(accountId, "amazon", "keywords")
+                    : "/accounts/1/amazon/keywords"
+                )
+              }
+              className={`flex items-center p-2 rounded-xl transition-colors ${
                 isCollapsed ? "justify-center" : "gap-2"
+              } ${
+                isActive("/keywords")
+                  ? "w-full bg-forest-f60 text-white"
+                  : "text-black hover:bg-transparent hover:text-[#136D6D]"
               }`}
-              title={isCollapsed ? "Product Target" : undefined}
+              title={isCollapsed ? "Keywords" : undefined}
             >
-              <img src={InstacartIcon} alt="" className="w-5 h-5" />
+              <img
+                src={AdGroupIcon}
+                alt=""
+                className={`w-5 h-5 ${
+                  isActive("/keywords") ? "brightness-0 invert" : ""
+                }`}
+              />
               {!isCollapsed && (
                 <span className="text-[12.32px] font-normal leading-[16px]">
-                  Product Target
+                  Keywords
                 </span>
               )}
             </Link>
             <Link
-              to="/channels"
-              className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
+              to={
+                accountId
+                  ? buildMarketplaceRoute(accountId, "amazon", "targets")
+                  : "/accounts"
+              }
+              onClick={(e) =>
+                handleAccountRequiredClick(e, () =>
+                  accountId
+                    ? buildMarketplaceRoute(accountId, "amazon", "targets")
+                    : "/accounts/1/amazon/targets"
+                )
+              }
+              className={`flex items-center p-2 rounded-xl transition-colors ${
                 isCollapsed ? "justify-center" : "gap-2"
+              } ${
+                isActive("/targets")
+                  ? "w-full bg-forest-f60 text-white"
+                  : "text-black hover:bg-transparent hover:text-[#136D6D]"
               }`}
-              title={isCollapsed ? "Analytics" : undefined}
+              title={isCollapsed ? "Targets" : undefined}
             >
-              <img src={GoogleIcon} alt="" className="w-5 h-5" />
+              <img
+                src={AdGroupIcon}
+                alt=""
+                className={`w-5 h-5 ${
+                  isActive("/targets") ? "brightness-0 invert" : ""
+                }`}
+              />
               {!isCollapsed && (
                 <span className="text-[12.32px] font-normal leading-[16px]">
-                  Analytics
+                  Targets
                 </span>
               )}
             </Link>

@@ -13,24 +13,24 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
 import { useSidebar } from "../contexts/SidebarContext";
-import { campaignsService, type Campaign } from "../services/campaigns";
+import { campaignsService, type Keyword } from "../services/campaigns";
 import { Checkbox } from "../components/ui/Checkbox";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
-import { StatusBadge } from "../components/ui/StatusBadge";
 import {
   FilterPanel,
   type FilterValues,
 } from "../components/filters/FilterPanel";
 
-export const Campaigns: React.FC = () => {
+export const Keywords: React.FC = () => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
   const { startDate, endDate } = useDateRange();
   const { sidebarWidth } = useSidebar();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [summary, setSummary] = useState<{
-    total_campaigns: number;
+    total_keywords: number;
     total_spends: number;
     total_sales: number;
     total_impressions: number;
@@ -50,7 +50,7 @@ export const Campaigns: React.FC = () => {
     }>
   >([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCampaigns, setSelectedCampaigns] = useState<
+  const [selectedKeywords, setSelectedKeywords] = useState<
     Set<string | number>
   >(new Set());
   const [chartToggles, setChartToggles] = useState({
@@ -68,13 +68,19 @@ export const Campaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const loadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const lastRequestParamsRef = useRef<string>("");
+
+  // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
-  const [showBudgetPanel, setShowBudgetPanel] = useState(false);
-  const [budgetAction, setBudgetAction] = useState<
-    "increase" | "decrease" | "set"
-  >("increase");
-  const [budgetUnit, setBudgetUnit] = useState<"percent" | "amount">("percent");
-  const [budgetValue, setBudgetValue] = useState<string>("");
+  const [showBidPanel, setShowBidPanel] = useState(false);
+  const [bidAction, setBidAction] = useState<"increase" | "decrease" | "set">(
+    "increase"
+  );
+  const [bidUnit, setBidUnit] = useState<"percent" | "amount">("percent");
+  const [bidValue, setBidValue] = useState<string>("");
   const [upperLimit, setUpperLimit] = useState<string>("");
   const [lowerLimit, setLowerLimit] = useState<string>("");
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -82,8 +88,24 @@ export const Campaigns: React.FC = () => {
   const [pendingStatusAction, setPendingStatusAction] = useState<
     "enable" | "pause" | "archive" | null
   >(null);
-  const [isBudgetChange, setIsBudgetChange] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isBidChange, setIsBidChange] = useState(false);
+
+  // Inline edit state
+  const [editingCell, setEditingCell] = useState<{
+    keywordId: string | number;
+    field: "bid" | "status";
+  } | null>(null);
+  const [editedValue, setEditedValue] = useState<string>("");
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
+  const [inlineEditKeyword, setInlineEditKeyword] = useState<Keyword | null>(
+    null
+  );
+  const [inlineEditField, setInlineEditField] = useState<
+    "bid" | "status" | null
+  >(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
 
   const metricOptions = [
     { key: "sales", label: "Sales", color: "#136D6D" },
@@ -97,87 +119,31 @@ export const Campaigns: React.FC = () => {
   const selectedMetricCount =
     Object.values(chartToggles).filter(Boolean).length;
 
-  // Inline edit state
-  const [editingCell, setEditingCell] = useState<{
-    campaignId: string | number;
-    field: "budget" | "budgetType" | "status";
-  } | null>(null);
-  const [editedValue, setEditedValue] = useState<string>("");
-  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
-  const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [inlineEditCampaign, setInlineEditCampaign] = useState<Campaign | null>(
-    null
-  );
-  const [inlineEditField, setInlineEditField] = useState<
-    "budget" | "budgetType" | "status" | null
-  >(null);
-  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
-  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
-  const loadingRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const toggleChartMetric = (key: keyof typeof chartToggles) => {
+    setChartToggles((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowBulkActions(false);
-      }
-    };
+    // Create a unique key for this request based on all dependencies
+    const requestKey = JSON.stringify({
+      accountId,
+      currentPage,
+      itemsPerPage,
+      sortBy,
+      sortOrder,
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+      filters,
+    });
 
-    if (showBulkActions) {
-      document.addEventListener("mousedown", handleClickOutside);
+    // Skip if this is the same request as the last one
+    if (requestKey === lastRequestParamsRef.current) {
+      return;
     }
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showBulkActions]);
-
-  // Cancel inline edit when clicking outside (except on input/dropdown)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (editingCell && !showInlineEditModal) {
-        const target = event.target as HTMLElement;
-        // Don't cancel if clicking on:
-        // - input fields
-        // - dropdown button or menu (check for z-50 which is the dropdown menu)
-        // - any element with z-50 (dropdowns/modals)
-        // - confirmation modal
-        const isDropdownMenu =
-          target.closest('[class*="z-50"]') ||
-          target.closest('[class*="shadow-lg"]') ||
-          target.closest('button[type="button"]');
-        const isInput = target.closest("input");
-        const isModal = target.closest('[class*="fixed"]');
-
-        if (!isInput && !isDropdownMenu && !isModal) {
-          // Small delay to allow dropdown onChange to fire first
-          setTimeout(() => {
-            if (editingCell && !showInlineEditModal) {
-              cancelInlineEdit();
-            }
-          }, 150);
-        }
-      }
-    };
-
-    if (editingCell && !showInlineEditModal) {
-      // Use a delay to avoid canceling when opening the edit or selecting from dropdown
-      const timeout = setTimeout(() => {
-        document.addEventListener("mousedown", handleClickOutside);
-      }, 200);
-
-      return () => {
-        clearTimeout(timeout);
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }
-  }, [editingCell, showInlineEditModal]);
-
-  useEffect(() => {
     // Cancel any pending request when dependencies change
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -187,10 +153,13 @@ export const Campaigns: React.FC = () => {
     abortControllerRef.current = new AbortController();
     const currentController = abortControllerRef.current;
 
+    // Update the last request params
+    lastRequestParamsRef.current = requestKey;
+
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        loadCampaigns(accountIdNum);
+        loadKeywords(accountIdNum);
       } else {
         setLoading(false);
       }
@@ -219,9 +188,38 @@ export const Campaigns: React.FC = () => {
   const buildFilterParams = (filterList: FilterValues) => {
     const params: any = {};
 
-    // Add filters to params
     filterList.forEach((filter) => {
-      if (filter.field === "campaign_name") {
+      if (filter.field === "name") {
+        if (filter.operator === "contains") {
+          params.name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.name = filter.value;
+        }
+      } else if (filter.field === "bid") {
+        if (filter.operator === "lt") {
+          params.bid__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.bid__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.bid = filter.value;
+        } else if (filter.operator === "lte") {
+          params.bid__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.bid__gte = filter.value;
+        }
+      } else if (filter.field === "state") {
+        // Convert frontend display value to backend expected value
+        const stateMap: Record<string, string> = {
+          Enabled: "enabled",
+          Paused: "paused",
+          Archived: "archived",
+        };
+        params.state = stateMap[filter.value as string] || filter.value;
+      } else if (filter.field === "type") {
+        params.type = filter.value;
+      } else if (filter.field === "campaign_name") {
         if (filter.operator === "contains") {
           params.campaign_name__icontains = filter.value;
         } else if (filter.operator === "not_contains") {
@@ -229,22 +227,6 @@ export const Campaigns: React.FC = () => {
         } else if (filter.operator === "equals") {
           params.campaign_name = filter.value;
         }
-      } else if (filter.field === "budget") {
-        if (filter.operator === "lt") {
-          params.budget__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.budget__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.budget = filter.value;
-        } else if (filter.operator === "lte") {
-          params.budget__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.budget__gte = filter.value;
-        }
-      } else if (filter.field === "state") {
-        params.state = filter.value;
-      } else if (filter.field === "type") {
-        params.type = filter.value;
       } else if (filter.field === "profile_name") {
         if (filter.operator === "contains") {
           params.profile_name__icontains = filter.value;
@@ -253,24 +235,49 @@ export const Campaigns: React.FC = () => {
         } else if (filter.operator === "equals") {
           params.profile_name = filter.value;
         }
+      } else if (filter.field === "spends") {
+        if (filter.operator === "lt") {
+          params.spends__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.spends__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.spends = filter.value;
+        } else if (filter.operator === "lte") {
+          params.spends__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.spends__gte = filter.value;
+        }
+      } else if (filter.field === "sales") {
+        if (filter.operator === "lt") {
+          params.sales__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.sales__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.sales = filter.value;
+        } else if (filter.operator === "lte") {
+          params.sales__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.sales__gte = filter.value;
+        }
+      } else if (filter.field === "ctr") {
+        if (filter.operator === "lt") {
+          params.ctr__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.ctr__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.ctr = filter.value;
+        } else if (filter.operator === "lte") {
+          params.ctr__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.ctr__gte = filter.value;
+        }
       }
     });
 
     return params;
   };
 
-  const loadFilterDefinitions = async () => {
-    try {
-      const definitions = await filtersService.getFilterDefinitions(
-        "campaigns"
-      );
-      setFilterDefinitions(definitions);
-    } catch (error) {
-      console.error("Failed to load filter definitions:", error);
-    }
-  };
-
-  const loadCampaigns = async (accountId: number) => {
+  const loadKeywords = async (accountId: number) => {
     // Prevent duplicate simultaneous requests
     if (loadingRef.current) {
       return;
@@ -279,28 +286,50 @@ export const Campaigns: React.FC = () => {
     try {
       loadingRef.current = true;
       setLoading(true);
+      const startDateStr = startDate?.toISOString().split("T")[0];
+      const endDateStr = endDate?.toISOString().split("T")[0];
+
+      console.log("Keywords - Date range:", {
+        startDate: startDateStr,
+        endDate: endDateStr,
+      });
+
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
         page: currentPage,
         page_size: itemsPerPage,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDateStr,
+        end_date: endDateStr,
         ...buildFilterParams(filters),
       };
 
-      const response = await campaignsService.getCampaigns(accountId, params);
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
+      const response = await campaignsService.getKeywordsList(
+        accountId,
+        params
+      );
+
+      console.log(
+        "Keywords - Chart data received:",
+        response.chart_data?.length || 0,
+        "points"
+      );
+
+      setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
       setTotalPages(response.total_pages || 0);
       if (response.summary) {
         setSummary(response.summary);
       }
       if (response.chart_data) {
         setChartDataFromApi(response.chart_data);
+        console.log(
+          "Keywords - Chart data dates:",
+          response.chart_data.map((d: any) => d.date)
+        );
       }
     } catch (error) {
-      console.error("Failed to load campaigns:", error);
-      setCampaigns([]);
+      console.error("Failed to load keywords:", error);
+      setKeywords([]);
       setTotalPages(0);
     } finally {
       setLoading(false);
@@ -308,7 +337,7 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  const loadCampaignsWithFilters = async (
+  const loadKeywordsWithFilters = async (
     accountId: number,
     filterList: FilterValues
   ) => {
@@ -325,13 +354,16 @@ export const Campaigns: React.FC = () => {
         order: sortOrder,
         page: 1, // Always reset to first page when applying filters
         page_size: itemsPerPage,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
+        start_date: startDate?.toISOString().split("T")[0],
+        end_date: endDate?.toISOString().split("T")[0],
         ...buildFilterParams(filterList),
       };
 
-      const response = await campaignsService.getCampaigns(accountId, params);
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
+      const response = await campaignsService.getKeywordsList(
+        accountId,
+        params
+      );
+      setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
       setTotalPages(response.total_pages || 0);
       if (response.summary) {
         setSummary(response.summary);
@@ -340,8 +372,8 @@ export const Campaigns: React.FC = () => {
         setChartDataFromApi(response.chart_data);
       }
     } catch (error) {
-      console.error("Failed to load campaigns:", error);
-      setCampaigns([]);
+      console.error("Failed to load keywords:", error);
+      setKeywords([]);
       setTotalPages(0);
     } finally {
       setLoading(false);
@@ -359,263 +391,6 @@ export const Campaigns: React.FC = () => {
       setSortOrder("asc");
     }
     setCurrentPage(1); // Reset to first page when sorting
-  };
-
-  // Inline edit handlers
-  const startInlineEdit = (
-    campaign: Campaign,
-    field: "budget" | "budgetType" | "status"
-  ) => {
-    setEditingCell({ campaignId: campaign.campaignId, field });
-    if (field === "budget") {
-      setEditedValue((campaign.daily_budget || 0).toString());
-    } else if (field === "budgetType") {
-      setEditedValue(campaign.budgetType || "");
-    } else if (field === "status") {
-      setEditedValue(campaign.status || "Enable");
-    }
-  };
-
-  const cancelInlineEdit = () => {
-    setEditingCell(null);
-    setEditedValue("");
-  };
-
-  const handleInlineEditChange = (value: string) => {
-    setEditedValue(value);
-  };
-
-  const confirmInlineEdit = (newValueOverride?: string) => {
-    if (!editingCell || !accountId) return;
-
-    const campaign = campaigns.find(
-      (c) => c.campaignId === editingCell.campaignId
-    );
-    if (!campaign) return;
-
-    // Use override value if provided, otherwise use state
-    const valueToCheck =
-      newValueOverride !== undefined ? newValueOverride : editedValue;
-
-    // Check if value actually changed
-    let hasChanged = false;
-    if (editingCell.field === "budget") {
-      // Parse the new value, handling empty strings
-      const newBudgetStr = valueToCheck.trim();
-      const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
-      const oldBudget = campaign.daily_budget || 0;
-
-      // Check if the value is a valid number and if it changed
-      if (isNaN(newBudget)) {
-        // Invalid number, cancel edit
-        cancelInlineEdit();
-        return;
-      }
-      hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
-    } else if (editingCell.field === "budgetType") {
-      const oldValue = (campaign.budgetType || "").trim().toUpperCase();
-      const newValue = valueToCheck.trim().toUpperCase();
-      hasChanged = newValue !== oldValue;
-    } else if (editingCell.field === "status") {
-      // Normalize status values for comparison
-      const oldValue = (campaign.status || "Enable").trim();
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
-    }
-
-    if (!hasChanged) {
-      cancelInlineEdit();
-      return;
-    }
-
-    let oldValue = "";
-    let newValue = valueToCheck;
-
-    if (editingCell.field === "budget") {
-      oldValue = formatCurrency(campaign.daily_budget || 0);
-      newValue = formatCurrency(parseFloat(valueToCheck) || 0);
-    } else if (editingCell.field === "budgetType") {
-      oldValue = campaign.budgetType || "—";
-      newValue = valueToCheck;
-    } else if (editingCell.field === "status") {
-      oldValue = campaign.status || "Enable";
-      newValue = valueToCheck;
-    }
-
-    setInlineEditCampaign(campaign);
-    setInlineEditField(editingCell.field);
-    setInlineEditOldValue(oldValue);
-    setInlineEditNewValue(newValue);
-    setShowInlineEditModal(true);
-    setEditingCell(null);
-  };
-
-  const runInlineEdit = async () => {
-    if (!inlineEditCampaign || !inlineEditField || !accountId) return;
-
-    setInlineEditLoading(true);
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      if (inlineEditField === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
-          Enable: "enable",
-          Paused: "pause",
-          Archived: "archive",
-        };
-        const statusValue = statusMap[inlineEditNewValue] || "enable";
-
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaignId],
-          action: "status",
-          status: statusValue,
-        });
-      } else if (inlineEditField === "budget") {
-        // Extract numeric value from formatted string
-        const budgetValue = parseFloat(
-          inlineEditNewValue.replace(/[^0-9.]/g, "")
-        );
-        if (isNaN(budgetValue)) {
-          throw new Error("Invalid budget value");
-        }
-
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaignId],
-          action: "budget",
-          budgetAction: "set",
-          unit: "amount",
-          value: budgetValue,
-        });
-      } else if (inlineEditField === "budgetType") {
-        // Note: BudgetType updates are not currently supported by the backend/Amazon API
-        // This is a read-only field from Amazon's API
-        // For now, we'll show an error message
-        throw new Error(
-          "Budget Type updates are not currently supported. This field is read-only."
-        );
-      }
-
-      // Reload campaigns
-      await loadCampaigns(accountIdNum);
-      setShowInlineEditModal(false);
-      setInlineEditCampaign(null);
-      setInlineEditField(null);
-      setInlineEditOldValue("");
-      setInlineEditNewValue("");
-    } catch (error) {
-      console.error("Error updating campaign:", error);
-      alert("Failed to update campaign. Please try again.");
-    } finally {
-      setInlineEditLoading(false);
-    }
-  };
-
-  const runBulkStatus = async (statusValue: "enable" | "pause" | "archive") => {
-    if (!accountId || selectedCampaigns.size === 0) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setBulkLoading(true);
-      await campaignsService.bulkUpdateCampaigns(accountIdNum, {
-        campaignIds: Array.from(selectedCampaigns),
-        action: "status",
-        status: statusValue,
-      });
-      // Refresh
-      await loadCampaigns(accountIdNum);
-    } catch (error: any) {
-      console.error("Failed to update campaigns", error);
-    } finally {
-      setBulkLoading(false);
-    }
-  };
-
-  const runBulkBudget = async () => {
-    if (!accountId || selectedCampaigns.size === 0) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    const valueNum = parseFloat(budgetValue);
-    if (isNaN(valueNum)) {
-      return;
-    }
-    const upper = upperLimit ? parseFloat(upperLimit) : undefined;
-    const lower = lowerLimit ? parseFloat(lowerLimit) : undefined;
-
-    try {
-      setBulkLoading(true);
-      await campaignsService.bulkUpdateCampaigns(accountIdNum, {
-        campaignIds: Array.from(selectedCampaigns),
-        action: "budget",
-        budgetAction,
-        unit: budgetUnit,
-        value: valueNum,
-        upperLimit: upper,
-        lowerLimit: lower,
-      });
-      await loadCampaigns(accountIdNum);
-    } catch (error: any) {
-      console.error("Failed to update budgets", error);
-    } finally {
-      setBulkLoading(false);
-    }
-  };
-
-  const toggleChartMetric = (metric: keyof typeof chartToggles) => {
-    setChartToggles((prev) => ({
-      ...prev,
-      [metric]: !prev[metric],
-    }));
-  };
-
-  // Get selected campaigns data for confirmation modal
-  const getSelectedCampaignsData = () => {
-    return campaigns.filter((campaign) =>
-      selectedCampaigns.has(campaign.campaignId)
-    );
-  };
-
-  // Calculate new budget value for a campaign
-  const calculateNewBudget = (currentBudget: number): number => {
-    const valueNum = parseFloat(budgetValue);
-    if (isNaN(valueNum)) return currentBudget;
-
-    let newBudget = currentBudget;
-
-    if (budgetAction === "increase") {
-      if (budgetUnit === "percent") {
-        newBudget = currentBudget * (1 + valueNum / 100);
-      } else {
-        newBudget = currentBudget + valueNum;
-      }
-      if (upperLimit) {
-        const upper = parseFloat(upperLimit);
-        if (!isNaN(upper)) {
-          newBudget = Math.min(newBudget, upper);
-        }
-      }
-    } else if (budgetAction === "decrease") {
-      if (budgetUnit === "percent") {
-        newBudget = currentBudget * (1 - valueNum / 100);
-      } else {
-        newBudget = currentBudget - valueNum;
-      }
-      if (lowerLimit) {
-        const lower = parseFloat(lowerLimit);
-        if (!isNaN(lower)) {
-          newBudget = Math.max(newBudget, lower);
-        }
-      }
-    } else if (budgetAction === "set") {
-      newBudget = valueNum;
-    }
-
-    return Math.max(0, newBudget); // Ensure non-negative
   };
 
   const getSortIcon = (column: string) => {
@@ -667,26 +442,334 @@ export const Campaigns: React.FC = () => {
     );
   };
 
-  const formatCurrency = (value: number) => {
+  // Inline edit handlers
+  const startInlineEdit = (keyword: Keyword, field: "bid" | "status") => {
+    setEditingCell({ keywordId: keyword.keywordId, field });
+    if (field === "bid") {
+      // Extract numeric value from formatted string
+      const bidValue = parseFloat(
+        (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+      );
+      setEditedValue(bidValue.toString());
+    } else if (field === "status") {
+      setEditedValue(keyword.status || "Enabled");
+    }
+  };
+
+  const cancelInlineEdit = () => {
+    setEditingCell(null);
+    setEditedValue("");
+  };
+
+  const handleInlineEditChange = (value: string) => {
+    setEditedValue(value);
+  };
+
+  const confirmInlineEdit = (newValueOverride?: string) => {
+    if (!editingCell || !accountId) return;
+
+    const keyword = keywords.find(
+      (k) => (k.keywordId || k.id) === editingCell.keywordId
+    );
+    if (!keyword) return;
+
+    // Use override value if provided, otherwise use state
+    const valueToCheck =
+      newValueOverride !== undefined ? newValueOverride : editedValue;
+
+    // Check if value actually changed
+    let hasChanged = false;
+    if (editingCell.field === "bid") {
+      // Parse the new value, handling empty strings
+      const newBidStr = valueToCheck.trim();
+      const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
+      const oldBid = parseFloat(
+        (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+      );
+
+      // Check if the value is a valid number and if it changed
+      if (isNaN(newBid)) {
+        // Invalid number, cancel edit
+        cancelInlineEdit();
+        return;
+      }
+      hasChanged = Math.abs(newBid - oldBid) > 0.01;
+    } else if (editingCell.field === "status") {
+      // Normalize status values for comparison
+      const oldValue = (keyword.status || "Enabled").trim();
+      const newValue = valueToCheck.trim();
+      hasChanged = newValue !== oldValue;
+    }
+
+    if (!hasChanged) {
+      cancelInlineEdit();
+      return;
+    }
+
+    let oldValue = "";
+    let newValue = valueToCheck;
+
+    if (editingCell.field === "bid") {
+      oldValue = formatCurrency(
+        parseFloat((keyword.bid || "$0.00").replace(/[^0-9.]/g, ""))
+      );
+      newValue = formatCurrency(parseFloat(valueToCheck) || 0);
+    } else if (editingCell.field === "status") {
+      oldValue = keyword.status || "Enabled";
+      newValue = valueToCheck;
+    }
+
+    setInlineEditKeyword(keyword);
+    setInlineEditField(editingCell.field);
+    setInlineEditOldValue(oldValue);
+    setInlineEditNewValue(newValue);
+    setShowInlineEditModal(true);
+    setEditingCell(null);
+  };
+
+  const runInlineEdit = async () => {
+    if (!inlineEditKeyword || !inlineEditField || !accountId) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (inlineEditField === "status") {
+        // Map status values
+        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
+          Enabled: "enable",
+          Paused: "pause",
+          Archived: "archive",
+        };
+        const statusValue = statusMap[inlineEditNewValue] || "enable";
+
+        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          keywordIds: [inlineEditKeyword.keywordId],
+          action: "status",
+          status: statusValue,
+        });
+      } else if (inlineEditField === "bid") {
+        // Extract numeric value from formatted string
+        const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+        if (isNaN(bidValue)) {
+          throw new Error("Invalid bid value");
+        }
+
+        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          keywordIds: [inlineEditKeyword.keywordId],
+          action: "bid",
+          bid: bidValue,
+        });
+      }
+
+      // Reload keywords to show updated values
+      await loadKeywords(accountIdNum);
+      setShowInlineEditModal(false);
+      setInlineEditKeyword(null);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
+    } catch (error) {
+      console.error("Error updating keyword:", error);
+      alert("Failed to update keyword. Please try again.");
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowBulkActions(false);
+      }
+    };
+
+    if (showBulkActions) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showBulkActions]);
+
+  // Cancel inline edit when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (editingCell && !showInlineEditModal) {
+        const target = event.target as HTMLElement;
+        const isDropdownMenu =
+          target.closest('[class*="z-50"]') ||
+          target.closest('[class*="shadow-lg"]') ||
+          target.closest('button[type="button"]');
+        const isInput = target.closest("input");
+        const isModal = target.closest('[class*="fixed"]');
+
+        if (!isInput && !isDropdownMenu && !isModal) {
+          setTimeout(() => {
+            if (editingCell && !showInlineEditModal) {
+              cancelInlineEdit();
+            }
+          }, 150);
+        }
+      }
+    };
+
+    if (editingCell && !showInlineEditModal) {
+      const timeout = setTimeout(() => {
+        document.addEventListener("mousedown", handleClickOutside);
+      }, 200);
+
+      return () => {
+        clearTimeout(timeout);
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [editingCell, showInlineEditModal]);
+
+  const formatCurrency = (value: string | number) => {
+    const numValue =
+      typeof value === "string"
+        ? parseFloat(value.replace(/[^0-9.-]+/g, ""))
+        : value;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(1)}%`;
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numValue || 0);
   };
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
   };
 
-  // Generate chart data based on campaigns and date range
+  // Bulk action handlers
+  const runBulkStatus = async (statusValue: "enable" | "pause" | "archive") => {
+    if (!accountId || selectedKeywords.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setBulkLoading(true);
+      await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        keywordIds: Array.from(selectedKeywords),
+        action: "status",
+        status: statusValue,
+      });
+      await loadKeywords(accountIdNum);
+      setSelectedKeywords(new Set());
+      setShowConfirmationModal(false);
+      setPendingStatusAction(null);
+    } catch (error: any) {
+      console.error("Failed to update keywords", error);
+      alert("Failed to update keywords. Please try again.");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const runBulkBid = async () => {
+    if (!accountId || selectedKeywords.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    const valueNum = parseFloat(bidValue);
+    if (isNaN(valueNum)) {
+      return;
+    }
+
+    try {
+      setBulkLoading(true);
+
+      // Get selected keywords with their current bids
+      const selectedKeywordsData = getSelectedKeywordsData();
+      const updates: Array<{ keywordId: string | number; newBid: number }> = [];
+
+      for (const keyword of selectedKeywordsData) {
+        // Extract current bid from formatted string
+        const currentBid = parseFloat(
+          (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+        );
+        let newBid = currentBid;
+
+        if (bidAction === "set") {
+          newBid = valueNum;
+        } else if (bidAction === "increase") {
+          if (bidUnit === "percent") {
+            newBid = currentBid * (1 + valueNum / 100.0);
+          } else {
+            newBid = currentBid + valueNum;
+          }
+        } else if (bidAction === "decrease") {
+          if (bidUnit === "percent") {
+            newBid = currentBid * (1 - valueNum / 100.0);
+          } else {
+            newBid = currentBid - valueNum;
+          }
+        }
+
+        // Apply optional limits
+        if (upperLimit) {
+          const upper = parseFloat(upperLimit);
+          if (!isNaN(upper)) {
+            newBid = Math.min(newBid, upper);
+          }
+        }
+        if (lowerLimit) {
+          const lower = parseFloat(lowerLimit);
+          if (!isNaN(lower)) {
+            newBid = Math.max(newBid, lower);
+          }
+        }
+
+        // Prevent negative or zero
+        newBid = Math.max(newBid, 0);
+
+        updates.push({
+          keywordId: keyword.keywordId,
+          newBid: Math.round(newBid * 100) / 100,
+        });
+      }
+
+      // Update each keyword individually
+      for (const update of updates) {
+        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          keywordIds: [update.keywordId],
+          action: "bid",
+          bid: update.newBid,
+        });
+      }
+
+      await loadKeywords(accountIdNum);
+      setSelectedKeywords(new Set());
+      setShowConfirmationModal(false);
+      setShowBidPanel(false);
+      setBidValue("");
+      setUpperLimit("");
+      setLowerLimit("");
+    } catch (error: any) {
+      console.error("Failed to update keywords", error);
+      alert("Failed to update keywords. Please try again.");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const getSelectedKeywordsData = () => {
+    return keywords.filter((k) => selectedKeywords.has(k.id));
+  };
+
+  // Generate chart data based on keywords and date range
   const chartData = useMemo(() => {
-    // Use chart data from API if available, otherwise generate from campaigns
+    // Use chart data from API if available, otherwise generate from keywords
     if (chartDataFromApi.length > 0) {
       return chartDataFromApi.map((item) => ({
         date: item.date,
@@ -699,50 +782,37 @@ export const Campaigns: React.FC = () => {
       }));
     }
 
-    // Fallback: generate from campaigns data
-    const days = Math.ceil(
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const dataPoints = Math.min(days, 60); // Limit to 60 data points for readability
+    // Return empty array if no data from API - don't generate fake data
+    return [];
+  }, [chartDataFromApi]);
 
-    const data = [];
-    const totalSales = campaigns.reduce((sum, c) => sum + (c.sales || 0), 0);
-    const totalSpends = campaigns.reduce((sum, c) => sum + (c.spends || 0), 0);
-    const avgSalesPerDay = days > 0 ? totalSales / days : 0;
-    const avgSpendsPerDay = days > 0 ? totalSpends / days : 0;
+  const allSelected =
+    keywords.length > 0 && selectedKeywords.size === keywords.length;
+  const someSelected =
+    selectedKeywords.size > 0 && selectedKeywords.size < keywords.length;
 
-    // Generate sample data with some variation
-    for (let i = 0; i < dataPoints; i++) {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + Math.floor((i * days) / dataPoints));
-      const dayOfWeek = date.getDay();
-
-      // Add some variation based on day of week (weekends typically lower)
-      const variation = 0.7 + Math.random() * 0.6;
-      const weekendFactor = dayOfWeek === 0 || dayOfWeek === 6 ? 0.7 : 1.0;
-
-      const sales = Math.max(0, avgSalesPerDay * variation * weekendFactor);
-      const spend = Math.max(0, avgSpendsPerDay * variation * weekendFactor);
-      const clicks = Math.floor(spend * (50 + Math.random() * 30)); // Estimate clicks from spend
-      const impressions = Math.floor(clicks * (10 + Math.random() * 20)); // Estimate impressions from clicks
-      const acos = sales > 0 ? (spend / sales) * 100 : 0; // Calculate ACOS
-      const roas = spend > 0 ? sales / spend : 0; // Calculate ROAS
-      data.push({
-        date: date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        }),
-        sales: Math.round(sales),
-        spend: Math.round(spend),
-        impressions: impressions,
-        clicks: clicks,
-        acos: Math.round(acos * 10) / 10,
-        roas: Math.round(roas * 100) / 100,
-      });
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(keywords.map((k) => k.id));
+      setSelectedKeywords(allIds);
+    } else {
+      setSelectedKeywords(new Set());
     }
+  };
 
-    return data;
-  }, [chartDataFromApi, campaigns, startDate, endDate]);
+  // Define filter fields for Keywords
+  const KEYWORD_FILTER_FIELDS = [
+    { value: "name", label: "Keyword Name" },
+    { value: "state", label: "State" },
+    { value: "bid", label: "Keyword Bid" },
+    { value: "adgroup_name", label: "Ad Group Name" },
+    { value: "campaign_name", label: "Campaign Name" },
+    { value: "profile_name", label: "Profile Name" },
+    { value: "type", label: "Type" },
+    { value: "spends", label: "Spends" },
+    { value: "sales", label: "Sales" },
+    { value: "ctr", label: "CTR" },
+  ];
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -763,7 +833,7 @@ export const Campaigns: React.FC = () => {
             {/* Header with Filter Button */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Campaign Manager
+                Keywords
               </h1>
               {/* Add Filter Button */}
               <button
@@ -804,27 +874,25 @@ export const Campaigns: React.FC = () => {
               </button>
             </div>
 
-            {/* Filter Panel - Full width, inline, no popup */}
+            {/* Filter Panel */}
             {isFilterPanelOpen && (
               <FilterPanel
                 isOpen={true}
                 onClose={() => {
-                  // Check if filters changed before closing
-                  // The FilterPanel will have already applied changes via onApply when chips are removed
                   setIsFilterPanelOpen(false);
                 }}
                 onApply={(newFilters) => {
                   setFilters(newFilters);
                   setCurrentPage(1); // Reset to first page when applying filters
-                  // Explicitly trigger AJAX request when filters are applied
                   if (accountId) {
                     const accountIdNum = parseInt(accountId, 10);
                     if (!isNaN(accountIdNum)) {
-                      loadCampaignsWithFilters(accountIdNum, newFilters);
+                      loadKeywordsWithFilters(accountIdNum, newFilters);
                     }
                   }
                 }}
                 initialFilters={filters}
+                filterFields={KEYWORD_FILTER_FIELDS}
               />
             )}
 
@@ -1038,12 +1106,12 @@ export const Campaigns: React.FC = () => {
               </div>
             </div>
 
-            {/* Campaigns Table Card */}
+            {/* Keywords Table Card */}
             <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
               {/* Table Header */}
               <div className="flex items-center justify-between">
                 <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                  Campaigns
+                  Keywords
                 </h2>
                 <div
                   className="relative inline-flex justify-end"
@@ -1055,7 +1123,7 @@ export const Campaigns: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowBulkActions((prev) => !prev);
-                      setShowBudgetPanel(false);
+                      setShowBidPanel(false);
                     }}
                   >
                     <svg
@@ -1079,27 +1147,27 @@ export const Campaigns: React.FC = () => {
                     <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                       <div className="overflow-y-auto">
                         {[
-                          { value: "enable", label: "Enable" },
-                          { value: "pause", label: "Pause" },
-                          { value: "archive", label: "Archive" },
-                          { value: "edit_budget", label: "Edit Budget" },
+                          { value: "enable", label: "Enabled" },
+                          { value: "pause", label: "Paused" },
+                          { value: "archive", label: "Archived" },
+                          { value: "edit_bid", label: "Edit Keyword Bid" },
                         ].map((opt) => (
                           <button
                             key={opt.value}
                             type="button"
                             className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            disabled={selectedCampaigns.size === 0}
+                            disabled={selectedKeywords.size === 0}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (selectedCampaigns.size === 0) return;
-                              if (opt.value === "edit_budget") {
-                                setShowBudgetPanel(true);
+                              if (selectedKeywords.size === 0) return;
+                              if (opt.value === "edit_bid") {
+                                setShowBidPanel(true);
                               } else {
-                                setShowBudgetPanel(false);
+                                setShowBidPanel(false);
                                 setPendingStatusAction(
                                   opt.value as "enable" | "pause" | "archive"
                                 );
-                                setIsBudgetChange(false);
+                                setIsBidChange(false);
                                 setShowConfirmationModal(true);
                               }
                               setShowBulkActions(false);
@@ -1114,8 +1182,8 @@ export const Campaigns: React.FC = () => {
                 </div>
               </div>
 
-              {/* Budget editor panel */}
-              {selectedCampaigns.size > 0 && showBudgetPanel && (
+              {/* Keyword Bid editor panel */}
+              {selectedKeywords.size > 0 && showBidPanel && (
                 <div className="px-6 mb-4">
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
                     <div className="flex flex-wrap items-end gap-3 justify-between">
@@ -1129,21 +1197,21 @@ export const Campaigns: React.FC = () => {
                             { value: "decrease", label: "Decrease By" },
                             { value: "set", label: "Set To" },
                           ]}
-                          value={budgetAction}
+                          value={bidAction}
                           onChange={(val) => {
-                            const action = val as typeof budgetAction;
-                            setBudgetAction(action);
+                            const action = val as typeof bidAction;
+                            setBidAction(action);
                             // When "Set To" is selected, automatically use $ (amount)
                             if (action === "set") {
-                              setBudgetUnit("amount");
+                              setBidUnit("amount");
                             }
                           }}
                           buttonClassName="w-full"
                           width="w-full"
                         />
                       </div>
-                      {(budgetAction === "increase" ||
-                        budgetAction === "decrease") && (
+                      {(bidAction === "increase" ||
+                        bidAction === "decrease") && (
                         <div className="w-[140px]">
                           <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                             Unit
@@ -1152,22 +1220,22 @@ export const Campaigns: React.FC = () => {
                             <button
                               type="button"
                               className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "percent"
+                                bidUnit === "percent"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
                               }`}
-                              onClick={() => setBudgetUnit("percent")}
+                              onClick={() => setBidUnit("percent")}
                             >
                               %
                             </button>
                             <button
                               type="button"
                               className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "amount"
+                                bidUnit === "amount"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
                               }`}
-                              onClick={() => setBudgetUnit("amount")}
+                              onClick={() => setBidUnit("amount")}
                             >
                               $
                             </button>
@@ -1181,16 +1249,16 @@ export const Campaigns: React.FC = () => {
                         <div className="relative">
                           <input
                             type="number"
-                            value={budgetValue}
-                            onChange={(e) => setBudgetValue(e.target.value)}
+                            value={bidValue}
+                            onChange={(e) => setBidValue(e.target.value)}
                             className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
-                            {budgetUnit === "percent" ? "%" : "$"}
+                            {bidUnit === "percent" ? "%" : "$"}
                           </span>
                         </div>
                       </div>
-                      {budgetAction === "increase" && (
+                      {bidAction === "increase" && (
                         <div className="w-[160px]">
                           <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                             Upper Limit (optional)
@@ -1203,7 +1271,7 @@ export const Campaigns: React.FC = () => {
                           />
                         </div>
                       )}
-                      {budgetAction === "decrease" && (
+                      {bidAction === "decrease" && (
                         <div className="w-[160px]">
                           <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                             Lower Limit (optional)
@@ -1220,7 +1288,7 @@ export const Campaigns: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            setShowBudgetPanel(false);
+                            setShowBidPanel(false);
                             setShowBulkActions(false);
                           }}
                           className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
@@ -1230,12 +1298,12 @@ export const Campaigns: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            if (!budgetValue) return;
-                            setIsBudgetChange(true);
+                            if (!bidValue) return;
+                            setIsBidChange(true);
                             setPendingStatusAction(null);
                             setShowConfirmationModal(true);
                           }}
-                          disabled={bulkLoading || !budgetValue}
+                          disabled={bulkLoading || !bidValue}
                           className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Apply
@@ -1258,8 +1326,8 @@ export const Campaigns: React.FC = () => {
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBudgetChange
-                        ? "Confirm Budget Changes"
+                      {isBidChange
+                        ? "Confirm Keyword Bid Changes"
                         : "Confirm Status Changes"}
                     </h3>
 
@@ -1267,35 +1335,33 @@ export const Campaigns: React.FC = () => {
                     <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
                       <div className="flex items-center gap-2">
                         <span className="text-[12.16px] text-[#556179]">
-                          {selectedCampaigns.size} campaign
-                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                          {selectedKeywords.size} keyword
+                          {selectedKeywords.size !== 1 ? "s" : ""} will be
                           updated:
                         </span>
                         <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBudgetChange ? "Budget" : "Status"} change
+                          {isBidChange ? "Keyword Bid" : "Status"} change
                         </span>
                       </div>
                     </div>
 
-                    {/* Campaign Preview Table */}
+                    {/* Keyword Preview Table */}
                     {(() => {
-                      const selectedCampaignsData = getSelectedCampaignsData();
+                      const selectedKeywordsData = getSelectedKeywordsData();
                       const previewCount = Math.min(
                         10,
-                        selectedCampaignsData.length
+                        selectedKeywordsData.length
                       );
-                      const hasMore = selectedCampaignsData.length > 10;
+                      const hasMore = selectedKeywordsData.length > 10;
 
                       return (
                         <div className="mb-6">
                           <div className="mb-2">
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
-                                ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                : `${selectedCampaignsData.length} campaign${
-                                    selectedCampaignsData.length !== 1
-                                      ? "s"
-                                      : ""
+                                ? `Showing ${previewCount} of ${selectedKeywordsData.length} selected keywords`
+                                : `${selectedKeywordsData.length} keyword${
+                                    selectedKeywordsData.length !== 1 ? "s" : ""
                                   } selected`}
                             </span>
                           </div>
@@ -1304,56 +1370,32 @@ export const Campaigns: React.FC = () => {
                               <thead className="bg-sandstorm-s20">
                                 <tr>
                                   <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Campaign Name
+                                    Keyword Name
                                   </th>
                                   <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Old Value
-                                  </th>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    New Value
+                                    Current{" "}
+                                    {isBidChange ? "Keyword Bid" : "Status"}
                                   </th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {selectedCampaignsData
-                                  .slice(0, 10)
-                                  .map((campaign) => {
-                                    const oldBudget =
-                                      campaign.daily_budget || 0;
-                                    const oldStatus =
-                                      campaign.status || "Enable";
-                                    const newBudget = isBudgetChange
-                                      ? calculateNewBudget(oldBudget)
-                                      : oldBudget;
-                                    const newStatus = pendingStatusAction
-                                      ? pendingStatusAction
-                                          .charAt(0)
-                                          .toUpperCase() +
-                                        pendingStatusAction.slice(1)
-                                      : oldStatus;
-
-                                    return (
-                                      <tr
-                                        key={campaign.campaignId}
-                                        className="border-b border-gray-200 last:border-b-0"
-                                      >
-                                        <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                          {campaign.campaign_name ||
-                                            "Unnamed Campaign"}
-                                        </td>
-                                        <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                          {isBudgetChange
-                                            ? `$${oldBudget.toFixed(2)}`
-                                            : oldStatus}
-                                        </td>
-                                        <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                          {isBudgetChange
-                                            ? `$${newBudget.toFixed(2)}`
-                                            : newStatus}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
+                                {selectedKeywordsData
+                                  .slice(0, previewCount)
+                                  .map((keyword) => (
+                                    <tr
+                                      key={keyword.id}
+                                      className="border-b border-gray-200"
+                                    >
+                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                        {keyword.name || "Unnamed Keyword"}
+                                      </td>
+                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                        {isBidChange
+                                          ? keyword.bid || "$0.00"
+                                          : keyword.status || "Enabled"}
+                                      </td>
+                                    </tr>
+                                  ))}
                               </tbody>
                             </table>
                           </div>
@@ -1361,193 +1403,31 @@ export const Campaigns: React.FC = () => {
                       );
                     })()}
 
-                    <div className="space-y-3 mb-6">
-                      {isBudgetChange ? (
-                        <>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Action:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetAction === "increase"
-                                ? "Increase By"
-                                : budgetAction === "decrease"
-                                ? "Decrease By"
-                                : "Set To"}
-                            </span>
-                          </div>
-
-                          {(budgetAction === "increase" ||
-                            budgetAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Unit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetUnit === "percent"
-                                  ? "Percentage (%)"
-                                  : "Amount ($)"}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Value:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetValue}{" "}
-                              {budgetUnit === "percent" ? "%" : "$"}
-                            </span>
-                          </div>
-
-                          {budgetAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Upper Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${upperLimit}
-                              </span>
-                            </div>
-                          )}
-
-                          {budgetAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Lower Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${lowerLimit}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            New Status:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {pendingStatusAction
-                              ? pendingStatusAction.charAt(0).toUpperCase() +
-                                pendingStatusAction.slice(1)
-                              : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
+                    {/* Action Buttons */}
                     <div className="flex justify-end gap-3">
                       <button
-                        type="button"
                         onClick={() => {
                           setShowConfirmationModal(false);
                           setPendingStatusAction(null);
-                        }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setShowConfirmationModal(false);
-                          if (isBudgetChange) {
-                            await runBulkBudget();
-                            setShowBudgetPanel(false);
-                            setShowBulkActions(false);
-                          } else if (pendingStatusAction) {
-                            await runBulkStatus(pendingStatusAction);
-                            setShowBulkActions(false);
-                          }
-                          setPendingStatusAction(null);
+                          setIsBidChange(false);
                         }}
                         disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Applying..." : "Confirm"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Inline Edit Confirmation Modal */}
-              {showInlineEditModal && inlineEditCampaign && inlineEditField && (
-                <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowInlineEditModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      Confirm{" "}
-                      {inlineEditField === "budget"
-                        ? "Budget"
-                        : inlineEditField === "budgetType"
-                        ? "Budget Type"
-                        : "Status"}{" "}
-                      Change
-                    </h3>
-
-                    <div className="mb-4">
-                      <p className="text-[12.16px] text-[#556179] mb-2">
-                        Campaign:{" "}
-                        <span className="font-semibold text-[#072929]">
-                          {inlineEditCampaign.campaign_name ||
-                            "Unnamed Campaign"}
-                        </span>
-                      </p>
-                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[12.16px] text-[#556179]">
-                            {inlineEditField === "budget"
-                              ? "Budget"
-                              : inlineEditField === "budgetType"
-                              ? "Budget Type"
-                              : "Status"}
-                            :
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12.16px] text-[#556179]">
-                              {inlineEditOldValue}
-                            </span>
-                            <span className="text-[12.16px] text-[#556179]">
-                              →
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {inlineEditNewValue}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowInlineEditModal(false);
-                          setInlineEditCampaign(null);
-                          setInlineEditField(null);
-                          setInlineEditOldValue("");
-                          setInlineEditNewValue("");
-                        }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                       >
                         Cancel
                       </button>
                       <button
-                        type="button"
-                        onClick={runInlineEdit}
-                        disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => {
+                          if (isBidChange) {
+                            runBulkBid();
+                          } else if (pendingStatusAction) {
+                            runBulkStatus(pendingStatusAction);
+                          }
+                        }}
+                        disabled={bulkLoading}
+                        className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
                       >
-                        {inlineEditLoading ? "Updating..." : "Confirm"}
+                        {bulkLoading ? "Updating..." : "Confirm"}
                       </button>
                     </div>
                   </div>
@@ -1559,12 +1439,12 @@ export const Campaigns: React.FC = () => {
                 <div className="overflow-x-auto w-full">
                   {loading ? (
                     <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                      Loading campaigns...
+                      Loading keywords...
                     </div>
-                  ) : campaigns.length === 0 ? (
+                  ) : keywords.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-[13.3px] text-[#556179] mb-4">
-                        No campaigns found
+                        No keywords found
                       </p>
                     </div>
                   ) : (
@@ -1575,66 +1455,28 @@ export const Campaigns: React.FC = () => {
                           <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
                             <div className="flex items-center justify-center">
                               <Checkbox
-                                checked={
-                                  selectedCampaigns.size === campaigns.length &&
-                                  campaigns.length > 0
-                                }
-                                indeterminate={
-                                  selectedCampaigns.size > 0 &&
-                                  selectedCampaigns.size < campaigns.length
-                                }
-                                onChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedCampaigns(
-                                      new Set(
-                                        campaigns.map((c) => c.campaignId)
-                                      )
-                                    );
-                                  } else {
-                                    setSelectedCampaigns(new Set());
-                                  }
-                                }}
+                                checked={allSelected}
+                                indeterminate={someSelected && !allSelected}
+                                onChange={handleSelectAll}
                                 size="small"
                               />
                             </div>
                           </th>
 
-                          {/* Campaign Name Header */}
+                          {/* Ad Group Name */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px]"
-                            onClick={() => handleSort("campaign_name")}
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[150px] max-w-[200px]`}
+                            onClick={() => handleSort("name")}
                           >
                             <div className="flex items-center gap-1">
-                              Campaign Name
-                              {getSortIcon("campaign_name")}
+                              Keyword Name
+                              {getSortIcon("name")}
                             </div>
                           </th>
 
-                          {/* Profile Name Header */}
+                          {/* State */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
-                            onClick={() => handleSort("profile_name")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Profile Name
-                              {getSortIcon("profile_name")}
-                            </div>
-                          </th>
-
-                          {/* Campaign Type Header */}
-                          <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                            onClick={() => handleSort("type")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Type
-                              {getSortIcon("type")}
-                            </div>
-                          </th>
-
-                          {/* State Header */}
-                          <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
                             onClick={() => handleSort("status")}
                           >
                             <div className="flex items-center gap-1">
@@ -1643,53 +1485,41 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
-                          {/* Budget Header */}
+                          {/* Keyword Bid */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                            onClick={() => handleSort("budget")}
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                            onClick={() => handleSort("bid")}
                           >
                             <div className="flex items-center gap-1">
-                              Budget
-                              {getSortIcon("budget")}
+                              Keyword Bid
+                              {getSortIcon("bid")}
                             </div>
                           </th>
 
-                          {/* Budget Type Header */}
+                          {/* Campaign Name */}
+                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[150px] max-w-[200px]">
+                            Campaign Name
+                          </th>
+
+                          {/* Profile Name */}
+                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                            Profile Name
+                          </th>
+
+                          {/* Type */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                            onClick={() => handleSort("budgetType")}
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                            onClick={() => handleSort("type")}
                           >
                             <div className="flex items-center gap-1">
-                              Budget Type
-                              {getSortIcon("budgetType")}
+                              Type
+                              {getSortIcon("type")}
                             </div>
                           </th>
 
-                          {/* Start Date Header */}
+                          {/* Spends */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 whitespace-nowrap"
-                            onClick={() => handleSort("startDate")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Start Date
-                              {getSortIcon("startDate")}
-                            </div>
-                          </th>
-
-                          {/* Date Header */}
-                          <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 whitespace-nowrap"
-                            onClick={() => handleSort("report_date")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Date
-                              {getSortIcon("report_date")}
-                            </div>
-                          </th>
-
-                          {/* Spends Header */}
-                          <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
                             onClick={() => handleSort("spends")}
                           >
                             <div className="flex items-center gap-1">
@@ -1698,9 +1528,9 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
-                          {/* Sales Header */}
+                          {/* Sales */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
                             onClick={() => handleSort("sales")}
                           >
                             <div className="flex items-center gap-1">
@@ -1709,9 +1539,9 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
-                          {/* Impressions Header */}
+                          {/* Impressions */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
                             onClick={() => handleSort("impressions")}
                           >
                             <div className="flex items-center gap-1">
@@ -1720,9 +1550,9 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
-                          {/* Clicks Header */}
+                          {/* Clicks */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
                             onClick={() => handleSort("clicks")}
                           >
                             <div className="flex items-center gap-1">
@@ -1731,9 +1561,20 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
-                          {/* ACOS Header */}
+                          {/* CTR */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                            onClick={() => handleSort("ctr")}
+                          >
+                            <div className="flex items-center gap-1">
+                              CTR
+                              {getSortIcon("ctr")}
+                            </div>
+                          </th>
+
+                          {/* ACOS */}
+                          <th
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
                             onClick={() => handleSort("acos")}
                           >
                             <div className="flex items-center gap-1">
@@ -1742,9 +1583,9 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
-                          {/* ROAS Header */}
+                          {/* ROAS */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
                             onClick={() => handleSort("roas")}
                           >
                             <div className="flex items-center gap-1">
@@ -1760,10 +1601,8 @@ export const Campaigns: React.FC = () => {
                           <tr className="bg-[#f5f5f0] font-semibold">
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              Total ({summary.total_campaigns})
+                              Total ({summary.total_keywords})
                             </td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
@@ -1781,6 +1620,7 @@ export const Campaigns: React.FC = () => {
                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {summary.total_clicks.toLocaleString()}
                             </td>
+                            <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {summary.avg_acos.toFixed(2)}%
                             </td>
@@ -1789,11 +1629,11 @@ export const Campaigns: React.FC = () => {
                             </td>
                           </tr>
                         )}
-                        {campaigns.map((campaign, index) => {
-                          const isLastRow = index === campaigns.length - 1;
+                        {keywords.map((keyword, index) => {
+                          const isLastRow = index === keywords.length - 1;
                           return (
                             <tr
-                              key={campaign.campaignId}
+                              key={keyword.id}
                               className={`${
                                 !isLastRow ? "border-b border-[#e8e8e3]" : ""
                               } hover:bg-gray-50 transition-colors`}
@@ -1802,20 +1642,18 @@ export const Campaigns: React.FC = () => {
                               <td className="py-[10px] px-[10px]">
                                 <div className="flex items-center justify-center">
                                   <Checkbox
-                                    checked={selectedCampaigns.has(
-                                      campaign.campaignId
-                                    )}
+                                    checked={selectedKeywords.has(keyword.id)}
                                     onChange={(checked) => {
                                       if (checked) {
-                                        setSelectedCampaigns((prev) => {
+                                        setSelectedKeywords((prev) => {
                                           const newSet = new Set(prev);
-                                          newSet.add(campaign.campaignId);
+                                          newSet.add(keyword.id);
                                           return newSet;
                                         });
                                       } else {
-                                        setSelectedCampaigns((prev) => {
+                                        setSelectedKeywords((prev) => {
                                           const newSet = new Set(prev);
-                                          newSet.delete(campaign.campaignId);
+                                          newSet.delete(keyword.id);
                                           return newSet;
                                         });
                                       }
@@ -1825,54 +1663,37 @@ export const Campaigns: React.FC = () => {
                                 </div>
                               </td>
 
-                              {/* Campaign Name */}
-                              <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
+                              {/* Ad Group Name */}
+                              <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
                                 <button
                                   onClick={() => {
-                                    if (accountId) {
+                                    if (accountId && keyword.campaignId) {
+                                      // Navigate to campaign detail
                                       navigate(
                                         buildMarketplaceRoute(
                                           parseInt(accountId),
                                           "amazon",
                                           "campaigns",
-                                          `${campaign.type.toLowerCase()}_${
-                                            campaign.campaignId
-                                          }`
+                                          `${
+                                            keyword.type?.toLowerCase() || "sp"
+                                          }_${keyword.campaignId}`
                                         )
                                       );
                                     }
                                   }}
                                   className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
                                 >
-                                  {campaign.campaign_name || "Unnamed Campaign"}
+                                  {keyword.name || "Unnamed Keyword"}
                                 </button>
                               </td>
 
-                              {/* Profile Name */}
-                              <td className="py-[10px] px-[10px] min-w-[200px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                  {campaign.profile_name &&
-                                  campaign.profile_name.trim() !== ""
-                                    ? campaign.profile_name
-                                    : "—"}
-                                </span>
-                              </td>
-
-                              {/* Type */}
+                              {/* State */}
                               <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
-                                  {campaign.type || "SP"}
-                                </span>
-                              </td>
-
-                              {/* Status */}
-                              <td className="py-[10px] px-[10px]">
-                                {editingCell?.campaignId ===
-                                  campaign.campaignId &&
+                                {editingCell?.keywordId === keyword.keywordId &&
                                 editingCell?.field === "status" ? (
                                   <Dropdown
                                     options={[
-                                      { value: "Enable", label: "Enable" },
+                                      { value: "Enabled", label: "Enabled" },
                                       { value: "Paused", label: "Paused" },
                                       { value: "Archived", label: "Archived" },
                                     ]}
@@ -1893,22 +1714,21 @@ export const Campaigns: React.FC = () => {
                                 ) : (
                                   <div
                                     onClick={() =>
-                                      startInlineEdit(campaign, "status")
+                                      startInlineEdit(keyword, "status")
                                     }
                                     className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                   >
                                     <StatusBadge
-                                      status={campaign.status || "Enable"}
+                                      status={keyword.status || "Enabled"}
                                     />
                                   </div>
                                 )}
                               </td>
 
-                              {/* Daily Budget */}
+                              {/* Keyword Bid */}
                               <td className="py-[10px] px-[10px]">
-                                {editingCell?.campaignId ===
-                                  campaign.campaignId &&
-                                editingCell?.field === "budget" ? (
+                                {editingCell?.keywordId === keyword.keywordId &&
+                                editingCell?.field === "bid" ? (
                                   <div className="flex items-center justify-center">
                                     <input
                                       type="number"
@@ -1934,121 +1754,104 @@ export const Campaigns: React.FC = () => {
                                 ) : (
                                   <p
                                     onClick={() =>
-                                      startInlineEdit(campaign, "budget")
+                                      startInlineEdit(keyword, "bid")
                                     }
                                     className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                   >
-                                    {formatCurrency(campaign.daily_budget || 0)}
+                                    {keyword.bid || "$0.00"}
                                   </p>
                                 )}
                               </td>
 
-                              {/* Budget Type */}
-                              <td className="py-[10px] px-[10px]">
-                                {editingCell?.campaignId ===
-                                  campaign.campaignId &&
-                                editingCell?.field === "budgetType" ? (
-                                  <Dropdown
-                                    options={[
-                                      { value: "DAILY", label: "DAILY" },
-                                      { value: "LIFETIME", label: "LIFETIME" },
-                                    ]}
-                                    value={editedValue}
-                                    onChange={(val) => {
-                                      const newValue = val as string;
-                                      handleInlineEditChange(newValue);
-                                      setTimeout(() => {
-                                        confirmInlineEdit(newValue);
-                                      }, 100);
-                                    }}
-                                    defaultOpen={true}
-                                    closeOnSelect={true}
-                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                    width="w-full"
-                                    align="center"
-                                  />
-                                ) : (
-                                  <p
-                                    onClick={() =>
-                                      startInlineEdit(campaign, "budgetType")
+                              {/* Campaign Name */}
+                              <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
+                                <button
+                                  onClick={() => {
+                                    if (accountId && keyword.campaignId) {
+                                      navigate(
+                                        buildMarketplaceRoute(
+                                          parseInt(accountId),
+                                          "amazon",
+                                          "campaigns",
+                                          `${
+                                            keyword.type?.toLowerCase() || "sp"
+                                          }_${keyword.campaignId}`
+                                        )
+                                      );
                                     }
-                                    className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  >
-                                    {campaign.budgetType || "—"}
-                                  </p>
-                                )}
+                                  }}
+                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
+                                >
+                                  {keyword.campaign_name || "—"}
+                                </button>
                               </td>
 
-                              {/* Start Date */}
-                              <td className="py-[10px] px-[10px]">
+                              {/* Profile Name */}
+                              <td className="py-[10px] px-[10px] min-w-[150px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                  {campaign.startDate
-                                    ? new Date(
-                                        campaign.startDate
-                                      ).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                      })
+                                  {keyword.profile_name &&
+                                  keyword.profile_name.trim() !== ""
+                                    ? keyword.profile_name
                                     : "—"}
                                 </span>
                               </td>
 
-                              {/* Date */}
+                              {/* Type */}
                               <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                  {campaign.report_date
-                                    ? new Date(
-                                        campaign.report_date
-                                      ).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                      })
-                                    : "—"}
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
+                                  {keyword.type || "SP"}
                                 </span>
                               </td>
 
                               {/* Spends */}
                               <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {formatCurrency(campaign.spends || 0)}
+                                  {keyword.spends || "$0.00"}
                                 </span>
                               </td>
 
                               {/* Sales */}
                               <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {formatCurrency(campaign.sales || 0)}
+                                  {keyword.sales || "$0.00"}
                                 </span>
                               </td>
 
                               {/* Impressions */}
                               <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {(campaign.impressions || 0).toLocaleString()}
+                                  {(keyword.impressions || 0).toLocaleString()}
                                 </span>
                               </td>
 
                               {/* Clicks */}
                               <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {(campaign.clicks || 0).toLocaleString()}
+                                  {(keyword.clicks || 0).toLocaleString()}
+                                </span>
+                              </td>
+
+                              {/* CTR */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {keyword.ctr || "0.00%"}
                                 </span>
                               </td>
 
                               {/* ACOS */}
                               <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {formatPercentage(campaign.acos || 0)}
+                                  {keyword.acos
+                                    ? `${parseFloat(keyword.acos).toFixed(2)}%`
+                                    : "0.00%"}
                                 </span>
                               </td>
 
                               {/* ROAS */}
                               <td className="py-[10px] px-[10px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {campaign.roas
-                                    ? `${campaign.roas.toFixed(2)} x`
+                                  {keyword.roas
+                                    ? `${parseFloat(keyword.roas).toFixed(2)} x`
                                     : "0.00 x"}
                                 </span>
                               </td>
@@ -2062,7 +1865,7 @@ export const Campaigns: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              {!loading && campaigns.length > 0 && (
+              {!loading && keywords.length > 0 && (
                 <div className="flex items-center justify-end mt-4">
                   <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                     <button
@@ -2132,6 +1935,73 @@ export const Campaigns: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Inline Edit Confirmation Modal */}
+      {showInlineEditModal && inlineEditKeyword && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => {
+            if (!inlineEditLoading) {
+              setShowInlineEditModal(false);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+              Confirm Edit
+            </h3>
+            <div className="mb-4">
+              <p className="text-[12.16px] text-[#556179] mb-2">
+                {inlineEditField === "status"
+                  ? "State"
+                  : inlineEditField === "bid"
+                  ? "Keyword Bid"
+                  : "Field"}{" "}
+                will be updated:
+              </p>
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12.16px] text-[#556179]">From:</span>
+                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                    {inlineEditOldValue}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-[12.16px] text-[#556179]">To:</span>
+                  <span className="text-[12.16px] font-semibold text-[#136D6D]">
+                    {inlineEditNewValue}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowInlineEditModal(false);
+                  setInlineEditKeyword(null);
+                  setInlineEditField(null);
+                  setInlineEditOldValue("");
+                  setInlineEditNewValue("");
+                }}
+                disabled={inlineEditLoading}
+                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={runInlineEdit}
+                disabled={inlineEditLoading}
+                className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+              >
+                {inlineEditLoading ? "Updating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

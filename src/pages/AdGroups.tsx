@@ -876,10 +876,7 @@ export const AdGroups: React.FC = () => {
             )}
 
             {/* Chart Section */}
-            <div
-              className="border border-gray-200 rounded-[20px] p-4 mb-4"
-              style={{ backgroundColor: "#F5F5F0" }}
-            >
+            <div className="border border-gray-200 rounded-[20px] p-4 mb-4 bg-[#f9f9f6]">
               {/* Title and Metrics Dropdown */}
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[12.16px] font-semibold text-black">
