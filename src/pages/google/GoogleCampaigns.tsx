@@ -168,7 +168,7 @@ export const GoogleCampaigns: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters]);
+  }, [accountId, currentPage, filters, startDate, endDate]);
 
   const buildFilterParams = (filterList: FilterValues) => {
     const params: any = {};
@@ -467,6 +467,10 @@ export const GoogleCampaigns: React.FC = () => {
             order: newSortOrder,
             page: 1,
             page_size: itemsPerPage,
+            start_date: startDate
+              ? startDate.toISOString().split("T")[0]
+              : undefined,
+            end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
             ...buildFilterParams(filters),
           };
 
@@ -479,6 +483,16 @@ export const GoogleCampaigns: React.FC = () => {
           );
           setTotalPages(response.total_pages || 0);
           setTotal(response.total || 0);
+          // Update chart data if available
+          const responseWithChart = response as any;
+          if (
+            responseWithChart.chart_data &&
+            Array.isArray(responseWithChart.chart_data)
+          ) {
+            setChartDataFromApi(responseWithChart.chart_data);
+          } else {
+            setChartDataFromApi([]);
+          }
           setSelectedCampaigns(new Set()); // Clear selection
         } catch (error) {
           console.error("Failed to sort campaigns:", error);

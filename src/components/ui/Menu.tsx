@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../../lib/cn';
 
 export interface MenuItem {
@@ -109,7 +110,7 @@ export const Menu: React.FC<MenuProps> = ({
         </button>
       )}
 
-      {isOpen && menuPosition && (
+      {isOpen && menuPosition && createPortal(
         <div
           ref={menuRef}
           className="fixed z-[99999] bg-[#fcfcf9] border border-[#e3e3e3] rounded-[12px] shadow-[0px_20px_40px_0px_rgba(0,0,0,0.1)] overflow-hidden min-w-[175px]"
@@ -149,7 +150,8 @@ export const Menu: React.FC<MenuProps> = ({
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
