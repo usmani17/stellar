@@ -30,6 +30,7 @@ import { ListAmazonProfiles } from "./pages/ListAmazonProfiles";
 import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
 import { GoogleCampaigns } from "./pages/google/GoogleCampaigns";
 import { GoogleCampaignDetail } from "./pages/google/GoogleCampaignDetail";
+import { GoogleCreateCampaign } from "./pages/google/GoogleCreateCampaign";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
 import { Dashboards } from "./pages/Dashboards";
@@ -220,6 +221,18 @@ function App() {
                   }
                 />
                 {/* Google marketplace routes */}
+                <Route
+                  path="/accounts/:accountId/google/campaigns/create"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleCreateCampaign />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/accounts/:accountId/google/campaigns"
                   element={
