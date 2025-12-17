@@ -16,7 +16,6 @@ interface PerformanceChartProps {
     spend?: number;
     impressions?: number;
     clicks?: number;
-    orders?: number;
     acos?: number;
     roas?: number;
   }>;
@@ -25,19 +24,11 @@ interface PerformanceChartProps {
     spend: boolean;
     impressions: boolean;
     clicks: boolean;
-    orders: boolean;
     acos: boolean;
     roas: boolean;
   };
   onToggle: (
-    metric:
-      | "sales"
-      | "spend"
-      | "impressions"
-      | "clicks"
-      | "orders"
-      | "acos"
-      | "roas"
+    metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
   ) => void;
   title?: string;
 }
@@ -55,7 +46,6 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
     { key: "clicks", label: "Clicks", color: "#169aa3" },
     { key: "acos", label: "ACOS", color: "#DC2626" },
     { key: "roas", label: "ROAS", color: "#059669" },
-    { key: "orders", label: "Orders", color: "#072929" },
   ] as const;
 
   const selectedMetricCount = Object.values(toggles).filter(Boolean).length;
@@ -149,7 +139,6 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 | "spend"
                 | "impressions"
                 | "clicks"
-                | "orders"
                 | "acos"
                 | "roas"
             );
@@ -158,7 +147,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
       </div>
 
       {/* Chart */}
-      <div className="h-[223px] bg-transparent rounded-lg">
+      <div className="h-[223px] bg-transparent rounded-lg ">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
@@ -269,17 +258,6 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 strokeWidth={1.5}
                 dot={false}
                 name="ROAS"
-                activeDot={{ r: 4 }}
-              />
-            )}
-            {toggles.orders && (
-              <Line
-                type="monotone"
-                dataKey="orders"
-                stroke="#072929"
-                strokeWidth={1.5}
-                dot={false}
-                name="Orders"
                 activeDot={{ r: 4 }}
               />
             )}

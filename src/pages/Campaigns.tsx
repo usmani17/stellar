@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
@@ -18,10 +10,12 @@ import { Checkbox } from "../components/ui/Checkbox";
 import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { type FilterValues } from "../components/filters/FilterPanel";
 import {
-  FilterPanel,
-  type FilterValues,
-} from "../components/filters/FilterPanel";
+  FilterSection,
+  FilterSectionPanel,
+} from "../components/filters/FilterSection";
+import { PerformanceChart } from "../components/charts/PerformanceChart";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
@@ -85,18 +79,6 @@ export const Campaigns: React.FC = () => {
   const [isBudgetChange, setIsBudgetChange] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const metricOptions = [
-    { key: "sales", label: "Sales", color: "#136D6D" },
-    { key: "spend", label: "Spend", color: "#506766" },
-    { key: "impressions", label: "Impressions", color: "#7C3AED" },
-    { key: "clicks", label: "Clicks", color: "#169aa3" },
-    { key: "acos", label: "ACOS", color: "#DC2626" },
-    { key: "roas", label: "ROAS", color: "#059669" },
-  ] as const;
-
-  const selectedMetricCount =
-    Object.values(chartToggles).filter(Boolean).length;
-
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
     campaignId: string | number;
@@ -115,6 +97,15 @@ export const Campaigns: React.FC = () => {
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Define filter fields for Campaigns
+  const CAMPAIGN_FILTER_FIELDS = [
+    { value: "campaign_name", label: "Campaign Name" },
+    { value: "state", label: "State" },
+    { value: "budget", label: "Budget" },
+    { value: "type", label: "Type" },
+    { value: "profile_name", label: "Profile Name" },
+  ];
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -765,54 +756,10 @@ export const Campaigns: React.FC = () => {
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                 Campaign Manager
               </h1>
-              {/* Add Filter Button */}
-              <button
-                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
-              >
-                <svg
-                  className="w-5 h-5 text-[#072929]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                  />
-                </svg>
-                <span className="text-[10.64px] text-[#072929] font-normal">
-                  Add Filter
-                </span>
-                <svg
-                  className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                    isFilterPanelOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Filter Panel - Full width, inline, no popup */}
-            {isFilterPanelOpen && (
-              <FilterPanel
-                isOpen={true}
-                onClose={() => {
-                  // Check if filters changed before closing
-                  // The FilterPanel will have already applied changes via onApply when chips are removed
-                  setIsFilterPanelOpen(false);
-                }}
+              <FilterSection
+                isOpen={isFilterPanelOpen}
+                onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                filters={filters}
                 onApply={(newFilters) => {
                   setFilters(newFilters);
                   setCurrentPage(1); // Reset to first page when applying filters
@@ -824,227 +771,43 @@ export const Campaigns: React.FC = () => {
                     }
                   }
                 }}
+                filterFields={CAMPAIGN_FILTER_FIELDS}
                 initialFilters={filters}
               />
-            )}
+            </div>
+
+            {/* Filter Panel - Rendered outside header to maintain button position */}
+            <FilterSectionPanel
+              isOpen={isFilterPanelOpen}
+              onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+              filters={filters}
+              onApply={(newFilters) => {
+                setFilters(newFilters);
+                setCurrentPage(1); // Reset to first page when applying filters
+                // Explicitly trigger AJAX request when filters are applied
+                if (accountId) {
+                  const accountIdNum = parseInt(accountId, 10);
+                  if (!isNaN(accountIdNum)) {
+                    loadCampaignsWithFilters(accountIdNum, newFilters);
+                  }
+                }
+              }}
+              filterFields={CAMPAIGN_FILTER_FIELDS}
+              initialFilters={filters}
+            />
 
             {/* Chart Section */}
-            <div className="border border-gray-200 rounded-[20px] p-4 mb-4 bg-[#f9f9f6]">
-              {/* Title and Metrics Dropdown */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[12.16px] font-semibold text-black">
-                  Performance Trends
-                </h3>
-                <Dropdown
-                  options={metricOptions.map((m) => ({
-                    value: m.key,
-                    label: m.label,
-                    disabled: !chartToggles[m.key] && selectedMetricCount >= 3,
-                    color: m.color,
-                  }))}
-                  value={undefined}
-                  closeOnSelect={false}
-                  showCheckmark={false}
-                  align="right"
-                  width="w-56"
-                  renderButton={(_, isOpen, toggle) => {
-                    const selectedLabels = metricOptions
-                      .filter((m) => chartToggles[m.key])
-                      .map((m) => m.label)
-                      .join(", ");
-                    return (
-                      <button
-                        type="button"
-                        onClick={toggle}
-                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-[11px] text-[#072929] shadow-sm hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
-                      >
-                        <span className="truncate">
-                          {selectedLabels || "Select metrics"}
-                        </span>
-                        <svg
-                          className={`w-4 h-4 text-[#072929] transition-transform ${
-                            isOpen ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                    );
-                  }}
-                  renderOption={(option) => {
-                    const key = option.value as keyof typeof chartToggles;
-                    const selected = chartToggles[key];
-                    const disabled = !selected && selectedMetricCount >= 3;
-                    const metric = metricOptions.find((m) => m.key === key);
-                    return (
-                      <div className="flex items-center justify-between w-full px-1">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{
-                              backgroundColor: metric?.color || "#ccc",
-                            }}
-                          />
-                          <span className="text-[11px] text-[#313850]">
-                            {option.label}
-                          </span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="w-3.5 h-3.5 accent-[#136D6D]"
-                          checked={selected}
-                          disabled={disabled}
-                          readOnly
-                        />
-                      </div>
-                    );
-                  }}
-                  onChange={(value) => {
-                    const key = value as keyof typeof chartToggles;
-                    const isOn = chartToggles[key];
-                    if (!isOn && selectedMetricCount >= 3) {
-                      return;
-                    }
-                    toggleChartMetric(key);
-                  }}
-                />
-              </div>
-
-              {/* Chart */}
-              <div className="h-[223px] bg-transparent rounded-lg ">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
-                  >
-                    <XAxis
-                      dataKey="date"
-                      stroke="#556179"
-                      style={{ fontSize: "9.6px" }}
-                      tick={{ fill: "#556179" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      stroke="#556179"
-                      style={{ fontSize: "9.6px" }}
-                      tick={{ fill: "#556179" }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(value) => {
-                        if (value >= 1000) {
-                          return `${(value / 1000).toFixed(0)}K`;
-                        }
-                        return value.toString();
-                      }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#fff",
-                        border: "1px solid #E5E7EB",
-                        borderRadius: "8px",
-                        fontSize: "9.6px",
-                        boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-                      }}
-                      formatter={(value: any, name: string) => {
-                        if (name === "Sales" || name === "Spend") {
-                          return [`$${value.toLocaleString()}`, name];
-                        }
-                        if (name === "ACOS") {
-                          return [`${value.toFixed(2)}%`, name];
-                        }
-                        if (name === "ROAS") {
-                          return [`${value.toFixed(2)} x`, name];
-                        }
-                        return [value.toLocaleString(), name];
-                      }}
-                    />
-                    {chartToggles.sales && (
-                      <Line
-                        type="monotone"
-                        dataKey="sales"
-                        stroke="#136D6D"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Sales"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.spend && (
-                      <Line
-                        type="monotone"
-                        dataKey="spend"
-                        stroke="#506766"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Spend"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.impressions && (
-                      <Line
-                        type="monotone"
-                        dataKey="impressions"
-                        stroke="#7C3AED"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Impressions"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.clicks && (
-                      <Line
-                        type="monotone"
-                        dataKey="clicks"
-                        stroke="#169aa3"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Clicks"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.acos && (
-                      <Line
-                        type="monotone"
-                        dataKey="acos"
-                        stroke="#DC2626"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="ACOS"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.roas && (
-                      <Line
-                        type="monotone"
-                        dataKey="roas"
-                        stroke="#059669"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="ROAS"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            <PerformanceChart
+              data={chartData}
+              toggles={chartToggles}
+              onToggle={toggleChartMetric}
+              title="Performance Trends"
+            />
 
             {/* Campaigns Table Card */}
             <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
               {/* Table Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                  Campaigns
-                </h2>
+              <div className="flex items-center justify-end">
                 <div
                   className="relative inline-flex justify-end"
                   ref={dropdownRef}
