@@ -43,7 +43,7 @@ export const Accounts: React.FC = () => {
   // Refresh accounts when navigating to this page (e.g., after OAuth flow)
   const hasRefreshedRef = useRef<string>("");
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   useEffect(() => {
     if (location.pathname === "/accounts") {
       const currentKey = `${location.pathname}-${location.search}`;
@@ -222,7 +222,7 @@ export const Accounts: React.FC = () => {
               <Button
                 onClick={() => setShowCreateAccount(!showCreateAccount)}
                 size="sm"
-                className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
+                className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
               >
                 <svg
                   className="w-5 h-5"
@@ -266,7 +266,7 @@ export const Accounts: React.FC = () => {
                       onClick={handleCreateAccount}
                       disabled={creatingAccount}
                       size="sm"
-                      className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {creatingAccount ? (
                         <>
@@ -290,7 +290,9 @@ export const Accounts: React.FC = () => {
                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             ></path>
                           </svg>
-                          <span className="text-[14px] font-medium">Creating...</span>
+                          <span className="text-[14px] font-medium">
+                            Creating...
+                          </span>
                         </>
                       ) : (
                         <span className="text-[14px] font-medium">Create</span>
@@ -395,7 +397,9 @@ export const Accounts: React.FC = () => {
                         Array.from({ length: 3 }).map((_, index) => (
                           <tr
                             key={`skeleton-${index}`}
-                            className={index < 2 ? "border-b border-[#e8e8e3]" : ""}
+                            className={
+                              index < 2 ? "border-b border-[#e8e8e3]" : ""
+                            }
                           >
                             <td className="py-4 px-5">
                               <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
@@ -418,10 +422,14 @@ export const Accounts: React.FC = () => {
                         <tr>
                           <td colSpan={5} className="text-center py-8">
                             <p className="text-[14px] text-[#556179] mb-4">
-                              {searchQuery ? "No accounts found" : "No accounts yet"}
+                              {searchQuery
+                                ? "No accounts found"
+                                : "No accounts yet"}
                             </p>
                             {!searchQuery && (
-                              <Button onClick={() => setShowCreateAccount(true)}>
+                              <Button
+                                onClick={() => setShowCreateAccount(true)}
+                              >
                                 Create Your First Account
                               </Button>
                             )}
@@ -498,7 +506,7 @@ export const Accounts: React.FC = () => {
                                         <Button
                                           size="sm"
                                           disabled={isConnecting || isDeleting}
-                                          className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
+                                          className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
                                         >
                                           <span className="text-[14px] font-medium">
                                             {isConnecting
@@ -625,7 +633,8 @@ export const Accounts: React.FC = () => {
                   </table>
                 </div>
                 {/* Loading overlay for refreshing after creation */}
-                {(creatingAccount || (accountsLoading && accounts.length > 0)) && (
+                {(creatingAccount ||
+                  (accountsLoading && accounts.length > 0)) && (
                   <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
                     <div className="flex flex-col items-center gap-2">
                       <svg
@@ -649,7 +658,9 @@ export const Accounts: React.FC = () => {
                         ></path>
                       </svg>
                       <p className="text-[14px] text-[#556179]">
-                        {creatingAccount ? "Creating account..." : "Refreshing accounts..."}
+                        {creatingAccount
+                          ? "Creating account..."
+                          : "Refreshing accounts..."}
                       </p>
                     </div>
                   </div>
