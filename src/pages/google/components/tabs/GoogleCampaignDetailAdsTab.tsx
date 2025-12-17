@@ -4,14 +4,14 @@ import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
-import type { GoogleKeyword } from "./types";
+import type { GoogleAd } from "./types";
 
-interface KeywordsTabProps {
-  keywords: GoogleKeyword[];
+interface GoogleCampaignDetailAdsTabProps {
+  ads: GoogleAd[];
   loading: boolean;
-  selectedKeywordIds: Set<number>;
+  selectedAdIds: Set<number>;
   onSelectAll: (checked: boolean) => void;
-  onSelectKeyword: (id: number, checked: boolean) => void;
+  onSelectAd: (id: number, checked: boolean) => void;
   sortBy: string;
   sortOrder: "asc" | "desc";
   onSort: (column: string) => void;
@@ -28,16 +28,15 @@ interface KeywordsTabProps {
   onSyncAnalytics?: () => void;
   syncMessage: string | null;
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
-  onUpdateKeywordStatus?: (keywordId: number, status: string) => Promise<void>;
-  onUpdateKeywordBid?: (keywordId: number, bid: number) => Promise<void>;
+  onUpdateAdStatus?: (adId: number, status: string) => Promise<void>;
 }
 
-export const KeywordsTab: React.FC<KeywordsTabProps> = ({
-  keywords,
+export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProps> = ({
+  ads,
   loading,
-  selectedKeywordIds,
+  selectedAdIds,
   onSelectAll,
-  onSelectKeyword,
+  onSelectAd,
   sortBy,
   sortOrder,
   onSort,
@@ -54,65 +53,61 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
   onSyncAnalytics,
   syncMessage,
   getSortIcon,
-  onUpdateKeywordStatus,
-  onUpdateKeywordBid,
+  onUpdateAdStatus,
 }) => {
-  const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
-  const [editingField, setEditingField] = useState<"status" | "bid" | null>(null);
+  const [editingAdId, setEditingAdId] = useState<number | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
-  const [editingBid, setEditingBid] = useState<string>("");
+  const [pendingChange, setPendingChange] = useState<{
+    id: number;
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
+  const [updatingAdId, setUpdatingAdId] = useState<number | null>(null);
 
-  const handleStatusClick = (keyword: GoogleKeyword) => {
-    if (onUpdateKeywordStatus) {
-      setEditingKeywordId(keyword.id);
-      setEditingField("status");
-      setEditingStatus(keyword.status || "ENABLED");
+  const handleStatusClick = (ad: GoogleAd) => {
+    if (onUpdateAdStatus) {
+      setEditingAdId(ad.id);
+      setEditingStatus(ad.status || "ENABLED");
     }
   };
 
-  const handleBidClick = (keyword: GoogleKeyword) => {
-    if (onUpdateKeywordBid) {
-      setEditingKeywordId(keyword.id);
-      setEditingField("bid");
-      setEditingBid((keyword.cpc_bid_dollars || 0).toString());
+  const handleStatusChange = (adId: number, newStatus: string) => {
+    const ad = ads.find((a) => a.id === adId);
+    if (!ad) return;
+
+    const oldStatus = (ad.status || "ENABLED").toUpperCase();
+    const newStatusUpper = newStatus.toUpperCase();
+
+    if (newStatusUpper !== oldStatus) {
+      setPendingChange({
+        id: adId,
+        newValue: newStatusUpper,
+        oldValue: oldStatus,
+      });
+    }
+    setEditingAdId(null);
+    setEditingStatus("");
+  };
+
+  const confirmChange = async () => {
+    if (!pendingChange || !onUpdateAdStatus) return;
+
+    setUpdatingAdId(pendingChange.id);
+    try {
+      await onUpdateAdStatus(pendingChange.id, pendingChange.newValue);
+      setPendingChange(null);
+    } catch (error) {
+      console.error("Failed to update ad status:", error);
+      alert("Failed to update ad status. Please try again.");
+    } finally {
+      setUpdatingAdId(null);
     }
   };
 
-  const handleStatusChange = async (keywordId: number, newStatus: string) => {
-    if (onUpdateKeywordStatus && newStatus !== editingStatus) {
-      try {
-        await onUpdateKeywordStatus(keywordId, newStatus);
-        setEditingKeywordId(null);
-        setEditingField(null);
-        setEditingStatus("");
-      } catch (error) {
-        console.error("Failed to update keyword status:", error);
-        alert("Failed to update keyword status. Please try again.");
-      }
-    } else {
-      setEditingKeywordId(null);
-      setEditingField(null);
-      setEditingStatus("");
-    }
-  };
-
-  const handleBidChange = async (keywordId: number, newBid: string) => {
-    const bidValue = parseFloat(newBid);
-    if (onUpdateKeywordBid && !isNaN(bidValue) && bidValue >= 0) {
-      try {
-        await onUpdateKeywordBid(keywordId, bidValue);
-        setEditingKeywordId(null);
-        setEditingField(null);
-        setEditingBid("");
-      } catch (error) {
-        console.error("Failed to update keyword bid:", error);
-        alert("Failed to update keyword bid. Please try again.");
-      }
-    } else {
-      setEditingKeywordId(null);
-      setEditingField(null);
-      setEditingBid("");
-    }
+  const cancelChange = () => {
+    setPendingChange(null);
+    setEditingAdId(null);
+    setEditingStatus("");
   };
   return (
     <>
@@ -131,7 +126,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
       {/* Header with Filter Button and Sync Button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-          Keywords
+          Ads
         </h2>
         <div className="flex items-center gap-3">
           <button
@@ -181,7 +176,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                 Syncing...
               </span>
             ) : (
-              "Sync Keywords"
+              "Sync Ads"
             )}
           </button>
           {onSyncAnalytics && (
@@ -214,8 +209,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
             }}
             initialFilters={filters}
             filterFields={[
-              { value: "name", label: "Keyword" },
-              { value: "type", label: "Match Type" },
+              { value: "name", label: "Ad Type" },
               { value: "status", label: "Status" },
               { value: "adgroup_name", label: "Ad Group Name" },
             ]}
@@ -223,27 +217,27 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
         </div>
       )}
 
-      {/* Keywords Table */}
+      {/* Ads Table */}
       <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
         <div className="overflow-x-auto w-full">
           {loading ? (
             <div className="text-center py-8 text-[#556179] text-[13.3px]">
-              Loading keywords...
+              Loading ads...
             </div>
-          ) : keywords.length === 0 ? (
+          ) : ads.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-[13.3px] text-[#556179] mb-4">
-                No keywords found
+                No ads found
               </p>
             </div>
           ) : (
-            <table className="min-w-[900px] w-full">
+            <table className="min-w-[1000px] w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
-                        checked={keywords.length > 0 && keywords.every((kw) => selectedKeywordIds.has(kw.id))}
+                        checked={ads.length > 0 && ads.every((ad) => selectedAdIds.has(ad.id))}
                         onChange={onSelectAll}
                         size="small"
                       />
@@ -251,20 +245,11 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                   </th>
                   <th
                     className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                    onClick={() => onSort("keyword_text")}
+                    onClick={() => onSort("ad_type")}
                   >
                     <div className="flex items-center gap-1">
-                      Keyword
-                      {getSortIcon("keyword_text", sortBy, sortOrder)}
-                    </div>
-                  </th>
-                  <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                    onClick={() => onSort("match_type")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Match Type
-                      {getSortIcon("match_type", sortBy, sortOrder)}
+                      Ad Type
+                      {getSortIcon("ad_type", sortBy, sortOrder)}
                     </div>
                   </th>
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
@@ -279,23 +264,20 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                    onClick={() => onSort("cpc_bid_dollars")}
-                  >
-                    <div className="flex items-center gap-1">
-                      CPC Bid
-                      {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
-                    </div>
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    Headlines
+                  </th>
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    Final URLs
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {keywords.map((keyword, index) => {
-                  const isLastRow = index === keywords.length - 1;
+                {ads.map((ad, index) => {
+                  const isLastRow = index === ads.length - 1;
                   return (
                     <tr
-                      key={keyword.id}
+                      key={ad.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } hover:bg-gray-50 transition-colors`}
@@ -303,29 +285,73 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                       <td className="py-[10px] px-[10px]">
                         <div className="flex items-center justify-center">
                           <Checkbox
-                            checked={selectedKeywordIds.has(keyword.id)}
-                            onChange={(checked) => onSelectKeyword(keyword.id, checked)}
+                            checked={selectedAdIds.has(ad.id)}
+                            onChange={(checked) => onSelectAd(ad.id, checked)}
                             size="small"
                           />
                         </div>
                       </td>
                       <td className="py-[10px] px-[10px]">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {keyword.keyword_text || "—"}
+                          {ad.ad_type || "—"}
                         </span>
                       </td>
                       <td className="py-[10px] px-[10px]">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {keyword.match_type || "—"}
+                          {ad.adgroup_name || "—"}
                         </span>
                       </td>
                       <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {keyword.adgroup_name || "—"}
-                        </span>
-                      </td>
-                      <td className="py-[10px] px-[10px]">
-                        {editingKeywordId === keyword.id && editingField === "status" && onUpdateKeywordStatus ? (
+                        {updatingAdId === ad.id && pendingChange ? (
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={pendingChange.newValue} />
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                          </div>
+                        ) : pendingChange?.id === ad.id ? (
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={pendingChange.newValue} />
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={confirmChange}
+                                className="p-1 hover:bg-green-50 rounded transition-colors"
+                                title="Confirm"
+                              >
+                                <svg
+                                  className="w-4 h-4 text-green-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={cancelChange}
+                                className="p-1 hover:bg-red-50 rounded transition-colors"
+                                title="Cancel"
+                              >
+                                <svg
+                                  className="w-4 h-4 text-red-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        ) : editingAdId === ad.id && onUpdateAdStatus ? (
                           <Dropdown
                             options={[
                               { value: "ENABLED", label: "Enabled" },
@@ -333,7 +359,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                               { value: "REMOVED", label: "Removed" },
                             ]}
                             value={editingStatus}
-                            onChange={(val) => handleStatusChange(keyword.id, val as string)}
+                            onChange={(val) => handleStatusChange(ad.id, val as string)}
                             defaultOpen={true}
                             closeOnSelect={true}
                             buttonClassName="text-[13.3px] px-2 py-1"
@@ -341,42 +367,26 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                           />
                         ) : (
                           <div
-                            className={onUpdateKeywordStatus ? "cursor-pointer hover:underline" : ""}
-                            onClick={() => onUpdateKeywordStatus && handleStatusClick(keyword)}
+                            className={onUpdateAdStatus ? "cursor-pointer hover:underline" : ""}
+                            onClick={() => onUpdateAdStatus && handleStatusClick(ad)}
                           >
-                            {keyword.status && <StatusBadge status={keyword.status} />}
+                            {ad.status && <StatusBadge status={ad.status} />}
                           </div>
                         )}
                       </td>
                       <td className="py-[10px] px-[10px]">
-                        {editingKeywordId === keyword.id && editingField === "bid" && onUpdateKeywordBid ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editingBid}
-                            onChange={(e) => setEditingBid(e.target.value)}
-                            onBlur={() => handleBidChange(keyword.id, editingBid)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                handleBidChange(keyword.id, editingBid);
-                              } else if (e.key === "Escape") {
-                                setEditingKeywordId(null);
-                                setEditingField(null);
-                                setEditingBid("");
-                              }
-                            }}
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
-                            autoFocus
-                          />
-                        ) : (
-                          <span
-                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${onUpdateKeywordBid ? "cursor-pointer hover:underline" : ""}`}
-                            onClick={() => onUpdateKeywordBid && handleBidClick(keyword)}
-                          >
-                            ${keyword.cpc_bid_dollars?.toFixed(2) || "0.00"}
-                          </span>
-                        )}
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {ad.headlines && Array.isArray(ad.headlines) && ad.headlines.length > 0
+                            ? ad.headlines.map((h: any) => h.text || h).join(", ")
+                            : "—"}
+                        </span>
+                      </td>
+                      <td className="py-[10px] px-[10px]">
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
+                          {ad.final_urls && ad.final_urls.length > 0
+                            ? ad.final_urls[0]
+                            : "—"}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -388,7 +398,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
       </div>
 
       {/* Pagination */}
-      {!loading && keywords.length > 0 && totalPages > 1 && (
+      {!loading && ads.length > 0 && totalPages > 1 && (
         <div className="flex items-center justify-end mt-4">
           <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
             <button

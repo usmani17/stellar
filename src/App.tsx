@@ -31,6 +31,9 @@ import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
 import { GoogleCampaigns } from "./pages/google/GoogleCampaigns";
 import { GoogleCampaignDetail } from "./pages/google/GoogleCampaignDetail";
 import { GoogleCreateCampaign } from "./pages/google/GoogleCreateCampaign";
+import { GoogleAdGroups } from "./pages/google/GoogleAdGroups";
+import { GoogleAds } from "./pages/google/GoogleAds";
+import { GoogleKeywords } from "./pages/google/GoogleKeywords";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
 import { Dashboards } from "./pages/Dashboards";
@@ -252,6 +255,42 @@ function App() {
                       <AccountRequiredRoute>
                         <Layout>
                           <GoogleCampaignDetail />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/adgroups"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleAdGroups />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/ads"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleAds />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/keywords"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleKeywords />
                         </Layout>
                       </AccountRequiredRoute>
                     </ProtectedRoute>

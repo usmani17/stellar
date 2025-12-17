@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
@@ -107,6 +108,14 @@ export const Keywords: React.FC = () => {
       [key]: !prev[key],
     }));
   };
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Keywords");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
 
   useEffect(() => {
     // Create a unique key for this request based on all dependencies

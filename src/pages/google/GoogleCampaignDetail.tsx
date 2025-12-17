@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { buildMarketplaceRoute } from "../../utils/urlHelpers";
+import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { KPICard } from "../../components/ui/KPICard";
@@ -11,9 +12,9 @@ import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
 import type { FilterValues } from "../../components/filters/FilterPanel";
 import { OverviewTab } from "./components/tabs/OverviewTab";
-import { AdGroupsTab } from "./components/tabs/AdGroupsTab";
-import { AdsTab } from "./components/tabs/AdsTab";
-import { KeywordsTab } from "./components/tabs/KeywordsTab";
+import { GoogleCampaignDetailAdGroupsTab } from "./components/tabs/GoogleCampaignDetailAdGroupsTab";
+import { GoogleCampaignDetailAdsTab } from "./components/tabs/GoogleCampaignDetailAdsTab";
+import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaignDetailKeywordsTab";
 import type {
   GoogleAdGroup,
   GoogleAd,
@@ -144,6 +145,17 @@ export const GoogleCampaignDetail: React.FC = () => {
   });
 
   const tabs = ["Overview", "Ad Groups", "Ads", "Keywords"];
+
+  // Set page title
+  useEffect(() => {
+    const title = campaignDetail?.campaign?.name
+      ? campaignDetail.campaign.name
+      : "Google Campaign Detail";
+    setPageTitle(title);
+    return () => {
+      resetPageTitle();
+    };
+  }, [campaignDetail]);
 
   useEffect(() => {
     // Reset state when campaignId changes
@@ -1509,7 +1521,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               )}
 
               {activeTab === "Ad Groups" && (
-                <AdGroupsTab
+                <GoogleCampaignDetailAdGroupsTab
                   adgroups={adgroups}
                   loading={adgroupsLoading}
                   selectedAdGroupIds={selectedAdGroupIds}
@@ -1567,10 +1579,12 @@ export const GoogleCampaignDetail: React.FC = () => {
                         }
                       );
 
-                      // Update local state
+                      // Update local state instead of reloading
                       setAdgroups((prevAdgroups) =>
                         prevAdgroups.map((ag) =>
-                          ag.id === adgroupId ? { ...ag, status } : ag
+                          ag.id === adgroupId
+                            ? { ...ag, status: status }
+                            : ag
                         )
                       );
                     } catch (error: any) {
@@ -1579,13 +1593,58 @@ export const GoogleCampaignDetail: React.FC = () => {
                         error.response?.data?.error ||
                           "Failed to update adgroup status"
                       );
+                      throw error;
+                    }
+                  }}
+                  onUpdateAdGroupBid={async (
+                    adgroupId: number,
+                    bid: number
+                  ) => {
+                    try {
+                      const accountIdNum = parseInt(accountId!, 10);
+                      if (isNaN(accountIdNum)) return;
+
+                      // Find the adgroup to get adgroup_id
+                      const adgroup = adgroups.find(
+                        (ag) => ag.id === adgroupId
+                      );
+                      if (!adgroup || !adgroup.adgroup_id) {
+                        alert("Ad group not found");
+                        return;
+                      }
+
+                      // Call API
+                      await campaignsService.bulkUpdateGoogleAdGroups(
+                        accountIdNum,
+                        {
+                          adgroupIds: [adgroup.adgroup_id],
+                          action: "bid",
+                          bid: bid,
+                        }
+                      );
+
+                      // Update local state
+                      setAdgroups((prevAdgroups) =>
+                        prevAdgroups.map((ag) =>
+                          ag.id === adgroupId
+                            ? { ...ag, cpc_bid_dollars: bid }
+                            : ag
+                        )
+                      );
+                    } catch (error: any) {
+                      console.error("Failed to update adgroup bid:", error);
+                      alert(
+                        error.response?.data?.error ||
+                          "Failed to update adgroup bid"
+                      );
+                      throw error;
                     }
                   }}
                 />
               )}
 
               {activeTab === "Ads" && (
-                <AdsTab
+                <GoogleCampaignDetailAdsTab
                   ads={ads}
                   loading={adsLoading}
                   selectedAdIds={selectedAdIds}
@@ -1651,7 +1710,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               )}
 
               {activeTab === "Keywords" && (
-                <KeywordsTab
+                <GoogleCampaignDetailKeywordsTab
                   keywords={keywords}
                   loading={keywordsLoading}
                   selectedKeywordIds={selectedKeywordIds}
@@ -1757,6 +1816,47 @@ export const GoogleCampaignDetail: React.FC = () => {
                       alert(
                         error.response?.data?.error ||
                           "Failed to update keyword bid"
+                      );
+                    }
+                  }}
+                  onUpdateKeywordMatchType={async (
+                    keywordId: number,
+                    matchType: string
+                  ) => {
+                    try {
+                      const accountIdNum = parseInt(accountId!, 10);
+                      if (isNaN(accountIdNum)) return;
+
+                      // Find the keyword to get keyword_id
+                      const keyword = keywords.find((k) => k.id === keywordId);
+                      if (!keyword || !keyword.keyword_id) {
+                        alert("Keyword not found");
+                        return;
+                      }
+
+                      // Call API
+                      await campaignsService.bulkUpdateGoogleKeywords(
+                        accountIdNum,
+                        {
+                          keywordIds: [keyword.keyword_id],
+                          action: "match_type",
+                          match_type: matchType as 'EXACT' | 'PHRASE' | 'BROAD' | 'BROAD_MATCH_MODIFIER',
+                        }
+                      );
+
+                      // Update local state
+                      setKeywords((prevKeywords) =>
+                        prevKeywords.map((k) =>
+                          k.id === keywordId
+                            ? { ...k, match_type: matchType }
+                            : k
+                        )
+                      );
+                    } catch (error: any) {
+                      console.error("Failed to update keyword match type:", error);
+                      alert(
+                        error.response?.data?.error ||
+                          "Failed to update keyword match type"
                       );
                     }
                   }}

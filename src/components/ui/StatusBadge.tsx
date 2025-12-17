@@ -21,6 +21,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         text: "text-[#1ec77a]",
         label: "Enable",
       },
+      ENABLED: {
+        bg: "bg-[rgba(30,199,122,0.1)]",
+        text: "text-[#1ec77a]",
+        label: "Enable",
+      },
       Paused: {
         bg: "bg-[rgba(255,182,92,0.1)]",
         text: "text-[#ffb65c]",
@@ -30,6 +35,21 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         bg: "bg-[rgba(255,182,92,0.1)]",
         text: "text-[#ffb65c]",
         label: "Paused",
+      },
+      PAUSED: {
+        bg: "bg-[rgba(255,182,92,0.1)]",
+        text: "text-[#ffb65c]",
+        label: "Paused",
+      },
+      Removed: {
+        bg: "bg-[rgba(163,168,179,0.1)]",
+        text: "text-[#a3a8b3]",
+        label: "Removed",
+      },
+      removed: {
+        bg: "bg-[rgba(163,168,179,0.1)]",
+        text: "text-[#a3a8b3]",
+        label: "Removed",
       },
       Archived: {
         bg: "bg-[rgba(163,168,179,0.1)]",

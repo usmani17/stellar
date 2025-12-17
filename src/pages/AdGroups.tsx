@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
@@ -106,6 +107,14 @@ export const AdGroups: React.FC = () => {
       [key]: !prev[key],
     }));
   };
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Ad Groups");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
 
   useEffect(() => {
     // Cancel any pending request when dependencies change

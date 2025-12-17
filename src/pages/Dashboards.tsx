@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { DashboardHeader } from '../components/layout/DashboardHeader';
 import { useSidebar } from '../contexts/SidebarContext';
+import { setPageTitle, resetPageTitle } from '../utils/pageTitle';
 
 export const Dashboards: React.FC = () => {
   const { sidebarWidth } = useSidebar();
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Dashboards");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
   
   return (
     <div className="min-h-screen bg-white flex">

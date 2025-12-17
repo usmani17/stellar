@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
@@ -106,6 +107,14 @@ export const Campaigns: React.FC = () => {
     { value: "type", label: "Type" },
     { value: "profile_name", label: "Profile Name" },
   ];
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Amazon Campaigns");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
