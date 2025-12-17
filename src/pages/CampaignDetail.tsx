@@ -14,10 +14,12 @@ import {
   type AdGroup,
   type Keyword,
   type ProductAd,
+  type Target,
 } from "../services/campaigns";
 import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 import { KeywordsTable } from "../components/campaigns/KeywordsTable";
 import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
+import { TargetsTable } from "../components/campaigns/TargetsTable";
 import {
   FilterPanel,
   type FilterValues,
@@ -106,6 +108,20 @@ export const CampaignDetail: React.FC = () => {
   const [isProductAdsFilterPanelOpen, setIsProductAdsFilterPanelOpen] =
     useState(false);
   const [productadsFilters, setProductadsFilters] = useState<FilterValues>([]);
+  const [targets, setTargets] = useState<Target[]>([]);
+  const [targetsLoading, setTargetsLoading] = useState(false);
+  const [selectedTargetIds, setSelectedTargetIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [targetsCurrentPage, setTargetsCurrentPage] = useState(1);
+  const [targetsTotalPages, setTargetsTotalPages] = useState(0);
+  const [targetsSortBy, setTargetsSortBy] = useState<string>("id");
+  const [targetsSortOrder, setTargetsSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+  const [isTargetsFilterPanelOpen, setIsTargetsFilterPanelOpen] =
+    useState(false);
+  const [targetsFilters, setTargetsFilters] = useState<FilterValues>([]);
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
@@ -164,6 +180,12 @@ export const CampaignDetail: React.FC = () => {
       setProductadsCurrentPage(1);
     }
   }, [activeTab, startDate, endDate, productadsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Product Targets") {
+      setTargetsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, targetsFilters]);
 
   const buildKeywordsFilterParams = (filterList: FilterValues) => {
     const params: any = {};
@@ -356,6 +378,89 @@ export const CampaignDetail: React.FC = () => {
     return params;
   };
 
+  const buildTargetsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "name") {
+        if (filter.operator === "contains") {
+          params.name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.name = filter.value;
+        }
+      } else if (filter.field === "state") {
+        // Convert frontend state values to backend values
+        const stateMap: Record<string, string> = {
+          Enabled: "enabled",
+          Paused: "paused",
+          Archived: "archived",
+        };
+        params.state = stateMap[filter.value as string] || filter.value;
+      } else if (filter.field === "bid") {
+        if (filter.operator === "lt") {
+          params.bid__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.bid__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.bid = filter.value;
+        } else if (filter.operator === "lte") {
+          params.bid__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.bid__gte = filter.value;
+        }
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
+        }
+      } else if (filter.field === "spends") {
+        if (filter.operator === "lt") {
+          params.spends__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.spends__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.spends = filter.value;
+        } else if (filter.operator === "lte") {
+          params.spends__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.spends__gte = filter.value;
+        }
+      } else if (filter.field === "sales") {
+        if (filter.operator === "lt") {
+          params.sales__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.sales__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.sales = filter.value;
+        } else if (filter.operator === "lte") {
+          params.sales__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.sales__gte = filter.value;
+        }
+      } else if (filter.field === "ctr") {
+        if (filter.operator === "lt") {
+          params.ctr__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.ctr__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.ctr = filter.value;
+        } else if (filter.operator === "lte") {
+          params.ctr__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.ctr__gte = filter.value;
+        }
+      }
+    });
+
+    return params;
+  };
+
   useEffect(() => {
     if (accountId && campaignId && activeTab === "Ad Groups") {
       loadAdGroups();
@@ -402,6 +507,22 @@ export const CampaignDetail: React.FC = () => {
     productadsSortBy,
     productadsSortOrder,
     productadsFilters,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Product Targets") {
+      loadTargets();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    targetsCurrentPage,
+    targetsSortBy,
+    targetsSortOrder,
+    targetsFilters,
   ]);
 
   const loadCampaignDetail = async () => {
@@ -709,6 +830,77 @@ export const CampaignDetail: React.FC = () => {
 
   const handleProductAdsPageChange = (page: number) => {
     setProductadsCurrentPage(page);
+  };
+
+  const loadTargets = async () => {
+    try {
+      setTargetsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setTargetsLoading(false);
+        return;
+      }
+
+      // campaignId is now the Amazon campaignId (string), pass it directly
+      const data = await campaignsService.getTargets(
+        accountIdNum,
+        campaignId,
+        startDate.toISOString().split("T")[0],
+        endDate.toISOString().split("T")[0],
+        {
+          page: targetsCurrentPage,
+          page_size: 10,
+          sort_by: targetsSortBy,
+          order: targetsSortOrder,
+          type: campaignType || undefined, // Pass campaign type to API
+          ...buildTargetsFilterParams(targetsFilters),
+        }
+      );
+
+      setTargets(data.targets);
+      setTargetsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load targets:", error);
+      setTargets([]);
+      setTargetsTotalPages(0);
+    } finally {
+      setTargetsLoading(false);
+    }
+  };
+
+  const handleSelectAllTargets = (checked: boolean) => {
+    if (checked) {
+      setSelectedTargetIds(new Set(targets.map((tgt) => tgt.id)));
+    } else {
+      setSelectedTargetIds(new Set());
+    }
+  };
+
+  const handleSelectTarget = (id: number, checked: boolean) => {
+    setSelectedTargetIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleTargetsSort = (column: string) => {
+    if (targetsSortBy === column) {
+      setTargetsSortOrder(targetsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setTargetsSortBy(column);
+      setTargetsSortOrder("asc");
+    }
+    setTargetsCurrentPage(1);
+  };
+
+  const handleTargetsPageChange = (page: number) => {
+    setTargetsCurrentPage(page);
   };
 
   const toggleChartMetric = (
@@ -1783,10 +1975,188 @@ export const CampaignDetail: React.FC = () => {
               </>
             )}
 
+            {activeTab === "Product Targets" && (
+              <>
+                {/* Header with Filter Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Product Targets
+                  </h2>
+                  {/* Add Filter Button */}
+                  <button
+                    onClick={() =>
+                      setIsTargetsFilterPanelOpen(!isTargetsFilterPanelOpen)
+                    }
+                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5 text-[#072929]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                    <span className="text-[10.64px] text-[#072929] font-normal">
+                      Add Filter
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                        isTargetsFilterPanelOpen ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Filter Panel */}
+                {isTargetsFilterPanelOpen && (
+                  <div className="mb-4">
+                    <FilterPanel
+                      isOpen={true}
+                      onClose={() => {
+                        // Check if filters changed before closing
+                        // The FilterPanel will have already applied changes via onApply when chips are removed
+                        setIsTargetsFilterPanelOpen(false);
+                      }}
+                      onApply={(newFilters) => {
+                        setTargetsFilters(newFilters);
+                        setTargetsCurrentPage(1); // Reset to first page when applying filters
+                        // Data will refresh automatically via useEffect dependency on targetsFilters
+                      }}
+                      initialFilters={targetsFilters}
+                      filterFields={[
+                        { value: "name", label: "Target" },
+                        { value: "state", label: "State" },
+                        { value: "bid", label: "Bid" },
+                        { value: "adgroup_name", label: "Ad Group" },
+                        { value: "spends", label: "Spends" },
+                        { value: "sales", label: "Sales" },
+                        { value: "ctr", label: "CTR" },
+                      ]}
+                    />
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <TargetsTable
+                    targets={targets}
+                    loading={targetsLoading}
+                    onSelectAll={handleSelectAllTargets}
+                    onSelect={handleSelectTarget}
+                    selectedIds={selectedTargetIds}
+                    sortBy={targetsSortBy}
+                    sortOrder={targetsSortOrder}
+                    onSort={handleTargetsSort}
+                  />
+                </div>
+                {/* Pagination */}
+                {!targetsLoading &&
+                  targets.length > 0 &&
+                  targetsTotalPages > 0 && (
+                    <div className="flex items-center justify-end mt-4">
+                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                        <button
+                          onClick={() =>
+                            handleTargetsPageChange(
+                              Math.max(1, targetsCurrentPage - 1)
+                            )
+                          }
+                          disabled={targetsCurrentPage === 1}
+                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Previous
+                        </button>
+                        {Array.from(
+                          { length: Math.min(5, targetsTotalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (targetsTotalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (targetsCurrentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              targetsCurrentPage >=
+                              targetsTotalPages - 2
+                            ) {
+                              pageNum = targetsTotalPages - 4 + i;
+                            } else {
+                              pageNum = targetsCurrentPage - 2 + i;
+                            }
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => handleTargetsPageChange(pageNum)}
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                  targetsCurrentPage === pageNum
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          }
+                        )}
+                        {targetsTotalPages > 5 &&
+                          targetsCurrentPage < targetsTotalPages - 2 && (
+                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                              ...
+                            </span>
+                          )}
+                        {targetsTotalPages > 5 && (
+                          <button
+                            onClick={() =>
+                              handleTargetsPageChange(targetsTotalPages)
+                            }
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                              targetsCurrentPage === targetsTotalPages
+                                ? "bg-white text-[#136D6D] font-semibold"
+                                : "text-black hover:bg-gray-50"
+                            }`}
+                          >
+                            {targetsTotalPages}
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            handleTargetsPageChange(
+                              Math.min(
+                                targetsTotalPages,
+                                targetsCurrentPage + 1
+                              )
+                            )
+                          }
+                          disabled={targetsCurrentPage === targetsTotalPages}
+                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
+
             {activeTab !== "Overview" &&
               activeTab !== "Ad Groups" &&
               activeTab !== "Keywords" &&
-              activeTab !== "Product Ads" && (
+              activeTab !== "Product Ads" &&
+              activeTab !== "Product Targets" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
                 </div>

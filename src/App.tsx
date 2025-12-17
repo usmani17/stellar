@@ -20,6 +20,7 @@ import { Accounts } from "./pages/Accounts";
 import { Channels } from "./pages/Channels";
 import { Campaigns } from "./pages/Campaigns";
 import { CampaignDetail } from "./pages/CampaignDetail";
+import { AdGroups } from "./pages/AdGroups";
 import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
 import { GoogleOAuthCallback } from "./pages/GoogleOAuthCallback";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
@@ -175,6 +176,18 @@ function App() {
                       <AccountRequiredRoute>
                         <Layout>
                           <CampaignDetail />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/amazon/adgroups"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <AdGroups />
                         </Layout>
                       </AccountRequiredRoute>
                     </ProtectedRoute>

@@ -116,9 +116,15 @@ export interface CampaignDetail {
 
 export interface AdGroup {
   id: number;
+  adGroupId?: string;
+  campaignId?: string;
   name: string;
   status: string;
   default_bid?: string;
+  campaign_name?: string;
+  profile_name?: string;
+  profile_id?: string;
+  type?: string;
   ctr: string;
   spends: string;
   sales: string;
@@ -126,6 +132,32 @@ export interface AdGroup {
   impressions?: number;
   acos?: string;
   roas?: string;
+}
+
+export interface AdGroupsSummary {
+  total_adgroups: number;
+  total_spends: number;
+  total_sales: number;
+  total_impressions: number;
+  total_clicks: number;
+  avg_acos: number;
+  avg_roas: number;
+}
+
+export interface AdGroupsListResponse {
+  adgroups: AdGroup[];
+  summary?: AdGroupsSummary;
+  chart_data?: Array<{
+    date: string;
+    spend: number;
+    sales: number;
+    impressions?: number;
+    clicks?: number;
+  }>;
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export interface AdGroupsResponse {
@@ -170,6 +202,35 @@ export interface ProductAd {
 
 export interface ProductAdsResponse {
   productads: ProductAd[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface Target {
+  id: number;
+  name: string;
+  status: string;
+  bid?: string;
+  adgroup_name?: string;
+  profile_name?: string;
+  keyword?: string;
+  keyword_type?: string;
+  keyword_bid?: string;
+  match_type?: string;
+  targeting?: string;
+  ctr: string;
+  spends: string;
+  sales: string;
+  clicks?: number;
+  impressions?: number;
+  acos?: string;
+  roas?: string;
+}
+
+export interface TargetsResponse {
+  targets: Target[];
   total: number;
   page: number;
   page_size: number;
@@ -249,6 +310,180 @@ export const campaignsService = {
     // Send POST request with filters in body
     const url = `/accounts/${accountId}/campaigns/`;
     const response = await api.post<CampaignsResponse>(url, { filters });
+    return response.data;
+  },
+
+  getAdGroupsList: async (
+    accountId: number,
+    params?: {
+      sort_by?: string;
+      order?: 'asc' | 'desc';
+      page?: number;
+      page_size?: number;
+      start_date?: string;
+      end_date?: string;
+      // Name filters
+      name?: string;
+      name__icontains?: string;
+      name__not_icontains?: string;
+      // State and Type filters
+      state?: string;
+      type?: string;
+      // Default bid filters
+      default_bid?: number | string;
+      default_bid__lt?: number | string;
+      default_bid__gt?: number | string;
+      default_bid__lte?: number | string;
+      default_bid__gte?: number | string;
+      // Campaign name filters
+      campaign_name?: string;
+      campaign_name__icontains?: string;
+      campaign_name__not_icontains?: string;
+      // Profile name filters
+      profile_name?: string;
+      profile_name__icontains?: string;
+      profile_name__not_icontains?: string;
+      // Spends, sales, ctr filters
+      spends?: number | string;
+      spends__lt?: number | string;
+      spends__gt?: number | string;
+      spends__lte?: number | string;
+      spends__gte?: number | string;
+      sales?: number | string;
+      sales__lt?: number | string;
+      sales__gt?: number | string;
+      sales__lte?: number | string;
+      sales__gte?: number | string;
+      ctr?: number | string;
+      ctr__lt?: number | string;
+      ctr__gt?: number | string;
+      ctr__lte?: number | string;
+      ctr__gte?: number | string;
+    }
+  ): Promise<AdGroupsListResponse> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+    
+    if (params?.sort_by) {
+      filters.sort_by = params.sort_by;
+    }
+    if (params?.order) {
+      filters.order = params.order;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+    // Name filters
+    if (params?.name) {
+      filters.name = params.name;
+    }
+    if (params?.name__icontains) {
+      filters.name__icontains = params.name__icontains;
+    }
+    if (params?.name__not_icontains) {
+      filters.name__not_icontains = params.name__not_icontains;
+    }
+    // State and Type filters
+    if (params?.state) {
+      filters.state = params.state;
+    }
+    if (params?.type) {
+      filters.type = params.type;
+    }
+    // Default bid filters
+    if (params?.default_bid !== undefined) {
+      filters.default_bid = params.default_bid;
+    }
+    if (params?.default_bid__lt !== undefined) {
+      filters.default_bid__lt = params.default_bid__lt;
+    }
+    if (params?.default_bid__gt !== undefined) {
+      filters.default_bid__gt = params.default_bid__gt;
+    }
+    if (params?.default_bid__lte !== undefined) {
+      filters.default_bid__lte = params.default_bid__lte;
+    }
+    if (params?.default_bid__gte !== undefined) {
+      filters.default_bid__gte = params.default_bid__gte;
+    }
+    // Campaign name filters
+    if (params?.campaign_name) {
+      filters.campaign_name = params.campaign_name;
+    }
+    if (params?.campaign_name__icontains) {
+      filters.campaign_name__icontains = params.campaign_name__icontains;
+    }
+    if (params?.campaign_name__not_icontains) {
+      filters.campaign_name__not_icontains = params.campaign_name__not_icontains;
+    }
+    // Profile name filters
+    if (params?.profile_name) {
+      filters.profile_name = params.profile_name;
+    }
+    if (params?.profile_name__icontains) {
+      filters.profile_name__icontains = params.profile_name__icontains;
+    }
+    if (params?.profile_name__not_icontains) {
+      filters.profile_name__not_icontains = params.profile_name__not_icontains;
+    }
+    // Spends, sales, ctr filters
+    if (params?.spends !== undefined) {
+      filters.spends = params.spends;
+    }
+    if (params?.spends__lt !== undefined) {
+      filters.spends__lt = params.spends__lt;
+    }
+    if (params?.spends__gt !== undefined) {
+      filters.spends__gt = params.spends__gt;
+    }
+    if (params?.spends__lte !== undefined) {
+      filters.spends__lte = params.spends__lte;
+    }
+    if (params?.spends__gte !== undefined) {
+      filters.spends__gte = params.spends__gte;
+    }
+    if (params?.sales !== undefined) {
+      filters.sales = params.sales;
+    }
+    if (params?.sales__lt !== undefined) {
+      filters.sales__lt = params.sales__lt;
+    }
+    if (params?.sales__gt !== undefined) {
+      filters.sales__gt = params.sales__gt;
+    }
+    if (params?.sales__lte !== undefined) {
+      filters.sales__lte = params.sales__lte;
+    }
+    if (params?.sales__gte !== undefined) {
+      filters.sales__gte = params.sales__gte;
+    }
+    if (params?.ctr !== undefined) {
+      filters.ctr = params.ctr;
+    }
+    if (params?.ctr__lt !== undefined) {
+      filters.ctr__lt = params.ctr__lt;
+    }
+    if (params?.ctr__gt !== undefined) {
+      filters.ctr__gt = params.ctr__gt;
+    }
+    if (params?.ctr__lte !== undefined) {
+      filters.ctr__lte = params.ctr__lte;
+    }
+    if (params?.ctr__gte !== undefined) {
+      filters.ctr__gte = params.ctr__gte;
+    }
+    
+    const url = `/accounts/${accountId}/adgroups/`;
+    const response = await api.post<AdGroupsListResponse>(url, { filters });
     return response.data;
   },
 
@@ -386,6 +621,43 @@ export const campaignsService = {
     return response.data;
   },
 
+  getTargets: async (
+    accountId: number,
+    campaignId: string | number,
+    startDate?: string,
+    endDate?: string,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: 'asc' | 'desc';
+      type?: string; // Campaign type (SP, SB, SD)
+      // Filter parameters (flat object format expected by backend)
+      [key: string]: any;
+    }
+  ): Promise<TargetsResponse> => {
+    // Build filters object for POST request
+    const filters: any = {
+      ...params,
+    };
+    if (startDate) {
+      filters.start_date = startDate;
+    }
+    if (endDate) {
+      filters.end_date = endDate;
+    }
+    
+    // Build URL with type query parameter if provided
+    const queryParams = new URLSearchParams();
+    if (params?.type) {
+      queryParams.append('type', params.type);
+    }
+    const queryString = queryParams.toString();
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${queryString ? `?${queryString}` : ''}`;
+    const response = await api.post<TargetsResponse>(url, { filters });
+    return response.data;
+  },
+
   bulkUpdateCampaigns: async (
     accountId: number,
     payload: {
@@ -400,6 +672,20 @@ export const campaignsService = {
     }
   ) => {
     const url = `/accounts/${accountId}/campaigns/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkUpdateAdGroups: async (
+    accountId: number,
+    payload: {
+      adgroupIds: Array<string | number>;
+      action: 'status' | 'default_bid';
+      status?: 'enable' | 'pause' | 'archive';
+      value?: number;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/adgroups/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },

@@ -33,6 +33,9 @@ export const Sidebar: React.FC = () => {
     if (path === "/campaigns") {
       return location.pathname.includes("/campaigns");
     }
+    if (path === "/adgroups") {
+      return location.pathname.includes("/adgroups");
+    }
     return location.pathname === path;
   };
 
@@ -228,13 +231,34 @@ export const Sidebar: React.FC = () => {
               )}
             </Link>
             <Link
-              to="/channels"
-              className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
+              to={
+                accountId
+                  ? buildMarketplaceRoute(accountId, "amazon", "adgroups")
+                  : "/accounts"
+              }
+              onClick={(e) =>
+                handleAccountRequiredClick(e, () =>
+                  accountId
+                    ? buildMarketplaceRoute(accountId, "amazon", "adgroups")
+                    : "/accounts/1/amazon/adgroups"
+                )
+              }
+              className={`flex items-center p-2 rounded-xl transition-colors ${
                 isCollapsed ? "justify-center" : "gap-2"
+              } ${
+                isActive("/adgroups")
+                  ? "w-full bg-forest-f60 text-white"
+                  : "text-black hover:bg-transparent hover:text-[#136D6D]"
               }`}
               title={isCollapsed ? "Ad Groups" : undefined}
             >
-              <img src={AdGroupIcon} alt="" className="w-5 h-5" />
+              <img
+                src={AdGroupIcon}
+                alt=""
+                className={`w-5 h-5 ${
+                  isActive("/adgroups") ? "brightness-0 invert" : ""
+                }`}
+              />
               {!isCollapsed && (
                 <span className="text-[12.32px] font-normal leading-[16px]">
                   Ad Groups
