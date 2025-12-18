@@ -18,6 +18,7 @@ import {
 } from "../components/filters/FilterSection";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
 import ExportIcon from "../assets/export-icon.svg";
+import { ErrorModal } from "../components/ui/ErrorModal";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
@@ -83,6 +84,10 @@ export const Campaigns: React.FC = () => {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    message: string;
+  }>({ isOpen: false, message: "" });
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
@@ -314,9 +319,16 @@ export const Campaigns: React.FC = () => {
       setTimeout(() => {
         setShowExportDropdown(false);
       }, 500);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to export campaigns:", error);
-      alert("Failed to export campaigns. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to export campaigns. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
       setShowExportDropdown(false);
     } finally {
       setExportLoading(false);
@@ -824,6 +836,13 @@ export const Campaigns: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        message={errorModal.message}
+      />
 
       {/* Sidebar */}
       <Sidebar />

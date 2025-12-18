@@ -18,6 +18,7 @@ import {
 } from "../components/filters/FilterSection";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
 import ExportIcon from "../assets/export-icon.svg";
+import { ErrorModal } from "../components/ui/ErrorModal";
 
 export const Keywords: React.FC = () => {
   const navigate = useNavigate();
@@ -71,6 +72,10 @@ export const Keywords: React.FC = () => {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    message: string;
+  }>({ isOpen: false, message: "" });
 
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -317,9 +322,16 @@ export const Keywords: React.FC = () => {
       setTimeout(() => {
         setShowExportDropdown(false);
       }, 500);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to export keywords:", error);
-      alert("Failed to export keywords. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to export keywords. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
       setShowExportDropdown(false);
     } finally {
       setExportLoading(false);
@@ -885,6 +897,13 @@ export const Keywords: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        message={errorModal.message}
+      />
 
       {/* Sidebar */}
       <Sidebar />
