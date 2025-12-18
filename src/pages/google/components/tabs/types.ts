@@ -4,6 +4,7 @@ export interface GoogleAdGroup {
   name?: string;
   adgroup_name?: string;
   status: string;
+  cpc_bid_dollars?: number;
   ctr?: number | string;
   spends?: number | string;
   sales?: number | string;

@@ -21,6 +21,7 @@ import WalmartIcon from "../../assets/images/cbi_walmart.svg";
 import TopKeywordsIcon from "../../assets/images/cbi_walmart.svg";
 import TopProductsIcon from "../../assets/images/cib_instacart.svg";
 import PixelsLikeBoxIcon from "../../assets/images/cib_instacart.svg";
+import ProductTargetIcon from "../../assets/images/producttarget.svg";
 
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
 const GOOGLE_SECTION_STORAGE_KEY = "google-section-collapsed";
@@ -138,8 +139,8 @@ export const Sidebar: React.FC = () => {
     if (path === "/google/keywords") {
       return location.pathname.includes("/google/keywords");
     }
-    if (path === "/google/productads") {
-      return location.pathname.includes("/google/productads");
+    if (path === "/google/ads") {
+      return location.pathname.includes("/google/ads");
     }
     if (path === "/adgroups") {
       return location.pathname.includes("/adgroups");
@@ -648,14 +649,14 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                    ? buildMarketplaceRoute(accountId, "google", "adgroups")
                     : "/accounts"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                      : "/accounts/1/google/campaigns"
+                      ? buildMarketplaceRoute(accountId, "google", "adgroups")
+                      : "/accounts/1/google/adgroups"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -681,14 +682,14 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                    ? buildMarketplaceRoute(accountId, "google", "keywords")
                     : "/accounts"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                      : "/accounts/1/google/campaigns"
+                      ? buildMarketplaceRoute(accountId, "google", "keywords")
+                      : "/accounts/1/google/keywords"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -726,33 +727,33 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                    ? buildMarketplaceRoute(accountId, "google", "ads")
                     : "/accounts"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
-                      ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                      : "/accounts/1/google/campaigns"
+                      ? buildMarketplaceRoute(accountId, "google", "ads")
+                      : "/accounts/1/google/ads"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/productads") ? "" : "transition-colors"
+                  isActive("/google/ads") ? "" : "transition-colors"
                 } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/productads")
+                  isActive("/google/ads")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                 }`}
-                title={isCollapsed ? "Product Ad" : undefined}
+                title={isCollapsed ? "Ads" : undefined}
               >
                 <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/productads") ? "!text-white" : ""
+                      isActive("/google/ads") ? "!text-white" : ""
                     }`}
                   >
-                    Product Ad
+                    Ads
                   </span>
                 )}
               </Link>

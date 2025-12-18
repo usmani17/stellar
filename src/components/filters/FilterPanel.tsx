@@ -308,22 +308,26 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     return filter.value.toString();
   };
 
-  const needsOperator =
-    selectedField === "campaign_name" ||
-    selectedField === "budget" ||
-    selectedField === "profile_name" ||
-    selectedField === "account_name" ||
-    selectedField === "name" ||
-    selectedField === "default_bid" ||
-    selectedField === "spends" ||
-    selectedField === "sales" ||
-    selectedField === "ctr" ||
-    selectedField === "bid" ||
-    selectedField === "adgroup_name" ||
-    selectedField === "sku" ||
-    selectedField === "adId" ||
-    selectedField === "asin" ||
-    selectedField === "adGroupId";
+  const needsOperatorFields = [
+    "campaign_name",
+    "profile_name",
+    "account_name",
+    "name",
+    "adgroup_name",
+    "sku",
+    "adId",
+    "asin",
+    "adGroupId",
+    "budget",
+    "default_bid",
+    "spends",
+    "sales",
+    "ctr",
+    "bid",
+  ];
+
+  const needsOperator = needsOperatorFields.includes(selectedField as string);
+
   const isStateOrType = selectedField === "state" || selectedField === "type";
   const isStatusOrChannelType =
     selectedField === "status" || selectedField === "advertising_channel_type";
@@ -356,22 +360,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 setFilterValue("");
 
                 // Auto-select first operator if field needs operator
-                const needsOp =
-                  value === "campaign_name" ||
-                  value === "budget" ||
-                  value === "profile_name" ||
-                  value === "account_name" ||
-                  value === "name" ||
-                  value === "default_bid" ||
-                  value === "spends" ||
-                  value === "sales" ||
-                  value === "ctr" ||
-                  value === "bid" ||
-                  value === "adgroup_name" ||
-                  value === "sku" ||
-                  value === "adId" ||
-                  value === "asin" ||
-                  value === "adGroupId";
+                const needsOp = needsOperatorFields.includes(value as string);
 
                 if (needsOp) {
                   // For string fields, use "contains", for numeric use "eq"

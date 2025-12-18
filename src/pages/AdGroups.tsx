@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
@@ -16,6 +17,7 @@ import {
   FilterSectionPanel,
 } from "../components/filters/FilterSection";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
+import ExportIcon from "../assets/export-icon.svg";
 
 export const AdGroups: React.FC = () => {
   const navigate = useNavigate();
@@ -66,6 +68,9 @@ export const AdGroups: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -107,6 +112,14 @@ export const AdGroups: React.FC = () => {
       [key]: !prev[key],
     }));
   };
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Ad Groups");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
 
   useEffect(() => {
     // Cancel any pending request when dependencies change
@@ -256,6 +269,60 @@ export const AdGroups: React.FC = () => {
     });
 
     return params;
+  };
+
+  const handleExport = async (exportType: "all_data" | "current_view") => {
+    if (!accountId) return;
+
+    // Keep dropdown open and show loading
+    setShowExportDropdown(true);
+    setExportLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Build params from current filters, sorting, and pagination
+      const params: any = {
+        sort_by: sortBy,
+        order: sortOrder,
+        start_date: startDate.toISOString().split("T")[0],
+        end_date: endDate.toISOString().split("T")[0],
+        ...buildFilterParams(filters),
+      };
+
+      // Add pagination for current_view
+      if (exportType === "current_view") {
+        params.page = currentPage;
+        params.page_size = itemsPerPage;
+      }
+
+      // Call export API
+      const result = await campaignsService.exportAdGroups(accountIdNum, {
+        ...params,
+        export_type: exportType,
+      });
+
+      // Automatically download the file
+      const link = document.createElement("a");
+      link.href = result.url;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Close dropdown after a short delay to show success
+      setTimeout(() => {
+        setShowExportDropdown(false);
+      }, 500);
+    } catch (error) {
+      console.error("Failed to export adgroups:", error);
+      alert("Failed to export adgroups. Please try again.");
+      setShowExportDropdown(false);
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const loadAdGroups = async (accountId: number) => {
@@ -571,16 +638,22 @@ export const AdGroups: React.FC = () => {
       ) {
         setShowBulkActions(false);
       }
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    if (showBulkActions) {
+    if (showBulkActions || showExportDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showBulkActions]);
+  }, [showBulkActions, showExportDropdown]);
 
   // Cancel inline edit when clicking outside
   useEffect(() => {
@@ -794,6 +867,21 @@ export const AdGroups: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white flex">
+      {/* Export Loading Overlay */}
+      {exportLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[300]">
+          <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center gap-4 min-w-[280px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#136D6D] border-t-transparent"></div>
+            <p className="text-[16px] text-[#072929] font-medium">
+              Exporting Ad Groups...
+            </p>
+            <p className="text-[13px] text-[#556179] text-center">
+              Please wait while we prepare your file
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <Sidebar />
 
@@ -848,7 +936,7 @@ export const AdGroups: React.FC = () => {
             {/* Ad Groups Table Card */}
             <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
               {/* Table Header */}
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end gap-2">
                 <div
                   className="relative inline-flex justify-end"
                   ref={dropdownRef}
@@ -860,6 +948,7 @@ export const AdGroups: React.FC = () => {
                       e.stopPropagation();
                       setShowBulkActions((prev) => !prev);
                       setShowBidPanel(false);
+                      setShowExportDropdown(false);
                     }}
                   >
                     <svg
@@ -913,6 +1002,100 @@ export const AdGroups: React.FC = () => {
                           </button>
                         ))}
                       </div>
+                    </div>
+                  )}
+                </div>
+                <div
+                  className="relative inline-flex justify-end"
+                  ref={exportDropdownRef}
+                >
+                  <div className="relative">
+                    <img
+                      src={ExportIcon}
+                      alt="Export"
+                      className={`w-full h-full object-contain ${
+                        exportLoading
+                          ? "opacity-50 cursor-not-allowed"
+                          : "cursor-pointer"
+                      }`}
+                      onClick={(e) => {
+                        if (exportLoading) return;
+                        e.stopPropagation();
+                        setShowExportDropdown((prev) => !prev);
+                        setShowBulkActions(false);
+                        setShowBidPanel(false);
+                      }}
+                    />
+                    {exportLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                      </div>
+                    )}
+                  </div>
+                  {(showExportDropdown || exportLoading) && (
+                    <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                      {exportLoading ? (
+                        <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                          <p className="text-[13px] text-[#072929] font-medium">
+                            Exporting...
+                          </p>
+                          <p className="text-[11px] text-[#556179] text-center px-2">
+                            Please wait while we prepare your file
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="overflow-y-auto">
+                          {[
+                            { value: "bulk_export", label: "Export All" },
+                            {
+                              value: "current_view",
+                              label: "Export Current View",
+                            },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const exportType =
+                                  opt.value === "bulk_export"
+                                    ? "all_data"
+                                    : "current_view";
+                                // Keep dropdown open during export
+                                await handleExport(exportType);
+                              }}
+                              disabled={exportLoading}
+                            >
+                              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                <svg
+                                  width="20"
+                                  height="20"
+                                  viewBox="0 0 20 20"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <rect
+                                    width="20"
+                                    height="20"
+                                    rx="3.2"
+                                    fill="#072929"
+                                  />
+                                  <path
+                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                    stroke="#F9F9F6"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </div>
+                              <span className="font-normal">{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

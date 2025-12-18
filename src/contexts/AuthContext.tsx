@@ -12,6 +12,7 @@ import {
   type LoginCredentials,
   type RegisterData,
 } from "../services/auth";
+import { setAuth0TokenGetter } from "../services/api";
 
 interface AuthContextType {
   user: User | null;
@@ -297,6 +298,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       return null;
     }
   };
+
+  // Set the token getter for API interceptor to use
+  useEffect(() => {
+    if (isAuthenticated) {
+      setAuth0TokenGetter(getAccessToken);
+    } else {
+      setAuth0TokenGetter(null);
+    }
+  }, [isAuthenticated]);
 
   return (
     <AuthContext.Provider

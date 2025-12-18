@@ -7,6 +7,7 @@ import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button, Menu } from "../components/ui";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import AmazonIcon from "../assets/images/ri_amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
 
@@ -76,6 +77,14 @@ export const Channels: React.FC = () => {
       setLoading(false);
     }
   }, [accountId, accounts, navigate]);
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Channels");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
 
   useEffect(() => {
     loadData();

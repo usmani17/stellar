@@ -131,6 +131,21 @@ export const CampaignDetail: React.FC = () => {
     roas: false,
     orders: false,
   });
+  // Ad Group inline edit state
+  const [editingAdGroupField, setEditingAdGroupField] = useState<{
+    id: number;
+    field: "status" | "default_bid";
+  } | null>(null);
+  const [editedAdGroupValue, setEditedAdGroupValue] = useState<string>("");
+  const [adGroupEditLoading, setAdGroupEditLoading] = useState<Set<number>>(
+    new Set()
+  );
+  const [pendingAdGroupChange, setPendingAdGroupChange] = useState<{
+    id: number;
+    field: "status" | "default_bid";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
 
   // Filter tabs based on campaign type - SD campaigns don't have keywords
   const allTabs = [
@@ -929,6 +944,171 @@ export const CampaignDetail: React.FC = () => {
     return [];
   }, [campaignDetail]);
 
+  // Calculate total row for ad groups
+  const adGroupsTotalRow = useMemo(() => {
+    if (adgroups.length === 0) return null;
+
+    let totalSpends = 0;
+    let totalSales = 0;
+    let totalClicks = 0;
+    let totalImpressions = 0;
+
+    adgroups.forEach((ag) => {
+      const spends = parseFloat(ag.spends?.replace(/[^0-9.]/g, "") || "0");
+      const sales = parseFloat(ag.sales?.replace(/[^0-9.]/g, "") || "0");
+      totalSpends += spends;
+      totalSales += sales;
+      totalClicks += ag.clicks || 0;
+      totalImpressions += ag.impressions || 0;
+    });
+
+    const totalCTR =
+      totalImpressions > 0
+        ? `${((totalClicks / totalImpressions) * 100).toFixed(2)}%`
+        : "0.00%";
+
+    return {
+      spends: `$${totalSpends.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      sales: `$${totalSales.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      ctr: totalCTR,
+    };
+  }, [adgroups]);
+
+  // Ad Group inline edit handlers
+  const handleAdGroupEditStart = (
+    id: number,
+    field: "status" | "default_bid",
+    currentValue: string
+  ) => {
+    setEditingAdGroupField({ id, field });
+    setEditedAdGroupValue(currentValue);
+    setPendingAdGroupChange(null);
+  };
+
+  const handleAdGroupEditChange = (value: string) => {
+    setEditedAdGroupValue(value);
+  };
+
+  const handleAdGroupEditEnd = () => {
+    if (!editingAdGroupField) return;
+
+    const adgroup = adgroups.find((ag) => ag.id === editingAdGroupField.id);
+    if (!adgroup) {
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
+      return;
+    }
+
+    let hasChanged = false;
+    let oldValue = "";
+
+    if (editingAdGroupField.field === "status") {
+      const statusLower = adgroup.status?.toLowerCase() || "enabled";
+      const currentStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "enabled"
+          : statusLower === "paused"
+          ? "paused"
+          : "archived";
+      oldValue = currentStatus;
+      hasChanged = editedAdGroupValue !== currentStatus;
+    } else if (editingAdGroupField.field === "default_bid") {
+      const currentBid = adgroup.default_bid
+        ? adgroup.default_bid.replace(/[^0-9.]/g, "")
+        : "0";
+      oldValue = adgroup.default_bid || "$0.00";
+      hasChanged = editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
+    }
+
+    if (hasChanged) {
+      setPendingAdGroupChange({
+        id: editingAdGroupField.id,
+        field: editingAdGroupField.field,
+        newValue: editedAdGroupValue,
+        oldValue: oldValue,
+      });
+      setEditingAdGroupField(null);
+    } else {
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
+    }
+  };
+
+  const confirmAdGroupChange = async () => {
+    if (!pendingAdGroupChange || !accountId) return;
+
+    const adgroup = adgroups.find((ag) => ag.id === pendingAdGroupChange.id);
+    if (!adgroup || !adgroup.adGroupId) {
+      alert("Ad group ID not found");
+      setPendingAdGroupChange(null);
+      return;
+    }
+
+    setAdGroupEditLoading((prev) => new Set(prev).add(pendingAdGroupChange.id));
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (pendingAdGroupChange.field === "status") {
+        // Map status values
+        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
+          enabled: "enable",
+          paused: "pause",
+          archived: "archive",
+        };
+        const statusValue =
+          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "enable";
+
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: [adgroup.adGroupId],
+          action: "status",
+          status: statusValue,
+        });
+      } else if (pendingAdGroupChange.field === "default_bid") {
+        // Extract numeric value
+        const bidValue = parseFloat(pendingAdGroupChange.newValue);
+        if (isNaN(bidValue)) {
+          throw new Error("Invalid bid value");
+        }
+
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: [adgroup.adGroupId],
+          action: "default_bid",
+          value: bidValue,
+        });
+      }
+
+      // Reload ad groups
+      await loadAdGroups();
+      setPendingAdGroupChange(null);
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
+    } catch (error) {
+      console.error("Error updating ad group:", error);
+      alert("Failed to update ad group. Please try again.");
+    } finally {
+      setAdGroupEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingAdGroupChange.id);
+        return newSet;
+      });
+    }
+  };
+
+  const cancelAdGroupChange = () => {
+    setPendingAdGroupChange(null);
+    setEditingAdGroupField(null);
+    setEditedAdGroupValue("");
+  };
+
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
@@ -1520,6 +1700,17 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={adgroupsSortBy}
                     sortOrder={adgroupsSortOrder}
                     onSort={handleAdGroupsSort}
+                    editingField={editingAdGroupField}
+                    editedValue={editedAdGroupValue}
+                    onEditStart={handleAdGroupEditStart}
+                    onEditChange={handleAdGroupEditChange}
+                    onEditEnd={handleAdGroupEditEnd}
+                    inlineEditLoading={adGroupEditLoading}
+                    pendingChange={pendingAdGroupChange}
+                    onConfirmChange={confirmAdGroupChange}
+                    onCancelChange={cancelAdGroupChange}
+                    showTotalRow={adgroups.length > 0}
+                    totalRow={adGroupsTotalRow || undefined}
                   />
                 </div>
                 {/* Pagination */}
@@ -2156,7 +2347,7 @@ export const CampaignDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Inline Edit Confirmation Modal */}
+      {/* Campaign Inline Edit Confirmation Modal */}
       {showInlineEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
@@ -2201,6 +2392,7 @@ export const CampaignDetail: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

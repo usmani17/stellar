@@ -9,6 +9,7 @@ import { DateRangeProvider } from "./contexts/DateRangeContext";
 import { AccountsProvider } from "./contexts/AccountsContext";
 import { SidebarProvider } from "./contexts/SidebarContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { PublicRoute } from "./components/auth/PublicRoute";
 import { AccountRequiredRoute } from "./components/auth/AccountRequiredRoute";
 import { LegacyRedirect } from "./components/auth/LegacyRedirect";
 import { Layout } from "./components/layout/Layout";
@@ -31,6 +32,9 @@ import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
 import { GoogleCampaigns } from "./pages/google/GoogleCampaigns";
 import { GoogleCampaignDetail } from "./pages/google/GoogleCampaignDetail";
 import { GoogleCreateCampaign } from "./pages/google/GoogleCreateCampaign";
+import { GoogleAdGroups } from "./pages/google/GoogleAdGroups";
+import { GoogleAds } from "./pages/google/GoogleAds";
+import { GoogleKeywords } from "./pages/google/GoogleKeywords";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
 import { Dashboards } from "./pages/Dashboards";
@@ -43,12 +47,37 @@ function App() {
           <SidebarProvider>
             <Router>
               <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route
+                  path="/login"
+                  element={
+                    <PublicRoute>
+                      <Login />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/signup"
+                  element={
+                    <PublicRoute>
+                      <Signup />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/forgot-password"
+                  element={
+                    <PublicRoute>
+                      <ForgotPassword />
+                    </PublicRoute>
+                  }
+                />
                 <Route
                   path="/reset-password/:token"
-                  element={<ResetPassword />}
+                  element={
+                    <PublicRoute>
+                      <ResetPassword />
+                    </PublicRoute>
+                  }
                 />
                 <Route path="/callback" element={<Auth0Callback />} />
                 <Route
@@ -252,6 +281,42 @@ function App() {
                       <AccountRequiredRoute>
                         <Layout>
                           <GoogleCampaignDetail />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/adgroups"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleAdGroups />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/ads"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleAds />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/keywords"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleKeywords />
                         </Layout>
                       </AccountRequiredRoute>
                     </ProtectedRoute>

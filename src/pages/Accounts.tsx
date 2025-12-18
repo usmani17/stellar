@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { buildMarketplaceRoute } from "../utils/urlHelpers";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { accountsService } from "../services/accounts";
@@ -43,6 +43,14 @@ export const Accounts: React.FC = () => {
   // Refresh accounts when navigating to this page (e.g., after OAuth flow)
   const hasRefreshedRef = useRef<string>("");
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Accounts");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
 
   useEffect(() => {
     if (location.pathname === "/accounts") {
@@ -455,28 +463,7 @@ export const Accounts: React.FC = () => {
                               <td className="py-4 px-5">
                                 <button
                                   onClick={() => {
-                                    const returnUrl =
-                                      searchParams.get("returnUrl");
-                                    if (returnUrl) {
-                                      // Replace account ID in return URL if it exists
-                                      const urlWithAccount = returnUrl.replace(
-                                        /\/accounts\/\d+\//,
-                                        `/accounts/${account.id}/`
-                                      );
-                                      navigate(urlWithAccount, {
-                                        replace: true,
-                                      });
-                                    } else {
-                                      // Default to amazon campaigns
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          account.id,
-                                          "amazon",
-                                          "campaigns"
-                                        ),
-                                        { replace: true }
-                                      );
-                                    }
+                                    navigate(`/accounts/${account.id}/channels`);
                                   }}
                                   className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
                                 >
