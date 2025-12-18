@@ -64,6 +64,7 @@ export const AdGroups: React.FC = () => {
   const [filters, setFilters] = useState<FilterValues>([]);
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Bulk actions state
@@ -116,6 +117,25 @@ export const AdGroups: React.FC = () => {
     // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
     const currentController = abortControllerRef.current;
+
+    // Generate a unique request ID based on all dependencies to prevent duplicate requests
+    const requestId = JSON.stringify({
+      accountId,
+      currentPage,
+      itemsPerPage,
+      sortBy,
+      sortOrder,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      filters,
+    });
+
+    // Skip if this is the same request as the last one (prevents React StrictMode double calls)
+    if (requestIdRef.current === requestId) {
+      return;
+    }
+
+    requestIdRef.current = requestId;
 
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
@@ -800,16 +820,7 @@ export const AdGroups: React.FC = () => {
                 isOpen={isFilterPanelOpen}
                 onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 filters={filters}
-                onApply={(newFilters) => {
-                  setFilters(newFilters);
-                  setCurrentPage(1); // Reset to first page when applying filters
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadAdGroupsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
-                }}
+                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
                 filterFields={ADGROUP_FILTER_FIELDS}
                 initialFilters={filters}
               />
@@ -823,12 +834,7 @@ export const AdGroups: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                if (accountId) {
-                  const accountIdNum = parseInt(accountId, 10);
-                  if (!isNaN(accountIdNum)) {
-                    loadAdGroupsWithFilters(accountIdNum, newFilters);
-                  }
-                }
+                // useEffect will handle the API call when filters change
               }}
               filterFields={ADGROUP_FILTER_FIELDS}
               initialFilters={filters}
@@ -1398,26 +1404,9 @@ export const AdGroups: React.FC = () => {
 
                               {/* Ad Group Name */}
                               <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <button
-                                  onClick={() => {
-                                    if (accountId && adgroup.campaignId) {
-                                      // Navigate to campaign detail
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          parseInt(accountId),
-                                          "amazon",
-                                          "campaigns",
-                                          `${
-                                            adgroup.type?.toLowerCase() || "sp"
-                                          }_${adgroup.campaignId}`
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
-                                >
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
                                   {adgroup.name || "Unnamed Ad Group"}
-                                </button>
+                                </span>
                               </td>
 
                               {/* State */}

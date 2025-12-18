@@ -97,6 +97,7 @@ export const Campaigns: React.FC = () => {
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef<string>("");
 
   // Define filter fields for Campaigns
   const CAMPAIGN_FILTER_FIELDS = [
@@ -177,6 +178,25 @@ export const Campaigns: React.FC = () => {
     // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
     const currentController = abortControllerRef.current;
+
+    // Generate a unique request ID based on all dependencies to prevent duplicate requests
+    const requestId = JSON.stringify({
+      accountId,
+      currentPage,
+      itemsPerPage,
+      sortBy,
+      sortOrder,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      filters,
+    });
+
+    // Skip if this is the same request as the last one (prevents React StrictMode double calls)
+    if (requestIdRef.current === requestId) {
+      return;
+    }
+
+    requestIdRef.current = requestId;
 
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
@@ -760,17 +780,7 @@ export const Campaigns: React.FC = () => {
                 isOpen={isFilterPanelOpen}
                 onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 filters={filters}
-                onApply={(newFilters) => {
-                  setFilters(newFilters);
-                  setCurrentPage(1); // Reset to first page when applying filters
-                  // Explicitly trigger AJAX request when filters are applied
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadCampaignsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
-                }}
+                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
                 filterFields={CAMPAIGN_FILTER_FIELDS}
                 initialFilters={filters}
               />
@@ -784,13 +794,7 @@ export const Campaigns: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // Explicitly trigger AJAX request when filters are applied
-                if (accountId) {
-                  const accountIdNum = parseInt(accountId, 10);
-                  if (!isNaN(accountIdNum)) {
-                    loadCampaignsWithFilters(accountIdNum, newFilters);
-                  }
-                }
+                // useEffect will handle the API call when filters change
               }}
               filterFields={CAMPAIGN_FILTER_FIELDS}
               initialFilters={filters}
