@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
@@ -18,10 +11,12 @@ import { Checkbox } from "../components/ui/Checkbox";
 import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { type FilterValues } from "../components/filters/FilterPanel";
 import {
-  FilterPanel,
-  type FilterValues,
-} from "../components/filters/FilterPanel";
+  FilterSection,
+  FilterSectionPanel,
+} from "../components/filters/FilterSection";
+import { PerformanceChart } from "../components/charts/PerformanceChart";
 import ExportIcon from "../assets/export-icon.svg";
 
 export const Campaigns: React.FC = () => {
@@ -65,8 +60,8 @@ export const Campaigns: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-  const [sortBy, setSortBy] = useState<string>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<string>("sales");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -88,18 +83,6 @@ export const Campaigns: React.FC = () => {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
 
-  const metricOptions = [
-    { key: "sales", label: "Sales", color: "#136D6D" },
-    { key: "spend", label: "Spend", color: "#506766" },
-    { key: "impressions", label: "Impressions", color: "#7C3AED" },
-    { key: "clicks", label: "Clicks", color: "#169aa3" },
-    { key: "acos", label: "ACOS", color: "#DC2626" },
-    { key: "roas", label: "ROAS", color: "#059669" },
-  ] as const;
-
-  const selectedMetricCount =
-    Object.values(chartToggles).filter(Boolean).length;
-
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
     campaignId: string | number;
@@ -118,6 +101,23 @@ export const Campaigns: React.FC = () => {
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Define filter fields for Campaigns
+  const CAMPAIGN_FILTER_FIELDS = [
+    { value: "campaign_name", label: "Campaign Name" },
+    { value: "state", label: "State" },
+    { value: "budget", label: "Budget" },
+    { value: "type", label: "Type" },
+    { value: "profile_name", label: "Profile Name" },
+  ];
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Amazon Campaigns");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -774,54 +774,10 @@ export const Campaigns: React.FC = () => {
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                 Campaign Manager
               </h1>
-              {/* Add Filter Button */}
-              <button
-                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
-              >
-                <svg
-                  className="w-5 h-5 text-[#072929]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                  />
-                </svg>
-                <span className="text-[10.64px] text-[#072929] font-normal">
-                  Add Filter
-                </span>
-                <svg
-                  className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                    isFilterPanelOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Filter Panel - Full width, inline, no popup */}
-            {isFilterPanelOpen && (
-              <FilterPanel
-                isOpen={true}
-                onClose={() => {
-                  // Check if filters changed before closing
-                  // The FilterPanel will have already applied changes via onApply when chips are removed
-                  setIsFilterPanelOpen(false);
-                }}
+              <FilterSection
+                isOpen={isFilterPanelOpen}
+                onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                filters={filters}
                 onApply={(newFilters) => {
                   setFilters(newFilters);
                   setCurrentPage(1); // Reset to first page when applying filters
@@ -833,369 +789,180 @@ export const Campaigns: React.FC = () => {
                     }
                   }
                 }}
+                filterFields={CAMPAIGN_FILTER_FIELDS}
                 initialFilters={filters}
               />
-            )}
+            </div>
+
+            {/* Filter Panel - Rendered outside header to maintain button position */}
+            <FilterSectionPanel
+              isOpen={isFilterPanelOpen}
+              onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+              filters={filters}
+              onApply={(newFilters) => {
+                setFilters(newFilters);
+                setCurrentPage(1); // Reset to first page when applying filters
+                // Explicitly trigger AJAX request when filters are applied
+                if (accountId) {
+                  const accountIdNum = parseInt(accountId, 10);
+                  if (!isNaN(accountIdNum)) {
+                    loadCampaignsWithFilters(accountIdNum, newFilters);
+                  }
+                }
+              }}
+              filterFields={CAMPAIGN_FILTER_FIELDS}
+              initialFilters={filters}
+            />
 
             {/* Chart Section */}
-            <div
-              className="border border-gray-200 rounded-[20px] p-4 mb-4"
-              style={{ backgroundColor: "#F5F5F0" }}
-            >
-              {/* Title and Metrics Dropdown */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[12.16px] font-semibold text-black">
-                  Performance Trends
-                </h3>
-                <Dropdown
-                  options={metricOptions.map((m) => ({
-                    value: m.key,
-                    label: m.label,
-                    disabled: !chartToggles[m.key] && selectedMetricCount >= 3,
-                    color: m.color,
-                  }))}
-                  value={undefined}
-                  closeOnSelect={false}
-                  showCheckmark={false}
-                  align="right"
-                  width="w-56"
-                  renderButton={(_, isOpen, toggle) => {
-                    const selectedLabels = metricOptions
-                      .filter((m) => chartToggles[m.key])
-                      .map((m) => m.label)
-                      .join(", ");
-                    return (
-                      <button
-                        type="button"
-                        onClick={toggle}
-                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-[11px] text-[#072929] shadow-sm hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
-                      >
-                        <span className="truncate">
-                          {selectedLabels || "Select metrics"}
-                        </span>
-                        <svg
-                          className={`w-4 h-4 text-[#072929] transition-transform ${
-                            isOpen ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                    );
-                  }}
-                  renderOption={(option) => {
-                    const key = option.value as keyof typeof chartToggles;
-                    const selected = chartToggles[key];
-                    const disabled = !selected && selectedMetricCount >= 3;
-                    const metric = metricOptions.find((m) => m.key === key);
-                    return (
-                      <div className="flex items-center justify-between w-full px-1">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{
-                              backgroundColor: metric?.color || "#ccc",
-                            }}
-                          />
-                          <span className="text-[11px] text-[#313850]">
-                            {option.label}
-                          </span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="w-3.5 h-3.5 accent-[#136D6D]"
-                          checked={selected}
-                          disabled={disabled}
-                          readOnly
-                        />
-                      </div>
-                    );
-                  }}
-                  onChange={(value) => {
-                    const key = value as keyof typeof chartToggles;
-                    const isOn = chartToggles[key];
-                    if (!isOn && selectedMetricCount >= 3) {
-                      return;
-                    }
-                    toggleChartMetric(key);
-                  }}
-                />
-              </div>
-
-              {/* Chart */}
-              <div className="h-[223px] bg-transparent rounded-lg ">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 10, right: 20, left: -10, bottom: 0 }}
-                  >
-                    <XAxis
-                      dataKey="date"
-                      stroke="#556179"
-                      style={{ fontSize: "9.6px" }}
-                      tick={{ fill: "#556179" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      stroke="#556179"
-                      style={{ fontSize: "9.6px" }}
-                      tick={{ fill: "#556179" }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(value) => {
-                        if (value >= 1000) {
-                          return `${(value / 1000).toFixed(0)}K`;
-                        }
-                        return value.toString();
-                      }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#fff",
-                        border: "1px solid #E5E7EB",
-                        borderRadius: "8px",
-                        fontSize: "9.6px",
-                        boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-                      }}
-                      formatter={(value: any, name: string) => {
-                        if (name === "Sales" || name === "Spend") {
-                          return [`$${value.toLocaleString()}`, name];
-                        }
-                        if (name === "ACOS") {
-                          return [`${value.toFixed(2)}%`, name];
-                        }
-                        if (name === "ROAS") {
-                          return [`${value.toFixed(2)} x`, name];
-                        }
-                        return [value.toLocaleString(), name];
-                      }}
-                    />
-                    {chartToggles.sales && (
-                      <Line
-                        type="monotone"
-                        dataKey="sales"
-                        stroke="#136D6D"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Sales"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.spend && (
-                      <Line
-                        type="monotone"
-                        dataKey="spend"
-                        stroke="#506766"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Spend"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.impressions && (
-                      <Line
-                        type="monotone"
-                        dataKey="impressions"
-                        stroke="#7C3AED"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Impressions"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.clicks && (
-                      <Line
-                        type="monotone"
-                        dataKey="clicks"
-                        stroke="#169aa3"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="Clicks"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.acos && (
-                      <Line
-                        type="monotone"
-                        dataKey="acos"
-                        stroke="#DC2626"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="ACOS"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                    {chartToggles.roas && (
-                      <Line
-                        type="monotone"
-                        dataKey="roas"
-                        stroke="#059669"
-                        strokeWidth={1.5}
-                        dot={false}
-                        name="ROAS"
-                        activeDot={{ r: 4 }}
-                      />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            <PerformanceChart
+              data={chartData}
+              toggles={chartToggles}
+              onToggle={toggleChartMetric}
+              title="Performance Trends"
+            />
 
             {/* Campaigns Table Card */}
             <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
               {/* Table Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                  Campaigns
-                </h2>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="relative inline-flex justify-end"
-                    ref={dropdownRef}
+              <div className="flex items-center justify-end gap-2">
+                <div
+                  className="relative inline-flex justify-end"
+                  ref={dropdownRef}
+                >
+                  <Button
+                    type="button"
+                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowBulkActions((prev) => !prev);
+                      setShowBudgetPanel(false);
+                      setShowExportDropdown(false);
+                    }}
                   >
-                    <Button
-                      type="button"
-                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowBulkActions((prev) => !prev);
-                        setShowBudgetPanel(false);
-                        setShowExportDropdown(false);
-                      }}
+                    <svg
+                      className="w-4 h-4 text-[#072929]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      <svg
-                        className="w-4 h-4 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Edit
-                      </span>
-                    </Button>
-                    {showBulkActions && (
-                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                        <div className="overflow-y-auto">
-                          {[
-                            { value: "enable", label: "Enable" },
-                            { value: "pause", label: "Pause" },
-                            { value: "archive", label: "Archive" },
-                            { value: "edit_budget", label: "Edit Budget" },
-                          ].map((opt) => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                              disabled={selectedCampaigns.size === 0}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (selectedCampaigns.size === 0) return;
-                                if (opt.value === "edit_budget") {
-                                  setShowBudgetPanel(true);
-                                } else {
-                                  setShowBudgetPanel(false);
-                                  setPendingStatusAction(
-                                    opt.value as "enable" | "pause" | "archive"
-                                  );
-                                  setIsBudgetChange(false);
-                                  setShowConfirmationModal(true);
-                                }
-                                setShowBulkActions(false);
-                              }}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                      />
+                    </svg>
+                    <span className="text-[10.64px] text-[#072929] font-normal">
+                      Edit
+                    </span>
+                  </Button>
+                  {showBulkActions && (
+                    <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                      <div className="overflow-y-auto">
+                        {[
+                          { value: "enable", label: "Enable" },
+                          { value: "pause", label: "Pause" },
+                          { value: "archive", label: "Archive" },
+                          { value: "edit_budget", label: "Edit Budget" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            disabled={selectedCampaigns.size === 0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (selectedCampaigns.size === 0) return;
+                              if (opt.value === "edit_budget") {
+                                setShowBudgetPanel(true);
+                              } else {
+                                setShowBudgetPanel(false);
+                                setPendingStatusAction(
+                                  opt.value as "enable" | "pause" | "archive"
+                                );
+                                setIsBudgetChange(false);
+                                setShowConfirmationModal(true);
+                              }
+                              setShowBulkActions(false);
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                  <div
-                    className="relative inline-flex justify-end"
-                    ref={exportDropdownRef}
-                  >
-                    {/* <Button
+                    </div>
+                  )}
+                </div>
+                <div
+                  className="relative inline-flex justify-end"
+                  ref={exportDropdownRef}
+                >
+                  {/* <Button
                       type="button"
                       className="w-8 h-8 p-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center justify-center hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors cursor-pointer"
                       
                     > */}
-                    <img
-                      src={ExportIcon}
-                      alt="Export"
-                      className="cursor-pointer w-full h-full object-contain"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowExportDropdown((prev) => !prev);
-                        setShowBulkActions(false);
-                        setShowBudgetPanel(false);
-                      }}
-                    />
-                    {/* </Button> */}
-                    {showExportDropdown && (
-                      <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                        <div className="overflow-y-auto">
-                          {[
-                            { value: "bulk_export", label: "Export All" },
-                            {
-                              value: "current_view",
-                              label: "Export Current View",
-                            },
-                          ].map((opt) => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowExportDropdown(false);
-                                // No API call or action needed per requirements
-                              }}
-                            >
-                              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                                <svg
+                  <img
+                    src={ExportIcon}
+                    alt="Export"
+                    className="cursor-pointer w-full h-full object-contain"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowExportDropdown((prev) => !prev);
+                      setShowBulkActions(false);
+                      setShowBudgetPanel(false);
+                    }}
+                  />
+                  {/* </Button> */}
+                  {showExportDropdown && (
+                    <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                      <div className="overflow-y-auto">
+                        {[
+                          { value: "bulk_export", label: "Export All" },
+                          {
+                            value: "current_view",
+                            label: "Export Current View",
+                          },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowExportDropdown(false);
+                              // No API call or action needed per requirements
+                            }}
+                          >
+                            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <rect
                                   width="20"
                                   height="20"
-                                  viewBox="0 0 20 20"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                >
-                                  <rect
-                                    width="20"
-                                    height="20"
-                                    rx="3.2"
-                                    fill="#072929"
-                                  />
-                                  <path
-                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
-                                    stroke="#F9F9F6"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              </div>
-                              <span className="font-normal">{opt.label}</span>
-                            </button>
-                          ))}
-                        </div>
+                                  rx="3.2"
+                                  fill="#072929"
+                                />
+                                <path
+                                  d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                  stroke="#F9F9F6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <span className="font-normal">{opt.label}</span>
+                          </button>
+                        ))}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

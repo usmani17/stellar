@@ -1,5 +1,5 @@
 import React from "react";
-import { PerformanceChart } from "../PerformanceChart";
+import { PerformanceChart } from "../../../../components/charts/PerformanceChart";
 
 interface OverviewTabProps {
   chartData: Array<{
@@ -28,20 +28,26 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     sales: chartToggles.sales,
     spend: chartToggles.spend,
     clicks: chartToggles.clicks,
+    impressions: false,
+    acos: false,
+    roas: false,
   };
 
   // Map onToggleChartMetric to only handle the metrics PerformanceChart supports
-  const handleToggle = (metric: "sales" | "spend" | "clicks") => {
-    onToggleChartMetric(metric);
+  const handleToggle = (metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas") => {
+    if (metric === "sales" || metric === "spend" || metric === "clicks") {
+      onToggleChartMetric(metric);
+    }
   };
 
   return (
     <>
       {/* Chart Section */}
       <PerformanceChart
-        chartData={chartData}
-        chartToggles={filteredToggles}
-        onToggleMetric={handleToggle}
+        data={chartData}
+        toggles={filteredToggles}
+        onToggle={handleToggle}
+        title="Performance Trends"
       />
     </>
   );

@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { Dropdown } from "../ui/Dropdown";
 
 interface PerformanceChartProps {
   data: Array<{
@@ -15,7 +16,6 @@ interface PerformanceChartProps {
     spend?: number;
     impressions?: number;
     clicks?: number;
-    orders?: number;
     acos?: number;
     roas?: number;
   }>;
@@ -24,11 +24,12 @@ interface PerformanceChartProps {
     spend: boolean;
     impressions: boolean;
     clicks: boolean;
-    orders: boolean;
     acos: boolean;
     roas: boolean;
   };
-  onToggle: (metric: "sales" | "spend" | "impressions" | "clicks" | "orders" | "acos" | "roas") => void;
+  onToggle: (
+    metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
+  ) => void;
   title?: string;
 }
 
@@ -38,66 +39,115 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
   onToggle,
   title = "Performance Trends",
 }) => {
-  const metrics = [
+  const metricOptions = [
     { key: "sales", label: "Sales", color: "#136D6D" },
     { key: "spend", label: "Spend", color: "#506766" },
     { key: "impressions", label: "Impressions", color: "#7C3AED" },
     { key: "clicks", label: "Clicks", color: "#169aa3" },
     { key: "acos", label: "ACOS", color: "#DC2626" },
     { key: "roas", label: "ROAS", color: "#059669" },
-    { key: "orders", label: "Orders", color: "#072929" },
-  ];
+  ] as const;
+
+  const selectedMetricCount = Object.values(toggles).filter(Boolean).length;
 
   return (
-    <div
-      className="border border-gray-200 rounded-[20px] p-4 mb-4"
-      style={{ backgroundColor: "#F5F5F0" }}
-    >
-      {/* Title and Toggle Switches Row */}
-      <div className="flex flex-col gap-3 mb-4">
-        <h3 className="text-[12.8px] font-semibold text-black">{title}</h3>
-
-        {/* Toggle Switches */}
-        <div className="flex flex-wrap gap-3 items-center">
-          {metrics.map((metric) => (
-            <div
-              key={metric.key}
-              className="border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-3 bg-[#fefefb]"
-            >
-              <div
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: metric.color }}
-              />
-              <span className="text-[10.4px] font-normal text-black whitespace-nowrap">
-                {metric.label}
-              </span>
+    <div className="border border-gray-200 rounded-[20px] p-4 mb-4 bg-[#f9f9f6]">
+      {/* Title and Metrics Dropdown */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-[12.16px] font-semibold text-black">{title}</h3>
+        <Dropdown
+          options={metricOptions.map((m) => ({
+            value: m.key,
+            label: m.label,
+            disabled: !toggles[m.key] && selectedMetricCount >= 3,
+            color: m.color,
+          }))}
+          value={undefined}
+          closeOnSelect={false}
+          showCheckmark={false}
+          align="right"
+          width="w-56"
+          renderButton={(_, isOpen, toggle) => {
+            const selectedLabels = metricOptions
+              .filter((m) => toggles[m.key])
+              .map((m) => m.label)
+              .join(", ");
+            return (
               <button
-                onClick={() =>
-                  onToggle(
-                    metric.key as "sales" | "spend" | "impressions" | "clicks" | "orders" | "acos" | "roas"
-                  )
-                }
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
-                  toggles[metric.key as keyof typeof toggles]
-                    ? "bg-[#136D6D]"
-                    : "bg-[#a3a8b3]"
-                }`}
+                type="button"
+                onClick={toggle}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-[11px] text-[#072929] shadow-sm hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
               >
-                <span
-                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                    toggles[metric.key as keyof typeof toggles]
-                      ? "translate-x-5"
-                      : "translate-x-0.5"
+                <span className="truncate">
+                  {selectedLabels || "Select metrics"}
+                </span>
+                <svg
+                  className={`w-4 h-4 text-[#072929] transition-transform ${
+                    isOpen ? "rotate-180" : ""
                   }`}
-                />
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
               </button>
-            </div>
-          ))}
-        </div>
+            );
+          }}
+          renderOption={(option) => {
+            const key = option.value as keyof typeof toggles;
+            const selected = toggles[key];
+            const disabled = !selected && selectedMetricCount >= 3;
+            const metric = metricOptions.find((m) => m.key === key);
+            return (
+              <div className="flex items-center justify-between w-full px-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{
+                      backgroundColor: metric?.color || "#ccc",
+                    }}
+                  />
+                  <span className="text-[11px] text-[#313850]">
+                    {option.label}
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  className="w-3.5 h-3.5 accent-[#136D6D]"
+                  checked={selected}
+                  disabled={disabled}
+                  readOnly
+                />
+              </div>
+            );
+          }}
+          onChange={(value) => {
+            const key = value as keyof typeof toggles;
+            const isOn = toggles[key];
+            if (!isOn && selectedMetricCount >= 3) {
+              return;
+            }
+            onToggle(
+              key as
+                | "sales"
+                | "spend"
+                | "impressions"
+                | "clicks"
+                | "acos"
+                | "roas"
+            );
+          }}
+        />
       </div>
 
       {/* Chart */}
-      <div className="h-[223px] bg-transparent rounded-lg">
+      <div className="h-[223px] bg-transparent rounded-lg ">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
@@ -208,17 +258,6 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 strokeWidth={1.5}
                 dot={false}
                 name="ROAS"
-                activeDot={{ r: 4 }}
-              />
-            )}
-            {toggles.orders && (
-              <Line
-                type="monotone"
-                dataKey="orders"
-                stroke="#072929"
-                strokeWidth={1.5}
-                dot={false}
-                name="Orders"
                 activeDot={{ r: 4 }}
               />
             )}

@@ -4,7 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
-  useMemo,
+  useRef,
   type ReactNode,
 } from "react";
 import { accountsService, type Account } from "../services/accounts";
@@ -30,9 +30,16 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const loadingRef = useRef(false);
 
   const loadAccounts = useCallback(async () => {
+    // Prevent duplicate simultaneous requests
+    if (loadingRef.current) {
+      return;
+    }
+
     try {
+      loadingRef.current = true;
       setLoading(true);
       setError(null);
       const accountsData = await accountsService.getAccounts();
@@ -45,6 +52,7 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
       setAccounts([]);
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   }, []);
 
@@ -72,10 +80,13 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     [getAccountById]
   );
 
-  // Load accounts on mount
+  // Load accounts on mount (only once)
   useEffect(() => {
-    loadAccounts();
-  }, [loadAccounts]);
+    // Only load if we're not already loading
+    if (!loadingRef.current) {
+      loadAccounts();
+    }
+  }, []); // Empty deps - only run on mount
 
   return (
     <AccountsContext.Provider

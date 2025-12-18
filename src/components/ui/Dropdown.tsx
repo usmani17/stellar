@@ -212,13 +212,14 @@ export const Dropdown = <T extends string | number = string>({
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+            "absolute z-[100000] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden",
             width,
             maxHeight,
             alignClasses[align],
             positionClasses[position],
             menuClassName
           )}
+          style={{ zIndex: 100000 }}
         >
           {/* Search Input */}
           {searchable && (

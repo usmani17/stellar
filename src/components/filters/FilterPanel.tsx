@@ -68,7 +68,7 @@ const NUMERIC_OPERATORS = [
   { value: "gte", label: ">=" },
 ];
 
-const STATE_OPTIONS = ["Enable", "Paused", "Archived"];
+const STATE_OPTIONS = ["Enabled", "Paused", "Archived"];
 const TYPE_OPTIONS = ["SP", "SB", "SD"];
 const STATUS_OPTIONS = ["ENABLED", "PAUSED", "REMOVED"];
 const CHANNEL_TYPE_OPTIONS = [

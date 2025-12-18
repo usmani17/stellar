@@ -14,10 +14,12 @@ import {
   type AdGroup,
   type Keyword,
   type ProductAd,
+  type Target,
 } from "../services/campaigns";
 import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 import { KeywordsTable } from "../components/campaigns/KeywordsTable";
 import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
+import { TargetsTable } from "../components/campaigns/TargetsTable";
 import {
   FilterPanel,
   type FilterValues,
@@ -106,6 +108,20 @@ export const CampaignDetail: React.FC = () => {
   const [isProductAdsFilterPanelOpen, setIsProductAdsFilterPanelOpen] =
     useState(false);
   const [productadsFilters, setProductadsFilters] = useState<FilterValues>([]);
+  const [targets, setTargets] = useState<Target[]>([]);
+  const [targetsLoading, setTargetsLoading] = useState(false);
+  const [selectedTargetIds, setSelectedTargetIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [targetsCurrentPage, setTargetsCurrentPage] = useState(1);
+  const [targetsTotalPages, setTargetsTotalPages] = useState(0);
+  const [targetsSortBy, setTargetsSortBy] = useState<string>("id");
+  const [targetsSortOrder, setTargetsSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+  const [isTargetsFilterPanelOpen, setIsTargetsFilterPanelOpen] =
+    useState(false);
+  const [targetsFilters, setTargetsFilters] = useState<FilterValues>([]);
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
@@ -115,8 +131,24 @@ export const CampaignDetail: React.FC = () => {
     roas: false,
     orders: false,
   });
+  // Ad Group inline edit state
+  const [editingAdGroupField, setEditingAdGroupField] = useState<{
+    id: number;
+    field: "status" | "default_bid";
+  } | null>(null);
+  const [editedAdGroupValue, setEditedAdGroupValue] = useState<string>("");
+  const [adGroupEditLoading, setAdGroupEditLoading] = useState<Set<number>>(
+    new Set()
+  );
+  const [pendingAdGroupChange, setPendingAdGroupChange] = useState<{
+    id: number;
+    field: "status" | "default_bid";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
 
-  const tabs = [
+  // Filter tabs based on campaign type - SD campaigns don't have keywords
+  const allTabs = [
     "Overview",
     "Ad Groups",
     "Keywords",
@@ -124,6 +156,20 @@ export const CampaignDetail: React.FC = () => {
     "Product Ads",
     "Logs",
   ];
+
+  const tabs = useMemo(() => {
+    if (campaignType === "SD") {
+      return allTabs.filter((tab) => tab !== "Keywords");
+    }
+    return allTabs;
+  }, [campaignType]);
+
+  // Switch away from Keywords tab if campaign type is SD
+  useEffect(() => {
+    if (campaignType === "SD" && activeTab === "Keywords") {
+      setActiveTab("Overview");
+    }
+  }, [campaignType, activeTab]);
 
   useEffect(() => {
     if (accountId && campaignId) {
@@ -149,6 +195,12 @@ export const CampaignDetail: React.FC = () => {
       setProductadsCurrentPage(1);
     }
   }, [activeTab, startDate, endDate, productadsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Product Targets") {
+      setTargetsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, targetsFilters]);
 
   const buildKeywordsFilterParams = (filterList: FilterValues) => {
     const params: any = {};
@@ -341,6 +393,89 @@ export const CampaignDetail: React.FC = () => {
     return params;
   };
 
+  const buildTargetsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "name") {
+        if (filter.operator === "contains") {
+          params.name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.name = filter.value;
+        }
+      } else if (filter.field === "state") {
+        // Convert frontend state values to backend values
+        const stateMap: Record<string, string> = {
+          Enabled: "enabled",
+          Paused: "paused",
+          Archived: "archived",
+        };
+        params.state = stateMap[filter.value as string] || filter.value;
+      } else if (filter.field === "bid") {
+        if (filter.operator === "lt") {
+          params.bid__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.bid__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.bid = filter.value;
+        } else if (filter.operator === "lte") {
+          params.bid__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.bid__gte = filter.value;
+        }
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
+        }
+      } else if (filter.field === "spends") {
+        if (filter.operator === "lt") {
+          params.spends__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.spends__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.spends = filter.value;
+        } else if (filter.operator === "lte") {
+          params.spends__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.spends__gte = filter.value;
+        }
+      } else if (filter.field === "sales") {
+        if (filter.operator === "lt") {
+          params.sales__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.sales__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.sales = filter.value;
+        } else if (filter.operator === "lte") {
+          params.sales__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.sales__gte = filter.value;
+        }
+      } else if (filter.field === "ctr") {
+        if (filter.operator === "lt") {
+          params.ctr__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.ctr__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.ctr = filter.value;
+        } else if (filter.operator === "lte") {
+          params.ctr__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.ctr__gte = filter.value;
+        }
+      }
+    });
+
+    return params;
+  };
+
   useEffect(() => {
     if (accountId && campaignId && activeTab === "Ad Groups") {
       loadAdGroups();
@@ -387,6 +522,22 @@ export const CampaignDetail: React.FC = () => {
     productadsSortBy,
     productadsSortOrder,
     productadsFilters,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Product Targets") {
+      loadTargets();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    targetsCurrentPage,
+    targetsSortBy,
+    targetsSortOrder,
+    targetsFilters,
   ]);
 
   const loadCampaignDetail = async () => {
@@ -438,6 +589,7 @@ export const CampaignDetail: React.FC = () => {
           page_size: 10,
           sort_by: adgroupsSortBy,
           order: adgroupsSortOrder,
+          type: campaignType || undefined, // Pass campaign type to API
           ...buildAdGroupsFilterParams(adgroupsFilters),
         }
       );
@@ -540,6 +692,7 @@ export const CampaignDetail: React.FC = () => {
           page_size: 10,
           sort_by: keywordsSortBy,
           order: keywordsSortOrder,
+          type: campaignType || undefined, // Pass campaign type to API
           ...buildKeywordsFilterParams(keywordsFilters),
         }
       );
@@ -644,6 +797,7 @@ export const CampaignDetail: React.FC = () => {
           page_size: 10,
           sort_by: productadsSortBy,
           order: productadsSortOrder,
+          type: campaignType || undefined, // Pass campaign type to API
           ...buildProductAdsFilterParams(productadsFilters),
         }
       );
@@ -693,6 +847,77 @@ export const CampaignDetail: React.FC = () => {
     setProductadsCurrentPage(page);
   };
 
+  const loadTargets = async () => {
+    try {
+      setTargetsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setTargetsLoading(false);
+        return;
+      }
+
+      // campaignId is now the Amazon campaignId (string), pass it directly
+      const data = await campaignsService.getTargets(
+        accountIdNum,
+        campaignId,
+        startDate.toISOString().split("T")[0],
+        endDate.toISOString().split("T")[0],
+        {
+          page: targetsCurrentPage,
+          page_size: 10,
+          sort_by: targetsSortBy,
+          order: targetsSortOrder,
+          type: campaignType || undefined, // Pass campaign type to API
+          ...buildTargetsFilterParams(targetsFilters),
+        }
+      );
+
+      setTargets(data.targets);
+      setTargetsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load targets:", error);
+      setTargets([]);
+      setTargetsTotalPages(0);
+    } finally {
+      setTargetsLoading(false);
+    }
+  };
+
+  const handleSelectAllTargets = (checked: boolean) => {
+    if (checked) {
+      setSelectedTargetIds(new Set(targets.map((tgt) => tgt.id)));
+    } else {
+      setSelectedTargetIds(new Set());
+    }
+  };
+
+  const handleSelectTarget = (id: number, checked: boolean) => {
+    setSelectedTargetIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleTargetsSort = (column: string) => {
+    if (targetsSortBy === column) {
+      setTargetsSortOrder(targetsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setTargetsSortBy(column);
+      setTargetsSortOrder("asc");
+    }
+    setTargetsCurrentPage(1);
+  };
+
+  const handleTargetsPageChange = (page: number) => {
+    setTargetsCurrentPage(page);
+  };
+
   const toggleChartMetric = (
     metric:
       | "sales"
@@ -718,6 +943,171 @@ export const CampaignDetail: React.FC = () => {
     // Fallback: generate empty data structure
     return [];
   }, [campaignDetail]);
+
+  // Calculate total row for ad groups
+  const adGroupsTotalRow = useMemo(() => {
+    if (adgroups.length === 0) return null;
+
+    let totalSpends = 0;
+    let totalSales = 0;
+    let totalClicks = 0;
+    let totalImpressions = 0;
+
+    adgroups.forEach((ag) => {
+      const spends = parseFloat(ag.spends?.replace(/[^0-9.]/g, "") || "0");
+      const sales = parseFloat(ag.sales?.replace(/[^0-9.]/g, "") || "0");
+      totalSpends += spends;
+      totalSales += sales;
+      totalClicks += ag.clicks || 0;
+      totalImpressions += ag.impressions || 0;
+    });
+
+    const totalCTR =
+      totalImpressions > 0
+        ? `${((totalClicks / totalImpressions) * 100).toFixed(2)}%`
+        : "0.00%";
+
+    return {
+      spends: `$${totalSpends.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      sales: `$${totalSales.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      ctr: totalCTR,
+    };
+  }, [adgroups]);
+
+  // Ad Group inline edit handlers
+  const handleAdGroupEditStart = (
+    id: number,
+    field: "status" | "default_bid",
+    currentValue: string
+  ) => {
+    setEditingAdGroupField({ id, field });
+    setEditedAdGroupValue(currentValue);
+    setPendingAdGroupChange(null);
+  };
+
+  const handleAdGroupEditChange = (value: string) => {
+    setEditedAdGroupValue(value);
+  };
+
+  const handleAdGroupEditEnd = () => {
+    if (!editingAdGroupField) return;
+
+    const adgroup = adgroups.find((ag) => ag.id === editingAdGroupField.id);
+    if (!adgroup) {
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
+      return;
+    }
+
+    let hasChanged = false;
+    let oldValue = "";
+
+    if (editingAdGroupField.field === "status") {
+      const statusLower = adgroup.status?.toLowerCase() || "enabled";
+      const currentStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "enabled"
+          : statusLower === "paused"
+          ? "paused"
+          : "archived";
+      oldValue = currentStatus;
+      hasChanged = editedAdGroupValue !== currentStatus;
+    } else if (editingAdGroupField.field === "default_bid") {
+      const currentBid = adgroup.default_bid
+        ? adgroup.default_bid.replace(/[^0-9.]/g, "")
+        : "0";
+      oldValue = adgroup.default_bid || "$0.00";
+      hasChanged = editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
+    }
+
+    if (hasChanged) {
+      setPendingAdGroupChange({
+        id: editingAdGroupField.id,
+        field: editingAdGroupField.field,
+        newValue: editedAdGroupValue,
+        oldValue: oldValue,
+      });
+      setEditingAdGroupField(null);
+    } else {
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
+    }
+  };
+
+  const confirmAdGroupChange = async () => {
+    if (!pendingAdGroupChange || !accountId) return;
+
+    const adgroup = adgroups.find((ag) => ag.id === pendingAdGroupChange.id);
+    if (!adgroup || !adgroup.adGroupId) {
+      alert("Ad group ID not found");
+      setPendingAdGroupChange(null);
+      return;
+    }
+
+    setAdGroupEditLoading((prev) => new Set(prev).add(pendingAdGroupChange.id));
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (pendingAdGroupChange.field === "status") {
+        // Map status values
+        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
+          enabled: "enable",
+          paused: "pause",
+          archived: "archive",
+        };
+        const statusValue =
+          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "enable";
+
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: [adgroup.adGroupId],
+          action: "status",
+          status: statusValue,
+        });
+      } else if (pendingAdGroupChange.field === "default_bid") {
+        // Extract numeric value
+        const bidValue = parseFloat(pendingAdGroupChange.newValue);
+        if (isNaN(bidValue)) {
+          throw new Error("Invalid bid value");
+        }
+
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: [adgroup.adGroupId],
+          action: "default_bid",
+          value: bidValue,
+        });
+      }
+
+      // Reload ad groups
+      await loadAdGroups();
+      setPendingAdGroupChange(null);
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
+    } catch (error) {
+      console.error("Error updating ad group:", error);
+      alert("Failed to update ad group. Please try again.");
+    } finally {
+      setAdGroupEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingAdGroupChange.id);
+        return newSet;
+      });
+    }
+  };
+
+  const cancelAdGroupChange = () => {
+    setPendingAdGroupChange(null);
+    setEditingAdGroupField(null);
+    setEditedAdGroupValue("");
+  };
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -1018,116 +1408,120 @@ export const CampaignDetail: React.FC = () => {
 
                 {/* Top Keywords & Top Products */}
                 <div className="flex gap-6 mb-4">
-                  {/* Top Keywords Table */}
-                  <div className="flex-1">
-                    <div className="mb-2">
-                      <h3 className="text-[#072929] text-[18px] font-semibold leading-[100%]">
-                        Top Keywords
-                      </h3>
-                    </div>
-                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
-                      <div className="overflow-x-auto w-full">
-                        {loading ? (
-                          <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                            Loading keywords...
-                          </div>
-                        ) : campaignDetail &&
-                          campaignDetail.top_keywords.length > 0 ? (
-                          <table className="min-w-full">
-                            <thead>
-                              <tr className="border-b border-[#e8e8e3]">
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
-                                  <div className="flex items-center justify-center">
-                                    <Checkbox
-                                      checked={false}
-                                      onChange={() => {}}
-                                      size="small"
-                                    />
-                                  </div>
-                                </th>
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                  Keyword Name
-                                </th>
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                  CTR
-                                </th>
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                  Status
-                                </th>
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                  Spends
-                                </th>
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                  Sales
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {campaignDetail.top_keywords.map(
-                                (keyword, index) => {
-                                  const isLastRow =
-                                    index ===
-                                    campaignDetail.top_keywords.length - 1;
-                                  return (
-                                    <tr
-                                      key={index}
-                                      className={`${
-                                        !isLastRow
-                                          ? "border-b border-[#e8e8e3]"
-                                          : ""
-                                      } hover:bg-gray-50 transition-colors`}
-                                    >
-                                      <td className="py-[10px] px-[10px]">
-                                        <div className="flex items-center justify-center">
-                                          <Checkbox
-                                            checked={false}
-                                            onChange={() => {}}
-                                            size="small"
+                  {/* Top Keywords Table - Hidden for SD campaigns */}
+                  {campaignType !== "SD" && (
+                    <div className="flex-1">
+                      <div className="mb-2">
+                        <h3 className="text-[#072929] text-[18px] font-semibold leading-[100%]">
+                          Top Keywords
+                        </h3>
+                      </div>
+                      <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+                        <div className="overflow-x-auto w-full">
+                          {loading ? (
+                            <div className="text-center py-8 text-[#556179] text-[13.3px]">
+                              Loading keywords...
+                            </div>
+                          ) : campaignDetail &&
+                            campaignDetail.top_keywords.length > 0 ? (
+                            <table className="min-w-full w-full">
+                              <thead>
+                                <tr className="border-b border-[#e8e8e3]">
+                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                                    <div className="flex items-center justify-center">
+                                      <Checkbox
+                                        checked={false}
+                                        onChange={() => {}}
+                                        size="small"
+                                      />
+                                    </div>
+                                  </th>
+                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Keyword Name
+                                  </th>
+                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    CTR
+                                  </th>
+                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Status
+                                  </th>
+                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Spends
+                                  </th>
+                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Sales
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {campaignDetail.top_keywords.map(
+                                  (keyword, index) => {
+                                    const isLastRow =
+                                      index ===
+                                      campaignDetail.top_keywords.length - 1;
+                                    return (
+                                      <tr
+                                        key={index}
+                                        className={`${
+                                          !isLastRow
+                                            ? "border-b border-[#e8e8e3]"
+                                            : ""
+                                        } hover:bg-gray-50 transition-colors`}
+                                      >
+                                        <td className="py-[10px] px-[10px]">
+                                          <div className="flex items-center justify-center">
+                                            <Checkbox
+                                              checked={false}
+                                              onChange={() => {}}
+                                              size="small"
+                                            />
+                                          </div>
+                                        </td>
+                                        <td className="py-[10px] px-[10px]">
+                                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            {keyword.name}
+                                          </span>
+                                        </td>
+                                        <td className="py-[10px] px-[10px]">
+                                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            {keyword.ctr}
+                                          </span>
+                                        </td>
+                                        <td className="py-[10px] px-[10px]">
+                                          <StatusBadge
+                                            status={keyword.status}
                                           />
-                                        </div>
-                                      </td>
-                                      <td className="py-[10px] px-[10px]">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                          {keyword.name}
-                                        </span>
-                                      </td>
-                                      <td className="py-[10px] px-[10px]">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                          {keyword.ctr}
-                                        </span>
-                                      </td>
-                                      <td className="py-[10px] px-[10px]">
-                                        <StatusBadge status={keyword.status} />
-                                      </td>
-                                      <td className="py-[10px] px-[10px]">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                          {keyword.spends}
-                                        </span>
-                                      </td>
-                                      <td className="py-[10px] px-[10px]">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                          {keyword.sales}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                              )}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <div className="text-center py-8">
-                            <p className="text-[13.3px] text-[#556179] mb-4">
-                              No keywords data available
-                            </p>
-                          </div>
-                        )}
+                                        </td>
+                                        <td className="py-[10px] px-[10px]">
+                                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            {keyword.spends}
+                                          </span>
+                                        </td>
+                                        <td className="py-[10px] px-[10px]">
+                                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            {keyword.sales}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  }
+                                )}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div className="text-center py-8">
+                              <p className="text-[13.3px] text-[#556179] mb-4">
+                                No keywords data available
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Top Products Table */}
-                  <div className="flex-1">
+                  <div className={campaignType === "SD" ? "w-full" : "flex-1"}>
                     <div className="mb-2">
                       <h3 className="text-[#072929] text-[18px] font-semibold leading-[100%]">
                         Top Products
@@ -1141,9 +1535,18 @@ export const CampaignDetail: React.FC = () => {
                           </div>
                         ) : campaignDetail &&
                           campaignDetail.top_products.length > 0 ? (
-                          <table className="min-w-full">
+                          <table className="min-w-full w-full">
                             <thead>
                               <tr className="border-b border-[#e8e8e3]">
+                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                                  <div className="flex items-center justify-center">
+                                    <Checkbox
+                                      checked={false}
+                                      onChange={() => {}}
+                                      size="small"
+                                    />
+                                  </div>
+                                </th>
                                 <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                                   Product Name
                                 </th>
@@ -1170,6 +1573,15 @@ export const CampaignDetail: React.FC = () => {
                                           : ""
                                       } hover:bg-gray-50 transition-colors`}
                                     >
+                                      <td className="py-[10px] px-[10px]">
+                                        <div className="flex items-center justify-center">
+                                          <Checkbox
+                                            checked={false}
+                                            onChange={() => {}}
+                                            size="small"
+                                          />
+                                        </div>
+                                      </td>
                                       <td className="py-[10px] px-[10px]">
                                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                           {product.name}
@@ -1291,6 +1703,17 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={adgroupsSortBy}
                     sortOrder={adgroupsSortOrder}
                     onSort={handleAdGroupsSort}
+                    editingField={editingAdGroupField}
+                    editedValue={editedAdGroupValue}
+                    onEditStart={handleAdGroupEditStart}
+                    onEditChange={handleAdGroupEditChange}
+                    onEditEnd={handleAdGroupEditEnd}
+                    inlineEditLoading={adGroupEditLoading}
+                    pendingChange={pendingAdGroupChange}
+                    onConfirmChange={confirmAdGroupChange}
+                    onCancelChange={cancelAdGroupChange}
+                    showTotalRow={adgroups.length > 0}
+                    totalRow={adGroupsTotalRow || undefined}
                   />
                 </div>
                 {/* Pagination */}
@@ -1743,10 +2166,188 @@ export const CampaignDetail: React.FC = () => {
               </>
             )}
 
+            {activeTab === "Product Targets" && (
+              <>
+                {/* Header with Filter Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Product Targets
+                  </h2>
+                  {/* Add Filter Button */}
+                  <button
+                    onClick={() =>
+                      setIsTargetsFilterPanelOpen(!isTargetsFilterPanelOpen)
+                    }
+                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5 text-[#072929]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                    <span className="text-[10.64px] text-[#072929] font-normal">
+                      Add Filter
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                        isTargetsFilterPanelOpen ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Filter Panel */}
+                {isTargetsFilterPanelOpen && (
+                  <div className="mb-4">
+                    <FilterPanel
+                      isOpen={true}
+                      onClose={() => {
+                        // Check if filters changed before closing
+                        // The FilterPanel will have already applied changes via onApply when chips are removed
+                        setIsTargetsFilterPanelOpen(false);
+                      }}
+                      onApply={(newFilters) => {
+                        setTargetsFilters(newFilters);
+                        setTargetsCurrentPage(1); // Reset to first page when applying filters
+                        // Data will refresh automatically via useEffect dependency on targetsFilters
+                      }}
+                      initialFilters={targetsFilters}
+                      filterFields={[
+                        { value: "name", label: "Target" },
+                        { value: "state", label: "State" },
+                        { value: "bid", label: "Bid" },
+                        { value: "adgroup_name", label: "Ad Group" },
+                        { value: "spends", label: "Spends" },
+                        { value: "sales", label: "Sales" },
+                        { value: "ctr", label: "CTR" },
+                      ]}
+                    />
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <TargetsTable
+                    targets={targets}
+                    loading={targetsLoading}
+                    onSelectAll={handleSelectAllTargets}
+                    onSelect={handleSelectTarget}
+                    selectedIds={selectedTargetIds}
+                    sortBy={targetsSortBy}
+                    sortOrder={targetsSortOrder}
+                    onSort={handleTargetsSort}
+                  />
+                </div>
+                {/* Pagination */}
+                {!targetsLoading &&
+                  targets.length > 0 &&
+                  targetsTotalPages > 0 && (
+                    <div className="flex items-center justify-end mt-4">
+                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                        <button
+                          onClick={() =>
+                            handleTargetsPageChange(
+                              Math.max(1, targetsCurrentPage - 1)
+                            )
+                          }
+                          disabled={targetsCurrentPage === 1}
+                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Previous
+                        </button>
+                        {Array.from(
+                          { length: Math.min(5, targetsTotalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (targetsTotalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (targetsCurrentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              targetsCurrentPage >=
+                              targetsTotalPages - 2
+                            ) {
+                              pageNum = targetsTotalPages - 4 + i;
+                            } else {
+                              pageNum = targetsCurrentPage - 2 + i;
+                            }
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => handleTargetsPageChange(pageNum)}
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                  targetsCurrentPage === pageNum
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          }
+                        )}
+                        {targetsTotalPages > 5 &&
+                          targetsCurrentPage < targetsTotalPages - 2 && (
+                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                              ...
+                            </span>
+                          )}
+                        {targetsTotalPages > 5 && (
+                          <button
+                            onClick={() =>
+                              handleTargetsPageChange(targetsTotalPages)
+                            }
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                              targetsCurrentPage === targetsTotalPages
+                                ? "bg-white text-[#136D6D] font-semibold"
+                                : "text-black hover:bg-gray-50"
+                            }`}
+                          >
+                            {targetsTotalPages}
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            handleTargetsPageChange(
+                              Math.min(
+                                targetsTotalPages,
+                                targetsCurrentPage + 1
+                              )
+                            )
+                          }
+                          disabled={targetsCurrentPage === targetsTotalPages}
+                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
+
             {activeTab !== "Overview" &&
               activeTab !== "Ad Groups" &&
               activeTab !== "Keywords" &&
-              activeTab !== "Product Ads" && (
+              activeTab !== "Product Ads" &&
+              activeTab !== "Product Targets" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
                 </div>
@@ -1755,7 +2356,7 @@ export const CampaignDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Inline Edit Confirmation Modal */}
+      {/* Campaign Inline Edit Confirmation Modal */}
       {showInlineEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
@@ -1800,6 +2401,7 @@ export const CampaignDetail: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

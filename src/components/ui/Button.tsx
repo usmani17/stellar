@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost";
@@ -17,7 +17,8 @@ export const Button: React.FC<ButtonProps> = ({
     "font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center";
 
   const variants = {
-    primary: "bg-[#136d6d] text-white hover:bg-[#0e5a5a] focus:ring-[#136d6d]",
+    primary:
+      "bg-[#136d6d] text-white hover:bg-[#0e5a5a] hover:!text-white focus:ring-[#136d6d]",
     secondary:
       "bg-blue-b10 text-white hover:bg-blue-b20 focus:ring-blue-b30 border border-gray-200 rounded-lg items-center hover:bg-gray-50",
     outline:
@@ -53,6 +54,28 @@ export const Button: React.FC<ButtonProps> = ({
       } as React.CSSProperties)
     : {};
 
+  // Check if this is a primary button with custom bg that needs hover text color fix
+  const isPrimaryWithCustomBg = variant === "primary" && hasCustomBackground;
+
+  // Add global style for primary buttons with custom bg (only once)
+  useEffect(() => {
+    if (
+      isPrimaryWithCustomBg &&
+      !document.getElementById("primary-custom-bg-hover-style")
+    ) {
+      const style = document.createElement("style");
+      style.id = "primary-custom-bg-hover-style";
+      style.textContent = `
+        button.primary-custom-bg:hover,
+        button.primary-custom-bg:hover *,
+        button.primary-custom-bg:hover span {
+          color: white !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, [isPrimaryWithCustomBg]);
+
   return (
     <>
       {isPrimaryWithoutCustomBg && (
@@ -64,7 +87,9 @@ export const Button: React.FC<ButtonProps> = ({
       )}
       <button
         data-button-primary={isPrimaryWithoutCustomBg ? "true" : undefined}
-        className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+        className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${
+          isPrimaryWithCustomBg ? "primary-custom-bg" : ""
+        } ${className}`}
         style={buttonStyle}
         {...props}
       >

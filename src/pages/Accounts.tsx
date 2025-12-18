@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { buildMarketplaceRoute } from "../utils/urlHelpers";
+import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { accountsService } from "../services/accounts";
@@ -31,6 +31,8 @@ export const Accounts: React.FC = () => {
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     type: "account";
@@ -40,6 +42,16 @@ export const Accounts: React.FC = () => {
 
   // Refresh accounts when navigating to this page (e.g., after OAuth flow)
   const hasRefreshedRef = useRef<string>("");
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Set page title
+  useEffect(() => {
+    setPageTitle("Accounts");
+    return () => {
+      resetPageTitle();
+    };
+  }, []);
+
   useEffect(() => {
     if (location.pathname === "/accounts") {
       const currentKey = `${location.pathname}-${location.search}`;
@@ -49,6 +61,15 @@ export const Accounts: React.FC = () => {
       }
     }
   }, [location.pathname, location.search, refreshAccounts]);
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setLoading(accountsLoading);
@@ -60,6 +81,7 @@ export const Accounts: React.FC = () => {
       return;
     }
 
+    setCreatingAccount(true);
     try {
       await accountsService.createAccount({ name: newAccountName.trim() });
       setNewAccountName("");
@@ -67,6 +89,8 @@ export const Accounts: React.FC = () => {
       await refreshAccounts();
     } catch (error: any) {
       alert(error.response?.data?.error || "Failed to create account");
+    } finally {
+      setCreatingAccount(false);
     }
   };
 
@@ -206,7 +230,7 @@ export const Accounts: React.FC = () => {
               <Button
                 onClick={() => setShowCreateAccount(!showCreateAccount)}
                 size="sm"
-                className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
+                className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
               >
                 <svg
                   className="w-5 h-5"
@@ -248,10 +272,39 @@ export const Accounts: React.FC = () => {
                     </Button>
                     <Button
                       onClick={handleCreateAccount}
+                      disabled={creatingAccount}
                       size="sm"
-                      className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
+                      className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <span className="text-[14px] font-medium">Create</span>
+                      {creatingAccount ? (
+                        <>
+                          <svg
+                            className="animate-spin h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          <span className="text-[14px] font-medium">
+                            Creating...
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[14px] font-medium">Create</span>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -282,54 +335,116 @@ export const Accounts: React.FC = () => {
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setSearching(true);
+                      // Clear previous timeout
+                      if (searchTimeoutRef.current) {
+                        clearTimeout(searchTimeoutRef.current);
+                      }
+                      // Clear searching state after a short delay (debounce effect)
+                      searchTimeoutRef.current = setTimeout(() => {
+                        setSearching(false);
+                        searchTimeoutRef.current = null;
+                      }, 300);
+                    }}
                     placeholder="Search..."
                     className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
                   />
+                  {searching && (
+                    <svg
+                      className="animate-spin h-4 w-4 text-[#556179]"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  )}
                 </div>
               </div>
 
               {/* Table */}
-              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible">
-                {loading || accountsLoading ? (
-                  <div className="text-center py-8 text-[#556179] text-[14px]">
-                    Loading accounts...
-                  </div>
-                ) : filteredAccounts.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-[14px] text-[#556179] mb-4">
-                      {searchQuery ? "No accounts found" : "No accounts yet"}
-                    </p>
-                    {!searchQuery && (
-                      <Button onClick={() => setShowCreateAccount(true)}>
-                        Create Your First Account
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto overflow-y-visible">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-[#e8e8e3]">
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Account Name
-                          </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Users
-                          </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Created
-                          </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Created By
-                          </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Actions
-                          </th>
+              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
+                <div className="overflow-x-auto overflow-y-visible">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-[#e8e8e3]">
+                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
+                          Account Name
+                        </th>
+                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
+                          Users
+                        </th>
+                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
+                          Created
+                        </th>
+                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
+                          Created By
+                        </th>
+                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading || accountsLoading ? (
+                        // Loading skeleton rows
+                        Array.from({ length: 3 }).map((_, index) => (
+                          <tr
+                            key={`skeleton-${index}`}
+                            className={
+                              index < 2 ? "border-b border-[#e8e8e3]" : ""
+                            }
+                          >
+                            <td className="py-4 px-5">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
+                            </td>
+                            <td className="py-4 px-5">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                            </td>
+                            <td className="py-4 px-5">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
+                            </td>
+                            <td className="py-4 px-5">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                            </td>
+                            <td className="py-4 px-5">
+                              <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : filteredAccounts.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-8">
+                            <p className="text-[14px] text-[#556179] mb-4">
+                              {searchQuery
+                                ? "No accounts found"
+                                : "No accounts yet"}
+                            </p>
+                            {!searchQuery && (
+                              <Button
+                                onClick={() => setShowCreateAccount(true)}
+                              >
+                                Create Your First Account
+                              </Button>
+                            )}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {filteredAccounts.map((account, index) => {
+                      ) : (
+                        filteredAccounts.map((account, index) => {
                           const isDeleting = deletingAccountId === account.id;
                           const isConnecting =
                             oauthLoading?.accountId === account.id;
@@ -348,28 +463,7 @@ export const Accounts: React.FC = () => {
                               <td className="py-4 px-5">
                                 <button
                                   onClick={() => {
-                                    const returnUrl =
-                                      searchParams.get("returnUrl");
-                                    if (returnUrl) {
-                                      // Replace account ID in return URL if it exists
-                                      const urlWithAccount = returnUrl.replace(
-                                        /\/accounts\/\d+\//,
-                                        `/accounts/${account.id}/`
-                                      );
-                                      navigate(urlWithAccount, {
-                                        replace: true,
-                                      });
-                                    } else {
-                                      // Default to amazon campaigns
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          account.id,
-                                          "amazon",
-                                          "campaigns"
-                                        ),
-                                        { replace: true }
-                                      );
-                                    }
+                                    navigate(`/accounts/${account.id}/channels`);
                                   }}
                                   className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
                                 >
@@ -391,134 +485,171 @@ export const Accounts: React.FC = () => {
                                   {account.created_by_name || "—"}
                                 </span>
                               </td>
-                              <td className="py-4 px-5 relative z-10">
-                                <div className="flex items-center gap-2 justify-end md:justify-start relative">
-                                  <Menu
-                                    trigger={
-                                      <Button
-                                        size="sm"
-                                        disabled={isConnecting || isDeleting}
-                                        className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
-                                      >
-                                        <span className="text-[14px] font-medium">
-                                          {isConnecting
-                                            ? "Connecting..."
-                                            : "Connect"}
-                                        </span>
-                                      </Button>
-                                    }
-                                    items={[
-                                      {
-                                        label: "Amazon",
-                                        icon: (
-                                          <img
-                                            src={AmazonIcon}
-                                            alt="Amazon"
-                                            className="w-5 h-5"
-                                          />
-                                        ),
-                                        onClick: () =>
-                                          handleConnectAmazon(account.id),
-                                        disabled: isConnecting || isDeleting,
-                                      },
-                                      {
-                                        label: "Google",
-                                        icon: (
-                                          <img
-                                            src={GoogleIcon}
-                                            alt="Google"
-                                            className="w-5 h-5"
-                                          />
-                                        ),
-                                        onClick: () =>
-                                          handleConnectGoogle(account.id),
-                                        disabled: isConnecting || isDeleting,
-                                      },
-                                      // Hide these for now - uncomment when ready to implement
-                                      // {
-                                      //   label: "Walmart",
-                                      //   icon: (
-                                      //     <img
-                                      //       src={WalmartIcon}
-                                      //       alt="Walmart"
-                                      //       className="w-5 h-5"
-                                      //     />
-                                      //   ),
-                                      //   onClick: () => {
-                                      //     // TODO: Implement Walmart OAuth
-                                      //     alert("Walmart integration coming soon");
-                                      //   },
-                                      //   disabled: isConnecting || isDeleting,
-                                      // },
-                                      // {
-                                      //   label: "Instacart",
-                                      //   icon: (
-                                      //     <img
-                                      //       src={InstacartIcon}
-                                      //       alt="Instacart"
-                                      //       className="w-5 h-5"
-                                      //     />
-                                      //   ),
-                                      //   onClick: () => {
-                                      //     // TODO: Implement Instacart OAuth
-                                      //     alert("Instacart integration coming soon");
-                                      //   },
-                                      //   disabled: isConnecting || isDeleting,
-                                      // },
-                                      // {
-                                      //   label: "Criteo",
-                                      //   icon: (
-                                      //     <img
-                                      //       src={CriteoIcon}
-                                      //       alt="Criteo"
-                                      //       className="w-5 h-5"
-                                      //     />
-                                      //   ),
-                                      //   onClick: () => {
-                                      //     // TODO: Implement Criteo OAuth
-                                      //     alert("Criteo integration coming soon");
-                                      //   },
-                                      //   disabled: isConnecting || isDeleting,
-                                      // },
-                                    ]}
-                                    align="left"
-                                  />
-                                  <Menu
-                                    items={[
-                                      {
-                                        label: "View Channels",
-                                        icon: <ViewChannelsIcon />,
-                                        onClick: () => {
-                                          navigate(
-                                            `/accounts/${account.id}/channels`
-                                          );
+                              <td className="py-4 px-5">
+                                <div className="flex items-center gap-2 justify-end md:justify-start">
+                                  <div className="relative z-20">
+                                    <Menu
+                                      trigger={
+                                        <Button
+                                          size="sm"
+                                          disabled={isConnecting || isDeleting}
+                                          className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
+                                        >
+                                          <span className="text-[14px] font-medium">
+                                            {isConnecting
+                                              ? "Connecting..."
+                                              : "Connect"}
+                                          </span>
+                                        </Button>
+                                      }
+                                      items={[
+                                        {
+                                          label: "Amazon",
+                                          icon: (
+                                            <img
+                                              src={AmazonIcon}
+                                              alt="Amazon"
+                                              className="w-5 h-5"
+                                            />
+                                          ),
+                                          onClick: () =>
+                                            handleConnectAmazon(account.id),
+                                          disabled: isConnecting || isDeleting,
                                         },
-                                      },
-                                      {
-                                        label: "Assign User",
-                                        icon: <AssignUserIcon />,
-                                        onClick: () => {
-                                          // TODO: Implement assign user functionality
-                                          alert(
-                                            "Assign User functionality coming soon"
-                                          );
+                                        {
+                                          label: "Google",
+                                          icon: (
+                                            <img
+                                              src={GoogleIcon}
+                                              alt="Google"
+                                              className="w-5 h-5"
+                                            />
+                                          ),
+                                          onClick: () =>
+                                            handleConnectGoogle(account.id),
+                                          disabled: isConnecting || isDeleting,
                                         },
-                                      },
-                                      {
-                                        label: "Delete",
-                                        icon: <DeleteIcon />,
-                                        onClick: () =>
-                                          handleDeleteAccount(account.id),
-                                      },
-                                    ]}
-                                  />
+                                        // Hide these for now - uncomment when ready to implement
+                                        // {
+                                        //   label: "Walmart",
+                                        //   icon: (
+                                        //     <img
+                                        //       src={WalmartIcon}
+                                        //       alt="Walmart"
+                                        //       className="w-5 h-5"
+                                        //     />
+                                        //   ),
+                                        //   onClick: () => {
+                                        //     // TODO: Implement Walmart OAuth
+                                        //     alert("Walmart integration coming soon");
+                                        //   },
+                                        //   disabled: isConnecting || isDeleting,
+                                        // },
+                                        // {
+                                        //   label: "Instacart",
+                                        //   icon: (
+                                        //     <img
+                                        //       src={InstacartIcon}
+                                        //       alt="Instacart"
+                                        //       className="w-5 h-5"
+                                        //     />
+                                        //   ),
+                                        //   onClick: () => {
+                                        //     // TODO: Implement Instacart OAuth
+                                        //     alert("Instacart integration coming soon");
+                                        //   },
+                                        //   disabled: isConnecting || isDeleting,
+                                        // },
+                                        // {
+                                        //   label: "Criteo",
+                                        //   icon: (
+                                        //     <img
+                                        //       src={CriteoIcon}
+                                        //       alt="Criteo"
+                                        //       className="w-5 h-5"
+                                        //     />
+                                        //   ),
+                                        //   onClick: () => {
+                                        //     // TODO: Implement Criteo OAuth
+                                        //     alert("Criteo integration coming soon");
+                                        //   },
+                                        //   disabled: isConnecting || isDeleting,
+                                        // },
+                                      ]}
+                                      align="left"
+                                    />
+                                  </div>
+                                  <div className="relative z-30">
+                                    <Menu
+                                      items={[
+                                        {
+                                          label: "View Channels",
+                                          icon: <ViewChannelsIcon />,
+                                          onClick: () => {
+                                            navigate(
+                                              `/accounts/${account.id}/channels`
+                                            );
+                                          },
+                                        },
+                                        {
+                                          label: "Assign User",
+                                          icon: <AssignUserIcon />,
+                                          onClick: () => {
+                                            // TODO: Implement assign user functionality
+                                            alert(
+                                              "Assign User functionality coming soon"
+                                            );
+                                          },
+                                        },
+                                        {
+                                          label: "Delete",
+                                          icon: <DeleteIcon />,
+                                          onClick: () =>
+                                            handleDeleteAccount(account.id),
+                                        },
+                                      ]}
+                                    />
+                                  </div>
                                 </div>
                               </td>
                             </tr>
                           );
-                        })}
-                      </tbody>
-                    </table>
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Loading overlay for refreshing after creation */}
+                {(creatingAccount ||
+                  (accountsLoading && accounts.length > 0)) && (
+                  <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
+                    <div className="flex flex-col items-center gap-2">
+                      <svg
+                        className="animate-spin h-8 w-8 text-[#136d6d]"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <p className="text-[14px] text-[#556179]">
+                        {creatingAccount
+                          ? "Creating account..."
+                          : "Refreshing accounts..."}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

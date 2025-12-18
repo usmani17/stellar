@@ -45,7 +45,10 @@ export const AccountsHeader: React.FC = () => {
           </button>
 
           {isProfileDropdownOpen && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+            <div 
+              className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-[99999]"
+              style={{ zIndex: 99999 }}
+            >
               <div className="p-2">
                 <div className="px-3 py-2 text-[12.32px] text-[#313850] border-b border-gray-100">
                   <div className="font-medium">

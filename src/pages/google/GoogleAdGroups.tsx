@@ -1,8 +1,6 @@
-import { buildMarketplaceRoute } from "../../utils/urlHelpers";
-import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
@@ -18,19 +16,19 @@ import {
 import { campaignsService } from "../../services/campaigns";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
-  GoogleCampaignsTable,
-  type GoogleCampaign,
-} from "./components/GoogleCampaignsTable";
+  GoogleAdGroupsTable,
+  type GoogleAdGroup,
+} from "./components/GoogleAdGroupsTable";
 
-// GoogleCampaign interface is now imported from GoogleCampaignsTable
+// GoogleAdGroup interface is now imported from GoogleAdGroupsTable
 
-export const GoogleCampaigns: React.FC = () => {
+export const GoogleAdGroups: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
-  const [campaigns, setCampaigns] = useState<GoogleCampaign[]>([]);
+  const [adgroups, setAdgroups] = useState<GoogleAdGroup[]>([]);
   const [summary, setSummary] = useState<{
-    total_campaigns: number;
+    total_adgroups: number;
     total_spends: number;
     total_sales: number;
     total_impressions: number;
@@ -77,61 +75,55 @@ export const GoogleCampaigns: React.FC = () => {
   });
 
   // Selection and bulk actions
-  const [selectedCampaigns, setSelectedCampaigns] = useState<
+  const [selectedAdgroups, setSelectedAdgroups] = useState<
     Set<string | number>
   >(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
-  const [showBudgetPanel, setShowBudgetPanel] = useState(false);
-  const [budgetAction, setBudgetAction] = useState<
+  const [showBidPanel, setShowBidPanel] = useState(false);
+  const [bidAction, setBidAction] = useState<
     "increase" | "decrease" | "set"
   >("increase");
-  const [budgetUnit, setBudgetUnit] = useState<"percent" | "amount">("percent");
-  const [budgetValue, setBudgetValue] = useState<string>("");
+  const [bidUnit, setBidUnit] = useState<"percent" | "amount">("percent");
+  const [bidValue, setBidValue] = useState<string>("");
   const [upperLimit, setUpperLimit] = useState<string>("");
   const [lowerLimit, setLowerLimit] = useState<string>("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<
-    "ENABLED" | "PAUSED" | "REMOVED" | null
+    "ENABLED" | "PAUSED" | null
   >(null);
-  const [isBudgetChange, setIsBudgetChange] = useState(false);
+  const [isBidChange, setIsBidChange] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
-    campaignId: string | number;
-    field: "budget" | "status" | "start_date" | "end_date";
+    adgroupId: string | number;
+    field: "bid" | "status";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [updatingField, setUpdatingField] = useState<{
-    campaignId: string | number;
-    field: "budget" | "status" | "start_date" | "end_date";
+    adgroupId: string | number;
+    field: "bid" | "status";
   } | null>(null);
-  const [inlineEditCampaign, setInlineEditCampaign] =
-    useState<GoogleCampaign | null>(null);
+  const [inlineEditAdgroup, setInlineEditAdgroup] =
+    useState<GoogleAdGroup | null>(null);
   const [inlineEditField, setInlineEditField] = useState<
-    "budget" | "status" | "start_date" | "end_date" | null
+    "bid" | "status" | null
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   const [pendingStatusChange, setPendingStatusChange] = useState<{
-    campaignId: string | number;
+    adgroupId: string | number;
     newStatus: string;
     oldStatus: string;
   } | null>(null);
-  const [pendingBudgetChange, setPendingBudgetChange] = useState<{
-    campaignId: string | number;
-    newBudget: number;
-    oldBudget: number;
-  } | null>(null);
-  const [pendingDateChange, setPendingDateChange] = useState<{
-    campaignId: string | number;
-    field: "start_date" | "end_date";
-    newDate: string;
-    oldDate: string;
+  const [pendingBidChange, setPendingBidChange] = useState<{
+    adgroupId: string | number;
+    newBid: number;
+    oldBid: number;
   } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -193,7 +185,7 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Set page title
   useEffect(() => {
-    setPageTitle("Google Campaigns");
+    setPageTitle("Google Ad Groups");
     return () => {
       resetPageTitle();
     };
@@ -207,7 +199,7 @@ export const GoogleCampaigns: React.FC = () => {
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        loadCampaigns(accountIdNum);
+        loadAdgroups(accountIdNum);
       } else {
         setLoading(false);
       }
@@ -228,22 +220,28 @@ export const GoogleCampaigns: React.FC = () => {
         } else if (filter.operator === "equals") {
           params.campaign_name = filter.value;
         }
-      } else if (filter.field === "budget") {
+      } else if (filter.field === "bid") {
         if (filter.operator === "lt") {
-          params.budget__lt = filter.value;
+          params.bid__lt = filter.value;
         } else if (filter.operator === "gt") {
-          params.budget__gt = filter.value;
+          params.bid__gt = filter.value;
         } else if (filter.operator === "eq") {
-          params.budget = filter.value;
+          params.bid = filter.value;
         } else if (filter.operator === "lte") {
-          params.budget__lte = filter.value;
+          params.bid__lte = filter.value;
         } else if (filter.operator === "gte") {
-          params.budget__gte = filter.value;
+          params.bid__gte = filter.value;
+        }
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
         }
       } else if (filter.field === "status") {
         params.status = filter.value;
-      } else if (filter.field === "advertising_channel_type") {
-        params.advertising_channel_type = filter.value;
       } else if (filter.field === "account_name") {
         if (filter.operator === "contains") {
           params.account_name__icontains = filter.value;
@@ -258,7 +256,7 @@ export const GoogleCampaigns: React.FC = () => {
     return params;
   };
 
-  const loadCampaignsWithFilters = async (
+  const loadAdgroupsWithFilters = async (
     accountId: number,
     filterList: FilterValues
   ) => {
@@ -276,11 +274,12 @@ export const GoogleCampaigns: React.FC = () => {
         ...buildFilterParams(filterList),
       };
 
-      const response = await campaignsService.getGoogleCampaigns(
+      const response = await campaignsService.getGoogleAdGroups(
         accountId,
+        undefined,
         params
       );
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
+      setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
       if (response.summary) {
@@ -296,10 +295,10 @@ export const GoogleCampaigns: React.FC = () => {
       } else {
         setChartDataFromApi([]);
       }
-      setSelectedCampaigns(new Set());
+      setSelectedAdgroups(new Set());
     } catch (error) {
-      console.error("Failed to load Google campaigns:", error);
-      setCampaigns([]);
+      console.error("Failed to load Google adgroups:", error);
+      setAdgroups([]);
       setTotalPages(0);
       setTotal(0);
     } finally {
@@ -307,7 +306,7 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const loadCampaigns = async (accountId: number) => {
+  const loadAdgroups = async (accountId: number) => {
     try {
       setLoading(true);
       const params: any = {
@@ -322,29 +321,15 @@ export const GoogleCampaigns: React.FC = () => {
         ...buildFilterParams(filters),
       };
 
-      const response = await campaignsService.getGoogleCampaigns(
+      const response = await campaignsService.getGoogleAdGroups(
         accountId,
+        undefined,
         params
       );
-      console.log("Google campaigns API response:", response);
-      console.log("Campaigns array:", response.campaigns);
-      console.log("Campaigns length:", response.campaigns?.length);
-      if (response.campaigns && response.campaigns.length > 0) {
-        console.log(
-          "First campaign:",
-          JSON.stringify(response.campaigns[0], null, 2)
-        );
-        console.log("First campaign id:", response.campaigns[0].id);
-        console.log(
-          "First campaign campaign_id:",
-          response.campaigns[0].campaign_id
-        );
-      }
-      const campaignsArray = Array.isArray(response.campaigns)
-        ? response.campaigns
+      const adgroupsArray = Array.isArray(response.adgroups)
+        ? response.adgroups
         : [];
-      console.log("Setting campaigns array, length:", campaignsArray.length);
-      setCampaigns(campaignsArray);
+      setAdgroups(adgroupsArray);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
       if (response.summary) {
@@ -352,34 +337,19 @@ export const GoogleCampaigns: React.FC = () => {
       }
       // Store chart data from API if available
       const responseWithChart = response as any;
-      console.log("🔍 [CHART DEBUG] Checking for chart_data in response:", {
-        hasChartData: !!responseWithChart.chart_data,
-        chartDataType: typeof responseWithChart.chart_data,
-        isArray: Array.isArray(responseWithChart.chart_data),
-        chartDataLength: responseWithChart.chart_data?.length,
-        chartDataPreview: responseWithChart.chart_data?.slice(0, 3),
-        fullResponseKeys: Object.keys(responseWithChart),
-      });
       if (
         responseWithChart.chart_data &&
         Array.isArray(responseWithChart.chart_data)
       ) {
-        console.log(
-          "✅ [CHART DEBUG] Setting chart data, length:",
-          responseWithChart.chart_data.length
-        );
         setChartDataFromApi(responseWithChart.chart_data);
       } else {
-        console.log(
-          "❌ [CHART DEBUG] No chart_data found or not an array, setting empty array"
-        );
         setChartDataFromApi([]);
       }
-      // Clear selection when campaigns reload
-      setSelectedCampaigns(new Set());
+      // Clear selection when adgroups reload
+      setSelectedAdgroups(new Set());
     } catch (error) {
-      console.error("Failed to load Google campaigns:", error);
-      setCampaigns([]);
+      console.error("Failed to load Google adgroups:", error);
+      setAdgroups([]);
       setTotalPages(0);
       setTotal(0);
     } finally {
@@ -395,9 +365,9 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleCampaigns(accountIdNum);
+      const result = await campaignsService.syncGoogleAdGroups(accountIdNum);
       let message =
-        result.message || `Successfully synced ${result.synced} campaigns`;
+        result.message || `Successfully synced ${result.synced} adgroups`;
 
       if (result.errors && result.errors.length > 0) {
         const errorDetails = (result as any).error_details || result.errors;
@@ -410,13 +380,13 @@ export const GoogleCampaigns: React.FC = () => {
 
       setSyncMessage(message);
 
-      // Reset to first page and reload campaigns after sync
+      // Reset to first page and reload adgroups after sync
       if (result.synced > 0) {
         setCurrentPage(1);
         // Small delay to ensure database is updated
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
-      await loadCampaigns(accountIdNum);
+      await loadAdgroups(accountIdNum);
 
       if (result.synced > 0 && !result.errors) {
         setTimeout(() => setSyncMessage(null), 5000);
@@ -428,7 +398,7 @@ export const GoogleCampaigns: React.FC = () => {
       const errorMessage =
         error.response?.data?.error ||
         error.message ||
-        "Failed to sync campaigns from Google Ads";
+        "Failed to sync adgroups from Google Ads";
       setSyncMessage(errorMessage);
       setTimeout(() => setSyncMessage(null), 8000);
     } finally {
@@ -446,7 +416,7 @@ export const GoogleCampaigns: React.FC = () => {
       setAnalyticsSyncMessage(null);
 
       // Use date range from context if available, otherwise use last 30 days
-      const result = await campaignsService.syncGoogleCampaignAnalytics(
+      const result = await campaignsService.syncGoogleAdGroupAnalytics(
         accountIdNum,
         startDate ? startDate.toISOString().split("T")[0] : undefined,
         endDate ? endDate.toISOString().split("T")[0] : undefined
@@ -469,11 +439,11 @@ export const GoogleCampaigns: React.FC = () => {
 
       setAnalyticsSyncMessage(message);
 
-      // Reload campaigns to show updated analytics
+      // Reload adgroups to show updated analytics
       if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
         setCurrentPage(1);
         await new Promise((resolve) => setTimeout(resolve, 500));
-        await loadCampaigns(accountIdNum);
+        await loadAdgroups(accountIdNum);
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
@@ -486,7 +456,7 @@ export const GoogleCampaigns: React.FC = () => {
       const errorMessage =
         error.response?.data?.error ||
         error.message ||
-        "Failed to sync campaign analytics from Google Ads";
+        "Failed to sync adgroup analytics from Google Ads";
       setAnalyticsSyncMessage(errorMessage);
       setTimeout(() => setAnalyticsSyncMessage(null), 8000);
     } finally {
@@ -509,7 +479,7 @@ export const GoogleCampaigns: React.FC = () => {
     setSortOrder(newSortOrder);
     setCurrentPage(1);
 
-    // Reload campaigns with new sort
+    // Reload adgroups with new sort
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
@@ -526,12 +496,13 @@ export const GoogleCampaigns: React.FC = () => {
             ...buildFilterParams(filters),
           };
 
-          const response = await campaignsService.getGoogleCampaigns(
+          const response = await campaignsService.getGoogleAdGroups(
             accountIdNum,
+            undefined,
             params
           );
-          setCampaigns(
-            Array.isArray(response.campaigns) ? response.campaigns : []
+          setAdgroups(
+            Array.isArray(response.adgroups) ? response.adgroups : []
           );
           setTotalPages(response.total_pages || 0);
           setTotal(response.total || 0);
@@ -548,9 +519,9 @@ export const GoogleCampaigns: React.FC = () => {
           } else {
             setChartDataFromApi([]);
           }
-          setSelectedCampaigns(new Set()); // Clear selection
+          setSelectedAdgroups(new Set()); // Clear selection
         } catch (error) {
-          console.error("Failed to sort campaigns:", error);
+          console.error("Failed to sort adgroups:", error);
         } finally {
           // Small delay for smooth UX
           setTimeout(() => {
@@ -617,41 +588,35 @@ export const GoogleCampaigns: React.FC = () => {
   // Selection handlers
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedCampaigns(new Set(campaigns.map((c) => c.campaign_id)));
+      setSelectedAdgroups(new Set(adgroups.map((a) => a.adgroup_id)));
     } else {
-      setSelectedCampaigns(new Set());
+      setSelectedAdgroups(new Set());
     }
   };
 
-  const handleSelectCampaign = (
-    campaignId: string | number,
+  const handleSelectAdgroup = (
+    adgroupId: string | number,
     checked: boolean
   ) => {
-    const newSelected = new Set(selectedCampaigns);
+    const newSelected = new Set(selectedAdgroups);
     if (checked) {
-      newSelected.add(campaignId);
+      newSelected.add(adgroupId);
     } else {
-      newSelected.delete(campaignId);
+      newSelected.delete(adgroupId);
     }
-    setSelectedCampaigns(newSelected);
+    setSelectedAdgroups(newSelected);
   };
 
   // Inline edit handlers
   const startInlineEdit = (
-    campaign: GoogleCampaign,
-    field: "budget" | "status" | "start_date" | "end_date"
+    adgroup: GoogleAdGroup,
+    field: "bid" | "status"
   ) => {
-    setEditingCell({ campaignId: campaign.campaign_id, field });
-    if (field === "budget") {
-      setEditedValue((campaign.daily_budget || 0).toString());
+    setEditingCell({ adgroupId: adgroup.adgroup_id, field });
+    if (field === "bid") {
+      setEditedValue((adgroup.cpc_bid_dollars || 0).toString());
     } else if (field === "status") {
-      setEditedValue(campaign.status || "ENABLED");
-    } else if (field === "start_date") {
-      // Format date as YYYY-MM-DD for input using utility function to avoid timezone issues
-      setEditedValue(parseDateToYYYYMMDD(campaign.start_date));
-    } else if (field === "end_date") {
-      // Format date as YYYY-MM-DD for input using utility function to avoid timezone issues
-      setEditedValue(parseDateToYYYYMMDD(campaign.end_date));
+      setEditedValue(adgroup.status || "ENABLED");
     }
   };
 
@@ -675,80 +640,28 @@ export const GoogleCampaigns: React.FC = () => {
   ) => {
     if (!editingCell || !accountId || isCancelling) return;
 
-    const campaign = campaigns.find(
-      (c) => c.campaign_id === editingCell.campaignId
+    const adgroup = adgroups.find(
+      (a) => a.adgroup_id === editingCell.adgroupId
     );
-    if (!campaign) return;
+    if (!adgroup) return;
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
     let hasChanged = false;
-    let validationError = "";
 
-    if (editingCell.field === "budget") {
-      const newBudgetStr = valueToCheck.trim();
-      const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
-      const oldBudget = campaign.daily_budget || 0;
-      if (isNaN(newBudget)) {
+    if (editingCell.field === "bid") {
+      const newBidStr = valueToCheck.trim();
+      const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
+      const oldBid = adgroup.cpc_bid_dollars || 0;
+      if (isNaN(newBid)) {
         cancelInlineEdit();
         return;
       }
-      hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
+      hasChanged = Math.abs(newBid - oldBid) > 0.01;
     } else if (editingCell.field === "status") {
-      const oldValue = (campaign.status || "ENABLED").trim();
+      const oldValue = (adgroup.status || "ENABLED").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-    } else if (editingCell.field === "start_date") {
-      // Normalize dates to YYYY-MM-DD format for comparison using utility function
-      const oldValue = parseDateToYYYYMMDD(campaign.start_date);
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
-      
-      console.log("[start_date] Date comparison:", {
-        campaignId: editingCell.campaignId,
-        oldValue,
-        newValue,
-        hasChanged,
-        rawStartDate: campaign.start_date
-      });
-
-      // Validate: start date cannot be in the past
-      // Compare YYYY-MM-DD strings directly to avoid timezone issues
-      if (newValue) {
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        if (newValue < todayStr) {
-          validationError = "Start date cannot be in the past";
-          alert(validationError);
-          cancelInlineEdit();
-          return;
-        }
-      }
-    } else if (editingCell.field === "end_date") {
-      // Normalize dates to YYYY-MM-DD format for comparison using utility function
-      const oldValue = parseDateToYYYYMMDD(campaign.end_date);
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
-      
-      console.log("[end_date] Date comparison:", {
-        campaignId: editingCell.campaignId,
-        oldValue,
-        newValue,
-        hasChanged,
-        rawEndDate: campaign.end_date
-      });
-
-      // Validate: end date cannot be before start date
-      // Compare YYYY-MM-DD strings directly to avoid timezone issues
-      if (newValue) {
-        const startDateStr = parseDateToYYYYMMDD(campaign.start_date);
-        if (startDateStr && newValue < startDateStr) {
-          validationError = "End date cannot be before start date";
-          alert(validationError);
-          cancelInlineEdit();
-          return;
-        }
-      }
     }
 
     if (!hasChanged) {
@@ -765,64 +678,25 @@ export const GoogleCampaigns: React.FC = () => {
     // For status changes, show inline confirmation instead of modal
     if (editingCell.field === "status") {
       setPendingStatusChange({
-        campaignId: editingCell.campaignId,
+        adgroupId: editingCell.adgroupId,
         newStatus: valueToCheck,
-        oldStatus: campaign.status || "ENABLED",
+        oldStatus: adgroup.status || "ENABLED",
       });
       // Keep editing cell open to show confirmation buttons
       return;
     }
 
-    // For budget, show inline confirmation buttons
-    if (editingCell.field === "budget") {
-      const newBudget = parseFloat(valueToCheck) || 0;
-      const oldBudget = campaign.daily_budget || 0;
+    // For bid, show inline confirmation buttons
+    if (editingCell.field === "bid") {
+      const newBid = parseFloat(valueToCheck) || 0;
+      const oldBid = adgroup.cpc_bid_dollars || 0;
       
-      setPendingBudgetChange({
-        campaignId: editingCell.campaignId,
-        newBudget: newBudget,
-        oldBudget: oldBudget,
+      setPendingBidChange({
+        adgroupId: editingCell.adgroupId,
+        newBid: newBid,
+        oldBid: oldBid,
       });
       // Keep editing cell open to show confirmation buttons
-      return;
-    }
-
-    // For start_date and end_date, show inline confirmation buttons
-    if (editingCell.field === "start_date" || editingCell.field === "end_date") {
-      // Normalize old date to YYYY-MM-DD format
-      let oldDateFormatted = "";
-      const oldDate = campaign[editingCell.field];
-      if (oldDate) {
-        try {
-          const date = new Date(oldDate);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            oldDateFormatted = `${year}-${month}-${day}`;
-          }
-        } catch (e) {
-          console.error(`Error parsing ${editingCell.field}:`, e, oldDate);
-        }
-      }
-      
-      const pendingChange = {
-        campaignId: editingCell.campaignId,
-        field: editingCell.field,
-        newDate: valueToCheck.trim(),
-        oldDate: oldDateFormatted,
-      };
-      
-      console.log(`[${editingCell.field}] Setting pendingDateChange:`, pendingChange);
-      console.log(`[${editingCell.field}] Current editingCell:`, editingCell);
-      console.log(`[${editingCell.field}] Campaign:`, campaign);
-      
-      // Clear editing cell so the input disappears and confirmation buttons show
-      setEditingCell(null);
-      setEditedValue("");
-      setPendingDateChange(pendingChange);
-      // Keep editing cell open to show confirmation buttons
-      console.log(`[${editingCell.field}] Pending date change set, returning`);
       return;
     }
 
@@ -830,7 +704,7 @@ export const GoogleCampaigns: React.FC = () => {
     let oldValue = "";
     let newValue = valueToCheck;
 
-    setInlineEditCampaign(campaign);
+    setInlineEditAdgroup(adgroup);
     setInlineEditField(editingCell.field);
     setInlineEditOldValue(oldValue);
     setInlineEditNewValue(newValue);
@@ -838,21 +712,21 @@ export const GoogleCampaigns: React.FC = () => {
     setEditingCell(null);
   };
 
-  const runInlineBudgetUpdate = async (
-    campaignId: string | number,
-    newBudget: number
+  const runInlineBidUpdate = async (
+    adgroupId: string | number,
+    newBid: number
   ) => {
     if (!accountId) return;
 
-    const campaign = campaigns.find((c) => c.campaign_id === campaignId);
-    if (!campaign) return;
+    const adgroup = adgroups.find((a) => a.adgroup_id === adgroupId);
+    if (!adgroup) return;
 
-    setUpdatingField({ campaignId, field: "budget" });
+    setUpdatingField({ adgroupId, field: "bid" });
     
     // Optimistically update the local state
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((c) =>
-        c.campaign_id === campaignId ? { ...c, daily_budget: newBudget } : c
+    setAdgroups((prevAdgroups) =>
+      prevAdgroups.map((a) =>
+        a.adgroup_id === adgroupId ? { ...a, cpc_bid_dollars: newBid } : a
       )
     );
 
@@ -862,16 +736,14 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      if (isNaN(newBudget) || newBudget <= 0) {
-        throw new Error("Invalid budget value");
+      if (isNaN(newBid) || newBid <= 0) {
+        throw new Error("Invalid bid value");
       }
 
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
-        action: "budget",
-        budgetAction: "set",
-        unit: "amount",
-        value: newBudget,
+      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: [adgroupId],
+        action: "bid",
+        bid: newBid,
       });
 
       if (response.errors && response.errors.length > 0) {
@@ -879,119 +751,35 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // Update successful - keep the optimistic update
-      setPendingBudgetChange(null);
+      setPendingBidChange(null);
       setEditingCell(null);
       setEditedValue("");
     } catch (error) {
-      console.error("Error updating campaign budget:", error);
+      console.error("Error updating adgroup bid:", error);
       // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((c) =>
-          c.campaign_id === campaignId ? campaign : c
+      setAdgroups((prevAdgroups) =>
+        prevAdgroups.map((a) =>
+          a.adgroup_id === adgroupId ? adgroup : a
         )
       );
-      alert("Failed to update campaign budget. Please try again.");
+      alert("Failed to update adgroup bid. Please try again.");
     } finally {
       setUpdatingField(null);
     }
   };
 
-  const runInlineDateUpdate = async (
-    campaignId: string | number,
-    field: "start_date" | "end_date",
-    newDate: string
-  ) => {
+
+  const runInlineStatusUpdate = async (adgroupId: string | number, newStatus: string) => {
     if (!accountId) return;
 
-    const campaign = campaigns.find((c) => c.campaign_id === campaignId);
-    if (!campaign) return;
-
-    setUpdatingField({ campaignId, field });
-    
-    // Parse the date value first to ensure consistency
-    const dateValue = parseDateToYYYYMMDD(newDate);
-    console.log(`[${field}] Date value for API:`, {
-      original: newDate,
-      parsed: dateValue
-    });
-
-    // Optimistically update the local state with the parsed date value
-    let optimisticValue: any = {};
-    if (field === "start_date") {
-      optimisticValue = { start_date: dateValue || null };
-    } else if (field === "end_date") {
-      optimisticValue = { end_date: dateValue || null };
-    }
-
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((c) =>
-        c.campaign_id === campaignId ? { ...c, ...optimisticValue } : c
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
-        action: field,
-        [field]: dateValue || undefined,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - ensure the state has the correct value from API response
-      // The response might contain the updated value, use it if available
-      const updatedCampaign = response.updated_campaigns?.find(
-        (c: any) => c.campaign_id === campaignId
-      );
-      
-      if (updatedCampaign?.value) {
-        // Use the value from API response to ensure consistency
-        const apiDateValue = updatedCampaign.value;
-        setCampaigns((prevCampaigns) =>
-          prevCampaigns.map((c) =>
-            c.campaign_id === campaignId
-              ? { ...c, [field]: apiDateValue }
-              : c
-          )
-        );
-        console.log(`[${field}] Updated state with API response value:`, apiDateValue);
-      }
-
-      setPendingDateChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error(`Error updating campaign ${field}:`, error);
-      // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((c) =>
-          c.campaign_id === campaignId ? campaign : c
-        )
-      );
-      alert(`Failed to update campaign ${field}. Please try again.`);
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  const runInlineStatusUpdate = async (campaignId: string | number, newStatus: string) => {
-    if (!accountId) return;
-
-    setUpdatingField({ campaignId, field: "status" });
+    setUpdatingField({ adgroupId, field: "status" });
     
     // Optimistically update the local state
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((campaign) =>
-        campaign.campaign_id === campaignId
-          ? { ...campaign, status: newStatus }
-          : campaign
+    setAdgroups((prevAdgroups) =>
+      prevAdgroups.map((adgroup) =>
+        adgroup.adgroup_id === adgroupId
+          ? { ...adgroup, status: newStatus }
+          : adgroup
       )
     );
 
@@ -1001,18 +789,16 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
           ENABLED: "ENABLED",
           PAUSED: "PAUSED",
-          REMOVED: "REMOVED",
           Enabled: "ENABLED",
           Paused: "PAUSED",
-          Removed: "REMOVED",
         };
       const statusValue = statusMap[newStatus] || "ENABLED";
 
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
+      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: [adgroupId],
           action: "status",
           status: statusValue,
         });
@@ -1027,23 +813,23 @@ export const GoogleCampaigns: React.FC = () => {
       setEditingCell(null);
       setEditedValue("");
     } catch (error) {
-      console.error("Error updating campaign status:", error);
+      console.error("Error updating adgroup status:", error);
       // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((campaign) =>
-          campaign.campaign_id === campaignId
-            ? { ...campaign, status: pendingStatusChange?.oldStatus || campaign.status }
-            : campaign
+      setAdgroups((prevAdgroups) =>
+        prevAdgroups.map((adgroup) =>
+          adgroup.adgroup_id === adgroupId
+            ? { ...adgroup, status: pendingStatusChange?.oldStatus || adgroup.status }
+            : adgroup
         )
       );
-      alert("Failed to update campaign status. Please try again.");
+      alert("Failed to update adgroup status. Please try again.");
     } finally {
       setUpdatingField(null);
     }
   };
 
   const runInlineEdit = async () => {
-    if (!inlineEditCampaign || !inlineEditField || !accountId) return;
+    if (!inlineEditAdgroup || !inlineEditField || !accountId) return;
 
     setInlineEditLoading(true);
     try {
@@ -1052,191 +838,157 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "budget") {
-        const budgetValue = parseFloat(
+      if (inlineEditField === "bid") {
+        const bidValue = parseFloat(
           inlineEditNewValue.replace(/[^0-9.]/g, "")
         );
-        if (isNaN(budgetValue)) {
-          throw new Error("Invalid budget value");
+        if (isNaN(bidValue)) {
+          throw new Error("Invalid bid value");
         }
 
-        await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: "budget",
-          budgetAction: "set",
-          unit: "amount",
-          value: budgetValue,
+        await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [inlineEditAdgroup.adgroup_id],
+          action: "bid",
+          bid: bidValue,
         });
-      } else if (inlineEditField === "start_date") {
-        // Extract date from formatted string or use raw value
-        let dateValue = inlineEditNewValue;
-        if (dateValue === "—" || !dateValue) {
-          dateValue = "";
-        } else {
-          // Try to parse the formatted date back to YYYY-MM-DD
-          const date = new Date(inlineEditNewValue);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            dateValue = `${year}-${month}-${day}`;
-          }
-        }
-
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: "start_date",
-          start_date: dateValue || undefined,
-        });
-        
-        if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
-        }
-      } else if (inlineEditField === "end_date") {
-        let dateValue = inlineEditNewValue;
-        if (dateValue === "—" || !dateValue) {
-          dateValue = "";
-        } else {
-          const date = new Date(inlineEditNewValue);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            dateValue = `${year}-${month}-${day}`;
-          }
-        }
-
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: "end_date",
-          end_date: dateValue || undefined,
-        });
-        
-        if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
-        }
       }
 
-      await loadCampaigns(accountIdNum);
+      await loadAdgroups(accountIdNum);
       setShowInlineEditModal(false);
-      setInlineEditCampaign(null);
+      setInlineEditAdgroup(null);
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
     } catch (error) {
-      console.error("Error updating campaign:", error);
-      alert("Failed to update campaign. Please try again.");
+      console.error("Error updating adgroup:", error);
+      alert("Failed to update adgroup. Please try again.");
     } finally {
       setInlineEditLoading(false);
     }
   };
 
   const runBulkStatus = async (
-    statusValue: "ENABLED" | "PAUSED" | "REMOVED"
+    statusValue: "ENABLED" | "PAUSED"
   ) => {
-    if (!accountId || selectedCampaigns.size === 0) return;
+    if (!accountId || selectedAdgroups.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
-
-    try {
-      setBulkLoading(true);
-      await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: Array.from(selectedCampaigns),
-        action: "status",
-        status: statusValue,
-      });
-      await loadCampaigns(accountIdNum);
-    } catch (error: any) {
-      console.error("Failed to update campaigns", error);
-      alert("Failed to update campaigns. Please try again.");
-    } finally {
-      setBulkLoading(false);
-    }
-  };
-
-  const getSelectedCampaignsData = () => {
-    return campaigns.filter((campaign) =>
-      selectedCampaigns.has(campaign.campaign_id)
-    );
-  };
-
-  // Calculate new budget value for a campaign
-  const calculateNewBudget = (currentBudget: number): number => {
-    const valueNum = parseFloat(budgetValue);
-    if (isNaN(valueNum)) return currentBudget;
-
-    let newBudget = currentBudget;
-
-    if (budgetAction === "increase") {
-      if (budgetUnit === "percent") {
-        newBudget = currentBudget * (1 + valueNum / 100);
-      } else {
-        newBudget = currentBudget + valueNum;
-      }
-      if (upperLimit) {
-        const upper = parseFloat(upperLimit);
-        if (!isNaN(upper)) {
-          newBudget = Math.min(newBudget, upper);
-        }
-      }
-    } else if (budgetAction === "decrease") {
-      if (budgetUnit === "percent") {
-        newBudget = currentBudget * (1 - valueNum / 100);
-      } else {
-        newBudget = currentBudget - valueNum;
-      }
-      if (lowerLimit) {
-        const lower = parseFloat(lowerLimit);
-        if (!isNaN(lower)) {
-          newBudget = Math.max(newBudget, lower);
-        }
-      }
-    } else if (budgetAction === "set") {
-      newBudget = valueNum;
-    }
-
-    return Math.max(0, newBudget); // Ensure non-negative
-  };
-
-  const runBulkBudget = async () => {
-    if (!accountId || selectedCampaigns.size === 0) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    const valueNum = parseFloat(budgetValue);
-    if (isNaN(valueNum)) {
-      return;
-    }
-    const upper = upperLimit ? parseFloat(upperLimit) : undefined;
-    const lower = lowerLimit ? parseFloat(lowerLimit) : undefined;
 
     try {
       // Show loading in modal
       setBulkLoading(true);
       
-      await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: Array.from(selectedCampaigns),
-        action: "budget",
-        budgetAction,
-        unit: budgetUnit,
-        value: valueNum,
-        upperLimit: upper,
-        lowerLimit: lower,
+      await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: Array.from(selectedAdgroups),
+        action: "status",
+        status: statusValue,
       });
       
-      // Close modal and reload campaigns with loading state
+      // Close modal and reload adgroups with loading state
       setShowConfirmationModal(false);
-      setShowBudgetPanel(false);
       setShowBulkActions(false);
       setSorting(true); // Show loading overlay
-      await loadCampaigns(accountIdNum);
+      await loadAdgroups(accountIdNum);
       // Hide loading overlay after a short delay
       setTimeout(() => {
         setSorting(false);
       }, 300);
     } catch (error: any) {
-      console.error("Failed to update campaigns", error);
-      alert("Failed to update campaigns. Please try again.");
+      console.error("Failed to update adgroups", error);
+      alert("Failed to update adgroups. Please try again.");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const getSelectedAdgroupsData = () => {
+    return adgroups.filter((adgroup) =>
+      selectedAdgroups.has(adgroup.adgroup_id)
+    );
+  };
+
+  // Calculate new bid value for an adgroup
+  const calculateNewBid = (currentBid: number): number => {
+    const valueNum = parseFloat(bidValue);
+    if (isNaN(valueNum)) return currentBid;
+
+    let newBid = currentBid;
+
+    if (bidAction === "increase") {
+      if (bidUnit === "percent") {
+        newBid = currentBid * (1 + valueNum / 100);
+      } else {
+        newBid = currentBid + valueNum;
+      }
+      if (upperLimit) {
+        const upper = parseFloat(upperLimit);
+        if (!isNaN(upper)) {
+          newBid = Math.min(newBid, upper);
+        }
+      }
+    } else if (bidAction === "decrease") {
+      if (bidUnit === "percent") {
+        newBid = currentBid * (1 - valueNum / 100);
+      } else {
+        newBid = currentBid - valueNum;
+      }
+      if (lowerLimit) {
+        const lower = parseFloat(lowerLimit);
+        if (!isNaN(lower)) {
+          newBid = Math.max(newBid, lower);
+        }
+      }
+    } else if (bidAction === "set") {
+      newBid = valueNum;
+    }
+
+    return Math.max(0, newBid); // Ensure non-negative
+  };
+
+  const runBulkBid = async () => {
+    if (!accountId || selectedAdgroups.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    const valueNum = parseFloat(bidValue);
+    if (isNaN(valueNum)) {
+      return;
+    }
+
+    try {
+      // Show loading in modal
+      setBulkLoading(true);
+      
+      // For each selected adgroup, calculate new bid and update
+      const selectedAdgroupsData = getSelectedAdgroupsData();
+      const updates = selectedAdgroupsData.map((adgroup) => {
+        const currentBid = adgroup.cpc_bid_dollars || 0;
+        const newBid = calculateNewBid(currentBid);
+        return { adgroupId: adgroup.adgroup_id, newBid };
+      });
+
+      // Update each adgroup individually (bulk update doesn't support increase/decrease)
+      for (const update of updates) {
+        await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [update.adgroupId],
+          action: "bid",
+          bid: update.newBid,
+        });
+      }
+      
+      // Close modal and reload adgroups with loading state
+      setShowConfirmationModal(false);
+      setShowBidPanel(false);
+      setShowBulkActions(false);
+      setSorting(true); // Show loading overlay
+      await loadAdgroups(accountIdNum);
+      // Hide loading overlay after a short delay
+      setTimeout(() => {
+        setSorting(false);
+      }, 300);
+    } catch (error: any) {
+      console.error("Failed to update adgroups", error);
+      alert("Failed to update adgroups. Please try again.");
     } finally {
       setBulkLoading(false);
     }
@@ -1265,11 +1017,11 @@ export const GoogleCampaigns: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleCampaigns(accountIdNum, params, exportType);
+      await campaignsService.exportGoogleAdGroups(accountIdNum, params, exportType);
       setShowExportModal(false);
     } catch (error: any) {
-      console.error("Failed to export campaigns:", error);
-      alert("Failed to export campaigns. Please try again.");
+      console.error("Failed to export adgroups:", error);
+      alert("Failed to export adgroups. Please try again.");
     } finally {
       setExporting(false);
     }
@@ -1335,26 +1087,10 @@ export const GoogleCampaigns: React.FC = () => {
     return <StatusBadge status={statusLabel} />;
   };
 
-  const getChannelTypeLabel = (type?: string) => {
-    if (!type) return "—";
-    const typeMap: Record<string, string> = {
-      SEARCH: "Search",
-      DISPLAY: "Display",
-      SHOPPING: "Shopping",
-      PERFORMANCE_MAX: "Performance Max",
-      VIDEO: "Video",
-      HOTEL: "Hotel",
-      MULTI_CHANNEL: "Multi Channel",
-      LOCAL: "Local",
-      SMART: "Smart",
-    };
-    return typeMap[type] || type;
-  };
-
   const allSelected =
-    campaigns.length > 0 && selectedCampaigns.size === campaigns.length;
+    adgroups.length > 0 && selectedAdgroups.size === adgroups.length;
   const someSelected =
-    selectedCampaigns.size > 0 && selectedCampaigns.size < campaigns.length;
+    selectedAdgroups.size > 0 && selectedAdgroups.size < adgroups.length;
 
   const toggleChartMetric = (
     metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
@@ -1436,7 +1172,7 @@ export const GoogleCampaigns: React.FC = () => {
             {/* Header with Filter Button + Sync */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Google Campaign Manager
+                Google Ad Group Manager
               </h1>
               <div className="flex items-center gap-3">
                 <button
@@ -1486,7 +1222,7 @@ export const GoogleCampaigns: React.FC = () => {
                       Syncing...
                     </span>
                   ) : (
-                    "Sync Campaigns"
+                    "Sync AdGroups"
                   )}
                 </Button>
                 <Button
@@ -1549,16 +1285,16 @@ export const GoogleCampaigns: React.FC = () => {
                   if (accountId) {
                     const accountIdNum = parseInt(accountId, 10);
                     if (!isNaN(accountIdNum)) {
-                      loadCampaignsWithFilters(accountIdNum, newFilters);
+                      loadAdgroupsWithFilters(accountIdNum, newFilters);
                     }
                   }
                 }}
                 initialFilters={filters}
                 filterFields={[
+                  { value: "adgroup_name", label: "Ad Group Name" },
                   { value: "campaign_name", label: "Campaign Name" },
                   { value: "status", label: "Status" },
-                  { value: "budget", label: "Budget" },
-                  { value: "advertising_channel_type", label: "Channel Type" },
+                  { value: "bid", label: "Bid" },
                   { value: "account_name", label: "Account Name" },
                 ]}
               />
@@ -1572,12 +1308,12 @@ export const GoogleCampaigns: React.FC = () => {
               title="Performance Trends"
             />
 
-            {/* Google Campaigns Table Card */}
+            {/* Google AdGroups Table Card */}
             <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
               {/* Card Header */}
               <div className="flex items-center justify-between">
                 <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                  Campaigns{" "}
+                  Ad Groups{" "}
                   <span className="text-[12.8px] font-normal text-[#727272]">
                     ({total} total)
                   </span>
@@ -1590,7 +1326,7 @@ export const GoogleCampaigns: React.FC = () => {
                     type="button"
                     className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => setShowExportModal(true)}
-                    disabled={exporting || loading || campaigns.length === 0}
+                    disabled={exporting || loading || adgroups.length === 0}
                   >
                     {exporting ? (
                       <>
@@ -1626,7 +1362,7 @@ export const GoogleCampaigns: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowBulkActions((prev) => !prev);
-                      setShowBudgetPanel(false);
+                      setShowBidPanel(false);
                     }}
                   >
                     <svg
@@ -1652,25 +1388,24 @@ export const GoogleCampaigns: React.FC = () => {
                         {[
                           { value: "ENABLED", label: "Enable" },
                           { value: "PAUSED", label: "Pause" },
-                          { value: "REMOVED", label: "Remove" },
-                          { value: "edit_budget", label: "Edit Budget" },
+                          { value: "edit_bid", label: "Edit Bid" },
                         ].map((opt) => (
                           <button
                             key={opt.value}
                             type="button"
                             className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            disabled={selectedCampaigns.size === 0}
+                            disabled={selectedAdgroups.size === 0}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (selectedCampaigns.size === 0) return;
-                              if (opt.value === "edit_budget") {
-                                setShowBudgetPanel(true);
+                              if (selectedAdgroups.size === 0) return;
+                              if (opt.value === "edit_bid") {
+                                setShowBidPanel(true);
                               } else {
-                                setShowBudgetPanel(false);
+                                setShowBidPanel(false);
                                 setPendingStatusAction(
-                                  opt.value as "ENABLED" | "PAUSED" | "REMOVED"
+                                  opt.value as "ENABLED" | "PAUSED"
                                 );
-                                setIsBudgetChange(false);
+                                setIsBidChange(false);
                                 setShowConfirmationModal(true);
                               }
                               setShowBulkActions(false);
@@ -1685,8 +1420,8 @@ export const GoogleCampaigns: React.FC = () => {
                 </div>
               </div>
 
-              {/* Budget editor panel */}
-              {selectedCampaigns.size > 0 && showBudgetPanel && (
+              {/* Bid editor panel */}
+              {selectedAdgroups.size > 0 && showBidPanel && (
                 <div className="px-6 mb-4">
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
                     <div className="flex flex-wrap items-end gap-3 justify-between">
@@ -1700,20 +1435,20 @@ export const GoogleCampaigns: React.FC = () => {
                             { value: "decrease", label: "Decrease By" },
                             { value: "set", label: "Set To" },
                           ]}
-                          value={budgetAction}
+                          value={bidAction}
                           onChange={(val) => {
-                            const action = val as typeof budgetAction;
-                            setBudgetAction(action);
+                            const action = val as typeof bidAction;
+                            setBidAction(action);
                             if (action === "set") {
-                              setBudgetUnit("amount");
+                              setBidUnit("amount");
                             }
                           }}
                           buttonClassName="w-full"
                           width="w-full"
                         />
                       </div>
-                      {(budgetAction === "increase" ||
-                        budgetAction === "decrease") && (
+                      {(bidAction === "increase" ||
+                        bidAction === "decrease") && (
                         <div className="w-[140px]">
                           <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                             Unit
@@ -1722,22 +1457,22 @@ export const GoogleCampaigns: React.FC = () => {
                             <button
                               type="button"
                               className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "percent"
+                                bidUnit === "percent"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
                               }`}
-                              onClick={() => setBudgetUnit("percent")}
+                              onClick={() => setBidUnit("percent")}
                             >
                               %
                             </button>
                             <button
                               type="button"
                               className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "amount"
+                                bidUnit === "amount"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
                               }`}
-                              onClick={() => setBudgetUnit("amount")}
+                              onClick={() => setBidUnit("amount")}
                             >
                               $
                             </button>
@@ -1751,16 +1486,16 @@ export const GoogleCampaigns: React.FC = () => {
                         <div className="relative">
                           <input
                             type="number"
-                            value={budgetValue}
-                            onChange={(e) => setBudgetValue(e.target.value)}
+                            value={bidValue}
+                            onChange={(e) => setBidValue(e.target.value)}
                             className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
-                            {budgetUnit === "percent" ? "%" : "$"}
+                            {bidUnit === "percent" ? "%" : "$"}
                           </span>
                         </div>
                       </div>
-                      {budgetAction === "increase" && (
+                      {bidAction === "increase" && (
                         <div className="w-[160px]">
                           <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                             Upper Limit (optional)
@@ -1773,7 +1508,7 @@ export const GoogleCampaigns: React.FC = () => {
                           />
                         </div>
                       )}
-                      {budgetAction === "decrease" && (
+                      {bidAction === "decrease" && (
                         <div className="w-[160px]">
                           <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                             Lower Limit (optional)
@@ -1790,7 +1525,7 @@ export const GoogleCampaigns: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            setShowBudgetPanel(false);
+                            setShowBidPanel(false);
                             setShowBulkActions(false);
                           }}
                           className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
@@ -1800,12 +1535,12 @@ export const GoogleCampaigns: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            if (!budgetValue) return;
-                            setIsBudgetChange(true);
+                            if (!bidValue) return;
+                            setIsBidChange(true);
                             setPendingStatusAction(null);
                             setShowConfirmationModal(true);
                           }}
-                          disabled={bulkLoading || !budgetValue}
+                          disabled={bulkLoading || !bidValue}
                           className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Apply
@@ -1832,14 +1567,14 @@ export const GoogleCampaigns: React.FC = () => {
                         <div className="flex flex-col items-center gap-3">
                           <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
                           <span className="text-[12.8px] font-medium text-[#136D6D]">
-                            Updating campaigns...
+                            Updating adgroups...
                           </span>
                         </div>
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBudgetChange
-                        ? "Confirm Budget Changes"
+                      {isBidChange
+                        ? "Confirm Bid Changes"
                         : "Confirm Status Changes"}
                     </h3>
 
@@ -1847,33 +1582,33 @@ export const GoogleCampaigns: React.FC = () => {
                     <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
                       <div className="flex items-center gap-2">
                         <span className="text-[12.16px] text-[#556179]">
-                        {selectedCampaigns.size} campaign
-                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                        {selectedAdgroups.size} adgroup
+                          {selectedAdgroups.size !== 1 ? "s" : ""} will be
                           updated:
                         </span>
                         <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBudgetChange ? "Budget" : "Status"} change
+                          {isBidChange ? "Bid" : "Status"} change
                         </span>
                       </div>
                     </div>
 
-                    {/* Campaign Preview Table */}
+                    {/* AdGroup Preview Table */}
                     {(() => {
-                      const selectedCampaignsData = getSelectedCampaignsData();
+                      const selectedAdgroupsData = getSelectedAdgroupsData();
                       const previewCount = Math.min(
                         10,
-                        selectedCampaignsData.length
+                        selectedAdgroupsData.length
                       );
-                      const hasMore = selectedCampaignsData.length > 10;
+                      const hasMore = selectedAdgroupsData.length > 10;
 
                       return (
                         <div className="mb-6">
                           <div className="mb-2">
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
-                                ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                : `${selectedCampaignsData.length} campaign${
-                                    selectedCampaignsData.length !== 1
+                                ? `Showing ${previewCount} of ${selectedAdgroupsData.length} selected adgroups`
+                                : `${selectedAdgroupsData.length} adgroup${
+                                    selectedAdgroupsData.length !== 1
                                       ? "s"
                                       : ""
                                   } selected`}
@@ -1884,7 +1619,7 @@ export const GoogleCampaigns: React.FC = () => {
                               <thead className="bg-sandstorm-s20">
                                 <tr>
                                   <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Campaign Name
+                                    Ad Group Name
                                   </th>
                                   <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
                                     Old Value
@@ -1895,37 +1630,37 @@ export const GoogleCampaigns: React.FC = () => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {selectedCampaignsData
+                                {selectedAdgroupsData
                                   .slice(0, 10)
-                                  .map((campaign) => {
-                                    const oldBudget =
-                                      campaign.daily_budget || 0;
+                                  .map((adgroup) => {
+                                    const oldBid =
+                                      adgroup.cpc_bid_dollars || 0;
                                     const oldStatus =
-                                      campaign.status || "ENABLED";
-                                    const newBudget = isBudgetChange
-                                      ? calculateNewBudget(oldBudget)
-                                      : oldBudget;
+                                      adgroup.status || "ENABLED";
+                                    const newBid = isBidChange
+                                      ? calculateNewBid(oldBid)
+                                      : oldBid;
                                     const newStatus = pendingStatusAction
                                       ? pendingStatusAction
                                       : oldStatus;
 
                                     return (
                                       <tr
-                                        key={campaign.campaign_id}
+                                        key={adgroup.adgroup_id}
                                         className="border-b border-gray-200 last:border-b-0"
                                       >
                                         <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                          {campaign.campaign_name ||
-                                            "Unnamed Campaign"}
+                                          {adgroup.adgroup_name || adgroup.name ||
+                                            "Unnamed Ad Group"}
                                         </td>
                                         <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                          {isBudgetChange
-                                            ? `$${oldBudget.toFixed(2)}`
+                                          {isBidChange
+                                            ? `$${oldBid.toFixed(2)}`
                                             : oldStatus}
                                         </td>
                                         <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                          {isBudgetChange
-                                            ? `$${newBudget.toFixed(2)}`
+                                          {isBidChange
+                                            ? `$${newBid.toFixed(2)}`
                                             : newStatus}
                                         </td>
                                       </tr>
@@ -1939,29 +1674,29 @@ export const GoogleCampaigns: React.FC = () => {
                     })()}
 
                     <div className="space-y-3 mb-6">
-                        {isBudgetChange ? (
+                        {isBidChange ? (
                           <>
                           <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.16px] text-[#556179]">
                                 Action:
                               </span>
                             <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetAction === "increase"
+                                {bidAction === "increase"
                                   ? "Increase By"
-                                  : budgetAction === "decrease"
+                                  : bidAction === "decrease"
                                   ? "Decrease By"
                                   : "Set To"}
                               </span>
                             </div>
 
-                            {(budgetAction === "increase" ||
-                              budgetAction === "decrease") && (
+                            {(bidAction === "increase" ||
+                              bidAction === "decrease") && (
                             <div className="flex justify-between items-center py-2 border-b border-gray-200">
                               <span className="text-[12.16px] text-[#556179]">
                                   Unit:
                                 </span>
                               <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  {budgetUnit === "percent"
+                                  {bidUnit === "percent"
                                     ? "Percentage (%)"
                                     : "Amount ($)"}
                                 </span>
@@ -1973,12 +1708,12 @@ export const GoogleCampaigns: React.FC = () => {
                                 Value:
                               </span>
                             <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetValue}{" "}
-                                {budgetUnit === "percent" ? "%" : "$"}
+                                {bidValue}{" "}
+                                {bidUnit === "percent" ? "%" : "$"}
                               </span>
                             </div>
 
-                            {budgetAction === "increase" && upperLimit && (
+                            {bidAction === "increase" && upperLimit && (
                             <div className="flex justify-between items-center py-2 border-b border-gray-200">
                               <span className="text-[12.16px] text-[#556179]">
                                   Upper Limit:
@@ -1989,7 +1724,7 @@ export const GoogleCampaigns: React.FC = () => {
                               </div>
                             )}
 
-                            {budgetAction === "decrease" && lowerLimit && (
+                            {bidAction === "decrease" && lowerLimit && (
                             <div className="flex justify-between items-center py-2 border-b border-gray-200">
                               <span className="text-[12.16px] text-[#556179]">
                                   Lower Limit:
@@ -2029,12 +1764,10 @@ export const GoogleCampaigns: React.FC = () => {
                       <button
                         type="button"
                         onClick={async () => {
-                          if (isBudgetChange) {
-                            await runBulkBudget();
+                          if (isBidChange) {
+                            await runBulkBid();
                           } else if (pendingStatusAction) {
-                            setShowConfirmationModal(false);
                             await runBulkStatus(pendingStatusAction);
-                            setShowBulkActions(false);
                           }
                           setPendingStatusAction(null);
                         }}
@@ -2060,7 +1793,7 @@ export const GoogleCampaigns: React.FC = () => {
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
                     <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Export Campaigns
+                      Export Ad Groups
                     </h3>
                     <div className="mb-6">
                       <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
@@ -2080,8 +1813,8 @@ export const GoogleCampaigns: React.FC = () => {
                       />
                       <p className="text-[10.64px] text-[#727272] mt-2">
                         {exportType === "current_view"
-                          ? `Exporting ${campaigns.length} campaign${campaigns.length !== 1 ? "s" : ""} from the current page (${total} total available)`
-                          : `Exporting all ${total} campaign${total !== 1 ? "s" : ""} matching your filters`}
+                          ? `Exporting ${adgroups.length} adgroup${adgroups.length !== 1 ? "s" : ""} from the current page (${total} total available)`
+                          : `Exporting all ${total} adgroup${total !== 1 ? "s" : ""} matching your filters`}
                       </p>
                     </div>
                     <div className="flex justify-end gap-3">
@@ -2132,7 +1865,7 @@ export const GoogleCampaigns: React.FC = () => {
               )}
 
               {/* Inline Edit Confirmation Modal */}
-              {showInlineEditModal && inlineEditCampaign && inlineEditField && (
+              {showInlineEditModal && inlineEditAdgroup && inlineEditField && (
                 <div
                   className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
                   onClick={(e) => {
@@ -2144,33 +1877,29 @@ export const GoogleCampaigns: React.FC = () => {
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
                     <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
                       Confirm{" "}
-                      {inlineEditField === "budget"
-                        ? "Budget"
+                      {inlineEditField === "bid"
+                        ? "Bid"
                         : inlineEditField === "status"
                         ? "Status"
-                        : inlineEditField === "start_date"
-                        ? "Start Date"
-                        : "End Date"}{" "}
+                        : ""}{" "}
                       Change
                     </h3>
                     <div className="mb-4">
                       <p className="text-[12.8px] text-[#556179] mb-2">
-                        Campaign:{" "}
+                        Ad Group:{" "}
                         <span className="font-semibold text-[#072929]">
-                          {inlineEditCampaign.campaign_name ||
-                            "Unnamed Campaign"}
+                          {inlineEditAdgroup.adgroup_name || inlineEditAdgroup.name ||
+                            "Unnamed Ad Group"}
                         </span>
                       </p>
                       <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                         <div className="flex justify-between items-center">
                           <span className="text-[12.8px] text-[#556179]">
-                            {inlineEditField === "budget"
-                              ? "Budget"
+                            {inlineEditField === "bid"
+                              ? "Bid"
                               : inlineEditField === "status"
                               ? "Status"
-                              : inlineEditField === "start_date"
-                              ? "Start Date"
-                              : "End Date"}
+                              : ""}
                             :
                           </span>
                           <div className="flex items-center gap-2">
@@ -2192,7 +1921,7 @@ export const GoogleCampaigns: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setShowInlineEditModal(false);
-                          setInlineEditCampaign(null);
+                          setInlineEditAdgroup(null);
                           setInlineEditField(null);
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
@@ -2215,12 +1944,12 @@ export const GoogleCampaigns: React.FC = () => {
               )}
 
               {/* Table */}
-              <GoogleCampaignsTable
-                campaigns={campaigns}
+              <GoogleAdGroupsTable
+                adgroups={adgroups}
                 loading={loading}
                 sorting={sorting}
                 accountId={accountId || ""}
-                selectedCampaigns={selectedCampaigns}
+                selectedAdgroups={selectedAdgroups}
                 allSelected={allSelected}
                 someSelected={someSelected}
                 sortBy={sortBy}
@@ -2228,20 +1957,20 @@ export const GoogleCampaigns: React.FC = () => {
                 editingCell={editingCell}
                 editedValue={editedValue}
                 isCancelling={isCancelling}
-                summary={summary}
                 updatingField={updatingField}
-                pendingBudgetChange={pendingBudgetChange}
+                pendingBidChange={pendingBidChange}
                 pendingStatusChange={pendingStatusChange}
+                summary={summary}
                 onSelectAll={handleSelectAll}
-                onSelectCampaign={handleSelectCampaign}
+                onSelectAdgroup={handleSelectAdgroup}
                 onSort={handleSort}
                 onStartInlineEdit={startInlineEdit}
                 onCancelInlineEdit={cancelInlineEdit}
                 onInlineEditChange={handleInlineEditChange}
                 onConfirmInlineEdit={confirmInlineEdit}
-                onConfirmBudgetChange={runInlineBudgetUpdate}
-                onCancelBudgetChange={() => {
-                  setPendingBudgetChange(null);
+                onConfirmBidChange={runInlineBidUpdate}
+                onCancelBidChange={() => {
+                  setPendingBidChange(null);
                   cancelInlineEdit();
                 }}
                 onConfirmStatusChange={runInlineStatusUpdate}
@@ -2249,16 +1978,9 @@ export const GoogleCampaigns: React.FC = () => {
                   setPendingStatusChange(null);
                   cancelInlineEdit();
                 }}
-                pendingDateChange={pendingDateChange}
-                onConfirmDateChange={runInlineDateUpdate}
-                onCancelDateChange={() => {
-                  setPendingDateChange(null);
-                  cancelInlineEdit();
-                }}
                 formatCurrency={formatCurrency}
                 formatPercentage={formatPercentage}
                 getStatusBadge={getStatusBadge}
-                getChannelTypeLabel={getChannelTypeLabel}
                 getSortIcon={getSortIcon}
               />
 

@@ -21,6 +21,9 @@ import { Accounts } from "./pages/Accounts";
 import { Channels } from "./pages/Channels";
 import { Campaigns } from "./pages/Campaigns";
 import { CampaignDetail } from "./pages/CampaignDetail";
+import { AdGroups } from "./pages/AdGroups";
+import { Keywords } from "./pages/Keywords";
+import { Targets } from "./pages/Targets";
 import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
 import { GoogleOAuthCallback } from "./pages/GoogleOAuthCallback";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
@@ -28,6 +31,10 @@ import { ListAmazonProfiles } from "./pages/ListAmazonProfiles";
 import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
 import { GoogleCampaigns } from "./pages/google/GoogleCampaigns";
 import { GoogleCampaignDetail } from "./pages/google/GoogleCampaignDetail";
+import { GoogleCreateCampaign } from "./pages/google/GoogleCreateCampaign";
+import { GoogleAdGroups } from "./pages/google/GoogleAdGroups";
+import { GoogleAds } from "./pages/google/GoogleAds";
+import { GoogleKeywords } from "./pages/google/GoogleKeywords";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
 import { Dashboards } from "./pages/Dashboards";
@@ -206,7 +213,55 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/accounts/:accountId/amazon/adgroups"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <AdGroups />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/amazon/keywords"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <Keywords />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/amazon/targets"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <Targets />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
                 {/* Google marketplace routes */}
+                <Route
+                  path="/accounts/:accountId/google/campaigns/create"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleCreateCampaign />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/accounts/:accountId/google/campaigns"
                   element={
@@ -226,6 +281,42 @@ function App() {
                       <AccountRequiredRoute>
                         <Layout>
                           <GoogleCampaignDetail />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/adgroups"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleAdGroups />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/ads"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleAds />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/google/keywords"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <GoogleKeywords />
                         </Layout>
                       </AccountRequiredRoute>
                     </ProtectedRoute>
