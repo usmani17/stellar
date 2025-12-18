@@ -22,6 +22,7 @@ import {
   FilterPanel,
   type FilterValues,
 } from "../components/filters/FilterPanel";
+import ExportIcon from "../assets/export-icon.svg";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
@@ -84,6 +85,8 @@ export const Campaigns: React.FC = () => {
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   const metricOptions = [
     { key: "sales", label: "Sales", color: "#136D6D" },
@@ -125,16 +128,22 @@ export const Campaigns: React.FC = () => {
       ) {
         setShowBulkActions(false);
       }
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    if (showBulkActions) {
+    if (showBulkActions || showExportDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showBulkActions]);
+  }, [showBulkActions, showExportDropdown]);
 
   // Cancel inline edit when clicking outside (except on input/dropdown)
   useEffect(() => {
@@ -1048,72 +1057,145 @@ export const Campaigns: React.FC = () => {
                 <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                   Campaigns
                 </h2>
-                <div
-                  className="relative inline-flex justify-end"
-                  ref={dropdownRef}
-                >
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowBulkActions((prev) => !prev);
-                      setShowBudgetPanel(false);
-                    }}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={dropdownRef}
                   >
-                    <svg
-                      className="w-4 h-4 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    <Button
+                      type="button"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowBulkActions((prev) => !prev);
+                        setShowBudgetPanel(false);
+                        setShowExportDropdown(false);
+                      }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
-                    </span>
-                  </Button>
-                  {showBulkActions && (
-                    <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                      <div className="overflow-y-auto">
-                        {[
-                          { value: "enable", label: "Enable" },
-                          { value: "pause", label: "Pause" },
-                          { value: "archive", label: "Archive" },
-                          { value: "edit_budget", label: "Edit Budget" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            disabled={selectedCampaigns.size === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (selectedCampaigns.size === 0) return;
-                              if (opt.value === "edit_budget") {
-                                setShowBudgetPanel(true);
-                              } else {
-                                setShowBudgetPanel(false);
-                                setPendingStatusAction(
-                                  opt.value as "enable" | "pause" | "archive"
-                                );
-                                setIsBudgetChange(false);
-                                setShowConfirmationModal(true);
-                              }
-                              setShowBulkActions(false);
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                      <svg
+                        className="w-4 h-4 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Edit
+                      </span>
+                    </Button>
+                    {showBulkActions && (
+                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        <div className="overflow-y-auto">
+                          {[
+                            { value: "enable", label: "Enable" },
+                            { value: "pause", label: "Pause" },
+                            { value: "archive", label: "Archive" },
+                            { value: "edit_budget", label: "Edit Budget" },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              disabled={selectedCampaigns.size === 0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedCampaigns.size === 0) return;
+                                if (opt.value === "edit_budget") {
+                                  setShowBudgetPanel(true);
+                                } else {
+                                  setShowBudgetPanel(false);
+                                  setPendingStatusAction(
+                                    opt.value as "enable" | "pause" | "archive"
+                                  );
+                                  setIsBudgetChange(false);
+                                  setShowConfirmationModal(true);
+                                }
+                                setShowBulkActions(false);
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={exportDropdownRef}
+                  >
+                    {/* <Button
+                      type="button"
+                      className="w-8 h-8 p-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center justify-center hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors cursor-pointer"
+                      
+                    > */}
+                    <img
+                      src={ExportIcon}
+                      alt="Export"
+                      className="cursor-pointer w-full h-full object-contain"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowExportDropdown((prev) => !prev);
+                        setShowBulkActions(false);
+                        setShowBudgetPanel(false);
+                      }}
+                    />
+                    {/* </Button> */}
+                    {showExportDropdown && (
+                      <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        <div className="overflow-y-auto">
+                          {[
+                            { value: "bulk_export", label: "Export All" },
+                            {
+                              value: "current_view",
+                              label: "Export Current View",
+                            },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowExportDropdown(false);
+                                // No API call or action needed per requirements
+                              }}
+                            >
+                              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                <svg
+                                  width="20"
+                                  height="20"
+                                  viewBox="0 0 20 20"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <rect
+                                    width="20"
+                                    height="20"
+                                    rx="3.2"
+                                    fill="#072929"
+                                  />
+                                  <path
+                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                    stroke="#F9F9F6"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </div>
+                              <span className="font-normal">{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
