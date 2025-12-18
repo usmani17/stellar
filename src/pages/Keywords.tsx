@@ -876,9 +876,6 @@ export const Keywords: React.FC = () => {
     { value: "campaign_name", label: "Campaign Name" },
     { value: "profile_name", label: "Profile Name" },
     { value: "type", label: "Type" },
-    { value: "spends", label: "Spends" },
-    { value: "sales", label: "Sales" },
-    { value: "ctr", label: "CTR" },
   ];
 
   return (
@@ -928,16 +925,7 @@ export const Keywords: React.FC = () => {
                 isOpen={isFilterPanelOpen}
                 onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 filters={filters}
-                onApply={(newFilters) => {
-                  setFilters(newFilters);
-                  setCurrentPage(1); // Reset to first page when applying filters
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadKeywordsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
-                }}
+                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
                 filterFields={KEYWORD_FILTER_FIELDS}
                 initialFilters={filters}
               />
@@ -951,12 +939,7 @@ export const Keywords: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                if (accountId) {
-                  const accountIdNum = parseInt(accountId, 10);
-                  if (!isNaN(accountIdNum)) {
-                    loadKeywordsWithFilters(accountIdNum, newFilters);
-                  }
-                }
+                // useEffect will handle the API call when filters change
               }}
               filterFields={KEYWORD_FILTER_FIELDS}
               initialFilters={filters}
@@ -1619,28 +1602,11 @@ export const Keywords: React.FC = () => {
                                 </div>
                               </td>
 
-                              {/* Ad Group Name */}
+                              {/* Keyword Name */}
                               <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <button
-                                  onClick={() => {
-                                    if (accountId && keyword.campaignId) {
-                                      // Navigate to campaign detail
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          parseInt(accountId),
-                                          "amazon",
-                                          "campaigns",
-                                          `${
-                                            keyword.type?.toLowerCase() || "sp"
-                                          }_${keyword.campaignId}`
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
-                                >
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
                                   {keyword.name || "Unnamed Keyword"}
-                                </button>
+                                </span>
                               </td>
 
                               {/* State */}

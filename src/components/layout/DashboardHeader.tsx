@@ -7,7 +7,6 @@ import { useDateRange } from "../../contexts/DateRangeContext";
 import {
   buildMarketplaceRoute,
   getMarketplaceFromUrl,
-  getEntityFromUrl,
 } from "../../utils/urlHelpers";
 import {
   accountsService,
@@ -24,13 +23,11 @@ export const DashboardHeader: React.FC = () => {
   const location = useLocation();
   const params = useParams<{ accountId?: string }>();
 
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-
-  const [hoveredAccountId, setHoveredAccountId] = useState<number | null>(null);
-  const closeHoverTimerRef = useRef<number | null>(null);
+  const [expandedAccountId, setExpandedAccountId] = useState<number | null>(
+    null
+  );
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
   const [channelsByAccount, setChannelsByAccount] = useState<
     Record<number, Channel[]>
@@ -38,194 +35,116 @@ export const DashboardHeader: React.FC = () => {
   const [channelsLoadingId, setChannelsLoadingId] = useState<number | null>(
     null
   );
-  const isAccountScoped = !!params.accountId;
 
-  const profileDropdownRef = useRef<HTMLDivElement>(null);
-  const datePickerRef = useRef<HTMLDivElement>(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
   const accountDropdownRef = useRef<HTMLDivElement>(null);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<number | null>(null);
 
-  // Update selected account when URL params change or accounts load
+  // Sync selected account
   useEffect(() => {
-    if (params.accountId && accounts.length > 0) {
-      const accountId = parseInt(params.accountId, 10);
-      const account = accounts.find((a) => a.id === accountId);
-      if (account) {
-        setSelectedAccount(account);
-      }
-    } else if (accounts.length > 0 && !selectedAccount) {
+    if (params.accountId && accounts.length) {
+      const acc = accounts.find((a) => a.id === Number(params.accountId));
+      if (acc) setSelectedAccount(acc);
+    } else if (accounts.length && !selectedAccount) {
       setSelectedAccount(accounts[0]);
     }
   }, [params.accountId, accounts, selectedAccount]);
 
+  // Load channels for selected account when it changes
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    if (selectedAccount) {
+      loadChannels(selectedAccount.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccount?.id]);
+
+  // Click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+
       if (
-        profileDropdownRef.current &&
-        !profileDropdownRef.current.contains(event.target as Node)
+        accountDropdownRef.current &&
+        !accountDropdownRef.current.contains(t)
       ) {
-        setIsProfileDropdownOpen(false);
+        setIsAccountDropdownOpen(false);
+        setExpandedAccountId(null);
       }
-      if (
-        datePickerRef.current &&
-        !datePickerRef.current.contains(event.target as Node)
-      ) {
+      if (datePickerRef.current && !datePickerRef.current.contains(t)) {
         setIsDatePickerOpen(false);
       }
       if (
-        accountDropdownRef.current &&
-        !accountDropdownRef.current.contains(event.target as Node)
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(t)
       ) {
-        setIsAccountDropdownOpen(false);
-        setHoveredAccountId(null);
+        setIsProfileDropdownOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const clearCloseTimer = () => {
-    if (closeHoverTimerRef.current) {
-      window.clearTimeout(closeHoverTimerRef.current);
-      closeHoverTimerRef.current = null;
-    }
-  };
-
-  const scheduleCloseHoveredAccount = (accountId: number) => {
-    clearCloseTimer();
-    closeHoverTimerRef.current = window.setTimeout(() => {
-      setHoveredAccountId((prev) => (prev === accountId ? null : prev));
-    }, 150);
-  };
-
-  // Load channels lazily when hovering an account
-  const handleAccountHover = async (accountId: number) => {
-    clearCloseTimer();
-    setHoveredAccountId(accountId);
-
-    if (channelsByAccount[accountId] || channelsLoadingId === accountId) {
-      return;
-    }
-
-    const accountFromList = accounts.find((a) => a.id === accountId);
-    if (accountFromList && accountFromList.channels) {
-      setChannelsByAccount((prev) => ({
-        ...prev,
-        [accountId]: accountFromList.channels!,
-      }));
-      return;
-    }
+  const loadChannels = async (accountId: number) => {
+    if (channelsByAccount[accountId] || channelsLoadingId === accountId) return;
 
     setChannelsLoadingId(accountId);
     try {
       const channels = await accountsService.getAccountChannels(accountId);
-      setChannelsByAccount((prev) => ({
-        ...prev,
-        [accountId]: channels,
-      }));
-    } catch (e) {
-      console.error("Failed to load channels for account", accountId, e);
+      setChannelsByAccount((prev) => ({ ...prev, [accountId]: channels }));
     } finally {
-      setChannelsLoadingId((prev) => (prev === accountId ? null : prev));
+      setChannelsLoadingId(null);
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  const handleAccountSelect = (value: number) => {
-    const account = accounts.find((a) => a.id === value);
-    if (account) {
-      setSelectedAccount(account);
-      // Try to preserve current marketplace and entity, or default to amazon/campaigns
-      const currentMarketplace = getMarketplaceFromUrl(location.pathname);
-      const currentEntity = getEntityFromUrl(location.pathname);
-
-      if (currentMarketplace && currentEntity) {
-        // Preserve marketplace and entity
-        navigate(
-          buildMarketplaceRoute(value, currentMarketplace, currentEntity)
-        );
-      } else {
-        // Default to amazon campaigns
-        navigate(buildMarketplaceRoute(value, "amazon", "campaigns"));
-      }
-    }
-  };
-
-  const toggleDatePicker = () => {
-    setIsDatePickerOpen(!isDatePickerOpen);
-  };
-
-  const applyDateRange = (dates: [Date | null, Date | null]) => {
-    const [start, end] = dates;
-    if (start && end) {
-      setDateRange(start, end);
-      setIsDatePickerOpen(false);
-    }
-  };
-
-  const cancelDateRange = () => {
-    setIsDatePickerOpen(false);
-  };
-
-  const loadChannelsForAccount = async (accountId: number) => {
-    if (channelsByAccount[accountId] || channelsLoadingId === accountId) {
-      return;
-    }
-
-    const accountFromList = accounts.find((a) => a.id === accountId);
-    if (accountFromList && accountFromList.channels) {
-      setChannelsByAccount((prev) => ({
-        ...prev,
-        [accountId]: accountFromList.channels!,
-      }));
-      return;
-    }
-
-    setChannelsLoadingId(accountId);
-    try {
-      const channels = await accountsService.getAccountChannels(accountId);
-      setChannelsByAccount((prev) => ({
-        ...prev,
-        [accountId]: channels,
-      }));
-    } catch (e) {
-      console.error("Failed to load channels for account", accountId, e);
-    } finally {
-      setChannelsLoadingId((prev) => (prev === accountId ? null : prev));
-    }
-  };
-
-  const accountsToShow =
-    isAccountScoped && selectedAccount ? [selectedAccount] : accounts;
+  // Get current marketplace/channel from URL
+  const currentMarketplace = getMarketplaceFromUrl(location.pathname);
+  const selectedChannel = selectedAccount
+    ? channelsByAccount[selectedAccount.id]?.find(
+        (ch) => ch.channel_type === currentMarketplace
+      )
+    : null;
 
   return (
     <div className="h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center justify-between px-7">
-      {/* Left: Breadcrumb */}
+      {/* ACCOUNT */}
       <div
-        className="flex items-center gap-3 relative"
         ref={accountDropdownRef}
+        className="relative flex items-center gap-3"
       >
         <button
-          type="button"
-          onClick={async () => {
-            setIsAccountDropdownOpen((prev) => !prev);
-            if (!isAccountScoped || !selectedAccount) return;
-            await loadChannelsForAccount(selectedAccount.id);
+          onClick={() => {
+            const open = !isAccountDropdownOpen;
+            setIsAccountDropdownOpen(open);
+            if (open && selectedAccount) {
+              setExpandedAccountId(selectedAccount.id);
+              loadChannels(selectedAccount.id);
+            } else {
+              setExpandedAccountId(null);
+            }
           }}
-          className="flex items-center gap-2 px-2 py-1.5 bg-background-field border border-gray-200 rounded-lg h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+          className="flex items-center gap-2 h-10 px-4 bg-background-field border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
         >
-          <div className="w-3 h-3 rounded bg-[#072929] text-white text-[7.04px] flex items-center justify-center font-semibold">
+          <div className="w-5 h-5 rounded bg-[#072929] text-white text-[10px] flex items-center justify-center font-semibold">
             {selectedAccount?.name?.[0]?.toUpperCase() || "A"}
           </div>
-          <span className="text-[10.56px] text-[#072929] font-medium">
-            {selectedAccount?.name || "Select Account"}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[13.2px] text-[#072929]">
+              {selectedAccount?.name || "Select Account"}
+            </span>
+            {selectedChannel && (
+              <>
+                <span className="text-[13.2px] text-[#556179]">•</span>
+                <span className="text-[13.2px] text-[#556179]">
+                  {selectedChannel.channel_name}
+                </span>
+              </>
+            )}
+          </div>
           <svg
             className={`w-4 h-4 text-[#072929] transition-transform ${
               isAccountDropdownOpen ? "rotate-180" : ""
@@ -244,26 +163,33 @@ export const DashboardHeader: React.FC = () => {
         </button>
 
         {isAccountDropdownOpen && (
-          <div className="absolute top-[60px] left-0 z-40 bg-white border border-gray-200 rounded-lg shadow-lg w-72">
-            <ul className="max-h-80 overflow-y-auto py-1">
-              {accountsToShow.map((account) => (
-                <li
-                  key={account.id}
-                  className="relative"
-                  onMouseEnter={() => handleAccountHover(account.id)}
-                  onMouseLeave={() => scheduleCloseHoveredAccount(account.id)}
-                >
+          <div className="absolute top-[60px] left-0 z-40 bg-white border border-[#e8e8e3] rounded-[10px] shadow-lg w-72">
+            <ul className="py-1">
+              {accounts.map((account) => (
+                <li key={account.id} className="relative">
                   <button
-                    type="button"
-                    onClick={() => {
-                      handleAccountSelect(account.id);
-                      setIsAccountDropdownOpen(false);
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseEnter={() => {
+                      if (hoverTimeoutRef.current) {
+                        clearTimeout(hoverTimeoutRef.current);
+                        hoverTimeoutRef.current = null;
+                      }
+                      setExpandedAccountId(account.id);
+                      loadChannels(account.id);
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-[12.32px] text-[#313850] hover:bg-gray-50"
+                    onMouseLeave={() => {
+                      hoverTimeoutRef.current = window.setTimeout(() => {
+                        setExpandedAccountId(null);
+                      }, 150);
+                    }}
+                    onClick={() => {
+                      setSelectedAccount(account);
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-[12.32px] hover:bg-gray-50"
                   >
-                    <span className="truncate">{account.name}</span>
+                    <span>{account.name}</span>
                     <svg
-                      className="w-3 h-3 text-[#556179] ml-2"
+                      className="w-3 h-3 text-[#556179]"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -277,81 +203,53 @@ export const DashboardHeader: React.FC = () => {
                     </svg>
                   </button>
 
-                  {/* Nested channels submenu */}
-                  {hoveredAccountId === account.id && (
+                  {expandedAccountId === account.id && (
                     <div
-                      className="absolute top-0 left-full bg-white border border-gray-200 rounded-lg shadow-lg w-64 z-50"
+                      className="absolute top-0 left-full w-64 bg-white border border-[#e8e8e3] rounded-[10px] shadow-lg z-50"
                       onMouseEnter={() => {
-                        clearCloseTimer();
-                        setHoveredAccountId(account.id);
+                        if (hoverTimeoutRef.current) {
+                          clearTimeout(hoverTimeoutRef.current);
+                          hoverTimeoutRef.current = null;
+                        }
+                        setExpandedAccountId(account.id);
                       }}
-                      onMouseLeave={() =>
-                        scheduleCloseHoveredAccount(account.id)
-                      }
+                      onMouseLeave={() => {
+                        setExpandedAccountId(null);
+                      }}
                     >
-                      <ul className="py-1">
-                        {channelsLoadingId === account.id &&
-                          !channelsByAccount[account.id] && (
-                            <li>
-                              <div className="px-3 py-2 text-[12.32px] text-[#556179]">
-                                Loading channels...
-                              </div>
-                            </li>
-                          )}
-
-                        {channelsByAccount[account.id] &&
+                      <ul>
+                        {channelsLoadingId === account.id && (
+                          <li className="px-3 py-2 text-[12.32px] text-[#556179]">
+                            Loading...
+                          </li>
+                        )}
+                        {channelsLoadingId !== account.id &&
+                          channelsByAccount[account.id] &&
                           channelsByAccount[account.id].length === 0 && (
-                            <li>
-                              <div className="px-3 py-2 text-[12.32px] text-[#556179]">
-                                No channels
-                              </div>
+                            <li className="px-3 py-2 text-[12.32px] text-[#556179]">
+                              No channels
                             </li>
                           )}
-
                         {channelsByAccount[account.id] &&
+                          channelsByAccount[account.id].length > 0 &&
                           channelsByAccount[account.id].map((channel) => (
                             <li key={channel.id}>
                               <button
-                                type="button"
+                                onMouseDown={(e) => e.stopPropagation()}
                                 onClick={() => {
-                                  if (channel.channel_type === "google") {
-                                    navigate(
-                                      buildMarketplaceRoute(
-                                        account.id,
-                                        "google",
-                                        "campaigns"
-                                      )
-                                    );
-                                  } else if (
-                                    channel.channel_type === "amazon"
-                                  ) {
-                                    navigate(
-                                      buildMarketplaceRoute(
-                                        account.id,
-                                        "amazon",
-                                        "campaigns"
-                                      )
-                                    );
-                                  } else if (
-                                    channel.channel_type === "walmart"
-                                  ) {
-                                    // TODO: add walmart route when available
-                                  }
+                                  navigate(
+                                    buildMarketplaceRoute(
+                                      account.id,
+                                      channel.channel_type,
+                                      "campaigns"
+                                    )
+                                  );
                                   setIsAccountDropdownOpen(false);
-                                  setHoveredAccountId(null);
+                                  setExpandedAccountId(null);
                                 }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-[12.32px] text-[#313850] hover:bg-gray-50"
+                                className="w-full text-left px-3 py-2 text-[12.32px] hover:bg-gray-50"
                               >
-                                <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-background-field text-[10px] font-semibold text-[#072929]">
-                                  {channel.channel_type === "google"
-                                    ? "G"
-                                    : channel.channel_type === "amazon"
-                                    ? "A"
-                                    : "W"}
-                                </span>
-                                <span className="truncate">
-                                  {channel.channel_name}
-                                </span>
+                                {channel.channel_name}
                               </button>
                             </li>
                           ))}
@@ -365,11 +263,11 @@ export const DashboardHeader: React.FC = () => {
         )}
       </div>
 
-      {/* Right: Date Range & Profile */}
+      {/* RIGHT */}
       <div className="flex items-center gap-5">
         <div className="relative" ref={datePickerRef}>
           <button
-            onClick={toggleDatePicker}
+            onClick={() => setIsDatePickerOpen((p) => !p)}
             className="flex items-center gap-2 h-10 px-4 bg-background-field border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
           >
             <svg
@@ -404,7 +302,6 @@ export const DashboardHeader: React.FC = () => {
               />
             </svg>
           </button>
-
           {isDatePickerOpen && (
             <div className="absolute right-0 top-full mt-2 z-50 px-4">
               <CustomDateRangePicker
@@ -419,8 +316,14 @@ export const DashboardHeader: React.FC = () => {
                     setDateRange(start, end);
                   }
                 }}
-                onApply={applyDateRange}
-                onCancel={cancelDateRange}
+                onApply={(dates) => {
+                  const [start, end] = dates;
+                  if (start && end) {
+                    setDateRange(start, end);
+                    setIsDatePickerOpen(false);
+                  }
+                }}
+                onCancel={() => setIsDatePickerOpen(false)}
               />
             </div>
           )}
@@ -428,7 +331,7 @@ export const DashboardHeader: React.FC = () => {
 
         <div className="relative" ref={profileDropdownRef}>
           <button
-            onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+            onClick={() => setIsProfileDropdownOpen((p) => !p)}
             className="w-8 h-8 rounded-full bg-background-field border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
           >
             {user?.first_name?.[0] || "U"}
@@ -446,7 +349,10 @@ export const DashboardHeader: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={handleLogout}
+                  onClick={() => {
+                    logout();
+                    navigate("/login");
+                  }}
                   className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
                 >
                   Logout

@@ -107,6 +107,7 @@ export const Campaigns: React.FC = () => {
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef<string>("");
 
   // Define filter fields for Campaigns
   const CAMPAIGN_FILTER_FIELDS = [
@@ -201,6 +202,25 @@ export const Campaigns: React.FC = () => {
     // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
     const currentController = abortControllerRef.current;
+
+    // Generate a unique request ID based on all dependencies to prevent duplicate requests
+    const requestId = JSON.stringify({
+      accountId,
+      currentPage,
+      itemsPerPage,
+      sortBy,
+      sortOrder,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      filters,
+    });
+
+    // Skip if this is the same request as the last one (prevents React StrictMode double calls)
+    if (requestIdRef.current === requestId) {
+      return;
+    }
+
+    requestIdRef.current = requestId;
 
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
@@ -448,7 +468,7 @@ export const Campaigns: React.FC = () => {
     } else if (field === "budgetType") {
       setEditedValue(campaign.budgetType || "");
     } else if (field === "status") {
-      setEditedValue(campaign.status || "Enable");
+      setEditedValue(campaign.status || "Enabled");
     }
   };
 
@@ -494,7 +514,7 @@ export const Campaigns: React.FC = () => {
       hasChanged = newValue !== oldValue;
     } else if (editingCell.field === "status") {
       // Normalize status values for comparison
-      const oldValue = (campaign.status || "Enable").trim();
+      const oldValue = (campaign.status || "Enabled").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
     }
@@ -514,7 +534,7 @@ export const Campaigns: React.FC = () => {
       oldValue = campaign.budgetType || "—";
       newValue = valueToCheck;
     } else if (editingCell.field === "status") {
-      oldValue = campaign.status || "Enable";
+      oldValue = campaign.status || "Enabled";
       newValue = valueToCheck;
     }
 
@@ -867,17 +887,7 @@ export const Campaigns: React.FC = () => {
                 isOpen={isFilterPanelOpen}
                 onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 filters={filters}
-                onApply={(newFilters) => {
-                  setFilters(newFilters);
-                  setCurrentPage(1); // Reset to first page when applying filters
-                  // Explicitly trigger AJAX request when filters are applied
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadCampaignsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
-                }}
+                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
                 filterFields={CAMPAIGN_FILTER_FIELDS}
                 initialFilters={filters}
               />
@@ -891,13 +901,7 @@ export const Campaigns: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                // Explicitly trigger AJAX request when filters are applied
-                if (accountId) {
-                  const accountIdNum = parseInt(accountId, 10);
-                  if (!isNaN(accountIdNum)) {
-                    loadCampaignsWithFilters(accountIdNum, newFilters);
-                  }
-                }
+                // useEffect will handle the API call when filters change
               }}
               filterFields={CAMPAIGN_FILTER_FIELDS}
               initialFilters={filters}
@@ -950,7 +954,7 @@ export const Campaigns: React.FC = () => {
                     <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                       <div className="overflow-y-auto">
                         {[
-                          { value: "enable", label: "Enable" },
+                          { value: "enable", label: "Enabled" },
                           { value: "pause", label: "Pause" },
                           { value: "archive", label: "Archive" },
                           { value: "edit_budget", label: "Edit Budget" },
@@ -1292,7 +1296,7 @@ export const Campaigns: React.FC = () => {
                                     const oldBudget =
                                       campaign.daily_budget || 0;
                                     const oldStatus =
-                                      campaign.status || "Enable";
+                                      campaign.status || "Enabled";
                                     const newBudget = isBudgetChange
                                       ? calculateNewBudget(oldBudget)
                                       : oldBudget;
@@ -1843,7 +1847,7 @@ export const Campaigns: React.FC = () => {
                                 editingCell?.field === "status" ? (
                                   <Dropdown
                                     options={[
-                                      { value: "Enable", label: "Enable" },
+                                      { value: "Enabled", label: "Enabled" },
                                       { value: "Paused", label: "Paused" },
                                       { value: "Archived", label: "Archived" },
                                     ]}
@@ -1869,7 +1873,7 @@ export const Campaigns: React.FC = () => {
                                     className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                   >
                                     <StatusBadge
-                                      status={campaign.status || "Enable"}
+                                      status={campaign.status || "Enabled"}
                                     />
                                   </div>
                                 )}

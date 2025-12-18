@@ -868,9 +868,6 @@ export const Targets: React.FC = () => {
     { value: "campaign_name", label: "Campaign Name" },
     { value: "profile_name", label: "Profile Name" },
     { value: "type", label: "Type" },
-    { value: "spends", label: "Spends" },
-    { value: "sales", label: "Sales" },
-    { value: "ctr", label: "CTR" },
   ];
 
   return (
@@ -920,16 +917,7 @@ export const Targets: React.FC = () => {
                 isOpen={isFilterPanelOpen}
                 onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                 filters={filters}
-                onApply={(newFilters) => {
-                  setFilters(newFilters);
-                  setCurrentPage(1); // Reset to first page when applying filters
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadTargetsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
-                }}
+                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
                 filterFields={TARGET_FILTER_FIELDS}
                 initialFilters={filters}
               />
@@ -943,12 +931,7 @@ export const Targets: React.FC = () => {
               onApply={(newFilters) => {
                 setFilters(newFilters);
                 setCurrentPage(1); // Reset to first page when applying filters
-                if (accountId) {
-                  const accountIdNum = parseInt(accountId, 10);
-                  if (!isNaN(accountIdNum)) {
-                    loadTargetsWithFilters(accountIdNum, newFilters);
-                  }
-                }
+                // useEffect will handle the API call when filters change
               }}
               filterFields={TARGET_FILTER_FIELDS}
               initialFilters={filters}
@@ -1624,26 +1607,9 @@ export const Targets: React.FC = () => {
 
                               {/* Target Name */}
                               <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <button
-                                  onClick={() => {
-                                    if (accountId && target.campaignId) {
-                                      // Navigate to campaign detail
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          parseInt(accountId),
-                                          "amazon",
-                                          "campaigns",
-                                          `${
-                                            target.type?.toLowerCase() || "sp"
-                                          }_${target.campaignId}`
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
-                                >
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
                                   {target.name || "Unnamed Target"}
-                                </button>
+                                </span>
                               </td>
 
                               {/* State */}
@@ -1725,26 +1691,9 @@ export const Targets: React.FC = () => {
 
                               {/* Ad Group Name */}
                               <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <button
-                                  onClick={() => {
-                                    if (accountId && target.campaignId) {
-                                      // Navigate to campaign detail
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          parseInt(accountId),
-                                          "amazon",
-                                          "campaigns",
-                                          `${
-                                            target.type?.toLowerCase() || "sp"
-                                          }_${target.campaignId}`
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
-                                >
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
                                   {target.adgroup_name || "—"}
-                                </button>
+                                </span>
                               </td>
 
                               {/* Campaign Name */}
