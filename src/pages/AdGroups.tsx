@@ -18,6 +18,7 @@ import {
 } from "../components/filters/FilterSection";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
 import ExportIcon from "../assets/export-icon.svg";
+import { ErrorModal } from "../components/ui/ErrorModal";
 
 export const AdGroups: React.FC = () => {
   const navigate = useNavigate();
@@ -71,6 +72,10 @@ export const AdGroups: React.FC = () => {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    message: string;
+  }>({ isOpen: false, message: "" });
 
   // Bulk actions state
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -316,9 +321,16 @@ export const AdGroups: React.FC = () => {
       setTimeout(() => {
         setShowExportDropdown(false);
       }, 500);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to export adgroups:", error);
-      alert("Failed to export adgroups. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to export ad groups. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
       setShowExportDropdown(false);
     } finally {
       setExportLoading(false);
@@ -881,6 +893,13 @@ export const AdGroups: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        message={errorModal.message}
+      />
 
       {/* Sidebar */}
       <Sidebar />
