@@ -1505,9 +1505,6 @@ export const CampaignDetail: React.FC = () => {
                         { value: "name", label: "Ad Group Name" },
                         { value: "state", label: "State" },
                         { value: "default_bid", label: "Default Bid" },
-                        { value: "spends", label: "Spends" },
-                        { value: "sales", label: "Sales" },
-                        { value: "ctr", label: "CTR" },
                       ]}
                     />
                   </div>
@@ -1684,9 +1681,6 @@ export const CampaignDetail: React.FC = () => {
                         { value: "state", label: "State" },
                         { value: "bid", label: "Bid" },
                         { value: "adgroup_name", label: "Ad Group" },
-                        { value: "spends", label: "Spends" },
-                        { value: "sales", label: "Sales" },
-                        { value: "ctr", label: "CTR" },
                       ]}
                     />
                   </div>
@@ -2044,9 +2038,6 @@ export const CampaignDetail: React.FC = () => {
                         { value: "state", label: "State" },
                         { value: "bid", label: "Bid" },
                         { value: "adgroup_name", label: "Ad Group" },
-                        { value: "spends", label: "Spends" },
-                        { value: "sales", label: "Sales" },
-                        { value: "ctr", label: "CTR" },
                       ]}
                     />
                   </div>

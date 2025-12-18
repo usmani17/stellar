@@ -790,9 +790,6 @@ export const AdGroups: React.FC = () => {
     { value: "campaign_name", label: "Campaign Name" },
     { value: "profile_name", label: "Profile Name" },
     { value: "type", label: "Type" },
-    { value: "spends", label: "Spends" },
-    { value: "sales", label: "Sales" },
-    { value: "ctr", label: "CTR" },
   ];
 
   return (

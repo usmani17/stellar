@@ -383,7 +383,7 @@ export const Campaigns: React.FC = () => {
     } else if (field === "budgetType") {
       setEditedValue(campaign.budgetType || "");
     } else if (field === "status") {
-      setEditedValue(campaign.status || "Enable");
+      setEditedValue(campaign.status || "Enabled");
     }
   };
 
@@ -429,7 +429,7 @@ export const Campaigns: React.FC = () => {
       hasChanged = newValue !== oldValue;
     } else if (editingCell.field === "status") {
       // Normalize status values for comparison
-      const oldValue = (campaign.status || "Enable").trim();
+      const oldValue = (campaign.status || "Enabled").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
     }
@@ -449,7 +449,7 @@ export const Campaigns: React.FC = () => {
       oldValue = campaign.budgetType || "—";
       newValue = valueToCheck;
     } else if (editingCell.field === "status") {
-      oldValue = campaign.status || "Enable";
+      oldValue = campaign.status || "Enabled";
       newValue = valueToCheck;
     }
 
@@ -846,7 +846,7 @@ export const Campaigns: React.FC = () => {
                     <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                       <div className="overflow-y-auto">
                         {[
-                          { value: "enable", label: "Enable" },
+                          { value: "enable", label: "Enabled" },
                           { value: "pause", label: "Pause" },
                           { value: "archive", label: "Archive" },
                           { value: "edit_budget", label: "Edit Budget" },
@@ -1088,7 +1088,7 @@ export const Campaigns: React.FC = () => {
                                     const oldBudget =
                                       campaign.daily_budget || 0;
                                     const oldStatus =
-                                      campaign.status || "Enable";
+                                      campaign.status || "Enabled";
                                     const newBudget = isBudgetChange
                                       ? calculateNewBudget(oldBudget)
                                       : oldBudget;
@@ -1639,7 +1639,7 @@ export const Campaigns: React.FC = () => {
                                 editingCell?.field === "status" ? (
                                   <Dropdown
                                     options={[
-                                      { value: "Enable", label: "Enable" },
+                                      { value: "Enabled", label: "Enabled" },
                                       { value: "Paused", label: "Paused" },
                                       { value: "Archived", label: "Archived" },
                                     ]}
@@ -1665,7 +1665,7 @@ export const Campaigns: React.FC = () => {
                                     className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                   >
                                     <StatusBadge
-                                      status={campaign.status || "Enable"}
+                                      status={campaign.status || "Enabled"}
                                     />
                                   </div>
                                 )}

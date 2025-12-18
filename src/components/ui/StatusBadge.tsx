@@ -14,12 +14,17 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       Enable: {
         bg: "bg-[rgba(30,199,122,0.1)]",
         text: "text-[#1ec77a]",
-        label: "Enable",
+        label: "Enabled",
       },
       enabled: {
         bg: "bg-[rgba(30,199,122,0.1)]",
         text: "text-[#1ec77a]",
-        label: "Enable",
+        label: "Enabled",
+      },
+      Enabled: {
+        bg: "bg-[rgba(30,199,122,0.1)]",
+        text: "text-[#1ec77a]",
+        label: "Enabled",
       },
       Paused: {
         bg: "bg-[rgba(255,182,92,0.1)]",
@@ -43,7 +48,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       },
     };
 
-  const statusInfo = statusMap[status] || statusMap["Enable"];
+  const statusInfo =
+    statusMap[status] || statusMap["Enabled"] || statusMap["Enable"];
 
   return (
     <span
