@@ -725,6 +725,186 @@ export const campaignsService = {
     return response.data;
   },
 
+  exportAdGroups: async (
+    accountId: number,
+    params?: {
+      sort_by?: string;
+      order?: "asc" | "desc";
+      page?: number;
+      page_size?: number;
+      start_date?: string;
+      end_date?: string;
+      export_type?: "all_data" | "current_view";
+      // Name filters
+      name?: string;
+      name__icontains?: string;
+      name__not_icontains?: string;
+      // State and Type filters
+      state?: string;
+      type?: string;
+      // Default bid filters
+      default_bid?: number | string;
+      default_bid__lt?: number | string;
+      default_bid__gt?: number | string;
+      default_bid__lte?: number | string;
+      default_bid__gte?: number | string;
+      // Campaign name filters
+      campaign_name?: string;
+      campaign_name__icontains?: string;
+      campaign_name__not_icontains?: string;
+      // Profile name filters
+      profile_name?: string;
+      profile_name__icontains?: string;
+      profile_name__not_icontains?: string;
+      // Spends, sales, ctr filters
+      spends?: number | string;
+      spends__lt?: number | string;
+      spends__gt?: number | string;
+      spends__lte?: number | string;
+      spends__gte?: number | string;
+      sales?: number | string;
+      sales__lt?: number | string;
+      sales__gt?: number | string;
+      sales__lte?: number | string;
+      sales__gte?: number | string;
+      ctr?: number | string;
+      ctr__lt?: number | string;
+      ctr__gt?: number | string;
+      ctr__lte?: number | string;
+      ctr__gte?: number | string;
+    }
+  ): Promise<{ url: string; filename: string }> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+
+    if (params?.sort_by) {
+      filters.sort_by = params.sort_by;
+    }
+    if (params?.order) {
+      filters.order = params.order;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+    // Name filters
+    if (params?.name) {
+      filters.name = params.name;
+    }
+    if (params?.name__icontains) {
+      filters.name__icontains = params.name__icontains;
+    }
+    if (params?.name__not_icontains) {
+      filters.name__not_icontains = params.name__not_icontains;
+    }
+    // State and Type filters
+    if (params?.state) {
+      filters.state = params.state;
+    }
+    if (params?.type) {
+      filters.type = params.type;
+    }
+    // Default bid filters
+    if (params?.default_bid !== undefined) {
+      filters.default_bid = params.default_bid;
+    }
+    if (params?.default_bid__lt !== undefined) {
+      filters.default_bid__lt = params.default_bid__lt;
+    }
+    if (params?.default_bid__gt !== undefined) {
+      filters.default_bid__gt = params.default_bid__gt;
+    }
+    if (params?.default_bid__lte !== undefined) {
+      filters.default_bid__lte = params.default_bid__lte;
+    }
+    if (params?.default_bid__gte !== undefined) {
+      filters.default_bid__gte = params.default_bid__gte;
+    }
+    // Campaign name filters
+    if (params?.campaign_name) {
+      filters.campaign_name = params.campaign_name;
+    }
+    if (params?.campaign_name__icontains) {
+      filters.campaign_name__icontains = params.campaign_name__icontains;
+    }
+    if (params?.campaign_name__not_icontains) {
+      filters.campaign_name__not_icontains =
+        params.campaign_name__not_icontains;
+    }
+    // Profile name filters
+    if (params?.profile_name) {
+      filters.profile_name = params.profile_name;
+    }
+    if (params?.profile_name__icontains) {
+      filters.profile_name__icontains = params.profile_name__icontains;
+    }
+    if (params?.profile_name__not_icontains) {
+      filters.profile_name__not_icontains = params.profile_name__not_icontains;
+    }
+    // Spends, sales, ctr filters
+    if (params?.spends !== undefined) {
+      filters.spends = params.spends;
+    }
+    if (params?.spends__lt !== undefined) {
+      filters.spends__lt = params.spends__lt;
+    }
+    if (params?.spends__gt !== undefined) {
+      filters.spends__gt = params.spends__gt;
+    }
+    if (params?.spends__lte !== undefined) {
+      filters.spends__lte = params.spends__lte;
+    }
+    if (params?.spends__gte !== undefined) {
+      filters.spends__gte = params.spends__gte;
+    }
+    if (params?.sales !== undefined) {
+      filters.sales = params.sales;
+    }
+    if (params?.sales__lt !== undefined) {
+      filters.sales__lt = params.sales__lt;
+    }
+    if (params?.sales__gt !== undefined) {
+      filters.sales__gt = params.sales__gt;
+    }
+    if (params?.sales__lte !== undefined) {
+      filters.sales__lte = params.sales__lte;
+    }
+    if (params?.sales__gte !== undefined) {
+      filters.sales__gte = params.sales__gte;
+    }
+    if (params?.ctr !== undefined) {
+      filters.ctr = params.ctr;
+    }
+    if (params?.ctr__lt !== undefined) {
+      filters.ctr__lt = params.ctr__lt;
+    }
+    if (params?.ctr__gt !== undefined) {
+      filters.ctr__gt = params.ctr__gt;
+    }
+    if (params?.ctr__lte !== undefined) {
+      filters.ctr__lte = params.ctr__lte;
+    }
+    if (params?.ctr__gte !== undefined) {
+      filters.ctr__gte = params.ctr__gte;
+    }
+
+    // Send POST request with filters and export_type in body
+    const url = `/accounts/${accountId}/adgroups/export/`;
+    const response = await api.post<{ url: string; filename: string }>(url, {
+      filters,
+      export_type: params?.export_type || "all_data",
+    });
+    return response.data;
+  },
+
   getCampaignDetail: async (
     accountId: number,
     campaignId: string | number,
