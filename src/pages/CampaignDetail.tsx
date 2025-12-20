@@ -24,6 +24,15 @@ import {
   FilterPanel,
   type FilterValues,
 } from "../components/filters/FilterPanel";
+import { CreateAdGroupSection } from "../components/adgroups/CreateAdGroupSection";
+import {
+  CreateAdGroupPanel,
+  type CreateAdGroupData,
+} from "../components/adgroups/CreateAdGroupPanel";
+import {
+  CreateKeywordPanel,
+  type KeywordInput,
+} from "../components/keywords/CreateKeywordPanel";
 
 export const CampaignDetail: React.FC = () => {
   const { accountId, campaignTypeAndId } = useParams<{
@@ -91,6 +100,10 @@ export const CampaignDetail: React.FC = () => {
   const [isAdGroupsFilterPanelOpen, setIsAdGroupsFilterPanelOpen] =
     useState(false);
   const [adgroupsFilters, setAdgroupsFilters] = useState<FilterValues>([]);
+  const [isCreateAdGroupPanelOpen, setIsCreateAdGroupPanelOpen] =
+    useState(false);
+  const [isCreateKeywordPanelOpen, setIsCreateKeywordPanelOpen] =
+    useState(false);
   const [isKeywordsFilterPanelOpen, setIsKeywordsFilterPanelOpen] =
     useState(false);
   const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
@@ -148,28 +161,47 @@ export const CampaignDetail: React.FC = () => {
   } | null>(null);
 
   // Filter tabs based on campaign type - SD campaigns don't have keywords
+  // SP Auto campaigns also don't have keywords, only targets
   const allTabs = [
     "Overview",
     "Ad Groups",
     "Keywords",
-    "Product Targets",
+    "Targets",
     "Product Ads",
     "Logs",
   ];
+
+  // Check if campaign is Auto (for SP campaigns only)
+  // SB and SD campaigns don't have targetingType column
+  const isAutoCampaign = useMemo(() => {
+    if (campaignType !== "SP" || !campaignDetail) return false;
+    // Check targetingType field - only exists for SP campaigns
+    const campaign = campaignDetail.campaign;
+    const targetingType = campaign?.targetingType;
+
+    return targetingType === "AUTO";
+  }, [campaignType, campaignDetail]);
 
   const tabs = useMemo(() => {
     if (campaignType === "SD") {
       return allTabs.filter((tab) => tab !== "Keywords");
     }
+    // Hide Keywords tab for SP Auto campaigns
+    if (campaignType === "SP" && isAutoCampaign) {
+      return allTabs.filter((tab) => tab !== "Keywords");
+    }
     return allTabs;
-  }, [campaignType]);
+  }, [campaignType, isAutoCampaign]);
 
-  // Switch away from Keywords tab if campaign type is SD
+  // Switch away from Keywords tab if campaign type is SD or SP Auto
   useEffect(() => {
-    if (campaignType === "SD" && activeTab === "Keywords") {
+    if (
+      (campaignType === "SD" || (campaignType === "SP" && isAutoCampaign)) &&
+      activeTab === "Keywords"
+    ) {
       setActiveTab("Overview");
     }
-  }, [campaignType, activeTab]);
+  }, [campaignType, isAutoCampaign, activeTab]);
 
   useEffect(() => {
     if (accountId && campaignId) {
@@ -197,7 +229,7 @@ export const CampaignDetail: React.FC = () => {
   }, [activeTab, startDate, endDate, productadsFilters]);
 
   useEffect(() => {
-    if (activeTab === "Product Targets") {
+    if (activeTab === "Targets") {
       setTargetsCurrentPage(1);
     }
   }, [activeTab, startDate, endDate, targetsFilters]);
@@ -525,7 +557,7 @@ export const CampaignDetail: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (accountId && campaignId && activeTab === "Product Targets") {
+    if (accountId && campaignId && activeTab === "Targets") {
       loadTargets();
     }
   }, [
@@ -602,6 +634,72 @@ export const CampaignDetail: React.FC = () => {
       setAdgroupsTotalPages(0);
     } finally {
       setAdgroupsLoading(false);
+    }
+  };
+
+  const handleCreateAdGroup = async (data: CreateAdGroupData) => {
+    if (!accountId || !campaignId || campaignType !== "SP") return;
+
+    try {
+      // TODO: Implement API call to create ad group
+      // Based on Amazon API: https://advertising.amazon.com/API/docs/en-us/sponsored-products/3-0/openapi/prod#tag/Ad-groups/operation/CreateSponsoredProductsAdGroups
+      // Request body should be:
+      // {
+      //   "adGroups": [
+      //     {
+      //       "campaignId": campaignId,
+      //       "defaultBid": data.defaultBid,
+      //       "name": data.name,
+      //       "state": data.state
+      //     }
+      //   ]
+      // }
+      console.log("Creating ad group:", {
+        campaignId,
+        ...data,
+      });
+
+      // Close the panel
+      setIsCreateAdGroupPanelOpen(false);
+
+      // Reload ad groups to show the new one
+      await loadAdGroups();
+    } catch (error: any) {
+      console.error("Failed to create ad group:", error);
+      // TODO: Show error message to user
+    }
+  };
+
+  const handleCreateKeywords = async (keywords: KeywordInput[]) => {
+    if (!accountId || !campaignId || campaignType !== "SP") return;
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      await campaignsService.createKeywords(accountIdNum, campaignId, {
+        keywords: keywords.map((kw) => ({
+          adGroupId: kw.adGroupId,
+          keywordText: kw.keywordText,
+          matchType: kw.matchType,
+          bid: kw.bid,
+          state: kw.state,
+        })),
+      });
+
+      // Close the panel
+      setIsCreateKeywordPanelOpen(false);
+
+      // Reload keywords to show the new ones
+      await loadKeywords();
+    } catch (error: any) {
+      console.error("Failed to create keywords:", error);
+      alert(
+        error.response?.data?.error ||
+          "Failed to create keywords. Please try again."
+      );
     }
   };
 
@@ -1023,7 +1121,8 @@ export const CampaignDetail: React.FC = () => {
         ? adgroup.default_bid.replace(/[^0-9.]/g, "")
         : "0";
       oldValue = adgroup.default_bid || "$0.00";
-      hasChanged = editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
+      hasChanged =
+        editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
     }
 
     if (hasChanged) {
@@ -1120,7 +1219,7 @@ export const CampaignDetail: React.FC = () => {
         <DashboardHeader />
 
         {/* Main Content Area */}
-        <div className="p-8 bg-white space-y-6">
+        <div className="p-8 bg-white space-y-6 overflow-x-hidden">
           {/* Campaign Header - Matching Campaigns page style */}
           <div>
             <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
@@ -1163,9 +1262,43 @@ export const CampaignDetail: React.FC = () => {
 
                 {/* Status - Editable */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                    Status
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Status
+                    </label>
+                    <button
+                      onClick={() => {
+                        setEditingField("status");
+                        // Map status to lowercase for the select dropdown
+                        const statusLower =
+                          campaignDetail.campaign.status?.toLowerCase() ||
+                          "enabled";
+                        setEditedValue(
+                          statusLower === "enable" || statusLower === "enabled"
+                            ? "enabled"
+                            : statusLower === "paused"
+                            ? "paused"
+                            : "archived"
+                        );
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded"
+                      title="Edit status"
+                    >
+                      <svg
+                        className="w-4 h-4 text-[#556179]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                   {editingField === "status" ? (
                     <div className="flex items-center gap-2">
                       <select
@@ -1174,10 +1307,16 @@ export const CampaignDetail: React.FC = () => {
                         className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1"
                         autoFocus
                         onBlur={() => {
-                          if (editedValue !== campaignDetail.campaign.status) {
+                          // Normalize both values to lowercase for comparison
+                          const currentStatus =
+                            campaignDetail.campaign.status?.toLowerCase() ||
+                            "enabled";
+                          const newEditedValue = editedValue.toLowerCase();
+
+                          if (newEditedValue !== currentStatus) {
                             setInlineEditField("status");
                             setInlineEditOldValue(
-                              campaignDetail.campaign.status
+                              campaignDetail.campaign.status || "Enabled"
                             );
                             setInlineEditNewValue(editedValue);
                             setShowInlineEditModal(true);
@@ -1188,12 +1327,16 @@ export const CampaignDetail: React.FC = () => {
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
-                            if (
-                              editedValue !== campaignDetail.campaign.status
-                            ) {
+                            // Normalize both values to lowercase for comparison
+                            const currentStatus =
+                              campaignDetail.campaign.status?.toLowerCase() ||
+                              "enabled";
+                            const newEditedValue = editedValue.toLowerCase();
+
+                            if (newEditedValue !== currentStatus) {
                               setInlineEditField("status");
                               setInlineEditOldValue(
-                                campaignDetail.campaign.status
+                                campaignDetail.campaign.status || "Enabled"
                               );
                               setInlineEditNewValue(editedValue);
                               setShowInlineEditModal(true);
@@ -1213,23 +1356,7 @@ export const CampaignDetail: React.FC = () => {
                       </select>
                     </div>
                   ) : (
-                    <div
-                      className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
-                      onClick={() => {
-                        setEditingField("status");
-                        // Map status to lowercase for the select dropdown
-                        const statusLower =
-                          campaignDetail.campaign.status?.toLowerCase() ||
-                          "enabled";
-                        setEditedValue(
-                          statusLower === "enable" || statusLower === "enabled"
-                            ? "enabled"
-                            : statusLower === "paused"
-                            ? "paused"
-                            : "archived"
-                        );
-                      }}
-                    >
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       <StatusBadge
                         status={
                           campaignDetail.campaign.status?.toLowerCase() ===
@@ -1242,6 +1369,7 @@ export const CampaignDetail: React.FC = () => {
                             ? "Paused"
                             : "Archived"
                         }
+                        uppercase={true}
                       />
                     </div>
                   )}
@@ -1249,9 +1377,35 @@ export const CampaignDetail: React.FC = () => {
 
                 {/* Budget - Editable */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                    Budget
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Budget
+                    </label>
+                    <button
+                      onClick={() => {
+                        setEditingField("budget");
+                        setEditedValue(
+                          (campaignDetail.campaign.budget || 0).toString()
+                        );
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded"
+                      title="Edit budget"
+                    >
+                      <svg
+                        className="w-4 h-4 text-[#556179]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                   {editingField === "budget" ? (
                     <div className="flex items-center gap-2">
                       <input
@@ -1305,15 +1459,7 @@ export const CampaignDetail: React.FC = () => {
                       />
                     </div>
                   ) : (
-                    <div
-                      className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
-                      onClick={() => {
-                        setEditingField("budget");
-                        setEditedValue(
-                          (campaignDetail.campaign.budget || 0).toString()
-                        );
-                      }}
-                    >
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       ${(campaignDetail.campaign.budget || 0).toLocaleString()}
                     </div>
                   )}
@@ -1619,51 +1765,80 @@ export const CampaignDetail: React.FC = () => {
 
             {activeTab === "Ad Groups" && (
               <>
-                {/* Header with Filter Button */}
+                {/* Header with Create Adgroup and Filter Buttons */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
                     Ad Groups
                   </h2>
-                  {/* Add Filter Button */}
-                  <button
-                    onClick={() =>
-                      setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen)
-                    }
-                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                  >
-                    <svg
-                      className="w-5 h-5 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                  <div className="flex items-center gap-2">
+                    {/* Create Adgroup Button */}
+                    {campaignType === "SP" && (
+                      <CreateAdGroupSection
+                        isOpen={isCreateAdGroupPanelOpen}
+                        onToggle={() => {
+                          setIsCreateAdGroupPanelOpen(
+                            !isCreateAdGroupPanelOpen
+                          );
+                          setIsAdGroupsFilterPanelOpen(false); // Close filter panel when opening create panel
+                        }}
                       />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Add Filter
-                    </span>
-                    <svg
-                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                        isAdGroupsFilterPanelOpen ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    )}
+                    {/* Add Filter Button */}
+                    <button
+                      onClick={() => {
+                        setIsAdGroupsFilterPanelOpen(
+                          !isAdGroupsFilterPanelOpen
+                        );
+                        setIsCreateAdGroupPanelOpen(false); // Close create panel when opening filter panel
+                      }}
+                      className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Add Filter
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                          isAdGroupsFilterPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Create Adgroup Panel */}
+                {isCreateAdGroupPanelOpen &&
+                  campaignType === "SP" &&
+                  campaignId && (
+                    <CreateAdGroupPanel
+                      isOpen={isCreateAdGroupPanelOpen}
+                      onClose={() => setIsCreateAdGroupPanelOpen(false)}
+                      onSubmit={handleCreateAdGroup}
+                      campaignId={campaignId}
+                    />
+                  )}
 
                 {/* Filter Panel */}
                 {isAdGroupsFilterPanelOpen && (
@@ -1805,18 +1980,41 @@ export const CampaignDetail: React.FC = () => {
 
             {activeTab === "Keywords" && (
               <>
-                {/* Header with Filter Button */}
+                {/* Header with Filter Button and Create Keyword Button */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
                     Keywords
                   </h2>
-                  {/* Add Filter Button */}
-                  <button
-                    onClick={() =>
-                      setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen)
-                    }
-                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                  >
+                  <div className="flex items-center gap-3">
+                    {/* Create Keyword Button */}
+                    <button
+                      onClick={() =>
+                        setIsCreateKeywordPanelOpen(!isCreateKeywordPanelOpen)
+                      }
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors text-[10.64px] font-semibold"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Create Keywords
+                    </button>
+                    {/* Add Filter Button */}
+                    <button
+                      onClick={() =>
+                        setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen)
+                      }
+                      className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                    >
                     <svg
                       className="w-5 h-5 text-[#072929]"
                       fill="none"
@@ -1849,6 +2047,7 @@ export const CampaignDetail: React.FC = () => {
                       />
                     </svg>
                   </button>
+                  </div>
                 </div>
 
                 {/* Filter Panel */}
@@ -1875,6 +2074,20 @@ export const CampaignDetail: React.FC = () => {
                       ]}
                     />
                   </div>
+                )}
+
+                {/* Create Keyword Panel */}
+                {isCreateKeywordPanelOpen && (
+                  <CreateKeywordPanel
+                    isOpen={isCreateKeywordPanelOpen}
+                    onClose={() => setIsCreateKeywordPanelOpen(false)}
+                    onSubmit={handleCreateKeywords}
+                    adgroups={adgroups.map((ag) => ({
+                      adGroupId: ag.adGroupId || String(ag.id),
+                      name: ag.name,
+                    }))}
+                    campaignId={campaignId || ""}
+                  />
                 )}
 
                 <div className="mb-4">
@@ -2160,12 +2373,12 @@ export const CampaignDetail: React.FC = () => {
               </>
             )}
 
-            {activeTab === "Product Targets" && (
+            {activeTab === "Targets" && (
               <>
                 {/* Header with Filter Button */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-                    Product Targets
+                    Targets
                   </h2>
                   {/* Add Filter Button */}
                   <button
@@ -2338,7 +2551,7 @@ export const CampaignDetail: React.FC = () => {
               activeTab !== "Ad Groups" &&
               activeTab !== "Keywords" &&
               activeTab !== "Product Ads" &&
-              activeTab !== "Product Targets" && (
+              activeTab !== "Targets" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
                 </div>
@@ -2392,7 +2605,6 @@ export const CampaignDetail: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

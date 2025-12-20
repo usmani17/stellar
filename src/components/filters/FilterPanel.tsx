@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Dropdown, type DropdownOption } from "../ui/Dropdown";
 import { Chip } from "../ui/Chip";
+import { accountsService } from "../../services/accounts";
 
 export interface FilterItem {
   id: string;
@@ -36,6 +37,8 @@ interface FilterPanelProps {
   onApply: (filters: FilterValues) => void;
   initialFilters?: FilterValues;
   filterFields?: Array<{ value: string; label: string }>;
+  accountId?: string;
+  channelType?: "amazon" | "google" | "walmart";
 }
 
 const DEFAULT_FILTER_FIELDS = [
@@ -43,7 +46,7 @@ const DEFAULT_FILTER_FIELDS = [
   { value: "state", label: "State" },
   { value: "budget", label: "Budget" },
   { value: "type", label: "Type" },
-  { value: "profile_name", label: "Profile Name" },
+  { value: "profile_name", label: "Profile" },
 ] as const;
 
 const GOOGLE_FILTER_FIELDS = [
@@ -89,18 +92,87 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   onApply,
   initialFilters = [],
   filterFields,
+  accountId,
+  channelType,
 }) => {
   const [activeFilters, setActiveFilters] =
     useState<FilterValues>(initialFilters);
   const [selectedField, setSelectedField] = useState<string>("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
+  const [profileOptions, setProfileOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Sync activeFilters with initialFilters when they change externally
   useEffect(() => {
     setActiveFilters(initialFilters);
   }, [initialFilters]);
+
+  // Fetch profiles when profile_name is selected and it's an Amazon channel
+  useEffect(() => {
+    const loadProfiles = async () => {
+      if (!accountId) return;
+
+      try {
+        setLoadingProfiles(true);
+        // Get channels for the account
+        const channels = await accountsService.getAccountChannels(
+          parseInt(accountId)
+        );
+        const amazonChannel = channels.find(
+          (ch) => ch.channel_type === "amazon"
+        );
+
+        if (amazonChannel) {
+          // Fetch active profiles (is_selected=true, deleted_at is null)
+          const response = await accountsService.getProfiles(amazonChannel.id);
+          const activeProfiles = (response.profiles || []).filter(
+            (profile: any) => profile.is_selected && !profile.deleted_at
+          );
+
+          const options = activeProfiles.map((profile: any) => ({
+            value: profile.name || profile.profileId || "",
+            label: profile.name || profile.profileId || "",
+          }));
+
+          setProfileOptions(options);
+        }
+      } catch (error) {
+        console.error("Failed to load profiles:", error);
+        setProfileOptions([]);
+      } finally {
+        setLoadingProfiles(false);
+      }
+    };
+
+    const isProfileDropdown =
+      selectedField === "profile_name" && channelType === "amazon" && accountId;
+
+    if (isProfileDropdown && profileOptions.length === 0) {
+      loadProfiles();
+    } else if (!isProfileDropdown) {
+      setProfileOptions([]);
+      // Clear operator when switching away from profile dropdown
+      if (selectedField !== "profile_name") {
+        setSelectedOperator("");
+      }
+    }
+  }, [selectedField, channelType, accountId, profileOptions.length]);
+
+  // Clear operator when profiles load and dropdown becomes available
+  useEffect(() => {
+    const isProfileDropdown =
+      selectedField === "profile_name" &&
+      channelType === "amazon" &&
+      profileOptions.length > 0;
+
+    if (isProfileDropdown && selectedOperator) {
+      setSelectedOperator("");
+    }
+  }, [profileOptions.length, selectedField, channelType, selectedOperator]);
 
   // Apply filters when component unmounts (panel closes) if they changed
   useEffect(() => {
@@ -134,18 +206,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         setSelectedField(firstField);
 
         // Auto-select first operator if field needs operator
+        // Don't auto-select for profile dropdown
+        const isProfileDropdownField =
+          firstField === "profile_name" && channelType === "amazon";
         const needsOp =
-          firstField === "campaign_name" ||
-          firstField === "budget" ||
-          firstField === "profile_name" ||
-          firstField === "account_name" ||
-          firstField === "name" ||
-          firstField === "default_bid" ||
-          firstField === "spends" ||
-          firstField === "sales" ||
-          firstField === "ctr" ||
-          firstField === "bid" ||
-          firstField === "adgroup_name";
+          !isProfileDropdownField &&
+          (firstField === "campaign_name" ||
+            firstField === "budget" ||
+            firstField === "profile_name" ||
+            firstField === "account_name" ||
+            firstField === "name" ||
+            firstField === "default_bid" ||
+            firstField === "spends" ||
+            firstField === "sales" ||
+            firstField === "ctr" ||
+            firstField === "bid" ||
+            firstField === "adgroup_name");
 
         if (needsOp) {
           // For string fields, use "contains", for numeric use "eq"
@@ -176,8 +252,15 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const handleAddFilter = () => {
     if (!selectedField || !filterValue) return;
 
-    // For fields that require operators, ensure operator is selected
+    // For profile dropdown, use "equals" operator implicitly (don't store it)
+    const isProfileDropdown =
+      selectedField === "profile_name" &&
+      channelType === "amazon" &&
+      profileOptions.length > 0;
+
+    // For fields that require operators, ensure operator is selected (unless it's a profile dropdown)
     if (
+      !isProfileDropdown &&
       (selectedField === "campaign_name" ||
         selectedField === "budget" ||
         selectedField === "profile_name" ||
@@ -201,7 +284,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     const newFilter: FilterItem = {
       id: `${selectedField}-${Date.now()}`,
       field: selectedField as FilterItem["field"],
-      operator: selectedOperator || undefined,
+      // For profile dropdown, use "equals" operator implicitly (don't show it to user)
+      operator: isProfileDropdown ? "equals" : selectedOperator || undefined,
       value:
         selectedField === "budget" ||
         selectedField === "default_bid" ||
@@ -221,22 +305,26 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       setSelectedField(nextField);
 
       // Auto-select first operator if field needs operator
+      // Don't auto-select for profile dropdown
+      const isProfileDropdownField =
+        nextField === "profile_name" && channelType === "amazon";
       const needsOp =
-        nextField === "campaign_name" ||
-        nextField === "budget" ||
-        nextField === "profile_name" ||
-        nextField === "account_name" ||
-        nextField === "name" ||
-        nextField === "default_bid" ||
-        nextField === "spends" ||
-        nextField === "sales" ||
-        nextField === "ctr" ||
-        nextField === "bid" ||
-        nextField === "adgroup_name" ||
-        nextField === "sku" ||
-        nextField === "adId" ||
-        nextField === "asin" ||
-        nextField === "adGroupId";
+        !isProfileDropdownField &&
+        (nextField === "campaign_name" ||
+          nextField === "budget" ||
+          nextField === "profile_name" ||
+          nextField === "account_name" ||
+          nextField === "name" ||
+          nextField === "default_bid" ||
+          nextField === "spends" ||
+          nextField === "sales" ||
+          nextField === "ctr" ||
+          nextField === "bid" ||
+          nextField === "adgroup_name" ||
+          nextField === "sku" ||
+          nextField === "adId" ||
+          nextField === "asin" ||
+          nextField === "adGroupId");
 
       if (needsOp) {
         // For string fields, use "contains", for numeric use "eq"
@@ -326,7 +414,15 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     "bid",
   ];
 
-  const needsOperator = needsOperatorFields.includes(selectedField as string);
+  // Check if profile_name is a dropdown (Amazon channel with profiles available)
+  const isProfileDropdown =
+    selectedField === "profile_name" &&
+    channelType === "amazon" &&
+    profileOptions.length > 0;
+
+  // Exclude profile_name from needing operator when it's a dropdown
+  const needsOperator =
+    needsOperatorFields.includes(selectedField as string) && !isProfileDropdown;
 
   const isStateOrType = selectedField === "state" || selectedField === "type";
   const isStatusOrChannelType =
@@ -337,8 +433,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className="border border-gray-200 rounded-xl shadow-sm w-full"
-      style={{ backgroundColor: "#F5F5F0" }}
+      className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]"
     >
       {/* Filter Builder */}
       <div className="p-4 border-b border-gray-200">
@@ -359,8 +454,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 setSelectedField(value);
                 setFilterValue("");
 
-                // Auto-select first operator if field needs operator
-                const needsOp = needsOperatorFields.includes(value as string);
+                // Check if this is a profile dropdown
+                const isProfileDropdown =
+                  value === "profile_name" && channelType === "amazon";
+
+                // Auto-select first operator if field needs operator (not for profile dropdown)
+                const needsOp =
+                  !isProfileDropdown &&
+                  needsOperatorFields.includes(value as string);
 
                 if (needsOp) {
                   // For string fields, use "contains", for numeric use "eq"
@@ -434,7 +535,18 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Value
               </label>
-              {isStateOrType ? (
+              {isProfileDropdown ? (
+                <Dropdown<string>
+                  options={profileOptions}
+                  value={filterValue || undefined}
+                  placeholder={
+                    loadingProfiles ? "Loading profiles..." : "Select Profile"
+                  }
+                  onChange={(value) => setFilterValue(value)}
+                  buttonClassName="w-full"
+                  disabled={loadingProfiles}
+                />
+              ) : isStateOrType ? (
                 <Dropdown<string>
                   options={(selectedField === "state"
                     ? STATE_OPTIONS
@@ -492,7 +604,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             disabled={
               !selectedField ||
               !filterValue ||
-              (needsOperator && !selectedOperator)
+              (needsOperator && !selectedOperator && !isProfileDropdown)
             }
             className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >

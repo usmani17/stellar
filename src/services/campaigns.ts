@@ -83,6 +83,8 @@ export interface CampaignDetail {
     startDate?: string;
     budgetType?: string;
     description: string;
+    targetingType?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (camelCase)
+    targeting_type?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (snake_case)
   };
   kpi_cards: Array<{
     label: string;
@@ -1417,6 +1419,24 @@ export const campaignsService = {
     }
   ) => {
     const url = `/accounts/${accountId}/keywords/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createKeywords: async (
+    accountId: number,
+    campaignId: string | number,
+    payload: {
+      keywords: Array<{
+        adGroupId: string;
+        keywordText: string;
+        matchType: "BROAD" | "PHRASE" | "EXACT";
+        bid: number;
+        state: "ENABLED" | "PAUSED";
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },

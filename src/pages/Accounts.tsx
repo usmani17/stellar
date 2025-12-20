@@ -39,6 +39,12 @@ export const Accounts: React.FC = () => {
     id: number;
     name: string;
   } | null>(null);
+  const [editingAccount, setEditingAccount] = useState<{
+    accountId: number;
+    field: "name";
+  } | null>(null);
+  const [editedAccountName, setEditedAccountName] = useState<string>("");
+  const [updatingAccount, setUpdatingAccount] = useState(false);
 
   // Refresh accounts when navigating to this page (e.g., after OAuth flow)
   const hasRefreshedRef = useRef<string>("");
@@ -168,6 +174,43 @@ export const Accounts: React.FC = () => {
   ) => {
     if (!users || users.length === 0) return "—";
     return users.map((u) => u.name || u.email).join(", ");
+  };
+
+  const startEditAccountName = (account: Account) => {
+    setEditingAccount({ accountId: account.id, field: "name" });
+    setEditedAccountName(account.name || "");
+  };
+
+  const cancelEditAccountName = () => {
+    setEditingAccount(null);
+    setEditedAccountName("");
+  };
+
+  const confirmEditAccountName = async (newName: string) => {
+    if (!editingAccount || !newName.trim()) {
+      cancelEditAccountName();
+      return;
+    }
+
+    const account = accounts.find((a) => a.id === editingAccount.accountId);
+    if (!account || newName.trim() === account.name) {
+      cancelEditAccountName();
+      return;
+    }
+
+    setUpdatingAccount(true);
+    try {
+      await accountsService.updateAccount(editingAccount.accountId, {
+        name: newName.trim(),
+      });
+      await refreshAccounts();
+      cancelEditAccountName();
+    } catch (error: any) {
+      console.error("Failed to update account:", error);
+      alert(error.response?.data?.error || "Failed to update account name");
+    } finally {
+      setUpdatingAccount(false);
+    }
   };
 
   // Filter accounts based on search query
@@ -460,15 +503,72 @@ export const Accounts: React.FC = () => {
                                 isDeleting ? "opacity-50" : ""
                               }`}
                             >
-                              <td className="py-4 px-5">
-                                <button
-                                  onClick={() => {
-                                    navigate(`/accounts/${account.id}/channels`);
-                                  }}
-                                  className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
-                                >
-                                  {account.name}
-                                </button>
+                              <td className="py-4 px-5 group">
+                                {editingAccount?.accountId === account.id ? (
+                                  <input
+                                    type="text"
+                                    value={editedAccountName}
+                                    onChange={(e) =>
+                                      setEditedAccountName(e.target.value)
+                                    }
+                                    onBlur={(e) => {
+                                      const inputValue = e.target.value.trim();
+                                      if (
+                                        inputValue === account.name ||
+                                        inputValue === ""
+                                      ) {
+                                        cancelEditAccountName();
+                                      } else {
+                                        confirmEditAccountName(inputValue);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      } else if (e.key === "Escape") {
+                                        cancelEditAccountName();
+                                      }
+                                    }}
+                                    autoFocus
+                                    disabled={updatingAccount}
+                                    className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        navigate(
+                                          `/accounts/${account.id}/channels`
+                                        );
+                                      }}
+                                      className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
+                                    >
+                                      {account.name}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startEditAccountName(account);
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
+                                      title="Edit account name"
+                                    >
+                                      <svg
+                                        className="w-4 h-4 text-[#556179]"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                )}
                               </td>
                               <td className="py-4 px-5">
                                 <span className="text-[14px] text-[#0b0f16] leading-[normal]">

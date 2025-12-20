@@ -16,7 +16,15 @@ import {
   FilterSection,
   FilterSectionPanel,
 } from "../components/filters/FilterSection";
-import { PerformanceChart } from "../components/charts/PerformanceChart";
+import {
+  PerformanceChart,
+  type MetricConfig,
+} from "../components/charts/PerformanceChart";
+import { CreateCampaignSection } from "../components/campaigns/CreateCampaignSection";
+import {
+  CreateCampaignPanel,
+  type CreateCampaignData,
+} from "../components/campaigns/CreateCampaignPanel";
 import ExportIcon from "../assets/export-icon.svg";
 import { ErrorModal } from "../components/ui/ErrorModal";
 
@@ -40,6 +48,9 @@ export const Campaigns: React.FC = () => {
       date: string;
       spend: number;
       sales: number;
+      sales1d?: number;
+      sales7d?: number;
+      sales14d?: number;
       impressions?: number;
       clicks?: number;
       acos?: number;
@@ -53,11 +64,54 @@ export const Campaigns: React.FC = () => {
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
+    sales1d: false,
+    sales7d: false,
+    sales14d: false,
     impressions: false,
     clicks: false,
     acos: false,
     roas: false,
   });
+
+  const campaignMetrics: MetricConfig[] = [
+    { key: "sales", label: "Sales", color: "#136D6D" },
+    { key: "spend", label: "Spend", color: "#506766" },
+    { key: "sales1d", label: "Sales 1D", color: "#0D9488" },
+    { key: "sales7d", label: "Sales 7D", color: "#14B8A6" },
+    { key: "sales14d", label: "Sales 14D", color: "#2DD4BF" },
+    { key: "impressions", label: "Impressions", color: "#7C3AED" },
+    { key: "clicks", label: "Clicks", color: "#169aa3" },
+    {
+      key: "ctr",
+      label: "CTR",
+      color: "#8B5CF6",
+      tooltipFormatter: (v) => `${v.toFixed(2)}%`,
+    },
+    {
+      key: "cpc",
+      label: "CPC",
+      color: "#F59E0B",
+      tooltipFormatter: (v) => `$${v.toFixed(2)}`,
+    },
+    {
+      key: "cpm",
+      label: "CPM",
+      color: "#EF4444",
+      tooltipFormatter: (v) => `$${v.toFixed(2)}`,
+    },
+    {
+      key: "acos",
+      label: "ACOS",
+      color: "#DC2626",
+      tooltipFormatter: (v) => `${v.toFixed(2)}%`,
+    },
+    {
+      key: "roas",
+      label: "ROAS",
+      color: "#059669",
+      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+    },
+  ];
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -65,6 +119,8 @@ export const Campaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
+    useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
@@ -115,7 +171,7 @@ export const Campaigns: React.FC = () => {
     { value: "state", label: "State" },
     { value: "budget", label: "Budget" },
     { value: "type", label: "Type" },
-    { value: "profile_name", label: "Profile Name" },
+    { value: "profile_name", label: "Profile" },
   ];
 
   // Set page title
@@ -662,11 +718,42 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  const toggleChartMetric = (metric: keyof typeof chartToggles) => {
+  const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
       ...prev,
       [metric]: !prev[metric],
     }));
+  };
+
+  const handleCreateCampaign = async (data: CreateCampaignData) => {
+    if (!accountId) return;
+
+    try {
+      // TODO: Implement API call to create campaign
+      // For now, just show success message
+      console.log("Creating campaign:", data);
+
+      // Close the panel
+      setIsCreateCampaignPanelOpen(false);
+
+      // Show success message (you can replace this with a toast notification)
+      setErrorModal({
+        isOpen: true,
+        message: `Campaign "${data.campaign_name}" created successfully!`,
+      });
+
+      // Reload campaigns to show the new one
+      // await loadCampaigns(parseInt(accountId));
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to create campaign. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    }
   };
 
   // Get selected campaigns data for confirmation modal
@@ -788,6 +875,9 @@ export const Campaigns: React.FC = () => {
         date: item.date,
         sales: item.sales,
         spend: item.spend,
+        sales1d: item.sales1d || 0,
+        sales7d: item.sales7d || 0,
+        sales14d: item.sales14d || 0,
         impressions: item.impressions || 0,
         clicks: item.clicks || 0,
         acos: item.acos || 0,
@@ -878,20 +968,42 @@ export const Campaigns: React.FC = () => {
         {/* Main Content Area */}
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
-            {/* Header with Filter Button */}
+            {/* Header with Filter and Create Campaign Buttons */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                 Campaign Manager
               </h1>
-              <FilterSection
-                isOpen={isFilterPanelOpen}
-                onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                filters={filters}
-                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
-                filterFields={CAMPAIGN_FILTER_FIELDS}
-                initialFilters={filters}
-              />
+              <div className="flex items-center gap-2">
+                <CreateCampaignSection
+                  isOpen={isCreateCampaignPanelOpen}
+                  onToggle={() => {
+                    setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
+                    setIsFilterPanelOpen(false); // Close filter panel when opening create panel
+                  }}
+                />
+                <FilterSection
+                  isOpen={isFilterPanelOpen}
+                  onToggle={() => {
+                    setIsFilterPanelOpen(!isFilterPanelOpen);
+                    setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
+                  }}
+                  filters={filters}
+                  onApply={() => {}} // Not used - FilterSectionPanel handles onApply
+                  filterFields={CAMPAIGN_FILTER_FIELDS}
+                  initialFilters={filters}
+                />
+              </div>
             </div>
+
+            {/* Create Campaign Panel */}
+            {isCreateCampaignPanelOpen && (
+              <CreateCampaignPanel
+                isOpen={isCreateCampaignPanelOpen}
+                onClose={() => setIsCreateCampaignPanelOpen(false)}
+                onSubmit={handleCreateCampaign}
+                accountId={accountId}
+              />
+            )}
 
             {/* Filter Panel - Rendered outside header to maintain button position */}
             <FilterSectionPanel
@@ -905,6 +1017,8 @@ export const Campaigns: React.FC = () => {
               }}
               filterFields={CAMPAIGN_FILTER_FIELDS}
               initialFilters={filters}
+              accountId={accountId}
+              channelType="amazon"
             />
 
             {/* Chart Section */}
@@ -912,6 +1026,7 @@ export const Campaigns: React.FC = () => {
               data={chartData}
               toggles={chartToggles}
               onToggle={toggleChartMetric}
+              metrics={campaignMetrics}
               title="Performance Trends"
             />
 
@@ -1597,13 +1712,13 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
-                          {/* Profile Name Header */}
+                          {/* Profile Header */}
                           <th
                             className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
                             onClick={() => handleSort("profile_name")}
                           >
                             <div className="flex items-center gap-1">
-                              Profile Name
+                              Profile
                               {getSortIcon("profile_name")}
                             </div>
                           </th>
@@ -1835,7 +1950,7 @@ export const Campaigns: React.FC = () => {
                                 </button>
                               </td>
 
-                              {/* Profile Name */}
+                              {/* Profile */}
                               <td className="py-[10px] px-[10px] min-w-[200px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
                                   {campaign.profile_name &&

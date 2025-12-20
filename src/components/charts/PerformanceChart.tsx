@@ -9,44 +9,45 @@ import {
 } from "recharts";
 import { Dropdown } from "../ui/Dropdown";
 
+export interface MetricConfig {
+  key: string;
+  label: string;
+  color: string;
+  tooltipFormatter?: (value: number) => string;
+}
+
 interface PerformanceChartProps {
   data: Array<{
     date: string;
-    sales?: number;
-    spend?: number;
-    impressions?: number;
-    clicks?: number;
-    acos?: number;
-    roas?: number;
+    [key: string]: string | number | undefined;
   }>;
-  toggles: {
-    sales: boolean;
-    spend: boolean;
-    impressions: boolean;
-    clicks: boolean;
-    acos: boolean;
-    roas: boolean;
-  };
-  onToggle: (
-    metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
-  ) => void;
+  toggles: Record<string, boolean>;
+  onToggle: (metric: string) => void;
+  metrics?: MetricConfig[];
   title?: string;
+  maxSelectedMetrics?: number;
 }
 
 export const PerformanceChart: React.FC<PerformanceChartProps> = ({
   data,
   toggles,
   onToggle,
+  metrics = [],
   title = "Performance Trends",
+  maxSelectedMetrics = 3,
 }) => {
-  const metricOptions = [
-    { key: "sales", label: "Sales", color: "#136D6D" },
-    { key: "spend", label: "Spend", color: "#506766" },
-    { key: "impressions", label: "Impressions", color: "#7C3AED" },
-    { key: "clicks", label: "Clicks", color: "#169aa3" },
-    { key: "acos", label: "ACOS", color: "#DC2626" },
-    { key: "roas", label: "ROAS", color: "#059669" },
-  ] as const;
+  // Use provided metrics or fallback to default
+  const metricOptions =
+    metrics.length > 0
+      ? metrics
+      : [
+          { key: "sales", label: "Sales", color: "#136D6D" },
+          { key: "spend", label: "Spend", color: "#506766" },
+          { key: "impressions", label: "Impressions", color: "#7C3AED" },
+          { key: "clicks", label: "Clicks", color: "#169aa3" },
+          { key: "acos", label: "ACOS", color: "#DC2626" },
+          { key: "roas", label: "ROAS", color: "#059669" },
+        ];
 
   const selectedMetricCount = Object.values(toggles).filter(Boolean).length;
 
@@ -59,7 +60,8 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
           options={metricOptions.map((m) => ({
             value: m.key,
             label: m.label,
-            disabled: !toggles[m.key] && selectedMetricCount >= 3,
+            disabled:
+              !toggles[m.key] && selectedMetricCount >= maxSelectedMetrics,
             color: m.color,
           }))}
           value={undefined}
@@ -67,6 +69,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
           showCheckmark={false}
           align="right"
           width="w-56"
+          maxHeight="max-h-[300px]"
           renderButton={(_, isOpen, toggle) => {
             const selectedLabels = metricOptions
               .filter((m) => toggles[m.key])
@@ -100,9 +103,10 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
             );
           }}
           renderOption={(option) => {
-            const key = option.value as keyof typeof toggles;
-            const selected = toggles[key];
-            const disabled = !selected && selectedMetricCount >= 3;
+            const key = option.value as string;
+            const selected = toggles[key] || false;
+            const disabled =
+              !selected && selectedMetricCount >= maxSelectedMetrics;
             const metric = metricOptions.find((m) => m.key === key);
             return (
               <div className="flex items-center justify-between w-full px-1">
@@ -128,20 +132,12 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
             );
           }}
           onChange={(value) => {
-            const key = value as keyof typeof toggles;
-            const isOn = toggles[key];
-            if (!isOn && selectedMetricCount >= 3) {
+            const key = value as string;
+            const isOn = toggles[key] || false;
+            if (!isOn && selectedMetricCount >= maxSelectedMetrics) {
               return;
             }
-            onToggle(
-              key as
-                | "sales"
-                | "spend"
-                | "impressions"
-                | "clicks"
-                | "acos"
-                | "roas"
-            );
+            onToggle(key);
           }}
         />
       </div>
@@ -183,7 +179,15 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
               }}
               formatter={(value: any, name: string) => {
-                if (name === "Sales" || name === "Spend") {
+                const metric = metricOptions.find((m) => m.label === name);
+                if (metric?.tooltipFormatter) {
+                  return [metric.tooltipFormatter(value), name];
+                }
+                if (
+                  name === "Sales" ||
+                  name === "Spend" ||
+                  name.includes("Sales")
+                ) {
                   return [`$${value.toLocaleString()}`, name];
                 }
                 if (name === "ACOS") {
@@ -195,72 +199,23 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 return [value.toLocaleString(), name];
               }}
             />
-            {toggles.sales && (
-              <Line
-                type="monotone"
-                dataKey="sales"
-                stroke="#136D6D"
-                strokeWidth={1.5}
-                dot={false}
-                name="Sales"
-                activeDot={{ r: 4 }}
-              />
-            )}
-            {toggles.spend && (
-              <Line
-                type="monotone"
-                dataKey="spend"
-                stroke="#506766"
-                strokeWidth={1.5}
-                dot={false}
-                name="Spend"
-                activeDot={{ r: 4 }}
-              />
-            )}
-            {toggles.impressions && (
-              <Line
-                type="monotone"
-                dataKey="impressions"
-                stroke="#7C3AED"
-                strokeWidth={1.5}
-                dot={false}
-                name="Impressions"
-                activeDot={{ r: 4 }}
-              />
-            )}
-            {toggles.clicks && (
-              <Line
-                type="monotone"
-                dataKey="clicks"
-                stroke="#169aa3"
-                strokeWidth={1.5}
-                dot={false}
-                name="Clicks"
-                activeDot={{ r: 4 }}
-              />
-            )}
-            {toggles.acos && (
-              <Line
-                type="monotone"
-                dataKey="acos"
-                stroke="#DC2626"
-                strokeWidth={1.5}
-                dot={false}
-                name="ACOS"
-                activeDot={{ r: 4 }}
-              />
-            )}
-            {toggles.roas && (
-              <Line
-                type="monotone"
-                dataKey="roas"
-                stroke="#059669"
-                strokeWidth={1.5}
-                dot={false}
-                name="ROAS"
-                activeDot={{ r: 4 }}
-              />
-            )}
+            {metricOptions.map((metric) => {
+              if (toggles[metric.key]) {
+                return (
+                  <Line
+                    key={metric.key}
+                    type="monotone"
+                    dataKey={metric.key}
+                    stroke={metric.color}
+                    strokeWidth={1.5}
+                    dot={false}
+                    name={metric.label}
+                    activeDot={{ r: 4 }}
+                  />
+                );
+              }
+              return null;
+            })}
           </LineChart>
         </ResponsiveContainer>
       </div>

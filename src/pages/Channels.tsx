@@ -30,6 +30,12 @@ export const Channels: React.FC = () => {
     accountId: number;
     provider: "amazon" | "google";
   } | null>(null);
+  const [editingChannel, setEditingChannel] = useState<{
+    channelId: number;
+    field: "channel_name";
+  } | null>(null);
+  const [editedChannelName, setEditedChannelName] = useState<string>("");
+  const [updatingChannel, setUpdatingChannel] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!accountId) {
@@ -42,7 +48,9 @@ export const Channels: React.FC = () => {
       const accountIdNum = parseInt(accountId, 10);
 
       // Only fetch channels - account name comes from context or channel response
-      const channelsData = await accountsService.getAccountChannels(accountIdNum);
+      const channelsData = await accountsService.getAccountChannels(
+        accountIdNum
+      );
       const channelsArray = Array.isArray(channelsData) ? channelsData : [];
 
       // Set account name from context (already loaded) or from channel response
@@ -139,6 +147,50 @@ export const Channels: React.FC = () => {
     return type.charAt(0).toUpperCase() + type.slice(1);
   };
 
+  const startEditChannelName = (channel: Channel, field: "channel_name") => {
+    setEditingChannel({ channelId: channel.id, field });
+    setEditedChannelName(channel.channel_name || "");
+  };
+
+  const cancelEditChannelName = () => {
+    setEditingChannel(null);
+    setEditedChannelName("");
+  };
+
+  const confirmEditChannelName = async (newName: string) => {
+    if (!editingChannel || !newName.trim()) {
+      cancelEditChannelName();
+      return;
+    }
+
+    const channel = channels.find((c) => c.id === editingChannel.channelId);
+    if (!channel || newName.trim() === channel.channel_name) {
+      cancelEditChannelName();
+      return;
+    }
+
+    setUpdatingChannel(true);
+    try {
+      if (!accountId) {
+        throw new Error("Account ID is required");
+      }
+      await accountsService.updateChannel(
+        parseInt(accountId, 10),
+        editingChannel.channelId,
+        {
+          channel_name: newName.trim(),
+        }
+      );
+      await loadData();
+      cancelEditChannelName();
+    } catch (error: any) {
+      console.error("Failed to update channel:", error);
+      alert(error.response?.data?.error || "Failed to update channel name");
+    } finally {
+      setUpdatingChannel(false);
+    }
+  };
+
   // Filter channels based on search query
   const filteredChannels = channels.filter((channel) =>
     (channel.channel_name || "")
@@ -167,6 +219,27 @@ export const Channels: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="p-8 bg-white">
+          {/* Back to Accounts Link */}
+          <button
+            onClick={() => navigate(`/accounts`)}
+            className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors mb-4"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            <span className="text-[14px] font-medium">Back to Accounts</span>
+          </button>
+
           {oauthError && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-[14px]">
               {oauthError}
@@ -264,9 +337,7 @@ export const Channels: React.FC = () => {
                 ) : filteredChannels.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-[14px] text-[#556179] mb-4">
-                      {searchQuery
-                        ? "No channels found"
-                        : "No channels yet"}
+                      {searchQuery ? "No channels found" : "No channels yet"}
                     </p>
                   </div>
                 ) : (
@@ -293,7 +364,8 @@ export const Channels: React.FC = () => {
                       </thead>
                       <tbody>
                         {filteredChannels.map((channel, index) => {
-                          const isLastRow = index === filteredChannels.length - 1;
+                          const isLastRow =
+                            index === filteredChannels.length - 1;
 
                           return (
                             <tr
@@ -302,19 +374,84 @@ export const Channels: React.FC = () => {
                                 !isLastRow ? "border-b border-[#e8e8e3]" : ""
                               } hover:bg-gray-50 transition-colors`}
                             >
-                              <td className="py-4 px-5">
-                                <button
-                                  onClick={() => {
-                                    if (channel.channel_type === "amazon") {
-                                      navigate(`/accounts/${accountId}/campaigns`);
-                                    } else if (channel.channel_type === "google") {
-                                      navigate(`/accounts/${accountId}/google-campaigns`);
+                              <td className="py-4 px-5 group">
+                                {editingChannel?.channelId === channel.id &&
+                                editingChannel.field === "channel_name" ? (
+                                  <input
+                                    type="text"
+                                    value={editedChannelName}
+                                    onChange={(e) =>
+                                      setEditedChannelName(e.target.value)
                                     }
-                                  }}
-                                  className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
-                                >
-                                  {channel.channel_name}
-                                </button>
+                                    onBlur={(e) => {
+                                      const inputValue = e.target.value.trim();
+                                      if (
+                                        inputValue === channel.channel_name ||
+                                        inputValue === ""
+                                      ) {
+                                        cancelEditChannelName();
+                                      } else {
+                                        confirmEditChannelName(inputValue);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      } else if (e.key === "Escape") {
+                                        cancelEditChannelName();
+                                      }
+                                    }}
+                                    autoFocus
+                                    disabled={updatingChannel}
+                                    className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        if (channel.channel_type === "amazon") {
+                                          navigate(
+                                            `/accounts/${accountId}/campaigns`
+                                          );
+                                        } else if (
+                                          channel.channel_type === "google"
+                                        ) {
+                                          navigate(
+                                            `/accounts/${accountId}/google-campaigns`
+                                          );
+                                        }
+                                      }}
+                                      className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
+                                    >
+                                      {channel.channel_name}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startEditChannelName(
+                                          channel,
+                                          "channel_name"
+                                        );
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
+                                      title="Edit channel name"
+                                    >
+                                      <svg
+                                        className="w-4 h-4 text-[#556179]"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                )}
                               </td>
                               <td className="py-4 px-5">
                                 <span className="text-[14px] text-[#0b0f16] leading-[normal]">
@@ -329,16 +466,18 @@ export const Channels: React.FC = () => {
                               <td className="py-4 px-5">
                                 <span className="text-[14px] text-[#0b0f16] leading-[normal]">
                                   {profileCounts[channel.id]
-                                    ? `${profileCounts[channel.id].selected}/${profileCounts[channel.id].total}`
+                                    ? `${profileCounts[channel.id].selected}/${
+                                        profileCounts[channel.id].total
+                                      }`
                                     : "—"}
                                 </span>
                               </td>
                               <td className="py-4 px-5 relative">
                                 <div className="flex items-center gap-3">
-            <Button
+                                  <Button
                                     size="sm"
                                     className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
-              onClick={() => {
+                                    onClick={() => {
                                       if (channel.channel_type === "google") {
                                         navigate(
                                           `/channels/${channel.id}/select-google-accounts`
@@ -359,9 +498,15 @@ export const Channels: React.FC = () => {
                                     variant="outline"
                                     onClick={() => {
                                       // TODO: Implement delete functionality
-                                      if (window.confirm(`Are you sure you want to delete channel "${channel.channel_name}"?`)) {
+                                      if (
+                                        window.confirm(
+                                          `Are you sure you want to delete channel "${channel.channel_name}"?`
+                                        )
+                                      ) {
                                         // Delete functionality will be implemented
-                                        alert("Delete functionality coming soon");
+                                        alert(
+                                          "Delete functionality coming soon"
+                                        );
                                       }
                                     }}
                                     className="px-2 py-1.5 h-[36px] rounded-lg flex items-center justify-center"
@@ -369,8 +514,8 @@ export const Channels: React.FC = () => {
                                     <span className="text-[14px] font-medium">
                                       Delete
                                     </span>
-            </Button>
-          </div>
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -379,7 +524,7 @@ export const Channels: React.FC = () => {
                     </table>
                   </div>
                 )}
-          </div>
+              </div>
             </div>
           </div>
         </div>

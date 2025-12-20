@@ -16,7 +16,10 @@ import {
   FilterSection,
   FilterSectionPanel,
 } from "../components/filters/FilterSection";
-import { PerformanceChart } from "../components/charts/PerformanceChart";
+import {
+  PerformanceChart,
+  type MetricConfig,
+} from "../components/charts/PerformanceChart";
 import ExportIcon from "../assets/export-icon.svg";
 import { ErrorModal } from "../components/ui/ErrorModal";
 
@@ -40,6 +43,9 @@ export const Targets: React.FC = () => {
       date: string;
       spend: number;
       sales: number;
+      sales1d?: number;
+      sales7d?: number;
+      sales14d?: number;
       impressions?: number;
       clicks?: number;
       acos?: number;
@@ -53,11 +59,54 @@ export const Targets: React.FC = () => {
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
+    sales1d: false,
+    sales7d: false,
+    sales14d: false,
     impressions: false,
     clicks: false,
     acos: false,
     roas: false,
   });
+
+  const targetMetrics: MetricConfig[] = [
+    { key: "sales", label: "Sales", color: "#136D6D" },
+    { key: "spend", label: "Spend", color: "#506766" },
+    { key: "sales1d", label: "Sales 1D", color: "#0D9488" },
+    { key: "sales7d", label: "Sales 7D", color: "#14B8A6" },
+    { key: "sales14d", label: "Sales 14D", color: "#2DD4BF" },
+    { key: "impressions", label: "Impressions", color: "#7C3AED" },
+    { key: "clicks", label: "Clicks", color: "#169aa3" },
+    {
+      key: "ctr",
+      label: "CTR",
+      color: "#8B5CF6",
+      tooltipFormatter: (v) => `${v.toFixed(2)}%`,
+    },
+    {
+      key: "cpc",
+      label: "CPC",
+      color: "#F59E0B",
+      tooltipFormatter: (v) => `$${v.toFixed(2)}`,
+    },
+    {
+      key: "cpm",
+      label: "CPM",
+      color: "#EF4444",
+      tooltipFormatter: (v) => `$${v.toFixed(2)}`,
+    },
+    {
+      key: "acos",
+      label: "ACOS",
+      color: "#DC2626",
+      tooltipFormatter: (v) => `${v.toFixed(2)}%`,
+    },
+    {
+      key: "roas",
+      label: "ROAS",
+      color: "#059669",
+      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+    },
+  ];
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -109,7 +158,7 @@ export const Targets: React.FC = () => {
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
 
-  const toggleChartMetric = (key: keyof typeof chartToggles) => {
+  const toggleChartMetric = (key: string) => {
     setChartToggles((prev) => ({
       ...prev,
       [key]: !prev[key],
@@ -834,6 +883,9 @@ export const Targets: React.FC = () => {
         date: item.date,
         sales: item.sales,
         spend: item.spend,
+        sales1d: item.sales1d || 0,
+        sales7d: item.sales7d || 0,
+        sales14d: item.sales14d || 0,
         impressions: item.impressions || 0,
         clicks: item.clicks || 0,
         acos: item.acos || 0,
@@ -866,7 +918,7 @@ export const Targets: React.FC = () => {
     { value: "bid", label: "Bid" },
     { value: "adgroup_name", label: "Ad Group Name" },
     { value: "campaign_name", label: "Campaign Name" },
-    { value: "profile_name", label: "Profile Name" },
+    { value: "profile_name", label: "Profile" },
     { value: "type", label: "Type" },
   ];
 
@@ -935,6 +987,8 @@ export const Targets: React.FC = () => {
               }}
               filterFields={TARGET_FILTER_FIELDS}
               initialFilters={filters}
+              accountId={accountId}
+              channelType="amazon"
             />
 
             {/* Chart Section */}
@@ -942,6 +996,7 @@ export const Targets: React.FC = () => {
               data={chartData}
               toggles={chartToggles}
               onToggle={toggleChartMetric}
+              metrics={targetMetrics}
               title="Performance Trends"
             />
 
@@ -1442,9 +1497,9 @@ export const Targets: React.FC = () => {
                             Campaign Name
                           </th>
 
-                          {/* Profile Name */}
+                          {/* Profile */}
                           <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                            Profile Name
+                            Profile
                           </th>
 
                           {/* Type */}
@@ -1719,7 +1774,7 @@ export const Targets: React.FC = () => {
                                 </button>
                               </td>
 
-                              {/* Profile Name */}
+                              {/* Profile */}
                               <td className="py-[10px] px-[10px] min-w-[150px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
                                   {target.profile_name &&
