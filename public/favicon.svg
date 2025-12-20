@@ -1,0 +1,8 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="#072929"/>
+  <!-- Star icon matching Stellar logo style -->
+  <g transform="translate(16, 16)">
+    <path d="M0 -8L2.5 -2.5L8 0L2.5 2.5L0 8L-2.5 2.5L-8 0L-2.5 -2.5L0 -8Z" fill="white"/>
+    <path d="M0 -4L1.5 -1.5L4 0L1.5 1.5L0 4L-1.5 1.5L-4 0L-1.5 -1.5L0 -4Z" fill="#072929"/>
+  </g>
+</svg>
