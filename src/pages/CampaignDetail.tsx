@@ -33,6 +33,14 @@ import {
   CreateKeywordPanel,
   type KeywordInput,
 } from "../components/keywords/CreateKeywordPanel";
+import {
+  CreateTargetPanel,
+  type TargetInput,
+} from "../components/targets/CreateTargetPanel";
+import {
+  CreateProductAdPanel,
+  type ProductAdInput,
+} from "../components/productads/CreateProductAdPanel";
 
 export const CampaignDetail: React.FC = () => {
   const { accountId, campaignTypeAndId } = useParams<{
@@ -76,6 +84,7 @@ export const CampaignDetail: React.FC = () => {
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   const [adgroups, setAdgroups] = useState<AdGroup[]>([]);
+  const [allAdgroups, setAllAdgroups] = useState<AdGroup[]>([]);
   const [adgroupsLoading, setAdgroupsLoading] = useState(false);
   const [selectedAdGroupIds, setSelectedAdGroupIds] = useState<Set<number>>(
     new Set()
@@ -103,6 +112,9 @@ export const CampaignDetail: React.FC = () => {
   const [isCreateAdGroupPanelOpen, setIsCreateAdGroupPanelOpen] =
     useState(false);
   const [isCreateKeywordPanelOpen, setIsCreateKeywordPanelOpen] =
+    useState(false);
+  const [isCreateTargetPanelOpen, setIsCreateTargetPanelOpen] = useState(false);
+  const [isCreateProductAdPanelOpen, setIsCreateProductAdPanelOpen] =
     useState(false);
   const [isKeywordsFilterPanelOpen, setIsKeywordsFilterPanelOpen] =
     useState(false);
@@ -637,6 +649,36 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
+  const loadAllAdGroups = async () => {
+    try {
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        return;
+      }
+
+      // Load all adgroups with a large page size
+      const data = await campaignsService.getAdGroups(
+        accountIdNum,
+        campaignId,
+        startDate.toISOString().split("T")[0],
+        endDate.toISOString().split("T")[0],
+        {
+          page: 1,
+          page_size: 1000, // Large page size to get all adgroups
+          sort_by: "name",
+          order: "asc",
+          type: campaignType || undefined,
+        }
+      );
+
+      setAllAdgroups(data.adgroups || []);
+    } catch (error) {
+      console.error("Failed to load all ad groups:", error);
+      setAllAdgroups([]);
+    }
+  };
+
   const handleCreateAdGroups = async (adgroups: AdGroupInput[]) => {
     if (!accountId || !campaignId || campaignType !== "SP") return;
 
@@ -702,6 +744,82 @@ export const CampaignDetail: React.FC = () => {
       alert(
         error.response?.data?.error ||
           "Failed to create keywords. Please try again."
+      );
+    }
+  };
+
+  const handleCreateTargets = async (targets: TargetInput[]) => {
+    if (!accountId || !campaignId || campaignType !== "SP") return;
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      await campaignsService.createTargets(accountIdNum, campaignId, {
+        targets: targets.map((tgt) => ({
+          adGroupId: tgt.adGroupId,
+          bid: tgt.bid,
+          expression: [
+            {
+              type: tgt.expressionType,
+              value: tgt.expressionValue,
+            },
+          ],
+          expressionType: "MANUAL",
+          state: tgt.state,
+        })),
+      });
+
+      // Close the panel
+      setIsCreateTargetPanelOpen(false);
+
+      // Reload targets to show the new ones
+      await loadTargets();
+    } catch (error: any) {
+      console.error("Failed to create targets:", error);
+      alert(
+        error.response?.data?.error ||
+          "Failed to create targets. Please try again."
+      );
+    }
+  };
+
+  const handleCreateProductAds = async (productAds: ProductAdInput[]) => {
+    if (!accountId || !campaignId || campaignType !== "SP") return;
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      await campaignsService.createProductAds(accountIdNum, campaignId, {
+        productAds: productAds.map((pa) => ({
+          adGroupId: pa.adGroupId,
+          asin: pa.asin,
+          sku: pa.sku || undefined,
+          customText: pa.customText || undefined,
+          globalStoreSetting: pa.catalogSourceCountryCode
+            ? {
+                catalogSourceCountryCode: pa.catalogSourceCountryCode,
+              }
+            : undefined,
+          state: pa.state,
+        })),
+      });
+
+      // Close the panel
+      setIsCreateProductAdPanelOpen(false);
+
+      // Reload product ads to show the new ones
+      await loadProductAds();
+    } catch (error: any) {
+      console.error("Failed to create product ads:", error);
+      alert(
+        error.response?.data?.error ||
+          "Failed to create product ads. Please try again."
       );
     }
   };
@@ -1217,7 +1335,10 @@ export const CampaignDetail: React.FC = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1" style={{ marginLeft: `${sidebarWidth}px` }}>
+      <div
+        className="flex-1 min-w-0 overflow-x-hidden"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Header */}
         <DashboardHeader />
 
@@ -1991,13 +2112,17 @@ export const CampaignDetail: React.FC = () => {
                   <div className="flex items-center gap-3">
                     {/* Create Keyword Button */}
                     <button
-                      onClick={() =>
-                        setIsCreateKeywordPanelOpen(!isCreateKeywordPanelOpen)
-                      }
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors text-[10.64px] font-semibold"
+                      onClick={async () => {
+                        const newState = !isCreateKeywordPanelOpen;
+                        setIsCreateKeywordPanelOpen(newState);
+                        if (newState) {
+                          await loadAllAdGroups();
+                        }
+                      }}
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="w-4 h-4 !text-white"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -2010,6 +2135,21 @@ export const CampaignDetail: React.FC = () => {
                         />
                       </svg>
                       Create Keywords
+                      <svg
+                        className={`w-4 h-4 !text-white transition-transform ${
+                          isCreateKeywordPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
                     </button>
                     {/* Add Filter Button */}
                     <button
@@ -2018,38 +2158,38 @@ export const CampaignDetail: React.FC = () => {
                       }
                       className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                     >
-                    <svg
-                      className="w-5 h-5 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Add Filter
-                    </span>
-                    <svg
-                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                        isKeywordsFilterPanelOpen ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Add Filter
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                          isKeywordsFilterPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
@@ -2085,7 +2225,10 @@ export const CampaignDetail: React.FC = () => {
                     isOpen={isCreateKeywordPanelOpen}
                     onClose={() => setIsCreateKeywordPanelOpen(false)}
                     onSubmit={handleCreateKeywords}
-                    adgroups={adgroups.map((ag) => ({
+                    adgroups={(allAdgroups.length > 0
+                      ? allAdgroups
+                      : adgroups
+                    ).map((ag) => ({
                       adGroupId: ag.adGroupId || String(ag.id),
                       name: ag.name,
                     }))}
@@ -2197,53 +2340,113 @@ export const CampaignDetail: React.FC = () => {
 
             {activeTab === "Product Ads" && (
               <>
-                {/* Header with Filter Button */}
+                {/* Header with Filter Button and Create Product Ad Button */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
                     Product Ads
                   </h2>
-                  {/* Add Filter Button */}
-                  <button
-                    onClick={() =>
-                      setIsProductAdsFilterPanelOpen(
-                        !isProductAdsFilterPanelOpen
-                      )
-                    }
-                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                  >
-                    <svg
-                      className="w-5 h-5 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                  <div className="flex items-center gap-2">
+                    {/* Create Product Ad Button */}
+                    <button
+                      onClick={async () => {
+                        const newState = !isCreateProductAdPanelOpen;
+                        setIsCreateProductAdPanelOpen(newState);
+                        if (newState) {
+                          await loadAllAdGroups();
+                        }
+                      }}
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Add Filter
-                    </span>
-                    <svg
-                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                        isProductAdsFilterPanelOpen ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      <svg
+                        className="w-4 h-4 !text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Create Product Ads
+                      <svg
+                        className={`w-4 h-4 !text-white transition-transform ${
+                          isCreateProductAdPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    {/* Add Filter Button */}
+                    <button
+                      onClick={() =>
+                        setIsProductAdsFilterPanelOpen(
+                          !isProductAdsFilterPanelOpen
+                        )
+                      }
+                      className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Add Filter
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                          isProductAdsFilterPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Create Product Ad Panel */}
+                {isCreateProductAdPanelOpen && (
+                  <CreateProductAdPanel
+                    isOpen={isCreateProductAdPanelOpen}
+                    onClose={() => setIsCreateProductAdPanelOpen(false)}
+                    onSubmit={handleCreateProductAds}
+                    adgroups={(allAdgroups.length > 0
+                      ? allAdgroups
+                      : adgroups
+                    ).map((ag) => ({
+                      adGroupId: ag.adGroupId || String(ag.id),
+                      name: ag.name,
+                    }))}
+                    campaignId={campaignId || ""}
+                  />
+                )}
 
                 {/* Filter Panel */}
                 {isProductAdsFilterPanelOpen && (
@@ -2378,51 +2581,111 @@ export const CampaignDetail: React.FC = () => {
 
             {activeTab === "Targets" && (
               <>
-                {/* Header with Filter Button */}
+                {/* Header with Filter Button and Create Target Button */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
                     Targets
                   </h2>
-                  {/* Add Filter Button */}
-                  <button
-                    onClick={() =>
-                      setIsTargetsFilterPanelOpen(!isTargetsFilterPanelOpen)
-                    }
-                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                  >
-                    <svg
-                      className="w-5 h-5 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                  <div className="flex items-center gap-3">
+                    {/* Create Target Button */}
+                    <button
+                      onClick={async () => {
+                        const newState = !isCreateTargetPanelOpen;
+                        setIsCreateTargetPanelOpen(newState);
+                        if (newState) {
+                          await loadAllAdGroups();
+                        }
+                      }}
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Add Filter
-                    </span>
-                    <svg
-                      className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                        isTargetsFilterPanelOpen ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      <svg
+                        className="w-4 h-4 !text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Create Targets
+                      <svg
+                        className={`w-4 h-4 !text-white transition-transform ${
+                          isCreateTargetPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    {/* Add Filter Button */}
+                    <button
+                      onClick={() =>
+                        setIsTargetsFilterPanelOpen(!isTargetsFilterPanelOpen)
+                      }
+                      className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Add Filter
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                          isTargetsFilterPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Create Target Panel */}
+                {isCreateTargetPanelOpen && (
+                  <CreateTargetPanel
+                    isOpen={isCreateTargetPanelOpen}
+                    onClose={() => setIsCreateTargetPanelOpen(false)}
+                    onSubmit={handleCreateTargets}
+                    adgroups={(allAdgroups.length > 0
+                      ? allAdgroups
+                      : adgroups
+                    ).map((ag) => ({
+                      adGroupId: ag.adGroupId || String(ag.id),
+                      name: ag.name,
+                    }))}
+                    campaignId={campaignId || ""}
+                  />
+                )}
 
                 {/* Filter Panel */}
                 {isTargetsFilterPanelOpen && (

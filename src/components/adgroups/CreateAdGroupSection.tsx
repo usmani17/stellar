@@ -12,10 +12,10 @@ export const CreateAdGroupSection: React.FC<CreateAdGroupSectionProps> = ({
   return (
     <button
       onClick={onToggle}
-      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors"
+      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors"
     >
       <svg
-        className="w-5 h-5 text-white"
+        className="w-5 h-5 !text-white"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -31,7 +31,7 @@ export const CreateAdGroupSection: React.FC<CreateAdGroupSectionProps> = ({
         Create Ad Group
       </span>
       <svg
-        className={`w-5 h-5 text-white transition-transform ${
+        className={`w-4 h-4 !text-white transition-transform ${
           isOpen ? "rotate-180" : ""
         }`}
         fill="none"

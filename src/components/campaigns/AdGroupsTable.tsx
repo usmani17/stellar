@@ -129,9 +129,10 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
             </p>
           </div>
         ) : (
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-[#e8e8e3]">
+          <div className="max-h-[600px] overflow-y-auto">
+            <table className="min-w-full">
+              <thead className="sticky top-0 bg-[#fefefb] z-10">
+                <tr className="border-b border-[#e8e8e3]">
                 {/* Checkbox Header */}
                 <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
                   <div className="flex items-center justify-center">
@@ -489,6 +490,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
               )}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

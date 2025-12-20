@@ -1441,6 +1441,48 @@ export const campaignsService = {
     return response.data;
   },
 
+  createTargets: async (
+    accountId: number,
+    campaignId: string | number,
+    payload: {
+      targets: Array<{
+        adGroupId: string;
+        bid: number;
+        expression: Array<{
+          type: string;
+          value: string;
+        }>;
+        expressionType: "MANUAL";
+        state: "ENABLED" | "PAUSED";
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createProductAds: async (
+    accountId: number,
+    campaignId: string | number,
+    payload: {
+      productAds: Array<{
+        adGroupId: string;
+        asin: string;
+        sku?: string;
+        customText?: string;
+        globalStoreSetting?: {
+          catalogSourceCountryCode?: string;
+        };
+        state: "ENABLED" | "PAUSED";
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
   getTargetsList: async (
     accountId: number,
     params?: TargetsQueryParams

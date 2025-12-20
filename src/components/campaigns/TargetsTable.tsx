@@ -85,22 +85,22 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
-      <div className="overflow-x-auto w-full">
-        {loading ? (
-          <div className="text-center py-8 text-[#556179] text-[13.3px]">
-            Loading targets...
-          </div>
-        ) : targets.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[13.3px] text-[#556179] mb-4">
-              No targets found
-            </p>
-          </div>
-        ) : (
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-[#e8e8e3]">
+    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] w-full">
+      {loading ? (
+        <div className="text-center py-8 text-[#556179] text-[13.3px]">
+          Loading targets...
+        </div>
+      ) : targets.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-[13.3px] text-[#556179] mb-4">
+            No targets found
+          </p>
+        </div>
+      ) : (
+        <div className="max-h-[600px] overflow-auto w-full overflow-x-auto overflow-y-auto">
+          <table className="w-full min-w-max">
+            <thead className="sticky top-0 bg-[#fefefb] z-10">
+                <tr className="border-b border-[#e8e8e3]">
                 {/* Checkbox Header */}
                 <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
                   <div className="flex items-center justify-center">
@@ -335,8 +335,8 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
               })}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

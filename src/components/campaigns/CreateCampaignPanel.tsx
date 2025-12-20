@@ -102,7 +102,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     field: keyof CreateCampaignData,
     value: string | number
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      // If campaign type is changed to SP, automatically set budgetType to DAILY
+      if (field === "type" && value === "SP") {
+        updated.budgetType = "DAILY";
+      }
+      return updated;
+    });
     // Clear error for this field
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -235,19 +242,21 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
               )}
             </div>
 
-            {/* Budget Type */}
-            <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                Budget Type *
-              </label>
-              <Dropdown<string>
-                options={BUDGET_TYPES}
-                value={formData.budgetType}
-                onChange={(value) => handleChange("budgetType", value)}
-                placeholder="Select budget type"
-                buttonClassName="w-full"
-              />
-            </div>
+            {/* Budget Type - Hidden for SP campaigns */}
+            {formData.type !== "SP" && (
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Budget Type *
+                </label>
+                <Dropdown<string>
+                  options={BUDGET_TYPES}
+                  value={formData.budgetType}
+                  onChange={(value) => handleChange("budgetType", value)}
+                  placeholder="Select budget type"
+                  buttonClassName="w-full"
+                />
+              </div>
+            )}
 
             {/* Status */}
             <div>
