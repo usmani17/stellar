@@ -27,7 +27,7 @@ import {
 import { CreateAdGroupSection } from "../components/adgroups/CreateAdGroupSection";
 import {
   CreateAdGroupPanel,
-  type CreateAdGroupData,
+  type AdGroupInput,
 } from "../components/adgroups/CreateAdGroupPanel";
 import {
   CreateKeywordPanel,
@@ -637,36 +637,39 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
-  const handleCreateAdGroup = async (data: CreateAdGroupData) => {
+  const handleCreateAdGroups = async (adgroups: AdGroupInput[]) => {
     if (!accountId || !campaignId || campaignType !== "SP") return;
 
     try {
-      // TODO: Implement API call to create ad group
+      // TODO: Implement API call to create ad groups
       // Based on Amazon API: https://advertising.amazon.com/API/docs/en-us/sponsored-products/3-0/openapi/prod#tag/Ad-groups/operation/CreateSponsoredProductsAdGroups
       // Request body should be:
       // {
       //   "adGroups": [
       //     {
       //       "campaignId": campaignId,
-      //       "defaultBid": data.defaultBid,
-      //       "name": data.name,
-      //       "state": data.state
+      //       "defaultBid": adgroup.defaultBid,
+      //       "name": adgroup.name,
+      //       "state": adgroup.state
       //     }
       //   ]
       // }
-      console.log("Creating ad group:", {
+      console.log("Creating ad groups:", {
         campaignId,
-        ...data,
+        adgroups,
       });
 
       // Close the panel
       setIsCreateAdGroupPanelOpen(false);
 
-      // Reload ad groups to show the new one
+      // Reload ad groups to show the new ones
       await loadAdGroups();
     } catch (error: any) {
-      console.error("Failed to create ad group:", error);
-      // TODO: Show error message to user
+      console.error("Failed to create ad groups:", error);
+      alert(
+        error.response?.data?.error ||
+          "Failed to create ad groups. Please try again."
+      );
     }
   };
 
@@ -1835,7 +1838,7 @@ export const CampaignDetail: React.FC = () => {
                     <CreateAdGroupPanel
                       isOpen={isCreateAdGroupPanelOpen}
                       onClose={() => setIsCreateAdGroupPanelOpen(false)}
-                      onSubmit={handleCreateAdGroup}
+                      onSubmit={handleCreateAdGroups}
                       campaignId={campaignId}
                     />
                   )}
