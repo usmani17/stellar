@@ -307,7 +307,7 @@ export const ChannelTable: React.FC<ChannelTableProps> = ({
           <button className="px-2.5 py-2.5 border-r border-gray-200 w-10 text-[14px] text-black hover:bg-gray-50 cursor-pointer">
             1
           </button>
-          <button className="px-2.5 py-2.5 border-r border-gray-200 w-10 text-[14px] font-semibold text-[#4e5cff] bg-white hover:bg-gray-50 cursor-pointer">
+          <button className="px-2.5 py-2.5 border-r border-gray-200 w-10 text-[14px] text-[#4e5cff] bg-white hover:bg-gray-50 cursor-pointer">
             2
           </button>
           <button className="px-2.5 py-2.5 border-r border-gray-200 w-10 text-[14px] text-black hover:bg-gray-50 cursor-pointer">

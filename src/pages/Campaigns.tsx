@@ -143,7 +143,13 @@ export const Campaigns: React.FC = () => {
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
     message: string;
+    title?: string;
+    isSuccess?: boolean;
   }>({ isOpen: false, message: "" });
+  const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
+  const [createCampaignError, setCreateCampaignError] = useState<string | null>(
+    null
+  );
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
@@ -728,31 +734,122 @@ export const Campaigns: React.FC = () => {
   const handleCreateCampaign = async (data: CreateCampaignData) => {
     if (!accountId) return;
 
+    setCreateCampaignLoading(true);
+    setCreateCampaignError(null);
+
     try {
-      // TODO: Implement API call to create campaign
-      // For now, just show success message
-      console.log("Creating campaign:", data);
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
 
-      // Close the panel
+      const response = await campaignsService.createCampaign(
+        accountIdNum,
+        data
+      );
+
+      console.log("Create campaign response:", response);
+
+      // Extract campaign ID from response
+      // Backend returns: { "created": True, "response": { "campaigns": [{ "campaignId": "...", ... }] } }
+      let campaignId: string | number | null = null;
+      if (response?.response) {
+        // Check if response contains campaign data
+        if (
+          response.response.campaigns &&
+          Array.isArray(response.response.campaigns) &&
+          response.response.campaigns.length > 0
+        ) {
+          const campaign = response.response.campaigns[0];
+          campaignId = campaign.campaignId || campaign.id || null;
+          console.log("Extracted campaign ID:", campaignId);
+        }
+      }
+
+      // Close the panel and stop loading
       setIsCreateCampaignPanelOpen(false);
+      setCreateCampaignLoading(false);
+      setCreateCampaignError(null);
 
-      // Show success message (you can replace this with a toast notification)
-      setErrorModal({
-        isOpen: true,
-        message: `Campaign "${data.campaign_name}" created successfully!`,
-      });
-
-      // Reload campaigns to show the new one
-      // await loadCampaigns(parseInt(accountId));
+      // Redirect to campaign detail page if we have campaign ID
+      if (campaignId) {
+        navigate(`/accounts/${accountIdNum}/campaigns/${campaignId}`);
+      } else {
+        // If no campaign ID, show success and reload campaigns
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `Campaign "${data.campaign_name}" created successfully!`,
+          isSuccess: true,
+        });
+        await loadCampaigns(accountIdNum);
+      }
     } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to create campaign. Please try again.";
-      setErrorModal({
-        isOpen: true,
+      console.error("Failed to create campaign:", error);
+      setCreateCampaignLoading(false);
+
+      // Extract error message from backend response
+      let errorMessage = "Failed to create campaign. Please try again.";
+      let errorDetails = null;
+      let fieldErrors: Record<string, string> = {};
+
+      if (error?.response?.data) {
+        // Check for validation errors (400 status)
+        if (error.response.status === 400) {
+          // Check for field-specific validation errors
+          if (error.response.data.field_errors) {
+            fieldErrors = error.response.data.field_errors;
+          }
+
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        } else {
+          // Check for error message
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+
+          // Check for detailed error information
+          if (error.response.data.details) {
+            errorDetails = error.response.data.details;
+            // If details is an object with errors, format it
+            if (
+              typeof errorDetails === "object" &&
+              !Array.isArray(errorDetails)
+            ) {
+              if (errorDetails.errors) {
+                errorMessage = `Amazon API errors: ${JSON.stringify(
+                  errorDetails.errors
+                )}`;
+              } else if (errorDetails.message) {
+                errorMessage = `Amazon API error: ${errorDetails.message}`;
+              }
+            }
+          }
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      // Pass field errors to the panel via a custom error object
+      // The panel will parse this and set field-specific errors
+      const errorWithFields = {
         message: errorMessage,
-      });
+        fieldErrors: fieldErrors,
+      };
+
+      // Store error with field errors as JSON string
+      // The panel will parse this and extract both message and field errors
+      setCreateCampaignError(JSON.stringify(errorWithFields));
+
+      // Don't close panel on error - let user fix and resubmit
+      // Re-throw error so the form knows submission failed
+      throw error;
     }
   };
 
@@ -951,7 +1048,9 @@ export const Campaigns: React.FC = () => {
       <ErrorModal
         isOpen={errorModal.isOpen}
         onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
         message={errorModal.message}
+        isSuccess={errorModal.isSuccess}
       />
 
       {/* Sidebar */}
@@ -999,9 +1098,14 @@ export const Campaigns: React.FC = () => {
             {isCreateCampaignPanelOpen && (
               <CreateCampaignPanel
                 isOpen={isCreateCampaignPanelOpen}
-                onClose={() => setIsCreateCampaignPanelOpen(false)}
+                onClose={() => {
+                  setIsCreateCampaignPanelOpen(false);
+                  setCreateCampaignError(null);
+                }}
                 onSubmit={handleCreateCampaign}
                 accountId={accountId}
+                loading={createCampaignLoading}
+                submitError={createCampaignError}
               />
             )}
 
@@ -1325,7 +1429,7 @@ export const Campaigns: React.FC = () => {
                             setShowBudgetPanel(false);
                             setShowBulkActions(false);
                           }}
-                          className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                          className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
                         >
                           Cancel
                         </button>
@@ -1338,7 +1442,7 @@ export const Campaigns: React.FC = () => {
                             setShowConfirmationModal(true);
                           }}
                           disabled={bulkLoading || !budgetValue}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Apply
                         </button>
@@ -1547,7 +1651,7 @@ export const Campaigns: React.FC = () => {
                           setShowConfirmationModal(false);
                           setPendingStatusAction(null);
                         }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1566,7 +1670,7 @@ export const Campaigns: React.FC = () => {
                           setPendingStatusAction(null);
                         }}
                         disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {bulkLoading ? "Applying..." : "Confirm"}
                       </button>
@@ -1639,7 +1743,7 @@ export const Campaigns: React.FC = () => {
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
                         }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1647,7 +1751,7 @@ export const Campaigns: React.FC = () => {
                         type="button"
                         onClick={runInlineEdit}
                         disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 
 export interface AdGroupInput {
@@ -12,6 +12,9 @@ interface CreateAdGroupPanelProps {
   onClose: () => void;
   onSubmit: (adgroups: AdGroupInput[]) => void;
   campaignId: string;
+  campaignType?: string; // SP, SB, or SD
+  loading?: boolean;
+  submitError?: string | null;
 }
 
 const STATE_OPTIONS = [
@@ -24,14 +27,47 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
   onClose,
   onSubmit,
   campaignId,
+  campaignType = "SP",
+  loading = false,
+  submitError = null,
 }) => {
+  // Generate default ad group name
+  const generateDefaultAdGroupName = (type: string): string => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+
+    const dateTime = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+
+    const typePrefix =
+      type === "SP" ? "SP" : type === "SB" ? "SB" : type === "SD" ? "SD" : "SP";
+    return `${typePrefix} Ad group - ${dateTime}`;
+  };
+
   const [currentAdGroup, setCurrentAdGroup] = useState<AdGroupInput>({
-    name: "",
+    name: generateDefaultAdGroupName(campaignType),
     defaultBid: 0.1,
     state: "ENABLED",
   });
   const [addedAdGroups, setAddedAdGroups] = useState<AdGroupInput[]>([]);
-  const [errors, setErrors] = useState<Partial<Record<keyof AdGroupInput, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof AdGroupInput, string>>
+  >({});
+
+  // Update default name when panel opens or campaign type changes
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentAdGroup((prev) => ({
+        ...prev,
+        name: generateDefaultAdGroupName(campaignType),
+      }));
+    }
+  }, [isOpen, campaignType]);
 
   const handleChange = (field: keyof AdGroupInput, value: string | number) => {
     setCurrentAdGroup((prev) => ({ ...prev, [field]: value }));
@@ -66,7 +102,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
 
     // Reset form for next adgroup
     setCurrentAdGroup({
-      name: "",
+      name: generateDefaultAdGroupName(campaignType),
       defaultBid: 0.1,
       state: "ENABLED",
     });
@@ -87,7 +123,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
     // Reset everything
     setAddedAdGroups([]);
     setCurrentAdGroup({
-      name: "",
+      name: generateDefaultAdGroupName(campaignType),
       defaultBid: 0.1,
       state: "ENABLED",
     });
@@ -97,7 +133,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
   const handleCancel = () => {
     setAddedAdGroups([]);
     setCurrentAdGroup({
-      name: "",
+      name: generateDefaultAdGroupName(campaignType),
       defaultBid: 0.1,
       state: "ENABLED",
     });
@@ -155,7 +191,9 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               }`}
             />
             {errors.defaultBid && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.defaultBid}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.defaultBid}
+              </p>
             )}
           </div>
 
@@ -167,7 +205,9 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
             <Dropdown<string>
               options={STATE_OPTIONS}
               value={currentAdGroup.state}
-              onChange={(value) => handleChange("state", value as AdGroupInput["state"])}
+              onChange={(value) =>
+                handleChange("state", value as AdGroupInput["state"])
+              }
               placeholder="Select state"
               buttonClassName="w-full"
             />
@@ -178,7 +218,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
             <button
               type="button"
               onClick={handleAddAdGroup}
-              className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors"
+              className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
             >
               Add Ad Group
             </button>
@@ -240,7 +280,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRemoveAdGroup(index)}
-                            className="text-red-500 hover:text-red-700 text-[13.3px] font-semibold"
+                            className="text-red-500 hover:text-red-700 text-[13.3px]"
                           >
                             Remove
                           </button>
@@ -255,12 +295,28 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
         </div>
       )}
 
+      {/* Error Display */}
+      {submitError && (
+        <div className="p-4 border-t border-gray-200 bg-red-50">
+          <p className="text-[12px] text-red-600">
+            {(() => {
+              try {
+                const errorData = JSON.parse(submitError);
+                return errorData.message || submitError;
+              } catch {
+                return submitError;
+              }
+            })()}
+          </p>
+        </div>
+      )}
+
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] font-semibold"
+          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
         >
           Cancel
         </button>
@@ -268,7 +324,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={addedAdGroups.length === 0}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Add All Ad Groups
         </button>

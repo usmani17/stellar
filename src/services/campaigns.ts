@@ -81,6 +81,7 @@ export interface CampaignDetail {
     status: string;
     budget?: number;
     startDate?: string;
+    endDate?: string;
     budgetType?: string;
     description: string;
     targetingType?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (camelCase)
@@ -1423,6 +1424,16 @@ export const campaignsService = {
     return response.data;
   },
 
+  createAdGroups: async (
+    accountId: number,
+    campaignId: string | number,
+    payload: { adgroups: Array<{ name: string; defaultBid: number; state: "ENABLED" | "PAUSED" }> }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
   createKeywords: async (
     accountId: number,
     campaignId: string | number,
@@ -1479,6 +1490,53 @@ export const campaignsService = {
     }
   ) => {
     const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createCampaign: async (
+    accountId: number,
+    payload: {
+      campaign_name: string;
+      type: "SP" | "SB" | "SD";
+      budget: number;
+      budgetType?: "DAILY" | "LIFETIME" | "daily";
+      status: "Enabled" | "Paused" | "enabled" | "ENABLED" | "PAUSED";
+      startDate?: string;
+      endDate?: string;
+      profile_name?: string;
+      // SB specific fields
+      brandEntityId?: string;
+      goal?: string;
+      productLocation?: "SOLD_ON_AMAZON" | "NOT_SOLD_ON_AMAZON" | "SOLD_ON_DTC";
+      costType?: string;
+      portfolioId?: string;
+      siteRestrictions?: string[];
+      targetedPGDealId?: string;
+      tags?: Record<string, string>;
+      smartDefault?: "MANUAL" | "TARGETING";
+      bidding?: {
+        bidOptimization?: boolean;
+        shopperCohortBidAdjustments?: Array<{
+          shopperCohortType: string;
+          percentage: number;
+          audienceSegments: Array<{
+            audienceId: string;
+            audienceSegmentType: string;
+          }>;
+        }>;
+        bidAdjustmentsByPlacement?: Array<{
+          percentage: number;
+          placement: string;
+        }>;
+      };
+      // SD specific fields
+      tactic?: string;
+      // SP specific fields
+      targetingType?: "AUTO" | "MANUAL";
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/create/`;
     const response = await api.post(url, payload);
     return response.data;
   },

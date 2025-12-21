@@ -9,12 +9,40 @@ export interface KeywordInput {
   state: "ENABLED" | "PAUSED";
 }
 
+interface KeywordError {
+  index: number;
+  field: keyof KeywordInput;
+  message: string;
+}
+
+interface CreatedKeyword {
+  keywordId?: string;
+  adGroupId: string;
+  keywordText: string;
+  matchType: "BROAD" | "PHRASE" | "EXACT";
+  bid: number;
+  state: "ENABLED" | "PAUSED";
+  index?: number; // Original index in the submitted array
+}
+
+interface FailedKeyword {
+  index: number;
+  keyword: KeywordInput;
+  errors: Array<{ field?: string; message: string }>;
+}
+
 interface CreateKeywordPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (keywords: KeywordInput[]) => void;
   adgroups: Array<{ adGroupId: string; name: string }>;
   campaignId: string;
+  loading?: boolean;
+  submitError?: string | null;
+  fieldErrors?: Record<string, string>;
+  createdKeywords?: CreatedKeyword[]; // Keywords that were successfully created
+  failedCount?: number; // Number of keywords that failed
+  failedKeywords?: FailedKeyword[]; // Keywords that failed with their errors
 }
 
 const MATCH_TYPE_OPTIONS = [
@@ -33,7 +61,12 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
   onClose,
   onSubmit,
   adgroups,
-  campaignId,
+  loading = false,
+  submitError = null,
+  fieldErrors = {},
+  createdKeywords = [],
+  failedCount = 0,
+  failedKeywords = [],
 }) => {
   const [currentKeyword, setCurrentKeyword] = useState<KeywordInput>({
     adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
@@ -43,7 +76,10 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
     state: "ENABLED",
   });
   const [addedKeywords, setAddedKeywords] = useState<KeywordInput[]>([]);
-  const [errors, setErrors] = useState<Partial<Record<keyof KeywordInput, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof KeywordInput, string>>
+  >({});
+  const [keywordErrors, setKeywordErrors] = useState<KeywordError[]>([]);
 
   const handleChange = (field: keyof KeywordInput, value: string | number) => {
     setCurrentKeyword((prev) => ({ ...prev, [field]: value }));
@@ -101,18 +137,152 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
       return;
     }
 
+    // Clear previous errors
+    setKeywordErrors([]);
     onSubmit(addedKeywords);
-    // Reset everything
-    setAddedKeywords([]);
-    setCurrentKeyword({
-      adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
-      keywordText: "",
-      matchType: "BROAD",
-      bid: 0.1,
-      state: "ENABLED",
-    });
-    setErrors({});
+    // Don't reset keywords here - let parent handle success/error
   };
+
+  // Handle successful keywords and errors
+  React.useEffect(() => {
+    if (createdKeywords && createdKeywords.length > 0) {
+      // Remove successfully created keywords from the list
+      const createdKeywordIds = new Set(
+        createdKeywords.map((kw) => kw.keywordId).filter(Boolean)
+      );
+
+      // If we have keywordIds, remove those keywords
+      // Otherwise, match by content and index
+      setAddedKeywords((prev) => {
+        if (createdKeywordIds.size > 0) {
+          // Match by keywordId if available
+          return prev.filter((kw) => {
+            // Check if this keyword was successfully created
+            const createdKw = createdKeywords.find(
+              (ck) =>
+                ck.keywordText === kw.keywordText &&
+                ck.adGroupId === kw.adGroupId &&
+                ck.matchType === kw.matchType &&
+                Math.abs(ck.bid - kw.bid) < 0.01
+            );
+            return !createdKw || !createdKw.keywordId;
+          });
+        }
+        return prev;
+      });
+    }
+  }, [createdKeywords]);
+
+  // Map failed keywords to errors by matching them to addedKeywords
+  React.useEffect(() => {
+    if (failedKeywords && failedKeywords.length > 0) {
+      const newKeywordErrors: KeywordError[] = [];
+
+      failedKeywords.forEach((failedKw) => {
+        // Find the matching keyword in addedKeywords by content
+        const matchingIndex = addedKeywords.findIndex(
+          (kw) =>
+            kw.keywordText === failedKw.keyword.keywordText &&
+            kw.adGroupId === failedKw.keyword.adGroupId &&
+            kw.matchType === failedKw.keyword.matchType &&
+            Math.abs(kw.bid - failedKw.keyword.bid) < 0.01
+        );
+
+        if (matchingIndex !== -1) {
+          // Map errors to the matching keyword
+          failedKw.errors.forEach((err) => {
+            if (err.field) {
+              newKeywordErrors.push({
+                index: matchingIndex,
+                field: err.field as keyof KeywordInput,
+                message: err.message,
+              });
+            } else {
+              // General error for this keyword - apply to first field
+              newKeywordErrors.push({
+                index: matchingIndex,
+                field: "keywordText",
+                message: err.message,
+              });
+            }
+          });
+        }
+      });
+
+      setKeywordErrors(newKeywordErrors);
+    }
+  }, [failedKeywords, addedKeywords]);
+
+  // Parse field errors and map them to keywords
+  React.useEffect(() => {
+    if (
+      submitError &&
+      fieldErrors &&
+      Object.keys(fieldErrors).length > 0 &&
+      failedKeywords.length === 0
+    ) {
+      const newKeywordErrors: KeywordError[] = [];
+
+      // Map field errors to keywords by index
+      // Field errors might be like "keywordText", "bid", etc.
+      Object.entries(fieldErrors).forEach(([field, message]) => {
+        // Check if field has index suffix (e.g., "keywordText_$0")
+        const indexMatch = field.match(/_\$(\d+)$/);
+        if (indexMatch) {
+          const index = parseInt(indexMatch[1], 10);
+          const baseField = field.replace(/_\$\d+$/, "");
+          if (index < addedKeywords.length) {
+            newKeywordErrors.push({
+              index,
+              field: baseField as keyof KeywordInput,
+              message,
+            });
+          }
+        } else {
+          // Apply to all keywords with that field (fallback)
+          addedKeywords.forEach((keyword, index) => {
+            if (field in keyword) {
+              newKeywordErrors.push({
+                index,
+                field: field as keyof KeywordInput,
+                message,
+              });
+            }
+          });
+        }
+      });
+
+      setKeywordErrors(newKeywordErrors);
+    } else if (submitError && failedKeywords.length === 0) {
+      // General error - show at top
+      setKeywordErrors([]);
+    } else if (
+      !submitError &&
+      createdKeywords &&
+      createdKeywords.length > 0 &&
+      failedCount === 0
+    ) {
+      // Complete success - clear everything
+      setKeywordErrors([]);
+      setAddedKeywords([]);
+      setCurrentKeyword({
+        adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
+        keywordText: "",
+        matchType: "BROAD",
+        bid: 0.1,
+        state: "ENABLED",
+      });
+      setErrors({});
+    }
+  }, [
+    submitError,
+    fieldErrors,
+    addedKeywords,
+    adgroups,
+    createdKeywords,
+    failedCount,
+    failedKeywords,
+  ]);
 
   const handleCancel = () => {
     setAddedKeywords([]);
@@ -160,7 +330,9 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
               buttonClassName="w-full"
             />
             {errors.adGroupId && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.adGroupId}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.adGroupId}
+              </p>
             )}
           </div>
 
@@ -179,7 +351,9 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
               }`}
             />
             {errors.keywordText && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.keywordText}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.keywordText}
+              </p>
             )}
           </div>
 
@@ -191,7 +365,9 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
             <Dropdown<string>
               options={MATCH_TYPE_OPTIONS}
               value={currentKeyword.matchType}
-              onChange={(value) => handleChange("matchType", value as KeywordInput["matchType"])}
+              onChange={(value) =>
+                handleChange("matchType", value as KeywordInput["matchType"])
+              }
               placeholder="Select match type"
               buttonClassName="w-full"
             />
@@ -228,7 +404,9 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
             <Dropdown<string>
               options={STATE_OPTIONS}
               value={currentKeyword.state}
-              onChange={(value) => handleChange("state", value as KeywordInput["state"])}
+              onChange={(value) =>
+                handleChange("state", value as KeywordInput["state"])
+              }
               placeholder="Select state"
               buttonClassName="w-full"
             />
@@ -239,7 +417,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
             <button
               type="button"
               onClick={handleAddKeyword}
-              className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors"
+              className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
             >
               Add Keyword
             </button>
@@ -281,43 +459,103 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                 <tbody>
                   {addedKeywords.map((keyword, index) => {
                     const isLastRow = index === addedKeywords.length - 1;
+                    const rowErrors = keywordErrors.filter(
+                      (e) => e.index === index
+                    );
+                    const hasError = rowErrors.length > 0;
+
                     return (
                       <tr
                         key={index}
                         className={`${
                           !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                        } hover:bg-gray-50 transition-colors`}
+                        } hover:bg-gray-50 transition-colors ${
+                          hasError ? "bg-red-50" : ""
+                        }`}
                       >
                         <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {getAdGroupName(keyword.adGroupId)}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {getAdGroupName(keyword.adGroupId)}
+                            </span>
+                            {rowErrors.find((e) => e.field === "adGroupId") && (
+                              <span className="text-[10px] text-red-500 mt-1">
+                                {
+                                  rowErrors.find((e) => e.field === "adGroupId")
+                                    ?.message
+                                }
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {keyword.keywordText}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {keyword.keywordText}
+                            </span>
+                            {rowErrors.find(
+                              (e) => e.field === "keywordText"
+                            ) && (
+                              <span className="text-[10px] text-red-500 mt-1">
+                                {
+                                  rowErrors.find(
+                                    (e) => e.field === "keywordText"
+                                  )?.message
+                                }
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {keyword.matchType}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {keyword.matchType}
+                            </span>
+                            {rowErrors.find((e) => e.field === "matchType") && (
+                              <span className="text-[10px] text-red-500 mt-1">
+                                {
+                                  rowErrors.find((e) => e.field === "matchType")
+                                    ?.message
+                                }
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            ${keyword.bid.toFixed(2)}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              ${keyword.bid.toFixed(2)}
+                            </span>
+                            {rowErrors.find((e) => e.field === "bid") && (
+                              <span className="text-[10px] text-red-500 mt-1">
+                                {
+                                  rowErrors.find((e) => e.field === "bid")
+                                    ?.message
+                                }
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {keyword.state}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {keyword.state}
+                            </span>
+                            {rowErrors.find((e) => e.field === "state") && (
+                              <span className="text-[10px] text-red-500 mt-1">
+                                {
+                                  rowErrors.find((e) => e.field === "state")
+                                    ?.message
+                                }
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-[10px] px-[10px]">
                           <button
                             type="button"
                             onClick={() => handleRemoveKeyword(index)}
-                            className="text-red-500 hover:text-red-700 text-[13.3px] font-semibold"
+                            className="text-red-500 hover:text-red-700 text-[13.3px]"
                           >
                             Remove
                           </button>
@@ -332,25 +570,31 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
         </div>
       )}
 
+      {/* Error Message */}
+      {submitError && (
+        <div className="px-4 py-3 bg-red-50 border-t border-red-200">
+          <p className="text-[12px] text-red-600">{submitError}</p>
+        </div>
+      )}
+
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] font-semibold"
+          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={addedKeywords.length === 0}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={addedKeywords.length === 0 || loading}
+          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Add All Keywords
+          {loading ? "Creating..." : "Add All Keywords"}
         </button>
       </div>
     </div>
   );
 };
-

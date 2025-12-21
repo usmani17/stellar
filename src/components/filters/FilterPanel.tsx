@@ -375,6 +375,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const handleClearAll = () => {
     setActiveFilters([]);
     onApply([]);
+    onClose(); // Close the filter panel after clearing
   };
 
   const getOperatorLabel = (operator: string) => {
@@ -606,7 +607,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               !filterValue ||
               (needsOperator && !selectedOperator && !isProfileDropdown)
             }
-            className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             Add Filter
           </button>
@@ -633,14 +634,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       <div className="p-4 flex items-center justify-end gap-3">
         <button
           onClick={handleClearAll}
-          disabled={activeFilters.length === 0}
-          className="text-color-f60 bg-background-field px-2 py-1  text-normal   border border-gray-200 rounded-lg items-center hover:bg-gray-50 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
         >
           Clear All
         </button>
         <button
+          type="button"
           onClick={handleApply}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px]  rounded-lg hover:bg-[#0e5a5a] transition-colors text-normal"
+          className="px-4 py-2 bg-[#136D6D] text-white hover:!text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
         >
           Apply Filters
         </button>

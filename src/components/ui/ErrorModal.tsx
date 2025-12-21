@@ -6,6 +6,7 @@ interface ErrorModalProps {
   onClose: () => void;
   title?: string;
   message: string;
+  isSuccess?: boolean;
 }
 
 export const ErrorModal: React.FC<ErrorModalProps> = ({
@@ -13,6 +14,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   onClose,
   title = "Error",
   message,
+  isSuccess = false,
 }) => {
   if (!isOpen) return null;
 
@@ -27,22 +29,42 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
         <div className="p-6">
-          {/* Error Icon */}
+          {/* Icon */}
           <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-red-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+            <div
+              className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                isSuccess ? "bg-green-50" : "bg-red-50"
+              }`}
+            >
+              {isSuccess ? (
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              )}
             </div>
           </div>
 

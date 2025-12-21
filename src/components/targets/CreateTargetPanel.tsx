@@ -49,7 +49,9 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     state: "ENABLED",
   });
   const [addedTargets, setAddedTargets] = useState<TargetInput[]>([]);
-  const [errors, setErrors] = useState<Partial<Record<keyof TargetInput, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof TargetInput, string>>
+  >({});
 
   const handleChange = (field: keyof TargetInput, value: string | number) => {
     setCurrentTarget((prev) => ({ ...prev, [field]: value }));
@@ -166,7 +168,9 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               buttonClassName="w-full"
             />
             {errors.adGroupId && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.adGroupId}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.adGroupId}
+              </p>
             )}
           </div>
 
@@ -199,7 +203,9 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               }`}
             />
             {errors.expressionValue && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.expressionValue}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.expressionValue}
+              </p>
             )}
           </div>
 
@@ -234,7 +240,9 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
             <Dropdown<string>
               options={STATE_OPTIONS}
               value={currentTarget.state}
-              onChange={(value) => handleChange("state", value as TargetInput["state"])}
+              onChange={(value) =>
+                handleChange("state", value as TargetInput["state"])
+              }
               placeholder="Select state"
               buttonClassName="w-full"
             />
@@ -245,7 +253,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
             <button
               type="button"
               onClick={handleAddTarget}
-              className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors"
+              className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
             >
               Add Target
             </button>
@@ -325,7 +333,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRemoveTarget(index)}
-                            className="text-red-500 hover:text-red-700 text-[13.3px] font-semibold"
+                            className="text-red-500 hover:text-red-700 text-[13.3px]"
                           >
                             Remove
                           </button>
@@ -345,7 +353,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] font-semibold"
+          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
         >
           Cancel
         </button>
@@ -353,7 +361,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={addedTargets.length === 0}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Add All Targets
         </button>
@@ -361,4 +369,3 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     </div>
   );
 };
-

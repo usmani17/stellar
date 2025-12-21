@@ -41,6 +41,7 @@ import {
   CreateProductAdPanel,
   type ProductAdInput,
 } from "../components/productads/CreateProductAdPanel";
+import { ErrorModal } from "../components/ui/ErrorModal";
 
 export const CampaignDetail: React.FC = () => {
   const { accountId, campaignTypeAndId } = useParams<{
@@ -156,6 +157,19 @@ export const CampaignDetail: React.FC = () => {
     roas: false,
     orders: false,
   });
+  // Error Modal state
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    message: string;
+    title?: string;
+    isSuccess?: boolean;
+    details?: any;
+  }>({ isOpen: false, message: "" });
+  const [createAdGroupLoading, setCreateAdGroupLoading] = useState(false);
+  const [createAdGroupError, setCreateAdGroupError] = useState<string | null>(
+    null
+  );
+
   // Ad Group inline edit state
   const [editingAdGroupField, setEditingAdGroupField] = useState<{
     id: number;
@@ -682,41 +696,8 @@ export const CampaignDetail: React.FC = () => {
   const handleCreateAdGroups = async (adgroups: AdGroupInput[]) => {
     if (!accountId || !campaignId || campaignType !== "SP") return;
 
-    try {
-      // TODO: Implement API call to create ad groups
-      // Based on Amazon API: https://advertising.amazon.com/API/docs/en-us/sponsored-products/3-0/openapi/prod#tag/Ad-groups/operation/CreateSponsoredProductsAdGroups
-      // Request body should be:
-      // {
-      //   "adGroups": [
-      //     {
-      //       "campaignId": campaignId,
-      //       "defaultBid": adgroup.defaultBid,
-      //       "name": adgroup.name,
-      //       "state": adgroup.state
-      //     }
-      //   ]
-      // }
-      console.log("Creating ad groups:", {
-        campaignId,
-        adgroups,
-      });
-
-      // Close the panel
-      setIsCreateAdGroupPanelOpen(false);
-
-      // Reload ad groups to show the new ones
-      await loadAdGroups();
-    } catch (error: any) {
-      console.error("Failed to create ad groups:", error);
-      alert(
-        error.response?.data?.error ||
-          "Failed to create ad groups. Please try again."
-      );
-    }
-  };
-
-  const handleCreateKeywords = async (keywords: KeywordInput[]) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    setCreateAdGroupLoading(true);
+    setCreateAdGroupError(null);
 
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -724,27 +705,177 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      await campaignsService.createKeywords(accountIdNum, campaignId, {
-        keywords: keywords.map((kw) => ({
-          adGroupId: kw.adGroupId,
-          keywordText: kw.keywordText,
-          matchType: kw.matchType,
-          bid: kw.bid,
-          state: kw.state,
+      const payload = {
+        adgroups: adgroups.map((ag) => ({
+          name: ag.name,
+          defaultBid: ag.defaultBid,
+          state: ag.state,
         })),
+      };
+
+      const response = await campaignsService.createAdGroups(
+        accountIdNum,
+        campaignId,
+        payload
+      );
+
+      // Close the panel and stop loading
+      setIsCreateAdGroupPanelOpen(false);
+      setCreateAdGroupLoading(false);
+      setCreateAdGroupError(null);
+
+      // Show success message
+      setErrorModal({
+        isOpen: true,
+        title: "Success",
+        message: `${
+          response.created || adgroups.length
+        } ad group(s) created successfully!`,
+        isSuccess: true,
       });
 
-      // Close the panel
-      setIsCreateKeywordPanelOpen(false);
+      // Reload ad groups to show the new ones
+      await loadAdGroups();
+    } catch (error: any) {
+      console.error("Failed to create ad groups:", error);
+      setCreateAdGroupLoading(false);
 
-      // Reload keywords to show the new ones
-      await loadKeywords();
+      // Extract error message from backend response
+      let errorMessage = "Failed to create ad groups. Please try again.";
+      let fieldErrors = {};
+
+      if (error?.response?.data) {
+        if (error.response.data.field_errors) {
+          fieldErrors = error.response.data.field_errors;
+          errorMessage = error.response.data.error || errorMessage;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      setCreateAdGroupError(
+        JSON.stringify({ message: errorMessage, fieldErrors: fieldErrors })
+      );
+
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+        details: error?.response?.data?.details,
+      });
+    }
+  };
+
+  const [createKeywordLoading, setCreateKeywordLoading] = useState(false);
+  const [createKeywordError, setCreateKeywordError] = useState<string | null>(
+    null
+  );
+  const [createKeywordFieldErrors, setCreateKeywordFieldErrors] = useState<
+    Record<string, string>
+  >({});
+  const [createdKeywords, setCreatedKeywords] = useState<any[]>([]);
+  const [failedKeywordCount, setFailedKeywordCount] = useState(0);
+  const [failedKeywords, setFailedKeywords] = useState<any[]>([]);
+
+  const handleCreateKeywords = async (keywords: KeywordInput[]) => {
+    if (!accountId || !campaignId || campaignType !== "SP") return;
+
+    setCreateKeywordLoading(true);
+    setCreateKeywordError(null);
+    setCreateKeywordFieldErrors({});
+    setCreatedKeywords([]);
+    setFailedKeywordCount(0);
+    setFailedKeywords([]);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.createKeywords(
+        accountIdNum,
+        campaignId,
+        {
+          keywords: keywords.map((kw) => ({
+            adGroupId: kw.adGroupId,
+            keywordText: kw.keywordText,
+            matchType: kw.matchType,
+            bid: kw.bid,
+            state: kw.state,
+          })),
+        }
+      );
+
+      // Check for partial success
+      const created = response.created || 0;
+      const failed = response.failed || 0;
+      const failedKeywordsData = response.failed_keywords || [];
+
+      setCreatedKeywords(response.keywords || []);
+      setFailedKeywordCount(failed);
+      setFailedKeywords(failedKeywordsData);
+      setCreateKeywordLoading(false);
+
+      if (failed === 0) {
+        // Complete success - close panel and show success message
+        setIsCreateKeywordPanelOpen(false);
+        setCreateKeywordError(null);
+        setCreateKeywordFieldErrors({});
+        setCreatedKeywords([]);
+        setFailedKeywordCount(0);
+        setFailedKeywords([]);
+
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `${created} keyword(s) created successfully!`,
+          isSuccess: true,
+        });
+
+        // Reload keywords to show the new ones
+        await loadKeywords();
+      } else {
+        // Partial success - show summary and keep panel open
+        const successMessage =
+          created > 0
+            ? `${created} keyword(s) created successfully. ${failed} keyword(s) failed.`
+            : `All ${failed} keyword(s) failed to create.`;
+
+        setCreateKeywordError(successMessage);
+        // Field errors will be set below if available
+      }
     } catch (error: any) {
       console.error("Failed to create keywords:", error);
-      alert(
-        error.response?.data?.error ||
-          "Failed to create keywords. Please try again."
-      );
+      setCreateKeywordLoading(false);
+
+      // Extract error message and field errors
+      let errorMessage = "Failed to create keywords. Please try again.";
+      let fieldErrors: Record<string, string> = {};
+
+      if (error?.response?.data) {
+        if (error.response.data.field_errors) {
+          fieldErrors = error.response.data.field_errors;
+          errorMessage = error.response.data.error || errorMessage;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      setCreateKeywordError(errorMessage);
+      setCreateKeywordFieldErrors(fieldErrors);
+      setFailedKeywordCount(keywords.length); // All failed
+      setFailedKeywords([]); // No specific failed keywords data in error case
+      // Don't close panel on error - let user fix and resubmit
     }
   };
 
@@ -1603,6 +1734,35 @@ export const CampaignDetail: React.FC = () => {
                   </div>
                 )}
 
+                {/* End Date */}
+                {campaignDetail.campaign.endDate && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      End Date
+                    </label>
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {new Date(
+                        campaignDetail.campaign.endDate
+                      ).toLocaleDateString()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Targeting Type - Only for SP campaigns */}
+                {(campaignDetail.campaign.targetingType ||
+                  campaignDetail.campaign.targeting_type) && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Targeting Type
+                    </label>
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {campaignDetail.campaign.targetingType ||
+                        campaignDetail.campaign.targeting_type ||
+                        "—"}
+                    </div>
+                  </div>
+                )}
+
                 {/* Budget Type */}
                 {campaignDetail.campaign.budgetType && (
                   <div className="flex flex-col gap-1">
@@ -1961,6 +2121,9 @@ export const CampaignDetail: React.FC = () => {
                       onClose={() => setIsCreateAdGroupPanelOpen(false)}
                       onSubmit={handleCreateAdGroups}
                       campaignId={campaignId}
+                      campaignType={campaignType || "SP"}
+                      loading={createAdGroupLoading}
+                      submitError={createAdGroupError}
                     />
                   )}
 
@@ -2223,7 +2386,14 @@ export const CampaignDetail: React.FC = () => {
                 {isCreateKeywordPanelOpen && (
                   <CreateKeywordPanel
                     isOpen={isCreateKeywordPanelOpen}
-                    onClose={() => setIsCreateKeywordPanelOpen(false)}
+                    onClose={() => {
+                      setIsCreateKeywordPanelOpen(false);
+                      setCreateKeywordError(null);
+                      setCreateKeywordFieldErrors({});
+                      setCreatedKeywords([]);
+                      setFailedKeywordCount(0);
+                      setFailedKeywords([]);
+                    }}
                     onSubmit={handleCreateKeywords}
                     adgroups={(allAdgroups.length > 0
                       ? allAdgroups
@@ -2233,6 +2403,12 @@ export const CampaignDetail: React.FC = () => {
                       name: ag.name,
                     }))}
                     campaignId={campaignId || ""}
+                    loading={createKeywordLoading}
+                    submitError={createKeywordError}
+                    fieldErrors={createKeywordFieldErrors}
+                    createdKeywords={createdKeywords}
+                    failedCount={failedKeywordCount}
+                    failedKeywords={failedKeywords}
                   />
                 )}
 
@@ -2871,6 +3047,15 @@ export const CampaignDetail: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
+        message={errorModal.message}
+        isSuccess={errorModal.isSuccess}
+      />
     </div>
   );
 };
