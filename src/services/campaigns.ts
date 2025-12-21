@@ -1464,7 +1464,7 @@ export const campaignsService = {
           value: string;
         }>;
         expressionType: "MANUAL";
-        state: "ENABLED" | "PAUSED";
+        state: "ENABLED" | "PAUSED" | "PROPOSED";
       }>;
     }
   ) => {

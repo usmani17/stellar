@@ -42,6 +42,7 @@ import {
   type ProductAdInput,
 } from "../components/productads/CreateProductAdPanel";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { Tooltip } from "../components/ui/Tooltip";
 import { Button } from "../components/ui";
 import { Dropdown } from "../components/ui/Dropdown";
 
@@ -168,6 +169,9 @@ export const CampaignDetail: React.FC = () => {
   const [targetsSortOrder, setTargetsSortOrder] = useState<"asc" | "desc">(
     "asc"
   );
+  // Track if AUTO campaign has keywords or targets
+  const [autoCampaignHasKeywords, setAutoCampaignHasKeywords] = useState(false);
+  const [autoCampaignHasTargets, setAutoCampaignHasTargets] = useState(false);
   const [isTargetsFilterPanelOpen, setIsTargetsFilterPanelOpen] =
     useState(false);
   const [targetsFilters, setTargetsFilters] = useState<FilterValues>([]);
@@ -210,7 +214,6 @@ export const CampaignDetail: React.FC = () => {
   } | null>(null);
 
   // Filter tabs based on campaign type - SD campaigns don't have keywords
-  // SP Auto campaigns also don't have keywords, only targets
   const allTabs = [
     "Overview",
     "Ad Groups",
@@ -231,32 +234,115 @@ export const CampaignDetail: React.FC = () => {
     return targetingType === "AUTO";
   }, [campaignType, campaignDetail]);
 
+  // Check if AUTO campaign has keywords or targets
+  // AUTO campaigns can have either Keywords OR Targets, but not both
+  const hasKeywords = useMemo(() => {
+    if (!isAutoCampaign) return false;
+    // Check both loaded keywords and the tracked state
+    return keywords.length > 0 || autoCampaignHasKeywords;
+  }, [isAutoCampaign, keywords, autoCampaignHasKeywords]);
+
+  const hasTargets = useMemo(() => {
+    if (!isAutoCampaign) return false;
+    // Check both loaded targets and the tracked state
+    return targets.length > 0 || autoCampaignHasTargets;
+  }, [isAutoCampaign, targets, autoCampaignHasTargets]);
+
   const tabs = useMemo(() => {
     if (campaignType === "SD") {
       return allTabs.filter((tab) => tab !== "Keywords");
     }
-    // Hide Keywords tab for SP Auto campaigns
+    // For AUTO campaigns, hide Keywords tab completely (as per user requirement)
     if (campaignType === "SP" && isAutoCampaign) {
       return allTabs.filter((tab) => tab !== "Keywords");
     }
     return allTabs;
   }, [campaignType, isAutoCampaign]);
 
-  // Switch away from Keywords tab if campaign type is SD or SP Auto
+  // Switch away from Keywords tab if campaign type is SD
   useEffect(() => {
-    if (
-      (campaignType === "SD" || (campaignType === "SP" && isAutoCampaign)) &&
-      activeTab === "Keywords"
-    ) {
+    if (campaignType === "SD" && activeTab === "Keywords") {
       setActiveTab("Overview");
     }
-  }, [campaignType, isAutoCampaign, activeTab]);
+  }, [campaignType, activeTab]);
+
+  // Switch away from disabled tabs for AUTO campaigns
+  useEffect(() => {
+    if (isAutoCampaign) {
+      // If Keywords tab is active but has targets, switch to Overview
+      if (activeTab === "Keywords" && hasTargets) {
+        setActiveTab("Overview");
+      }
+      // If Targets tab is active but has keywords, switch to Overview
+      if (activeTab === "Targets" && hasKeywords) {
+        setActiveTab("Overview");
+      }
+    }
+  }, [isAutoCampaign, hasKeywords, hasTargets, activeTab]);
 
   useEffect(() => {
     if (accountId && campaignId) {
       loadCampaignDetail();
     }
   }, [accountId, campaignId, startDate, endDate]);
+
+  // For AUTO campaigns, check if keywords or targets exist to determine tab availability
+  useEffect(() => {
+    if (isAutoCampaign && accountId && campaignId) {
+      // Load keywords and targets to check if they exist
+      const checkKeywordsAndTargets = async () => {
+        try {
+          const accountIdNum = parseInt(accountId!, 10);
+          if (isNaN(accountIdNum)) return;
+
+          // Load first page of keywords to check if any exist
+          const keywordsData = await campaignsService.getKeywords(
+            accountIdNum,
+            campaignId,
+            startDate.toISOString().split("T")[0],
+            endDate.toISOString().split("T")[0],
+            {
+              page: 1,
+              page_size: 1,
+              type: campaignType || undefined,
+            }
+          );
+
+          // Load first page of targets to check if any exist
+          const targetsData = await campaignsService.getTargets(
+            accountIdNum,
+            campaignId,
+            startDate.toISOString().split("T")[0],
+            endDate.toISOString().split("T")[0],
+            {
+              page: 1,
+              page_size: 1,
+              type: campaignType || undefined,
+            }
+          );
+
+          // Update state to reflect existence
+          setAutoCampaignHasKeywords(
+            keywordsData.keywords && keywordsData.keywords.length > 0
+          );
+          setAutoCampaignHasTargets(
+            targetsData.targets && targetsData.targets.length > 0
+          );
+        } catch (error) {
+          console.error(
+            "Failed to check keywords/targets for AUTO campaign:",
+            error
+          );
+        }
+      };
+
+      checkKeywordsAndTargets();
+    } else {
+      // Reset when not AUTO campaign
+      setAutoCampaignHasKeywords(false);
+      setAutoCampaignHasTargets(false);
+    }
+  }, [isAutoCampaign, accountId, campaignId, startDate, endDate, campaignType]);
 
   // Reset pagination when date range, tab, or filters change
   useEffect(() => {
@@ -902,8 +988,26 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
+  const [createTargetLoading, setCreateTargetLoading] = useState(false);
+  const [createTargetError, setCreateTargetError] = useState<string | null>(
+    null
+  );
+  const [createTargetFieldErrors, setCreateTargetFieldErrors] = useState<
+    Record<string, string>
+  >({});
+  const [createdTargets, setCreatedTargets] = useState<any[]>([]);
+  const [failedTargetCount, setFailedTargetCount] = useState(0);
+  const [failedTargets, setFailedTargets] = useState<any[]>([]);
+
   const handleCreateTargets = async (targets: TargetInput[]) => {
     if (!accountId || !campaignId || campaignType !== "SP") return;
+
+    setCreateTargetLoading(true);
+    setCreateTargetError(null);
+    setCreateTargetFieldErrors({});
+    setCreatedTargets([]);
+    setFailedTargetCount(0);
+    setFailedTargets([]);
 
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -911,32 +1015,108 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      await campaignsService.createTargets(accountIdNum, campaignId, {
-        targets: targets.map((tgt) => ({
-          adGroupId: tgt.adGroupId,
-          bid: tgt.bid,
-          expression: [
-            {
-              type: tgt.expressionType,
-              value: tgt.expressionValue,
-            },
-          ],
-          expressionType: "MANUAL",
-          state: tgt.state,
-        })),
-      });
+      const response = await campaignsService.createTargets(
+        accountIdNum,
+        campaignId,
+        {
+          targets: targets.map((tgt) => ({
+            adGroupId: tgt.adGroupId,
+            campaignId: campaignId,
+            bid: tgt.bid,
+            expression: [
+              {
+                type: tgt.expressionType,
+                value: tgt.expressionValue,
+              },
+            ],
+            expressionType: "MANUAL",
+            state: tgt.state,
+          })),
+        }
+      );
 
-      // Close the panel
-      setIsCreateTargetPanelOpen(false);
+      // Check for partial success
+      const created = response.created || 0;
+      const failed = response.failed || 0;
+      const failedTargetsData = response.failed_targets || [];
 
-      // Reload targets to show the new ones
-      await loadTargets();
+      setCreatedTargets(response.targets || []);
+      setFailedTargetCount(failed);
+      setFailedTargets(failedTargetsData);
+
+      if (failed === 0) {
+        // Complete success - close panel and show success message
+        setIsCreateTargetPanelOpen(false);
+        setCreateTargetError(null);
+        setCreateTargetFieldErrors({});
+        setCreatedTargets([]);
+        setFailedTargetCount(0);
+        setFailedTargets([]);
+
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `${created} target(s) created successfully!`,
+          isSuccess: true,
+        });
+
+        // Reload targets to show the new ones
+        await loadTargets();
+      } else {
+        // Partial success or all failed - show summary and keep panel open
+        // Don't close panel - let user fix errors and resubmit
+        const successMessage =
+          created > 0
+            ? `${created} target(s) created successfully. ${failed} target(s) failed.`
+            : `All ${failed} target(s) failed to create.`;
+
+        setCreateTargetError(successMessage);
+        // Field errors will be set below if available
+      }
+
+      // Extract field errors if available
+      if (response.field_errors) {
+        setCreateTargetFieldErrors(response.field_errors);
+      }
+
+      if (response.errors && response.errors.length > 0) {
+        // Set general error if no field-specific errors
+        if (
+          !response.field_errors ||
+          Object.keys(response.field_errors).length === 0
+        ) {
+          setCreateTargetError(
+            response.errors[0] || "Failed to create some targets."
+          );
+        }
+      }
     } catch (error: any) {
       console.error("Failed to create targets:", error);
-      alert(
-        error.response?.data?.error ||
-          "Failed to create targets. Please try again."
-      );
+
+      // Extract error message and field errors
+      let errorMessage = "Failed to create targets. Please try again.";
+      let fieldErrors: Record<string, string> = {};
+
+      if (error?.response?.data) {
+        if (error.response.data.field_errors) {
+          fieldErrors = error.response.data.field_errors;
+          errorMessage = error.response.data.error || errorMessage;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      setCreateTargetError(errorMessage);
+      setCreateTargetFieldErrors(fieldErrors);
+      setFailedTargetCount(targets.length); // All failed
+      setFailedTargets([]); // No specific failed targets data in error case
+      // Don't close panel on error - let user fix and resubmit
+    } finally {
+      setCreateTargetLoading(false);
     }
   };
 
@@ -1072,10 +1252,23 @@ export const CampaignDetail: React.FC = () => {
 
       setKeywords(data.keywords);
       setKeywordsTotalPages(data.total_pages || 0);
+      // Update AUTO campaign keywords state
+      if (isAutoCampaign && data.keywords && data.keywords.length > 0) {
+        setAutoCampaignHasKeywords(true);
+      } else if (
+        isAutoCampaign &&
+        data.keywords &&
+        data.keywords.length === 0
+      ) {
+        setAutoCampaignHasKeywords(false);
+      }
     } catch (error) {
       console.error("Failed to load keywords:", error);
       setKeywords([]);
       setKeywordsTotalPages(0);
+      if (isAutoCampaign) {
+        setAutoCampaignHasKeywords(false);
+      }
     } finally {
       setKeywordsLoading(false);
     }
@@ -1248,10 +1441,19 @@ export const CampaignDetail: React.FC = () => {
 
       setTargets(data.targets);
       setTargetsTotalPages(data.total_pages || 0);
+      // Update AUTO campaign targets state
+      if (isAutoCampaign && data.targets && data.targets.length > 0) {
+        setAutoCampaignHasTargets(true);
+      } else if (isAutoCampaign && data.targets && data.targets.length === 0) {
+        setAutoCampaignHasTargets(false);
+      }
     } catch (error) {
       console.error("Failed to load targets:", error);
       setTargets([]);
       setTargetsTotalPages(0);
+      if (isAutoCampaign) {
+        setAutoCampaignHasTargets(false);
+      }
     } finally {
       setTargetsLoading(false);
     }
@@ -1984,19 +2186,62 @@ export const CampaignDetail: React.FC = () => {
           <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
             {/* Tabs */}
             <div className="flex items-center gap-2 mb-8 border-b border-[#E6E6E6]">
-              {tabs.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
-                    activeTab === tab
-                      ? "border-[#136D6D] text-[#136D6D]"
-                      : "border-transparent text-[#556179] hover:text-[#072929]"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
+              {tabs.map((tab) => {
+                // Determine if tab should be disabled
+                let isDisabled = false;
+                let disabledTooltip = "";
+
+                if (isAutoCampaign) {
+                  if (tab === "Keywords" && hasTargets) {
+                    isDisabled = true;
+                    disabledTooltip =
+                      "This AUTO campaign already has targets. AUTO campaigns can have either Keywords or Targets, but not both.";
+                  } else if (tab === "Targets" && hasKeywords) {
+                    isDisabled = true;
+                    disabledTooltip =
+                      "This AUTO campaign already has keywords. AUTO campaigns can have either Keywords or Targets, but not both.";
+                  }
+                }
+
+                const button = (
+                  <button
+                    key={tab}
+                    onClick={() => {
+                      if (!isDisabled) {
+                        setActiveTab(tab);
+                      }
+                    }}
+                    disabled={isDisabled}
+                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 ${
+                      isDisabled
+                        ? "cursor-not-allowed opacity-50 text-[#9CA3AF] border-transparent"
+                        : "cursor-pointer"
+                    } ${
+                      activeTab === tab && !isDisabled
+                        ? "border-[#136D6D] text-[#136D6D]"
+                        : !isDisabled
+                        ? "border-transparent text-[#556179] hover:text-[#072929]"
+                        : ""
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                );
+
+                if (isDisabled && disabledTooltip) {
+                  return (
+                    <Tooltip
+                      key={tab}
+                      description={disabledTooltip}
+                      position="bottomMiddle"
+                    >
+                      {button}
+                    </Tooltip>
+                  );
+                }
+
+                return button;
+              })}
             </div>
 
             {/* Tab Content */}
@@ -3236,7 +3481,15 @@ export const CampaignDetail: React.FC = () => {
                 {isCreateTargetPanelOpen && (
                   <CreateTargetPanel
                     isOpen={isCreateTargetPanelOpen}
-                    onClose={() => setIsCreateTargetPanelOpen(false)}
+                    onClose={() => {
+                      setIsCreateTargetPanelOpen(false);
+                      // Reset error states when closing
+                      setCreateTargetError(null);
+                      setCreateTargetFieldErrors({});
+                      setCreatedTargets([]);
+                      setFailedTargetCount(0);
+                      setFailedTargets([]);
+                    }}
                     onSubmit={handleCreateTargets}
                     adgroups={(allAdgroups.length > 0
                       ? allAdgroups
@@ -3246,6 +3499,12 @@ export const CampaignDetail: React.FC = () => {
                       name: ag.name,
                     }))}
                     campaignId={campaignId || ""}
+                    loading={createTargetLoading}
+                    submitError={createTargetError}
+                    fieldErrors={createTargetFieldErrors}
+                    createdTargets={createdTargets}
+                    failedCount={failedTargetCount}
+                    failedTargets={failedTargets}
                   />
                 )}
 

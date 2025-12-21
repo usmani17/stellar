@@ -177,6 +177,7 @@ export const Campaigns: React.FC = () => {
     { value: "state", label: "State" },
     { value: "budget", label: "Budget" },
     { value: "type", label: "Type" },
+    { value: "targeting_type", label: "Targeting Type" },
     { value: "profile_name", label: "Profile" },
   ];
 
@@ -342,6 +343,8 @@ export const Campaigns: React.FC = () => {
         params.state = filter.value;
       } else if (filter.field === "type") {
         params.type = filter.value;
+      } else if (filter.field === "targeting_type") {
+        params.targeting_type = filter.value;
       } else if (filter.field === "profile_name") {
         if (filter.operator === "contains") {
           params.profile_name__icontains = filter.value;

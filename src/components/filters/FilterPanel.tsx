@@ -10,6 +10,7 @@ export interface FilterItem {
     | "state"
     | "budget"
     | "type"
+    | "targeting_type"
     | "profile_name"
     | "status"
     | "advertising_channel_type"
@@ -73,6 +74,7 @@ const NUMERIC_OPERATORS = [
 
 const STATE_OPTIONS = ["Enabled", "Paused", "Archived"];
 const TYPE_OPTIONS = ["SP", "SB", "SD"];
+const TARGETING_TYPE_OPTIONS = ["AUTO", "MANUAL"];
 const STATUS_OPTIONS = ["ENABLED", "PAUSED", "REMOVED"];
 const CHANNEL_TYPE_OPTIONS = [
   "SEARCH",
@@ -426,6 +428,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     needsOperatorFields.includes(selectedField as string) && !isProfileDropdown;
 
   const isStateOrType = selectedField === "state" || selectedField === "type";
+  const isTargetingType = selectedField === "targeting_type";
   const isStatusOrChannelType =
     selectedField === "status" || selectedField === "advertising_channel_type";
 
@@ -560,6 +563,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   placeholder={`Select ${
                     selectedField === "state" ? "State" : "Type"
                   }`}
+                  onChange={(value) => setFilterValue(value)}
+                  buttonClassName="w-full"
+                />
+              ) : isTargetingType ? (
+                <Dropdown<string>
+                  options={TARGETING_TYPE_OPTIONS.map((opt) => ({
+                    value: opt,
+                    label: opt,
+                  }))}
+                  value={filterValue || undefined}
+                  placeholder="Select Targeting Type"
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full"
                 />
