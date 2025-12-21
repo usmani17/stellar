@@ -20,7 +20,6 @@ import {
   PerformanceChart,
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
-import ExportIcon from "../assets/export-icon.svg";
 import { ErrorModal } from "../components/ui/ErrorModal";
 
 export const Targets: React.FC = () => {
@@ -1077,14 +1076,10 @@ export const Targets: React.FC = () => {
                   ref={exportDropdownRef}
                 >
                   <div className="relative">
-                    <img
-                      src={ExportIcon}
-                      alt="Export"
-                      className={`w-full h-full object-contain ${
-                        exportLoading
-                          ? "opacity-50 cursor-not-allowed"
-                          : "cursor-pointer"
-                      }`}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={(e) => {
                         if (exportLoading) return;
                         e.stopPropagation();
@@ -1092,12 +1087,33 @@ export const Targets: React.FC = () => {
                         setShowBulkActions(false);
                         setShowBidPanel(false);
                       }}
-                    />
-                    {exportLoading && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                      </div>
-                    )}
+                      disabled={exportLoading}
+                    >
+                      {exportLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        </div>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Export
+                          </span>
+                        </>
+                      )}
+                    </Button>
                   </div>
                   {(showExportDropdown || exportLoading) && (
                     <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">

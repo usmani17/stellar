@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
@@ -42,6 +42,8 @@ import {
   type ProductAdInput,
 } from "../components/productads/CreateProductAdPanel";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { Button } from "../components/ui";
+import { Dropdown } from "../components/ui/Dropdown";
 
 export const CampaignDetail: React.FC = () => {
   const { accountId, campaignTypeAndId } = useParams<{
@@ -117,6 +119,27 @@ export const CampaignDetail: React.FC = () => {
   const [isCreateTargetPanelOpen, setIsCreateTargetPanelOpen] = useState(false);
   const [isCreateProductAdPanelOpen, setIsCreateProductAdPanelOpen] =
     useState(false);
+
+  // Bulk edit state for Ad Groups
+  const [showAdGroupsBulkActions, setShowAdGroupsBulkActions] = useState(false);
+  const [showAdGroupsBidPanel, setShowAdGroupsBidPanel] = useState(false);
+  const [pendingAdGroupsStatusAction, setPendingAdGroupsStatusAction] =
+    useState<"enable" | "pause" | "archive" | null>(null);
+  const [showAdGroupsConfirmationModal, setShowAdGroupsConfirmationModal] =
+    useState(false);
+  const [adGroupsBulkLoading, setAdGroupsBulkLoading] = useState(false);
+  const [adGroupsBidAction, setAdGroupsBidAction] = useState<
+    "increase" | "decrease" | "set"
+  >("increase");
+  const [adGroupsBidUnit, setAdGroupsBidUnit] = useState<"percent" | "amount">(
+    "percent"
+  );
+  const [adGroupsBidValue, setAdGroupsBidValue] = useState<string>("");
+  const [adGroupsBidUpperLimit, setAdGroupsBidUpperLimit] =
+    useState<string>("");
+  const [adGroupsBidLowerLimit, setAdGroupsBidLowerLimit] =
+    useState<string>("");
+  const adGroupsBulkActionsRef = useRef<HTMLDivElement>(null);
   const [isKeywordsFilterPanelOpen, setIsKeywordsFilterPanelOpen] =
     useState(false);
   const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
@@ -1460,6 +1483,157 @@ export const CampaignDetail: React.FC = () => {
     setEditedAdGroupValue("");
   };
 
+  // Bulk action handlers for Ad Groups
+  const handleBulkAdGroupsStatus = async (
+    statusValue: "enable" | "pause" | "archive"
+  ) => {
+    if (!accountId || selectedAdGroupIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setAdGroupsBulkLoading(true);
+      const selectedAdGroupIdsArray = Array.from(selectedAdGroupIds).map(
+        (id) => {
+          const adgroup = adgroups.find((ag) => ag.id === id);
+          return adgroup?.adGroupId || id;
+        }
+      );
+
+      await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+        adgroupIds: selectedAdGroupIdsArray,
+        action: "status",
+        status: statusValue,
+      });
+
+      await loadAdGroups();
+      setSelectedAdGroupIds(new Set());
+      setShowAdGroupsConfirmationModal(false);
+      setPendingAdGroupsStatusAction(null);
+    } catch (error: any) {
+      console.error("Failed to update ad groups", error);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update ad groups. Please try again.",
+      });
+    } finally {
+      setAdGroupsBulkLoading(false);
+    }
+  };
+
+  const handleBulkAdGroupsBid = async () => {
+    if (!accountId || selectedAdGroupIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    const valueNum = parseFloat(adGroupsBidValue);
+    if (isNaN(valueNum)) {
+      return;
+    }
+
+    try {
+      setAdGroupsBulkLoading(true);
+
+      const selectedAdGroupsData = adgroups.filter((ag) =>
+        selectedAdGroupIds.has(ag.id)
+      );
+      const updates: Array<{ adgroupId: string | number; newBid: number }> = [];
+
+      for (const adgroup of selectedAdGroupsData) {
+        if (!adgroup.adGroupId) continue;
+
+        const currentBid = parseFloat(
+          (adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, "")
+        );
+        let newBid = currentBid;
+
+        if (adGroupsBidAction === "set") {
+          newBid = valueNum;
+        } else if (adGroupsBidAction === "increase") {
+          if (adGroupsBidUnit === "percent") {
+            newBid = currentBid * (1 + valueNum / 100.0);
+          } else {
+            newBid = currentBid + valueNum;
+          }
+        } else if (adGroupsBidAction === "decrease") {
+          if (adGroupsBidUnit === "percent") {
+            newBid = currentBid * (1 - valueNum / 100.0);
+          } else {
+            newBid = currentBid - valueNum;
+          }
+        }
+
+        if (adGroupsBidUpperLimit) {
+          const upper = parseFloat(adGroupsBidUpperLimit);
+          if (!isNaN(upper)) {
+            newBid = Math.min(newBid, upper);
+          }
+        }
+        if (adGroupsBidLowerLimit) {
+          const lower = parseFloat(adGroupsBidLowerLimit);
+          if (!isNaN(lower)) {
+            newBid = Math.max(newBid, lower);
+          }
+        }
+
+        newBid = Math.max(newBid, 0);
+
+        updates.push({
+          adgroupId: adgroup.adGroupId,
+          newBid: Math.round(newBid * 100) / 100,
+        });
+      }
+
+      for (const update of updates) {
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: [update.adgroupId],
+          action: "default_bid",
+          value: update.newBid,
+        });
+      }
+
+      await loadAdGroups();
+      setSelectedAdGroupIds(new Set());
+      setShowAdGroupsConfirmationModal(false);
+      setShowAdGroupsBidPanel(false);
+      setAdGroupsBidValue("");
+      setAdGroupsBidUpperLimit("");
+      setAdGroupsBidLowerLimit("");
+    } catch (error: any) {
+      console.error("Failed to update ad groups", error);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update ad groups. Please try again.",
+      });
+    } finally {
+      setAdGroupsBulkLoading(false);
+    }
+  };
+
+  // Close bulk actions dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        adGroupsBulkActionsRef.current &&
+        !adGroupsBulkActionsRef.current.contains(event.target as Node)
+      ) {
+        setShowAdGroupsBulkActions(false);
+      }
+    };
+
+    if (showAdGroupsBulkActions) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showAdGroupsBulkActions]);
+
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
@@ -2049,7 +2223,7 @@ export const CampaignDetail: React.FC = () => {
 
             {activeTab === "Ad Groups" && (
               <>
-                {/* Header with Create Adgroup and Filter Buttons */}
+                {/* Header with Create Adgroup, Bulk Edit, and Filter Buttons */}
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
                     Ad Groups
@@ -2064,9 +2238,82 @@ export const CampaignDetail: React.FC = () => {
                             !isCreateAdGroupPanelOpen
                           );
                           setIsAdGroupsFilterPanelOpen(false); // Close filter panel when opening create panel
+                          setShowAdGroupsBulkActions(false); // Close bulk actions when opening create panel
                         }}
                       />
                     )}
+                    {/* Bulk Edit Button */}
+                    <div
+                      className="relative inline-flex justify-end"
+                      ref={adGroupsBulkActionsRef}
+                    >
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAdGroupsBulkActions((prev) => !prev);
+                          setShowAdGroupsBidPanel(false);
+                          setIsAdGroupsFilterPanelOpen(false);
+                        }}
+                      >
+                        <svg
+                          className="w-4 h-4 text-[#072929]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                          />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">
+                          Edit
+                        </span>
+                      </Button>
+                      {showAdGroupsBulkActions && (
+                        <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                          <div className="overflow-y-auto">
+                            {[
+                              { value: "enable", label: "Enabled" },
+                              { value: "pause", label: "Paused" },
+                              { value: "archive", label: "Archived" },
+                              { value: "edit_bid", label: "Edit Default Bid" },
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                disabled={selectedAdGroupIds.size === 0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (selectedAdGroupIds.size === 0) return;
+                                  if (opt.value === "edit_bid") {
+                                    setShowAdGroupsBidPanel(true);
+                                  } else {
+                                    setShowAdGroupsBidPanel(false);
+                                    setPendingAdGroupsStatusAction(
+                                      opt.value as
+                                        | "enable"
+                                        | "pause"
+                                        | "archive"
+                                    );
+                                    setShowAdGroupsConfirmationModal(true);
+                                  }
+                                  setShowAdGroupsBulkActions(false);
+                                }}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     {/* Add Filter Button */}
                     <button
                       onClick={() => {
@@ -2074,6 +2321,7 @@ export const CampaignDetail: React.FC = () => {
                           !isAdGroupsFilterPanelOpen
                         );
                         setIsCreateAdGroupPanelOpen(false); // Close create panel when opening filter panel
+                        setShowAdGroupsBulkActions(false); // Close bulk actions when opening filter panel
                       }}
                       className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                     >
@@ -2111,6 +2359,144 @@ export const CampaignDetail: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Bid editor panel for Ad Groups */}
+                {selectedAdGroupIds.size > 0 && showAdGroupsBidPanel && (
+                  <div className="px-6 mb-4">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="flex flex-wrap items-end gap-3 justify-between">
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Action
+                          </label>
+                          <Dropdown
+                            options={[
+                              { value: "increase", label: "Increase By" },
+                              { value: "decrease", label: "Decrease By" },
+                              { value: "set", label: "Set To" },
+                            ]}
+                            value={adGroupsBidAction}
+                            onChange={(val) => {
+                              const action = val as typeof adGroupsBidAction;
+                              setAdGroupsBidAction(action);
+                              if (action === "set") {
+                                setAdGroupsBidUnit("amount");
+                              }
+                            }}
+                            buttonClassName="w-full"
+                            width="w-full"
+                          />
+                        </div>
+                        {(adGroupsBidAction === "increase" ||
+                          adGroupsBidAction === "decrease") && (
+                          <div className="w-[140px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Unit
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                  adGroupsBidUnit === "percent"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                }`}
+                                onClick={() => setAdGroupsBidUnit("percent")}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                  adGroupsBidUnit === "amount"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                }`}
+                                onClick={() => setAdGroupsBidUnit("amount")}
+                              >
+                                $
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Value
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={adGroupsBidValue}
+                              onChange={(e) =>
+                                setAdGroupsBidValue(e.target.value)
+                              }
+                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                              {adGroupsBidUnit === "percent" ? "%" : "$"}
+                            </span>
+                          </div>
+                        </div>
+                        {adGroupsBidAction === "increase" && (
+                          <div className="w-[160px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Upper Limit (Optional)
+                            </label>
+                            <input
+                              type="number"
+                              value={adGroupsBidUpperLimit}
+                              onChange={(e) =>
+                                setAdGroupsBidUpperLimit(e.target.value)
+                              }
+                              placeholder="$0.00"
+                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            />
+                          </div>
+                        )}
+                        {adGroupsBidAction === "decrease" && (
+                          <div className="w-[160px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Lower Limit (Optional)
+                            </label>
+                            <input
+                              type="number"
+                              value={adGroupsBidLowerLimit}
+                              onChange={(e) =>
+                                setAdGroupsBidLowerLimit(e.target.value)
+                              }
+                              placeholder="$0.00"
+                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            />
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAdGroupsBidPanel(false);
+                              setAdGroupsBidValue("");
+                              setAdGroupsBidUpperLimit("");
+                              setAdGroupsBidLowerLimit("");
+                            }}
+                            className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setShowAdGroupsConfirmationModal(true);
+                            }}
+                            disabled={!adGroupsBidValue || adGroupsBulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Create Adgroup Panel */}
                 {isCreateAdGroupPanelOpen &&
@@ -3056,6 +3442,70 @@ export const CampaignDetail: React.FC = () => {
         message={errorModal.message}
         isSuccess={errorModal.isSuccess}
       />
+
+      {/* Confirmation Modal for Ad Groups Bulk Actions */}
+      {showAdGroupsConfirmationModal && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!adGroupsBulkLoading) {
+                setShowAdGroupsConfirmationModal(false);
+                setPendingAdGroupsStatusAction(null);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Action
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  {pendingAdGroupsStatusAction
+                    ? `Are you sure you want to ${
+                        pendingAdGroupsStatusAction === "enable"
+                          ? "enable"
+                          : pendingAdGroupsStatusAction === "pause"
+                          ? "pause"
+                          : "archive"
+                      } ${selectedAdGroupIds.size} ad group(s)?`
+                    : `Are you sure you want to update the default bid for ${selectedAdGroupIds.size} ad group(s)?`}
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdGroupsConfirmationModal(false);
+                    setPendingAdGroupsStatusAction(null);
+                  }}
+                  disabled={adGroupsBulkLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (pendingAdGroupsStatusAction) {
+                      await handleBulkAdGroupsStatus(
+                        pendingAdGroupsStatusAction
+                      );
+                    } else {
+                      await handleBulkAdGroupsBid();
+                    }
+                  }}
+                  disabled={adGroupsBulkLoading}
+                  className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {adGroupsBulkLoading ? "Processing..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
