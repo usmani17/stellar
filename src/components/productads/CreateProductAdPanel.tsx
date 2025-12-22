@@ -16,6 +16,7 @@ interface CreateProductAdPanelProps {
   onSubmit: (productAds: ProductAdInput[]) => void;
   adgroups: Array<{ adGroupId: string; name: string }>;
   campaignId: string;
+  loading?: boolean;
 }
 
 const STATE_OPTIONS = [
@@ -29,6 +30,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
   onSubmit,
   adgroups,
   campaignId,
+  loading = false,
 }) => {
   const [currentProductAd, setCurrentProductAd] = useState<ProductAdInput>({
     adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
@@ -382,11 +384,14 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={addedProductAds.length === 0}
+          disabled={addedProductAds.length === 0 || loading}
           className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Add All Product Ads{" "}
-          {addedProductAds.length > 0 && `(${addedProductAds.length})`}
+          {loading
+            ? "Creating..."
+            : `Add All Product Ads${
+                addedProductAds.length > 0 ? ` (${addedProductAds.length})` : ""
+              }`}
         </button>
       </div>
     </div>

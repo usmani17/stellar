@@ -146,6 +146,7 @@ export const CampaignDetail: React.FC = () => {
   const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
   const [productads, setProductads] = useState<ProductAd[]>([]);
   const [productadsLoading, setProductadsLoading] = useState(false);
+  const [createProductAdLoading, setCreateProductAdLoading] = useState(false);
   const [selectedProductAdIds, setSelectedProductAdIds] = useState<Set<number>>(
     new Set()
   );
@@ -196,6 +197,12 @@ export const CampaignDetail: React.FC = () => {
   const [createAdGroupError, setCreateAdGroupError] = useState<string | null>(
     null
   );
+  const [createAdGroupFieldErrors, setCreateAdGroupFieldErrors] = useState<
+    Record<string, string>
+  >({});
+  const [createdAdGroups, setCreatedAdGroups] = useState<any[]>([]);
+  const [failedAdGroupCount, setFailedAdGroupCount] = useState(0);
+  const [failedAdGroups, setFailedAdGroups] = useState<any[]>([]);
 
   // Ad Group inline edit state
   const [editingAdGroupField, setEditingAdGroupField] = useState<{
@@ -807,6 +814,10 @@ export const CampaignDetail: React.FC = () => {
 
     setCreateAdGroupLoading(true);
     setCreateAdGroupError(null);
+    setCreateAdGroupFieldErrors({});
+    setCreatedAdGroups([]);
+    setFailedAdGroupCount(0);
+    setFailedAdGroups([]);
 
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -828,30 +839,83 @@ export const CampaignDetail: React.FC = () => {
         payload
       );
 
-      // Close the panel and stop loading
-      setIsCreateAdGroupPanelOpen(false);
-      setCreateAdGroupLoading(false);
-      setCreateAdGroupError(null);
+      // Check for partial success
+      const created = response.created || 0;
+      const failed = response.failed || 0;
+      const failedAdGroupsData = response.failed_adgroups || [];
 
-      // Show success message
-      setErrorModal({
-        isOpen: true,
-        title: "Success",
-        message: `${
-          response.created || adgroups.length
-        } ad group(s) created successfully!`,
-        isSuccess: true,
-      });
+      setCreatedAdGroups(response.adgroups || []);
+      setFailedAdGroupCount(failed);
+      setFailedAdGroups(failedAdGroupsData);
 
-      // Reload ad groups to show the new ones
-      await loadAdGroups();
+      if (failed === 0) {
+        // Complete success - close panel and show success message
+        setIsCreateAdGroupPanelOpen(false);
+        setCreateAdGroupError(null);
+        setCreateAdGroupFieldErrors({});
+        setCreatedAdGroups([]);
+        setFailedAdGroupCount(0);
+        setFailedAdGroups([]);
+
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `${created} ad group(s) created successfully!`,
+          isSuccess: true,
+        });
+
+        // Reload ad groups to show the new ones
+        await loadAdGroups();
+      } else {
+        // Partial success or all failed - show summary and keep panel open
+        // Don't close panel - let user fix errors and resubmit
+        const successMessage =
+          created > 0
+            ? `${created} ad group(s) created successfully. ${failed} ad group(s) failed.`
+            : `All ${failed} ad group(s) failed to create.`;
+
+        setCreateAdGroupError(successMessage);
+        // Field errors will be set below if available
+
+        // Show summary popup for partial success
+        if (created > 0 && failed > 0) {
+          setErrorModal({
+            isOpen: true,
+            title: "Summary",
+            message: `${created} ad group(s) created successfully. ${failed} ad group(s) failed.`,
+            isSuccess: false,
+          });
+        }
+
+        // Reload ad groups even on partial success to show newly created ones
+        if (created > 0) {
+          await loadAdGroups();
+        }
+      }
+
+      // Extract field errors if available
+      if (response.field_errors) {
+        setCreateAdGroupFieldErrors(response.field_errors);
+      }
+
+      if (response.errors && response.errors.length > 0) {
+        // Set general error if no field-specific errors
+        if (
+          !response.field_errors ||
+          Object.keys(response.field_errors).length === 0
+        ) {
+          setCreateAdGroupError(
+            response.errors[0] || "Failed to create some ad groups."
+          );
+        }
+      }
     } catch (error: any) {
       console.error("Failed to create ad groups:", error);
       setCreateAdGroupLoading(false);
 
-      // Extract error message from backend response
+      // Extract error message and field errors
       let errorMessage = "Failed to create ad groups. Please try again.";
-      let fieldErrors = {};
+      let fieldErrors: Record<string, string> = {};
 
       if (error?.response?.data) {
         if (error.response.data.field_errors) {
@@ -866,17 +930,13 @@ export const CampaignDetail: React.FC = () => {
         errorMessage = error.message;
       }
 
-      setCreateAdGroupError(
-        JSON.stringify({ message: errorMessage, fieldErrors: fieldErrors })
-      );
-
-      setErrorModal({
-        isOpen: true,
-        title: "Error",
-        message: errorMessage,
-        isSuccess: false,
-        details: error?.response?.data?.details,
-      });
+      setCreateAdGroupError(errorMessage);
+      setCreateAdGroupFieldErrors(fieldErrors);
+      setFailedAdGroupCount(adgroups.length); // All failed
+      setFailedAdGroups([]); // No specific failed adgroups data in error case
+      // Don't close panel on error - let user fix and resubmit
+    } finally {
+      setCreateAdGroupLoading(false);
     }
   };
 
@@ -950,40 +1010,101 @@ export const CampaignDetail: React.FC = () => {
         // Reload keywords to show the new ones
         await loadKeywords();
       } else {
-        // Partial success - show summary and keep panel open
+        // Partial success or all failed - show summary and keep panel open
         const successMessage =
           created > 0
             ? `${created} keyword(s) created successfully. ${failed} keyword(s) failed.`
             : `All ${failed} keyword(s) failed to create.`;
 
         setCreateKeywordError(successMessage);
-        // Field errors will be set below if available
+
+        // Set field errors if available
+        if (response.field_errors) {
+          setCreateKeywordFieldErrors(response.field_errors);
+        }
+
+        // Show summary popup for partial success or all failed
+        if (created > 0 && failed > 0) {
+          setErrorModal({
+            isOpen: true,
+            title: "Summary",
+            message: `${created} keyword(s) created successfully. ${failed} keyword(s) failed.`,
+            isSuccess: false,
+          });
+        } else if (failed > 0 && created === 0) {
+          // All failed - show summary popup
+          setErrorModal({
+            isOpen: true,
+            title: "Summary",
+            message: `All ${failed} keyword(s) failed to create.`,
+            isSuccess: false,
+          });
+        }
+
+        // Reload keywords even on partial success to show newly created ones
+        if (created > 0) {
+          await loadKeywords();
+        }
       }
     } catch (error: any) {
       console.error("Failed to create keywords:", error);
       setCreateKeywordLoading(false);
 
-      // Extract error message and field errors
-      let errorMessage = "Failed to create keywords. Please try again.";
-      let fieldErrors: Record<string, string> = {};
+      // Check if error response has structured data (e.g., from 400 with failed entities)
+      if (error?.response?.data && error.response.data.failed_keywords) {
+        // This is a structured error response with failed keywords
+        const response = error.response.data;
+        const created = response.created || 0;
+        const failed = response.failed || 0;
+        const failedKeywordsData = response.failed_keywords || [];
 
-      if (error?.response?.data) {
-        if (error.response.data.field_errors) {
-          fieldErrors = error.response.data.field_errors;
-          errorMessage = error.response.data.error || errorMessage;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
+        setCreatedKeywords(response.keywords || []);
+        setFailedKeywordCount(failed);
+        setFailedKeywords(failedKeywordsData);
+
+        // Set field errors if available
+        if (response.field_errors) {
+          setCreateKeywordFieldErrors(response.field_errors);
         }
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
 
-      setCreateKeywordError(errorMessage);
-      setCreateKeywordFieldErrors(fieldErrors);
-      setFailedKeywordCount(keywords.length); // All failed
-      setFailedKeywords([]); // No specific failed keywords data in error case
+        // Show summary popup for all failed
+        if (failed > 0 && created === 0) {
+          setErrorModal({
+            isOpen: true,
+            title: "Summary",
+            message: `All ${failed} keyword(s) failed to create.`,
+            isSuccess: false,
+          });
+        }
+
+        const errorMessage =
+          created > 0
+            ? `${created} keyword(s) created successfully. ${failed} keyword(s) failed.`
+            : `All ${failed} keyword(s) failed to create.`;
+        setCreateKeywordError(errorMessage);
+      } else {
+        // Generic error - extract error message and field errors
+        let errorMessage = "Failed to create keywords. Please try again.";
+        let fieldErrors: Record<string, string> = {};
+
+        if (error?.response?.data) {
+          if (error.response.data.field_errors) {
+            fieldErrors = error.response.data.field_errors;
+            errorMessage = error.response.data.error || errorMessage;
+          } else if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        } else if (error?.message) {
+          errorMessage = error.message;
+        }
+
+        setCreateKeywordError(errorMessage);
+        setCreateKeywordFieldErrors(fieldErrors);
+        setFailedKeywordCount(keywords.length); // All failed
+        setFailedKeywords([]); // No specific failed keywords data in error case
+      }
       // Don't close panel on error - let user fix and resubmit
     }
   };
@@ -1072,6 +1193,21 @@ export const CampaignDetail: React.FC = () => {
 
         setCreateTargetError(successMessage);
         // Field errors will be set below if available
+
+        // Show summary popup for partial success
+        if (created > 0 && failed > 0) {
+          setErrorModal({
+            isOpen: true,
+            title: "Summary",
+            message: `${created} target(s) created successfully. ${failed} target(s) failed.`,
+            isSuccess: false,
+          });
+        }
+
+        // Reload targets even on partial success to show newly created ones
+        if (created > 0) {
+          await loadTargets();
+        }
       }
 
       // Extract field errors if available
@@ -1123,38 +1259,91 @@ export const CampaignDetail: React.FC = () => {
   const handleCreateProductAds = async (productAds: ProductAdInput[]) => {
     if (!accountId || !campaignId || campaignType !== "SP") return;
 
+    setCreateProductAdLoading(true);
+
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
 
-      await campaignsService.createProductAds(accountIdNum, campaignId, {
-        productAds: productAds.map((pa) => ({
-          adGroupId: pa.adGroupId,
-          asin: pa.asin,
-          sku: pa.sku || undefined,
-          customText: pa.customText || undefined,
-          globalStoreSetting: pa.catalogSourceCountryCode
-            ? {
-                catalogSourceCountryCode: pa.catalogSourceCountryCode,
-              }
-            : undefined,
-          state: pa.state,
-        })),
-      });
+      const response = await campaignsService.createProductAds(
+        accountIdNum,
+        campaignId,
+        {
+          productAds: productAds.map((pa) => ({
+            adGroupId: pa.adGroupId,
+            asin: pa.asin,
+            sku: pa.sku || undefined,
+            customText: pa.customText || undefined,
+            globalStoreSetting: pa.catalogSourceCountryCode
+              ? {
+                  catalogSourceCountryCode: pa.catalogSourceCountryCode,
+                }
+              : undefined,
+            state: pa.state,
+          })),
+        }
+      );
 
-      // Close the panel
-      setIsCreateProductAdPanelOpen(false);
+      // Check for partial success
+      const created = response.created || 0;
+      const failed = response.failed || 0;
 
-      // Reload product ads to show the new ones
-      await loadProductAds();
+      if (failed === 0) {
+        // Complete success - close panel and show success message
+        setIsCreateProductAdPanelOpen(false);
+
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `${created} product ad(s) created successfully!`,
+          isSuccess: true,
+        });
+
+        // Reload product ads to show the new ones
+        await loadProductAds();
+      } else {
+        // Partial success or all failed - show summary and keep panel open
+        // Show summary popup for partial success
+        if (created > 0 && failed > 0) {
+          setErrorModal({
+            isOpen: true,
+            title: "Summary",
+            message: `${created} product ad(s) created successfully. ${failed} product ad(s) failed.`,
+            isSuccess: false,
+          });
+        }
+
+        // Reload product ads even on partial success to show newly created ones
+        if (created > 0) {
+          await loadProductAds();
+        }
+      }
     } catch (error: any) {
       console.error("Failed to create product ads:", error);
-      alert(
-        error.response?.data?.error ||
-          "Failed to create product ads. Please try again."
-      );
+
+      // Extract error message
+      let errorMessage = "Failed to create product ads. Please try again.";
+
+      if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateProductAdLoading(false);
     }
   };
 
@@ -2749,12 +2938,24 @@ export const CampaignDetail: React.FC = () => {
                   campaignId && (
                     <CreateAdGroupPanel
                       isOpen={isCreateAdGroupPanelOpen}
-                      onClose={() => setIsCreateAdGroupPanelOpen(false)}
+                      onClose={() => {
+                        setIsCreateAdGroupPanelOpen(false);
+                        // Reset error states when closing
+                        setCreateAdGroupError(null);
+                        setCreateAdGroupFieldErrors({});
+                        setCreatedAdGroups([]);
+                        setFailedAdGroupCount(0);
+                        setFailedAdGroups([]);
+                      }}
                       onSubmit={handleCreateAdGroups}
                       campaignId={campaignId}
                       campaignType={campaignType || "SP"}
                       loading={createAdGroupLoading}
                       submitError={createAdGroupError}
+                      fieldErrors={createAdGroupFieldErrors}
+                      createdAdGroups={createdAdGroups}
+                      failedCount={failedAdGroupCount}
+                      failedAdGroups={failedAdGroups}
                     />
                   )}
 
@@ -3252,6 +3453,7 @@ export const CampaignDetail: React.FC = () => {
                       name: ag.name,
                     }))}
                     campaignId={campaignId || ""}
+                    loading={createProductAdLoading}
                   />
                 )}
 

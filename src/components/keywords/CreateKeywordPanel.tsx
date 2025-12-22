@@ -143,75 +143,101 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
     // Don't reset keywords here - let parent handle success/error
   };
 
-  // Handle successful keywords and errors
-  React.useEffect(() => {
-    if (createdKeywords && createdKeywords.length > 0) {
-      // Remove successfully created keywords from the list
-      const createdKeywordIds = new Set(
-        createdKeywords.map((kw) => kw.keywordId).filter(Boolean)
-      );
+  // Helper function to compute adjusted index based on created keywords
+  const getAdjustedErrorIndex = (originalIndex: number): number => {
+    if (createdKeywords.length === 0) return originalIndex;
+    const createdIndices = new Set(
+      createdKeywords
+        .map((ck) => ck.index)
+        .filter((idx) => idx !== undefined && idx !== null)
+    );
+    const removedBefore = Array.from(createdIndices).filter(
+      (idx) => idx < originalIndex
+    ).length;
+    return originalIndex - removedBefore;
+  };
 
-      // If we have keywordIds, remove those keywords
-      // Otherwise, match by content and index
-      setAddedKeywords((prev) => {
-        if (createdKeywordIds.size > 0) {
-          // Match by keywordId if available
-          return prev.filter((kw) => {
-            // Check if this keyword was successfully created
-            const createdKw = createdKeywords.find(
-              (ck) =>
-                ck.keywordText === kw.keywordText &&
-                ck.adGroupId === kw.adGroupId &&
-                ck.matchType === kw.matchType &&
-                Math.abs(ck.bid - kw.bid) < 0.01
-            );
-            return !createdKw || !createdKw.keywordId;
-          });
-        }
-        return prev;
-      });
-    }
-  }, [createdKeywords]);
-
-  // Map failed keywords to errors by matching them to addedKeywords
+  // Map failed keywords to errors - adjust indices immediately
   React.useEffect(() => {
     if (failedKeywords && failedKeywords.length > 0) {
       const newKeywordErrors: KeywordError[] = [];
 
       failedKeywords.forEach((failedKw) => {
-        // Find the matching keyword in addedKeywords by content
-        const matchingIndex = addedKeywords.findIndex(
-          (kw) =>
-            kw.keywordText === failedKw.keyword.keywordText &&
-            kw.adGroupId === failedKw.keyword.adGroupId &&
-            kw.matchType === failedKw.keyword.matchType &&
-            Math.abs(kw.bid - failedKw.keyword.bid) < 0.01
-        );
+        // Use the index from the backend response directly
+        const originalIndex = failedKw.index;
 
-        if (matchingIndex !== -1) {
-          // Map errors to the matching keyword
-          failedKw.errors.forEach((err) => {
-            if (err.field) {
+        // Only process if index is valid
+        if (originalIndex !== undefined && originalIndex !== null) {
+          // Adjust the index based on created keywords
+          const adjustedIndex = getAdjustedErrorIndex(originalIndex);
+
+          // Map errors to the keyword at this adjusted index
+          if (failedKw.errors && failedKw.errors.length > 0) {
+            failedKw.errors.forEach((err) => {
+              if (err.field) {
+                // Check if error already exists for this index+field to avoid duplicates
+                const exists = newKeywordErrors.some(
+                  (e) =>
+                    e.index === adjustedIndex &&
+                    e.field === (err.field as keyof KeywordInput)
+                );
+                if (!exists) {
+                  newKeywordErrors.push({
+                    index: adjustedIndex,
+                    field: err.field as keyof KeywordInput,
+                    message: err.message,
+                  });
+                }
+              } else {
+                // General error for this keyword - apply to first field
+                const exists = newKeywordErrors.some(
+                  (e) => e.index === adjustedIndex && e.field === "keywordText"
+                );
+                if (!exists) {
+                  newKeywordErrors.push({
+                    index: adjustedIndex,
+                    field: "keywordText",
+                    message: err.message,
+                  });
+                }
+              }
+            });
+          } else {
+            // If no specific errors, add a generic error to ensure the row is marked
+            const exists = newKeywordErrors.some(
+              (e) => e.index === adjustedIndex && e.field === "keywordText"
+            );
+            if (!exists) {
               newKeywordErrors.push({
-                index: matchingIndex,
-                field: err.field as keyof KeywordInput,
-                message: err.message,
-              });
-            } else {
-              // General error for this keyword - apply to first field
-              newKeywordErrors.push({
-                index: matchingIndex,
+                index: adjustedIndex,
                 field: "keywordText",
-                message: err.message,
+                message: "Failed to create keyword",
               });
             }
-          });
+          }
         }
       });
 
       setKeywordErrors(newKeywordErrors);
     }
-  }, [failedKeywords, addedKeywords]);
+  }, [failedKeywords, createdKeywords]);
+
+  // Handle successful keywords - remove them from the list using index
+  React.useEffect(() => {
+    if (createdKeywords && createdKeywords.length > 0) {
+      // Use index from response to remove only the specific keyword that was created
+      setAddedKeywords((prev) => {
+        const createdIndices = new Set(
+          createdKeywords
+            .map((ck) => ck.index)
+            .filter((idx) => idx !== undefined && idx !== null)
+        );
+
+        // Remove keywords at the indices that were successfully created
+        return prev.filter((_, index) => !createdIndices.has(index));
+      });
+    }
+  }, [createdKeywords]);
 
   // Parse field errors and map them to keywords
   React.useEffect(() => {
@@ -463,6 +489,18 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                       (e) => e.index === index
                     );
                     const hasError = rowErrors.length > 0;
+                    // Check if this keyword failed by comparing with adjusted indices
+                    const isFailedKeyword = failedKeywords.some((fk) => {
+                      if (fk.index === undefined || fk.index === null)
+                        return false;
+                      // Get the adjusted index for this failed keyword
+                      const adjustedFailedIndex = getAdjustedErrorIndex(
+                        fk.index
+                      );
+                      return adjustedFailedIndex === index;
+                    });
+                    // If a keyword failed but has no specific errors, we should still mark it
+                    const shouldHighlight = hasError || isFailedKeyword;
 
                     return (
                       <tr
@@ -470,7 +508,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                         className={`${
                           !isLastRow ? "border-b border-[#e8e8e3]" : ""
                         } hover:bg-gray-50 transition-colors ${
-                          hasError ? "bg-red-50" : ""
+                          shouldHighlight ? "bg-red-50" : ""
                         }`}
                       >
                         <td className="py-[10px] px-[10px]">
