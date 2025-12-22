@@ -1,17 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button } from "../ui";
-
-export interface LogEntry {
-  id: number;
-  entity: string;
-  field: string;
-  oldValue: string;
-  newValue: string;
-  changedBy: string;
-  changedAt: string;
-  method: string;
-}
+import { logsService } from "../../services/logs";
 
 interface LogsTableProps {
   accountId?: string;
@@ -27,148 +17,145 @@ export const LogsTable: React.FC<LogsTableProps> = ({
   showExport = true,
 }) => {
   const { startDate, endDate } = useDateRange();
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, setLogs] = useState<
+    Array<{
+      id: number;
+      entity: string;
+      field: string;
+      oldValue: string;
+      newValue: string;
+      changedBy: string;
+      changedAt: string;
+      method: string;
+    }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
+  const isInitialLoadRef = useRef(true);
+  const POLLING_INTERVAL = 5000; // 5 seconds
 
-  // Load logs
+  // Load logs - memoized with useCallback to avoid infinite loops
+  const loadLogs = useCallback(
+    async (isPolling = false) => {
+      if (!accountId) {
+        setLoading(false);
+        return;
+      }
+
+      // Only show loading state on initial load, not during polling
+      if (!isPolling) {
+        setLoading(true);
+      }
+
+      try {
+        const accountIdNum = parseInt(accountId, 10);
+        if (isNaN(accountIdNum)) {
+          throw new Error("Invalid account ID");
+        }
+
+        const response = await logsService.getLogs(accountIdNum, {
+          campaign_id: campaignId,
+          page: currentPage,
+          page_size: 10,
+          start_date: startDate
+            ? startDate.toISOString().split("T")[0]
+            : undefined,
+          end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        });
+
+        // Transform API response to match component format
+        const transformedLogs: Array<{
+          id: number;
+          entity: string;
+          field: string;
+          oldValue: string;
+          newValue: string;
+          changedBy: string;
+          changedAt: string;
+          method: string;
+        }> = response.logs.map((log) => ({
+          id: log.id,
+          entity: log.entity,
+          field: log.field,
+          oldValue: log.old_value || "",
+          newValue: log.new_value || "",
+          changedBy: log.changed_by_name || "Unknown",
+          changedAt: (() => {
+            try {
+              const date = new Date(log.changed_at);
+              // Format as MM-DD-YYYY HH:mm to match Figma design
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const day = String(date.getDate()).padStart(2, "0");
+              const year = date.getFullYear();
+              const hours = String(date.getHours()).padStart(2, "0");
+              const minutes = String(date.getMinutes()).padStart(2, "0");
+              return `${month}-${day}-${year} ${hours}:${minutes}`;
+            } catch (e) {
+              return log.changed_at || "";
+            }
+          })(),
+          method: log.method,
+        }));
+
+        setLogs(transformedLogs);
+        setTotalPages(response.total_pages || 1);
+        setLoading(false);
+        isInitialLoadRef.current = false;
+      } catch (error: any) {
+        console.error("Error loading logs:", error);
+        // Log more details for debugging
+        if (error?.response) {
+          console.error("API Error Response:", error.response.data);
+          console.error("API Error Status:", error.response.status);
+        }
+        setLogs([]);
+        setTotalPages(1);
+        setLoading(false);
+        isInitialLoadRef.current = false;
+      }
+    },
+    [accountId, campaignId, startDate, endDate, currentPage]
+  );
+
+  // Initial load and reload when filters change
   useEffect(() => {
-    loadLogs();
-  }, [accountId, campaignId, startDate, endDate, currentPage]);
-
-  const loadLogs = async () => {
-    setLoading(true);
-    try {
-      // TODO: Replace with actual API call
-      // For now, using mock data
-      // When campaignId is provided, filter logs for that campaign
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Mock data based on Figma design
-      const mockLogs: LogEntry[] = [
-        {
-          id: 1,
-          entity: "Sony / Amazon / US",
-          field: "Keyword noise cancelling headphones bid increased",
-          oldValue: "$0.85",
-          newValue: "$1.05",
-          changedBy: "John",
-          changedAt: "12-125-2025 09:35",
-          method: "Inline",
-        },
-        {
-          id: 2,
-          entity: "Sony / Amazon / US",
-          field: "Ad Group Bravia TV Core paused",
-          oldValue: "Enabled",
-          newValue: "Paused",
-          changedBy: "Sarah",
-          changedAt: "12-125-2025 09:35",
-          method: "Inline",
-        },
-        {
-          id: 3,
-          entity: "Sony / Amazon / US",
-          field: "Campaign daily budget updated",
-          oldValue: "$12,000",
-          newValue: "$15,000",
-          changedBy: "AI Optimizer",
-          changedAt: "12-125-2025 09:35",
-          method: "AI",
-        },
-        {
-          id: 4,
-          entity: "Sony / Amazon / US",
-          field: "Negative keywords added",
-          oldValue: "None",
-          newValue: "refurbished, used",
-          changedBy: "Bulk Editor",
-          changedAt: "12-125-2025 09:35",
-          method: "Bulk",
-        },
-        {
-          id: 5,
-          entity: "Sony / Amazon / US",
-          field: "Search campaign bid strategy updated",
-          oldValue: "Manual CPC",
-          newValue: "Max Conversions",
-          changedBy: "AI Optimizer",
-          changedAt: "12-125-2025 09:35",
-          method: "AI",
-        },
-        {
-          id: 6,
-          entity: "Sony / Amazon / US",
-          field: "Keyword men running shoes bid increased",
-          oldValue: "$0.60",
-          newValue: "$0.78",
-          changedBy: "John",
-          changedAt: "12-125-2025 09:35",
-          method: "Inline",
-        },
-        {
-          id: 7,
-          entity: "Sony / Amazon / US",
-          field: "Ad Group Training Apparel enabled",
-          oldValue: "Paused",
-          newValue: "Enabled",
-          changedBy: "Bulk Editor",
-          changedAt: "12-125-2025 09:35",
-          method: "Bulk",
-        },
-        {
-          id: 8,
-          entity: "Sony / Amazon / US",
-          field: "Campaign budget increased",
-          oldValue: "$6,000",
-          newValue: "$7,500",
-          changedBy: "AI Optimizer",
-          changedAt: "12-125-2025 09:35",
-          method: "AI",
-        },
-        {
-          id: 9,
-          entity: "Sony / Amazon / US",
-          field: "Audience expansion enabled",
-          oldValue: "OFF",
-          newValue: "ON",
-          changedBy: "Sarah",
-          changedAt: "12-125-2025 09:35",
-          method: "Inline",
-        },
-        {
-          id: 10,
-          entity: "Sony / Amazon / US",
-          field: "Product bids optimized",
-          oldValue: "Manual",
-          newValue: "Optimized",
-          changedBy: "AI Optimizer",
-          changedAt: "12-125-2025 09:35",
-          method: "AI",
-        },
-      ];
-
-      // Filter by campaignId if provided
-      const filteredLogs = campaignId
-        ? mockLogs.filter((log) => {
-            // In real implementation, this would filter based on campaignId from API
-            // For now, just return all logs as mock
-            return true;
-          })
-        : mockLogs;
-
-      setLogs(filteredLogs);
-      setTotalPages(5);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading logs:", error);
-      setLoading(false);
+    // Clear existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
-  };
+
+    // Load logs immediately
+    isInitialLoadRef.current = true;
+    loadLogs(false);
+
+    // Set up polling interval for real-time updates
+    pollingIntervalRef.current = setInterval(() => {
+      loadLogs(true); // Pass true to indicate this is a polling request
+    }, POLLING_INTERVAL);
+
+    // Cleanup function
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [accountId, campaignId, startDate, endDate, loadLogs]);
+
+  // Handle page changes separately (don't reset polling, just reload)
+  useEffect(() => {
+    if (!isInitialLoadRef.current && accountId) {
+      loadLogs(true); // Use polling mode to avoid showing loading spinner
+    }
+  }, [currentPage, loadLogs, accountId]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -194,7 +181,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
     };
   }, [showExportDropdown]);
 
-  const handleExport = async (exportType: "all_data" | "current_view") => {
+  const handleExport = async (_exportType: "all_data" | "current_view") => {
     if (!accountId) return;
 
     setShowExportDropdown(true);
@@ -346,6 +333,37 @@ export const LogsTable: React.FC<LogsTableProps> = ({
             <div className="flex items-center justify-center h-64 w-full">
               <div className="text-forest-f60">Loading...</div>
             </div>
+          ) : logs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[616px] w-full py-12 px-6">
+              <div className="flex flex-col items-center justify-center max-w-md">
+                {/* Icon */}
+                <div className="mb-6 w-20 h-20 rounded-full bg-[#F5F5F0] flex items-center justify-center">
+                  <svg
+                    className="w-10 h-10 text-[#556179]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                {/* Title */}
+                <h3 className="text-lg font-medium text-teal-950 mb-2">
+                  No Logs Found
+                </h3>
+                {/* Description */}
+                <p className="text-sm text-[#556179] text-center leading-relaxed">
+                  {campaignId
+                    ? "There are no log entries for this campaign yet. Logs will appear here when changes are made."
+                    : "There are no log entries for the selected filters. Try adjusting your date range or filters."}
+                </p>
+              </div>
+            </div>
           ) : (
             <div className="h-[616px] w-full flex items-start overflow-auto">
               {/* Entity Column */}
@@ -485,75 +503,79 @@ export const LogsTable: React.FC<LogsTableProps> = ({
         </div>
 
         {/* Pagination - Figma Style */}
-        <div className="w-full flex items-center justify-end gap-2">
-          <span className="text-sm text-teal-950">Page</span>
-          <div className="relative">
-            <input
-              type="number"
-              min="1"
-              max={totalPages}
-              value={currentPage}
-              onChange={(e) => {
-                const page = parseInt(e.target.value);
-                if (page >= 1 && page <= totalPages) {
-                  handlePageChange(page);
-                }
-              }}
-              className="w-16 px-2 py-1.5 border border-stone-200 rounded text-sm text-teal-950 text-center focus:outline-none focus:ring-2 focus:ring-forest-f40"
-            />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5">
-              <button
-                onClick={() => {
-                  if (currentPage < totalPages) {
-                    handlePageChange(currentPage + 1);
+        {!loading && logs.length > 0 && (
+          <div className="w-full flex items-center justify-end gap-2">
+            <span className="text-sm text-teal-950">Page</span>
+            <div className="relative">
+              <input
+                type="number"
+                min="1"
+                max={totalPages}
+                value={currentPage}
+                onChange={(e) => {
+                  const page = parseInt(e.target.value);
+                  if (page >= 1 && page <= totalPages) {
+                    handlePageChange(page);
                   }
                 }}
-                disabled={currentPage >= totalPages}
-                className="h-2.5 w-3 flex items-center justify-center text-teal-950 hover:text-forest-f40 disabled:opacity-30 disabled:cursor-not-allowed"
-                type="button"
-              >
-                <svg
-                  className="w-2 h-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                className="w-16 px-2 py-1.5 border border-stone-200 rounded text-sm text-teal-950 text-center focus:outline-none focus:ring-2 focus:ring-forest-f40"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5">
+                <button
+                  onClick={() => {
+                    if (currentPage < totalPages) {
+                      handlePageChange(currentPage + 1);
+                    }
+                  }}
+                  disabled={currentPage >= totalPages}
+                  className="h-2.5 w-3 flex items-center justify-center text-teal-950 hover:text-forest-f40 disabled:opacity-30 disabled:cursor-not-allowed"
+                  type="button"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 15l7-7 7 7"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => {
-                  if (currentPage > 1) {
-                    handlePageChange(currentPage - 1);
-                  }
-                }}
-                disabled={currentPage <= 1}
-                className="h-2.5 w-3 flex items-center justify-center text-teal-950 hover:text-forest-f40 disabled:opacity-30 disabled:cursor-not-allowed"
-                type="button"
-              >
-                <svg
-                  className="w-2 h-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                  <svg
+                    className="w-2 h-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 15l7-7 7 7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentPage > 1) {
+                      handlePageChange(currentPage - 1);
+                    }
+                  }}
+                  disabled={currentPage <= 1}
+                  className="h-2.5 w-3 flex items-center justify-center text-teal-950 hover:text-forest-f40 disabled:opacity-30 disabled:cursor-not-allowed"
+                  type="button"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className="w-2 h-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
+            <span className="text-sm text-teal-950">
+              of {totalPages} Result
+            </span>
           </div>
-          <span className="text-sm text-teal-950">of {totalPages} Result</span>
-        </div>
+        )}
       </div>
     </div>
   );

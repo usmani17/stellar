@@ -1093,9 +1093,10 @@ export const campaignsService = {
     accountId: number,
     payload: {
       campaignIds: Array<string | number>;
-      action: "status" | "budget";
+      action: "status" | "budget" | "budgetType";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
+      budgetType?: "DAILY" | "LIFETIME";
       unit?: "percent" | "amount";
       value?: number;
       upperLimit?: number;

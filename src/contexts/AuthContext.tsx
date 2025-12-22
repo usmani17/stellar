@@ -61,25 +61,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
           console.log("Auth0 Audience:", audience);
           const token = await getAccessTokenSilently({
-            authorizationParams: audience ? { 
-              audience,
-              scope: 'openid profile email offline_access'
-            } : { scope: 'openid profile email offline_access' },
+            authorizationParams: audience
+              ? {
+                  audience,
+                  scope: "openid profile email offline_access",
+                }
+              : { scope: "openid profile email offline_access" },
           });
 
           // Decode JWT token to see what's inside (without verification)
           if (token) {
             try {
-              const base64Url = token.split('.')[1];
-              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const base64Url = token.split(".")[1];
+              const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
               const jsonPayload = decodeURIComponent(
                 atob(base64)
-                  .split('')
-                  .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                  .join('')
+                  .split("")
+                  .map(
+                    (c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)
+                  )
+                  .join("")
               );
               const decodedToken = JSON.parse(jsonPayload);
-              console.log("🔓 [FRONTEND] Decoded Access Token Payload:", decodedToken);
+              console.log(
+                "🔓 [FRONTEND] Decoded Access Token Payload:",
+                decodedToken
+              );
               console.log("🔓 [FRONTEND] Token Claims:", {
                 sub: decodedToken.sub,
                 email: decodedToken.email,
@@ -92,10 +99,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             } catch (error) {
               console.error("Failed to decode token:", error);
             }
-            
+
             localStorage.setItem("accessToken", token);
-            console.log("Stored access token for backend authentication", { hasAudience: !!audience });
-            
+            console.log("Stored access token for backend authentication", {
+              hasAudience: !!audience,
+            });
+
             // Fetch user profile from backend
             // The backend will automatically create the user if it doesn't exist
             try {
@@ -114,22 +123,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               console.error("Error details:", {
                 status: error?.response?.status,
                 data: error?.response?.data,
-                message: error?.message
+                message: error?.message,
               });
-              
+
               // Retry with exponential backoff
               const maxRetries = 3;
               const retry = async (retryCount: number) => {
                 if (retryCount >= maxRetries) {
-                  console.error("Max retries reached. User profile fetch failed.");
+                  console.error(
+                    "Max retries reached. User profile fetch failed."
+                  );
                   setLoading(false);
                   return;
                 }
-                
+
                 const attemptNumber = retryCount + 1;
                 const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
-                console.log(`Retrying user profile fetch (attempt ${attemptNumber}/${maxRetries}) after ${delay}ms...`);
-                
+                console.log(
+                  `Retrying user profile fetch (attempt ${attemptNumber}/${maxRetries}) after ${delay}ms...`
+                );
+
                 setTimeout(async () => {
                   try {
                     const backendUser = await authService.getProfile();
@@ -138,17 +151,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                     localStorage.setItem("user", JSON.stringify(backendUser));
                     setLoading(false);
                   } catch (retryError: any) {
-                    console.error(`Error fetching user profile on retry ${attemptNumber}:`, retryError);
+                    console.error(
+                      `Error fetching user profile on retry ${attemptNumber}:`,
+                      retryError
+                    );
                     retry(retryCount + 1);
                   }
                 }, delay);
               };
-              
+
               // Start retry if it's a 403, 401, or network error
-              if (error?.response?.status === 403 || 
-                  error?.response?.status === 401 || 
-                  error?.code === 'NETWORK_ERROR' ||
-                  !error?.response) {
+              if (
+                error?.response?.status === 403 ||
+                error?.response?.status === 401 ||
+                error?.code === "NETWORK_ERROR" ||
+                !error?.response
+              ) {
                 retry(0);
               } else {
                 setLoading(false);
@@ -209,8 +227,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
-        screen_hint: 'login',
-        scope: 'openid profile email offline_access',
+        screen_hint: "login",
+        scope: "openid profile email offline_access",
         ...(audience ? { audience } : {}),
       },
     });
@@ -220,9 +238,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
-        connection: 'google-oauth2',
-        screen_hint: 'login',
-        scope: 'openid profile email offline_access',
+        connection: "google-oauth2",
+        screen_hint: "login",
+        scope: "openid profile email offline_access",
         ...(audience ? { audience } : {}),
       },
     });
@@ -240,8 +258,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
-        screen_hint: 'signup',
-        scope: 'openid profile email offline_access',
+        screen_hint: "signup",
+        scope: "openid profile email offline_access",
         ...(audience ? { audience } : {}),
       },
     });
@@ -251,9 +269,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
     await loginWithRedirect({
       authorizationParams: {
-        connection: 'google-oauth2',
-        screen_hint: 'signup',
-        scope: 'openid profile email offline_access',
+        connection: "google-oauth2",
+        screen_hint: "signup",
+        scope: "openid profile email offline_access",
         ...(audience ? { audience } : {}),
       },
     });
@@ -284,10 +302,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       // Get access token with audience and scope (returns JWT when audience is configured)
       const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
       const token = await getAccessTokenSilently({
-        authorizationParams: audience ? { 
-          audience,
-          scope: 'openid profile email offline_access'
-        } : { scope: 'openid profile email offline_access' },
+        authorizationParams: audience
+          ? {
+              audience,
+              scope: "openid profile email offline_access",
+            }
+          : { scope: "openid profile email offline_access" },
       });
       if (token) {
         localStorage.setItem("accessToken", token);
@@ -310,18 +330,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   return (
     <AuthContext.Provider
-      value={{ 
-        user, 
-        loading, 
-        login, 
+      value={{
+        user,
+        loading,
+        login,
         loginWithAuth0,
         loginWithGoogle,
-        register, 
+        register,
         registerWithAuth0,
         registerWithGoogle,
-        logout, 
-        updateUser, 
-        getAccessToken 
+        logout,
+        updateUser,
+        getAccessToken,
       }}
     >
       {children}
