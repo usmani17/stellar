@@ -80,6 +80,11 @@ export const accountsService = {
     return [];
   },
 
+  updateChannel: async (accountId: number, channelId: number, data: Partial<{ channel_name: string }>): Promise<Channel> => {
+    const response = await api.put<Channel>(`/accounts/${accountId}/channels/${channelId}/`, data);
+    return response.data;
+  },
+
   // Amazon OAuth
   initiateAmazonOAuth: async (accountId: number): Promise<{ auth_url: string }> => {
     const response = await api.get<{ auth_url: string }>(`/accounts/amazon-oauth/initiate/?account_id=${accountId}`);

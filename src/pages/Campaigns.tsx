@@ -16,7 +16,15 @@ import {
   FilterSection,
   FilterSectionPanel,
 } from "../components/filters/FilterSection";
-import { PerformanceChart } from "../components/charts/PerformanceChart";
+import {
+  PerformanceChart,
+  type MetricConfig,
+} from "../components/charts/PerformanceChart";
+import { CreateCampaignSection } from "../components/campaigns/CreateCampaignSection";
+import {
+  CreateCampaignPanel,
+  type CreateCampaignData,
+} from "../components/campaigns/CreateCampaignPanel";
 import ExportIcon from "../assets/export-icon.svg";
 import { ErrorModal } from "../components/ui/ErrorModal";
 
@@ -40,6 +48,9 @@ export const Campaigns: React.FC = () => {
       date: string;
       spend: number;
       sales: number;
+      sales1d?: number;
+      sales7d?: number;
+      sales14d?: number;
       impressions?: number;
       clicks?: number;
       acos?: number;
@@ -53,11 +64,54 @@ export const Campaigns: React.FC = () => {
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
+    sales1d: false,
+    sales7d: false,
+    sales14d: false,
     impressions: false,
     clicks: false,
     acos: false,
     roas: false,
   });
+
+  const campaignMetrics: MetricConfig[] = [
+    { key: "sales", label: "Sales", color: "#136D6D" },
+    { key: "spend", label: "Spend", color: "#506766" },
+    { key: "sales1d", label: "Sales 1D", color: "#0D9488" },
+    { key: "sales7d", label: "Sales 7D", color: "#14B8A6" },
+    { key: "sales14d", label: "Sales 14D", color: "#2DD4BF" },
+    { key: "impressions", label: "Impressions", color: "#7C3AED" },
+    { key: "clicks", label: "Clicks", color: "#169aa3" },
+    {
+      key: "ctr",
+      label: "CTR",
+      color: "#8B5CF6",
+      tooltipFormatter: (v) => `${v.toFixed(2)}%`,
+    },
+    {
+      key: "cpc",
+      label: "CPC",
+      color: "#F59E0B",
+      tooltipFormatter: (v) => `$${v.toFixed(2)}`,
+    },
+    {
+      key: "cpm",
+      label: "CPM",
+      color: "#EF4444",
+      tooltipFormatter: (v) => `$${v.toFixed(2)}`,
+    },
+    {
+      key: "acos",
+      label: "ACOS",
+      color: "#DC2626",
+      tooltipFormatter: (v) => `${v.toFixed(2)}%`,
+    },
+    {
+      key: "roas",
+      label: "ROAS",
+      color: "#059669",
+      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+    },
+  ];
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -65,6 +119,8 @@ export const Campaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
+    useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
@@ -87,7 +143,13 @@ export const Campaigns: React.FC = () => {
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
     message: string;
+    title?: string;
+    isSuccess?: boolean;
   }>({ isOpen: false, message: "" });
+  const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
+  const [createCampaignError, setCreateCampaignError] = useState<string | null>(
+    null
+  );
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
@@ -115,7 +177,8 @@ export const Campaigns: React.FC = () => {
     { value: "state", label: "State" },
     { value: "budget", label: "Budget" },
     { value: "type", label: "Type" },
-    { value: "profile_name", label: "Profile Name" },
+    { value: "targeting_type", label: "Targeting Type" },
+    { value: "profile_name", label: "Profile" },
   ];
 
   // Set page title
@@ -280,6 +343,8 @@ export const Campaigns: React.FC = () => {
         params.state = filter.value;
       } else if (filter.field === "type") {
         params.type = filter.value;
+      } else if (filter.field === "targeting_type") {
+        params.targeting_type = filter.value;
       } else if (filter.field === "profile_name") {
         if (filter.operator === "contains") {
           params.profile_name__icontains = filter.value;
@@ -662,11 +727,133 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  const toggleChartMetric = (metric: keyof typeof chartToggles) => {
+  const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
       ...prev,
       [metric]: !prev[metric],
     }));
+  };
+
+  const handleCreateCampaign = async (data: CreateCampaignData) => {
+    if (!accountId) return;
+
+    setCreateCampaignLoading(true);
+    setCreateCampaignError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.createCampaign(
+        accountIdNum,
+        data
+      );
+
+      console.log("Create campaign response:", response);
+
+      // Extract campaign ID from response
+      // Backend returns: { "created": True, "response": { "campaigns": [{ "campaignId": "...", ... }] } }
+      let campaignId: string | number | null = null;
+      if (response?.response) {
+        // Check if response contains campaign data
+        if (
+          response.response.campaigns &&
+          Array.isArray(response.response.campaigns) &&
+          response.response.campaigns.length > 0
+        ) {
+          const campaign = response.response.campaigns[0];
+          campaignId = campaign.campaignId || campaign.id || null;
+          console.log("Extracted campaign ID:", campaignId);
+        }
+      }
+
+      // Close the panel and stop loading
+      setIsCreateCampaignPanelOpen(false);
+      setCreateCampaignLoading(false);
+      setCreateCampaignError(null);
+
+      // Redirect to campaign detail page if we have campaign ID
+      if (campaignId) {
+        navigate(`/accounts/${accountIdNum}/campaigns/${campaignId}`);
+      } else {
+        // If no campaign ID, show success and reload campaigns
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `Campaign "${data.campaign_name}" created successfully!`,
+          isSuccess: true,
+        });
+        await loadCampaigns(accountIdNum);
+      }
+    } catch (error: any) {
+      console.error("Failed to create campaign:", error);
+      setCreateCampaignLoading(false);
+
+      // Extract error message from backend response
+      let errorMessage = "Failed to create campaign. Please try again.";
+      let errorDetails = null;
+      let fieldErrors: Record<string, string> = {};
+
+      if (error?.response?.data) {
+        // Check for validation errors (400 status)
+        if (error.response.status === 400) {
+          // Check for field-specific validation errors
+          if (error.response.data.field_errors) {
+            fieldErrors = error.response.data.field_errors;
+          }
+
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        } else {
+          // Check for error message
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+
+          // Check for detailed error information
+          if (error.response.data.details) {
+            errorDetails = error.response.data.details;
+            // If details is an object with errors, format it
+            if (
+              typeof errorDetails === "object" &&
+              !Array.isArray(errorDetails)
+            ) {
+              if (errorDetails.errors) {
+                errorMessage = `Amazon API errors: ${JSON.stringify(
+                  errorDetails.errors
+                )}`;
+              } else if (errorDetails.message) {
+                errorMessage = `Amazon API error: ${errorDetails.message}`;
+              }
+            }
+          }
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      // Pass field errors to the panel via a custom error object
+      // The panel will parse this and set field-specific errors
+      const errorWithFields = {
+        message: errorMessage,
+        fieldErrors: fieldErrors,
+      };
+
+      // Store error with field errors as JSON string
+      // The panel will parse this and extract both message and field errors
+      setCreateCampaignError(JSON.stringify(errorWithFields));
+
+      // Don't close panel on error - let user fix and resubmit
+      // Re-throw error so the form knows submission failed
+      throw error;
+    }
   };
 
   // Get selected campaigns data for confirmation modal
@@ -788,6 +975,9 @@ export const Campaigns: React.FC = () => {
         date: item.date,
         sales: item.sales,
         spend: item.spend,
+        sales1d: item.sales1d || 0,
+        sales7d: item.sales7d || 0,
+        sales14d: item.sales14d || 0,
         impressions: item.impressions || 0,
         clicks: item.clicks || 0,
         acos: item.acos || 0,
@@ -861,7 +1051,9 @@ export const Campaigns: React.FC = () => {
       <ErrorModal
         isOpen={errorModal.isOpen}
         onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
         message={errorModal.message}
+        isSuccess={errorModal.isSuccess}
       />
 
       {/* Sidebar */}
@@ -878,20 +1070,47 @@ export const Campaigns: React.FC = () => {
         {/* Main Content Area */}
         <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
           <div className="space-y-6">
-            {/* Header with Filter Button */}
+            {/* Header with Filter and Create Campaign Buttons */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                 Campaign Manager
               </h1>
-              <FilterSection
-                isOpen={isFilterPanelOpen}
-                onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                filters={filters}
-                onApply={() => {}} // Not used - FilterSectionPanel handles onApply
-                filterFields={CAMPAIGN_FILTER_FIELDS}
-                initialFilters={filters}
-              />
+              <div className="flex items-center gap-2">
+                <CreateCampaignSection
+                  isOpen={isCreateCampaignPanelOpen}
+                  onToggle={() => {
+                    setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
+                    setIsFilterPanelOpen(false); // Close filter panel when opening create panel
+                  }}
+                />
+                <FilterSection
+                  isOpen={isFilterPanelOpen}
+                  onToggle={() => {
+                    setIsFilterPanelOpen(!isFilterPanelOpen);
+                    setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
+                  }}
+                  filters={filters}
+                  onApply={() => {}} // Not used - FilterSectionPanel handles onApply
+                  filterFields={CAMPAIGN_FILTER_FIELDS}
+                  initialFilters={filters}
+                />
+              </div>
             </div>
+
+            {/* Create Campaign Panel */}
+            {isCreateCampaignPanelOpen && (
+              <CreateCampaignPanel
+                isOpen={isCreateCampaignPanelOpen}
+                onClose={() => {
+                  setIsCreateCampaignPanelOpen(false);
+                  setCreateCampaignError(null);
+                }}
+                onSubmit={handleCreateCampaign}
+                accountId={accountId}
+                loading={createCampaignLoading}
+                submitError={createCampaignError}
+              />
+            )}
 
             {/* Filter Panel - Rendered outside header to maintain button position */}
             <FilterSectionPanel
@@ -905,6 +1124,8 @@ export const Campaigns: React.FC = () => {
               }}
               filterFields={CAMPAIGN_FILTER_FIELDS}
               initialFilters={filters}
+              accountId={accountId}
+              channelType="amazon"
             />
 
             {/* Chart Section */}
@@ -912,6 +1133,7 @@ export const Campaigns: React.FC = () => {
               data={chartData}
               toggles={chartToggles}
               onToggle={toggleChartMetric}
+              metrics={campaignMetrics}
               title="Performance Trends"
             />
 
@@ -1210,7 +1432,7 @@ export const Campaigns: React.FC = () => {
                             setShowBudgetPanel(false);
                             setShowBulkActions(false);
                           }}
-                          className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                          className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
                         >
                           Cancel
                         </button>
@@ -1223,7 +1445,7 @@ export const Campaigns: React.FC = () => {
                             setShowConfirmationModal(true);
                           }}
                           disabled={bulkLoading || !budgetValue}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Apply
                         </button>
@@ -1432,7 +1654,7 @@ export const Campaigns: React.FC = () => {
                           setShowConfirmationModal(false);
                           setPendingStatusAction(null);
                         }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1451,7 +1673,7 @@ export const Campaigns: React.FC = () => {
                           setPendingStatusAction(null);
                         }}
                         disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {bulkLoading ? "Applying..." : "Confirm"}
                       </button>
@@ -1524,7 +1746,7 @@ export const Campaigns: React.FC = () => {
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
                         }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1532,7 +1754,7 @@ export const Campaigns: React.FC = () => {
                         type="button"
                         onClick={runInlineEdit}
                         disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>
@@ -1597,13 +1819,13 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
-                          {/* Profile Name Header */}
+                          {/* Profile Header */}
                           <th
                             className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
                             onClick={() => handleSort("profile_name")}
                           >
                             <div className="flex items-center gap-1">
-                              Profile Name
+                              Profile
                               {getSortIcon("profile_name")}
                             </div>
                           </th>
@@ -1835,7 +2057,7 @@ export const Campaigns: React.FC = () => {
                                 </button>
                               </td>
 
-                              {/* Profile Name */}
+                              {/* Profile */}
                               <td className="py-[10px] px-[10px] min-w-[200px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
                                   {campaign.profile_name &&

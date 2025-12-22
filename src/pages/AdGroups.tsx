@@ -16,8 +16,10 @@ import {
   FilterSection,
   FilterSectionPanel,
 } from "../components/filters/FilterSection";
-import { PerformanceChart } from "../components/charts/PerformanceChart";
-import ExportIcon from "../assets/export-icon.svg";
+import {
+  PerformanceChart,
+  type MetricConfig,
+} from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
 
 export const AdGroups: React.FC = () => {
@@ -40,6 +42,9 @@ export const AdGroups: React.FC = () => {
       date: string;
       spend: number;
       sales: number;
+      sales1d?: number;
+      sales7d?: number;
+      sales14d?: number;
       impressions?: number;
       clicks?: number;
       acos?: number;
@@ -53,11 +58,54 @@ export const AdGroups: React.FC = () => {
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
+    sales1d: false,
+    sales7d: false,
+    sales14d: false,
     impressions: false,
     clicks: false,
     acos: false,
     roas: false,
   });
+
+  const adgroupMetrics: MetricConfig[] = [
+    { key: "sales", label: "Sales", color: "#136D6D" },
+    { key: "spend", label: "Spend", color: "#506766" },
+    { key: "sales1d", label: "Sales 1D", color: "#0D9488" },
+    { key: "sales7d", label: "Sales 7D", color: "#14B8A6" },
+    { key: "sales14d", label: "Sales 14D", color: "#2DD4BF" },
+    { key: "impressions", label: "Impressions", color: "#7C3AED" },
+    { key: "clicks", label: "Clicks", color: "#169aa3" },
+    {
+      key: "ctr",
+      label: "CTR",
+      color: "#8B5CF6",
+      tooltipFormatter: (v) => `${v.toFixed(2)}%`,
+    },
+    {
+      key: "cpc",
+      label: "CPC",
+      color: "#F59E0B",
+      tooltipFormatter: (v) => `$${v.toFixed(2)}`,
+    },
+    {
+      key: "cpm",
+      label: "CPM",
+      color: "#EF4444",
+      tooltipFormatter: (v) => `$${v.toFixed(2)}`,
+    },
+    {
+      key: "acos",
+      label: "ACOS",
+      color: "#DC2626",
+      tooltipFormatter: (v) => `${v.toFixed(2)}%`,
+    },
+    {
+      key: "roas",
+      label: "ROAS",
+      color: "#059669",
+      tooltipFormatter: (v) => `${v.toFixed(2)} x`,
+    },
+  ];
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -111,7 +159,7 @@ export const AdGroups: React.FC = () => {
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
 
-  const toggleChartMetric = (key: keyof typeof chartToggles) => {
+  const toggleChartMetric = (key: string) => {
     setChartToggles((prev) => ({
       ...prev,
       [key]: !prev[key],
@@ -842,6 +890,9 @@ export const AdGroups: React.FC = () => {
         date: item.date,
         sales: item.sales,
         spend: item.spend,
+        sales1d: item.sales1d || 0,
+        sales7d: item.sales7d || 0,
+        sales14d: item.sales14d || 0,
         impressions: item.impressions || 0,
         clicks: item.clicks || 0,
         acos: item.acos || 0,
@@ -873,7 +924,7 @@ export const AdGroups: React.FC = () => {
     { value: "state", label: "Status" },
     { value: "default_bid", label: "Default Bid" },
     { value: "campaign_name", label: "Campaign Name" },
-    { value: "profile_name", label: "Profile Name" },
+    { value: "profile_name", label: "Profile" },
     { value: "type", label: "Type" },
   ];
 
@@ -942,6 +993,8 @@ export const AdGroups: React.FC = () => {
               }}
               filterFields={ADGROUP_FILTER_FIELDS}
               initialFilters={filters}
+              accountId={accountId}
+              channelType="amazon"
             />
 
             {/* Chart Section */}
@@ -949,6 +1002,7 @@ export const AdGroups: React.FC = () => {
               data={chartData}
               toggles={chartToggles}
               onToggle={toggleChartMetric}
+              metrics={adgroupMetrics}
               title="Performance Trends"
             />
 
@@ -1029,14 +1083,10 @@ export const AdGroups: React.FC = () => {
                   ref={exportDropdownRef}
                 >
                   <div className="relative">
-                    <img
-                      src={ExportIcon}
-                      alt="Export"
-                      className={`w-full h-full object-contain ${
-                        exportLoading
-                          ? "opacity-50 cursor-not-allowed"
-                          : "cursor-pointer"
-                      }`}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={(e) => {
                         if (exportLoading) return;
                         e.stopPropagation();
@@ -1044,12 +1094,33 @@ export const AdGroups: React.FC = () => {
                         setShowBulkActions(false);
                         setShowBidPanel(false);
                       }}
-                    />
-                    {exportLoading && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                      </div>
-                    )}
+                      disabled={exportLoading}
+                    >
+                      {exportLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        </div>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Export
+                          </span>
+                        </>
+                      )}
+                    </Button>
                   </div>
                   {(showExportDropdown || exportLoading) && (
                     <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
@@ -1439,9 +1510,9 @@ export const AdGroups: React.FC = () => {
                             Campaign Name
                           </th>
 
-                          {/* Profile Name */}
+                          {/* Profile */}
                           <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                            Profile Name
+                            Profile
                           </th>
 
                           {/* Type */}
@@ -1534,9 +1605,9 @@ export const AdGroups: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {/* Summary Row */}
+                        {/* Summary Row - First row after headings */}
                         {summary && (
-                          <tr className="bg-[#f5f5f0] font-semibold">
+                          <tr className="bg-[#f5f5f0] font-semibold border-b border-[#e8e8e3]">
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               Total ({summary.total_adgroups})
@@ -1707,7 +1778,7 @@ export const AdGroups: React.FC = () => {
                                 </button>
                               </td>
 
-                              {/* Profile Name */}
+                              {/* Profile */}
                               <td className="py-[10px] px-[10px] min-w-[150px]">
                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
                                   {adgroup.profile_name &&

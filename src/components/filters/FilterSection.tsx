@@ -69,7 +69,18 @@ export const FilterSectionPanel: React.FC<{
   onApply: (filters: FilterValues) => void;
   filterFields: Array<{ value: string; label: string }>;
   initialFilters?: FilterValues;
-}> = ({ isOpen, onToggle, onApply, filterFields, initialFilters, filters }) => {
+  accountId?: string;
+  channelType?: "amazon" | "google" | "walmart";
+}> = ({
+  isOpen,
+  onToggle,
+  onApply,
+  filterFields,
+  initialFilters,
+  filters,
+  accountId,
+  channelType,
+}) => {
   if (!isOpen) return null;
 
   return (
@@ -79,6 +90,8 @@ export const FilterSectionPanel: React.FC<{
       onApply={onApply}
       initialFilters={initialFilters || filters}
       filterFields={filterFields}
+      accountId={accountId}
+      channelType={channelType}
     />
   );
 };

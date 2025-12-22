@@ -3,11 +3,13 @@ import React from "react";
 interface StatusBadgeProps {
   status: string;
   className?: string;
+  uppercase?: boolean;
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({
   status,
   className = "",
+  uppercase = false,
 }) => {
   const statusMap: Record<string, { bg: string; text: string; label: string }> =
     {
@@ -80,7 +82,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         lineHeight: "100%",
       }}
     >
-      {statusInfo.label}
+      {uppercase ? statusInfo.label.toUpperCase() : statusInfo.label}
     </span>
   );
 };
