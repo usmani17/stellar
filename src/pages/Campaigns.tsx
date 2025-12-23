@@ -145,6 +145,10 @@ export const Campaigns: React.FC = () => {
     message: string;
     title?: string;
     isSuccess?: boolean;
+    actionButton?: {
+      text: string;
+      onClick: () => void;
+    };
   }>({ isOpen: false, message: "" });
   const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
   const [createCampaignError, setCreateCampaignError] = useState<string | null>(
@@ -754,10 +758,14 @@ export const Campaigns: React.FC = () => {
       console.log("Create campaign response:", response);
 
       // Extract campaign ID from response
-      // Backend returns: { "created": True, "response": { "campaigns": [{ "campaignId": "...", ... }] } }
+      // Backend returns: { "created": True, "campaignId": "...", "response": {...} }
       let campaignId: string | number | null = null;
-      if (response?.response) {
-        // Check if response contains campaign data
+
+      // First try to get campaignId directly from response
+      if (response?.campaignId) {
+        campaignId = response.campaignId;
+      } else if (response?.response) {
+        // Fallback: Check if response contains campaign data
         if (
           response.response.campaigns &&
           Array.isArray(response.response.campaigns) &&
@@ -765,7 +773,6 @@ export const Campaigns: React.FC = () => {
         ) {
           const campaign = response.response.campaigns[0];
           campaignId = campaign.campaignId || campaign.id || null;
-          console.log("Extracted campaign ID:", campaignId);
         }
       }
 
@@ -774,9 +781,22 @@ export const Campaigns: React.FC = () => {
       setCreateCampaignLoading(false);
       setCreateCampaignError(null);
 
-      // Redirect to campaign detail page if we have campaign ID
+      // Show success modal with navigation button if we have campaign ID
       if (campaignId) {
-        navigate(`/accounts/${accountIdNum}/campaigns/${campaignId}`);
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `Campaign "${data.campaign_name}" created successfully!`,
+          isSuccess: true,
+          actionButton: {
+            text: "View Campaign",
+            onClick: () => {
+              setErrorModal({ isOpen: false, message: "" });
+              navigate(`/accounts/${accountIdNum}/campaigns/${campaignId}`);
+            },
+          },
+        });
+        await loadCampaigns(accountIdNum);
       } else {
         // If no campaign ID, show success and reload campaigns
         setErrorModal({
@@ -1054,6 +1074,7 @@ export const Campaigns: React.FC = () => {
         title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
         message={errorModal.message}
         isSuccess={errorModal.isSuccess}
+        actionButton={errorModal.actionButton}
       />
 
       {/* Sidebar */}

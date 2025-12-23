@@ -7,6 +7,10 @@ interface ErrorModalProps {
   title?: string;
   message: string;
   isSuccess?: boolean;
+  actionButton?: {
+    text: string;
+    onClick: () => void;
+  };
 }
 
 export const ErrorModal: React.FC<ErrorModalProps> = ({
@@ -15,6 +19,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   title = "Error",
   message,
   isSuccess = false,
+  actionButton,
 }) => {
   if (!isOpen) return null;
 
@@ -81,14 +86,28 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-center mt-6">
+          <div
+            className={`flex items-center justify-center mt-6 gap-3 ${
+              actionButton ? "flex-row" : ""
+            }`}
+          >
+            {actionButton && (
+              <Button
+                onClick={actionButton.onClick}
+                variant="primary"
+                size="md"
+                className="min-w-[120px] rounded-lg justify-center"
+              >
+                {actionButton.text}
+              </Button>
+            )}
             <Button
               onClick={onClose}
-              variant="primary"
+              variant={actionButton ? "secondary" : "primary"}
               size="md"
               className="min-w-[120px] rounded-lg justify-center"
             >
-              OK
+              {actionButton ? "Close" : "OK"}
             </Button>
           </div>
         </div>

@@ -26,6 +26,8 @@ import { Keywords } from "./pages/Keywords";
 import { Targets } from "./pages/Targets";
 import { AmazonOAuthCallback } from "./pages/AmazonOAuthCallback";
 import { GoogleOAuthCallback } from "./pages/GoogleOAuthCallback";
+import { TikTokOAuthCallback } from "./pages/TikTokOAuthCallback";
+import { ConnectTikTok } from "./pages/ConnectTikTok";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
 import { ListAmazonProfiles } from "./pages/ListAmazonProfiles";
 import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
@@ -93,6 +95,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <GoogleOAuthCallback />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tiktok-oauth-callback"
+                  element={
+                    <ProtectedRoute>
+                      <TikTokOAuthCallback />
                     </ProtectedRoute>
                   }
                 />
@@ -183,6 +193,18 @@ function App() {
                       <AccountRequiredRoute>
                         <Layout>
                           <Channels />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/connect-tiktok"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <ConnectTikTok />
                         </Layout>
                       </AccountRequiredRoute>
                     </ProtectedRoute>

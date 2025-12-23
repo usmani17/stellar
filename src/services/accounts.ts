@@ -3,7 +3,7 @@ import api from './api';
 export interface Channel {
   id: number;
   channel_name: string;
-  channel_type: 'amazon' | 'google' | 'walmart';
+  channel_type: 'amazon' | 'google' | 'walmart' | 'tiktok';
   status: 'active' | 'inactive' | 'pending';
   account: number;
   account_id?: number;
@@ -112,6 +112,21 @@ export const accountsService = {
       state,
     });
     console.log('Google OAuth callback service response:', response.data);
+    return response.data;
+  },
+
+  // TikTok OAuth
+  initiateTikTokOAuth: async (accountId: number): Promise<{ auth_url: string }> => {
+    const response = await api.get<{ auth_url: string }>(`/accounts/tiktok-oauth/initiate/?account_id=${accountId}`);
+    return response.data;
+  },
+
+  handleTikTokOAuthCallback: async (code: string, state?: string): Promise<Channel> => {
+    const response = await api.post<Channel>('/accounts/tiktok-oauth/callback/', {
+      code,
+      state,
+    });
+    console.log('TikTok OAuth callback service response:', response.data);
     return response.data;
   },
 

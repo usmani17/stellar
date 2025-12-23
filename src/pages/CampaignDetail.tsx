@@ -810,7 +810,7 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const handleCreateAdGroups = async (adgroups: AdGroupInput[]) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (!accountId || !campaignId) return;
 
     setCreateAdGroupLoading(true);
     setCreateAdGroupError(null);
@@ -952,7 +952,30 @@ export const CampaignDetail: React.FC = () => {
   const [failedKeywords, setFailedKeywords] = useState<any[]>([]);
 
   const handleCreateKeywords = async (keywords: KeywordInput[]) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (!accountId || !campaignId) {
+      console.error("Missing accountId or campaignId");
+      setCreateKeywordError("Missing account or campaign information");
+      setCreateKeywordLoading(false);
+      return;
+    }
+
+    if (campaignType !== "SP") {
+      console.error("Keywords can only be created for SP campaigns");
+      setCreateKeywordError(
+        "Keywords can only be created for Sponsored Products (SP) campaigns"
+      );
+      setCreateKeywordLoading(false);
+      return;
+    }
+
+    if (!keywords || keywords.length === 0) {
+      console.error("No keywords provided");
+      setCreateKeywordError(
+        "Please add at least one keyword before submitting"
+      );
+      setCreateKeywordLoading(false);
+      return;
+    }
 
     setCreateKeywordLoading(true);
     setCreateKeywordError(null);
@@ -2664,18 +2687,14 @@ export const CampaignDetail: React.FC = () => {
                   </h2>
                   <div className="flex items-center gap-2">
                     {/* Create Adgroup Button */}
-                    {campaignType === "SP" && (
-                      <CreateAdGroupSection
-                        isOpen={isCreateAdGroupPanelOpen}
-                        onToggle={() => {
-                          setIsCreateAdGroupPanelOpen(
-                            !isCreateAdGroupPanelOpen
-                          );
-                          setIsAdGroupsFilterPanelOpen(false); // Close filter panel when opening create panel
-                          setShowAdGroupsBulkActions(false); // Close bulk actions when opening create panel
-                        }}
-                      />
-                    )}
+                    <CreateAdGroupSection
+                      isOpen={isCreateAdGroupPanelOpen}
+                      onToggle={() => {
+                        setIsCreateAdGroupPanelOpen(!isCreateAdGroupPanelOpen);
+                        setIsAdGroupsFilterPanelOpen(false); // Close filter panel when opening create panel
+                        setShowAdGroupsBulkActions(false); // Close bulk actions when opening create panel
+                      }}
+                    />
                     {/* Bulk Edit Button */}
                     <div
                       className="relative inline-flex justify-end"
@@ -2933,31 +2952,29 @@ export const CampaignDetail: React.FC = () => {
                 )}
 
                 {/* Create Adgroup Panel */}
-                {isCreateAdGroupPanelOpen &&
-                  campaignType === "SP" &&
-                  campaignId && (
-                    <CreateAdGroupPanel
-                      isOpen={isCreateAdGroupPanelOpen}
-                      onClose={() => {
-                        setIsCreateAdGroupPanelOpen(false);
-                        // Reset error states when closing
-                        setCreateAdGroupError(null);
-                        setCreateAdGroupFieldErrors({});
-                        setCreatedAdGroups([]);
-                        setFailedAdGroupCount(0);
-                        setFailedAdGroups([]);
-                      }}
-                      onSubmit={handleCreateAdGroups}
-                      campaignId={campaignId}
-                      campaignType={campaignType || "SP"}
-                      loading={createAdGroupLoading}
-                      submitError={createAdGroupError}
-                      fieldErrors={createAdGroupFieldErrors}
-                      createdAdGroups={createdAdGroups}
-                      failedCount={failedAdGroupCount}
-                      failedAdGroups={failedAdGroups}
-                    />
-                  )}
+                {isCreateAdGroupPanelOpen && campaignId && (
+                  <CreateAdGroupPanel
+                    isOpen={isCreateAdGroupPanelOpen}
+                    onClose={() => {
+                      setIsCreateAdGroupPanelOpen(false);
+                      // Reset error states when closing
+                      setCreateAdGroupError(null);
+                      setCreateAdGroupFieldErrors({});
+                      setCreatedAdGroups([]);
+                      setFailedAdGroupCount(0);
+                      setFailedAdGroups([]);
+                    }}
+                    onSubmit={handleCreateAdGroups}
+                    campaignId={campaignId}
+                    campaignType={campaignType || "SP"}
+                    loading={createAdGroupLoading}
+                    submitError={createAdGroupError}
+                    fieldErrors={createAdGroupFieldErrors}
+                    createdAdGroups={createdAdGroups}
+                    failedCount={failedAdGroupCount}
+                    failedAdGroups={failedAdGroups}
+                  />
+                )}
 
                 {/* Filter Panel */}
                 {isAdGroupsFilterPanelOpen && (
