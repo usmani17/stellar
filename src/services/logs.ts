@@ -29,6 +29,15 @@ export interface LogsQueryParams {
   end_date?: string;
 }
 
+export interface LogsExportParams {
+  campaign_id?: string;
+  page?: number;
+  page_size?: number;
+  start_date?: string;
+  end_date?: string;
+  export_type?: "all_data" | "current_view";
+}
+
 export interface CreateLogData {
   campaign_id?: string;
   entity: string;
@@ -76,6 +85,38 @@ export const logsService = {
       `/accounts/${accountId}/logs/create/`,
       data
     );
+    return response.data;
+  },
+
+  exportLogs: async (
+    accountId: number,
+    params?: LogsExportParams
+  ): Promise<{ url: string; filename: string }> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+
+    if (params?.campaign_id) {
+      filters.campaign_id = params.campaign_id;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+
+    // Send POST request with filters and export_type in body
+    const url = `/accounts/${accountId}/logs/export/`;
+    const response = await api.post<{ url: string; filename: string }>(url, {
+      filters,
+      export_type: params?.export_type || "all_data",
+    });
     return response.data;
   },
 };

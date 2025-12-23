@@ -35,127 +35,87 @@ export const LogsTable: React.FC<LogsTableProps> = ({
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
-  const isInitialLoadRef = useRef(true);
-  const POLLING_INTERVAL = 5000; // 5 seconds
 
   // Load logs - memoized with useCallback to avoid infinite loops
-  const loadLogs = useCallback(
-    async (isPolling = false) => {
-      if (!accountId) {
-        setLoading(false);
-        return;
-      }
-
-      // Only show loading state on initial load, not during polling
-      if (!isPolling) {
-        setLoading(true);
-      }
-
-      try {
-        const accountIdNum = parseInt(accountId, 10);
-        if (isNaN(accountIdNum)) {
-          throw new Error("Invalid account ID");
-        }
-
-        const response = await logsService.getLogs(accountIdNum, {
-          campaign_id: campaignId,
-          page: currentPage,
-          page_size: 10,
-          start_date: startDate
-            ? startDate.toISOString().split("T")[0]
-            : undefined,
-          end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        });
-
-        // Transform API response to match component format
-        const transformedLogs: Array<{
-          id: number;
-          entity: string;
-          field: string;
-          oldValue: string;
-          newValue: string;
-          changedBy: string;
-          changedAt: string;
-          method: string;
-        }> = response.logs.map((log) => ({
-          id: log.id,
-          entity: log.entity,
-          field: log.field,
-          oldValue: log.old_value || "",
-          newValue: log.new_value || "",
-          changedBy: log.changed_by_name || "Unknown",
-          changedAt: (() => {
-            try {
-              const date = new Date(log.changed_at);
-              // Format as MM-DD-YYYY HH:mm to match Figma design
-              const month = String(date.getMonth() + 1).padStart(2, "0");
-              const day = String(date.getDate()).padStart(2, "0");
-              const year = date.getFullYear();
-              const hours = String(date.getHours()).padStart(2, "0");
-              const minutes = String(date.getMinutes()).padStart(2, "0");
-              return `${month}-${day}-${year} ${hours}:${minutes}`;
-            } catch (e) {
-              return log.changed_at || "";
-            }
-          })(),
-          method: log.method,
-        }));
-
-        setLogs(transformedLogs);
-        setTotalPages(response.total_pages || 1);
-        setLoading(false);
-        isInitialLoadRef.current = false;
-      } catch (error: any) {
-        console.error("Error loading logs:", error);
-        // Log more details for debugging
-        if (error?.response) {
-          console.error("API Error Response:", error.response.data);
-          console.error("API Error Status:", error.response.status);
-        }
-        setLogs([]);
-        setTotalPages(1);
-        setLoading(false);
-        isInitialLoadRef.current = false;
-      }
-    },
-    [accountId, campaignId, startDate, endDate, currentPage]
-  );
-
-  // Initial load and reload when filters change
-  useEffect(() => {
-    // Clear existing polling interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
+  const loadLogs = useCallback(async () => {
+    if (!accountId) {
+      setLoading(false);
+      return;
     }
 
-    // Load logs immediately
-    isInitialLoadRef.current = true;
-    loadLogs(false);
+    // Always show loading state when fetching
+    setLoading(true);
 
-    // Set up polling interval for real-time updates
-    pollingIntervalRef.current = setInterval(() => {
-      loadLogs(true); // Pass true to indicate this is a polling request
-    }, POLLING_INTERVAL);
-
-    // Cleanup function
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
       }
-    };
-  }, [accountId, campaignId, startDate, endDate, loadLogs]);
 
-  // Handle page changes separately (don't reset polling, just reload)
-  useEffect(() => {
-    if (!isInitialLoadRef.current && accountId) {
-      loadLogs(true); // Use polling mode to avoid showing loading spinner
+      const response = await logsService.getLogs(accountIdNum, {
+        campaign_id: campaignId,
+        page: currentPage,
+        page_size: 10,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+      });
+
+      // Transform API response to match component format
+      const transformedLogs: Array<{
+        id: number;
+        entity: string;
+        field: string;
+        oldValue: string;
+        newValue: string;
+        changedBy: string;
+        changedAt: string;
+        method: string;
+      }> = response.logs.map((log) => ({
+        id: log.id,
+        entity: log.entity,
+        field: log.field,
+        oldValue: log.old_value || "",
+        newValue: log.new_value || "",
+        changedBy: log.changed_by_name || "Unknown",
+        changedAt: (() => {
+          try {
+            const date = new Date(log.changed_at);
+            // Format as MM-DD-YYYY HH:mm to match Figma design
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, "0");
+            const minutes = String(date.getMinutes()).padStart(2, "0");
+            return `${month}-${day}-${year} ${hours}:${minutes}`;
+          } catch (e) {
+            return log.changed_at || "";
+          }
+        })(),
+        method: log.method,
+      }));
+
+      setLogs(transformedLogs);
+      setTotalPages(response.total_pages || 1);
+      setLoading(false);
+    } catch (error: any) {
+      console.error("Error loading logs:", error);
+      // Log more details for debugging
+      if (error?.response) {
+        console.error("API Error Response:", error.response.data);
+        console.error("API Error Status:", error.response.status);
+      }
+      setLogs([]);
+      setTotalPages(1);
+      setLoading(false);
     }
-  }, [currentPage, loadLogs, accountId]);
+  }, [accountId, campaignId, startDate, endDate, currentPage]);
+
+  // Initial load and reload when filters or page change
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -181,15 +141,49 @@ export const LogsTable: React.FC<LogsTableProps> = ({
     };
   }, [showExportDropdown]);
 
-  const handleExport = async (_exportType: "all_data" | "current_view") => {
+  const handleExport = async (exportType: "all_data" | "current_view") => {
     if (!accountId) return;
 
     setShowExportDropdown(true);
     setExportLoading(true);
     try {
-      // TODO: Implement actual export API call
-      // For now, just simulate the export
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Build params from current filters and date range
+      const params: any = {
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+      };
+
+      // Add campaign_id if provided
+      if (campaignId) {
+        params.campaign_id = campaignId;
+      }
+
+      // Add pagination for current_view
+      if (exportType === "current_view") {
+        params.page = currentPage;
+        params.page_size = 10;
+      }
+
+      // Call export API
+      const result = await logsService.exportLogs(accountIdNum, {
+        ...params,
+        export_type: exportType,
+      });
+
+      // Automatically download the file
+      const link = document.createElement("a");
+      link.href = result.url;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       // Close dropdown after a short delay to show success
       setTimeout(() => {
@@ -197,6 +191,11 @@ export const LogsTable: React.FC<LogsTableProps> = ({
       }, 500);
     } catch (error: any) {
       console.error("Failed to export logs:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to export logs. Please try again.";
+      alert(errorMessage);
       setShowExportDropdown(false);
     } finally {
       setExportLoading(false);
@@ -367,7 +366,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
           ) : (
             <div className="h-[616px] w-full flex items-start overflow-auto">
               {/* Entity Column */}
-              <div className="flex flex-col justify-start items-start flex-shrink-0">
+              <div className="flex flex-col justify-start items-start flex-shrink-0 min-w-0 max-w-xs">
                 <div className="self-stretch h-14 px-5 py-3 border-b border-stone-200 flex flex-col justify-center items-start">
                   <div className="self-stretch justify-start text-teal-950 text-sm font-medium leading-5">
                     Entity
@@ -376,9 +375,12 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 {logs.map((log) => (
                   <div
                     key={`entity-${log.id}`}
-                    className="self-stretch h-14 px-5 py-2 border-b border-stone-200 flex flex-col justify-center items-start"
+                    className="self-stretch h-14 px-5 py-2 border-b border-stone-200 flex flex-col justify-center items-start min-w-0"
                   >
-                    <div className="justify-center text-teal-950 text-sm font-normal">
+                    <div
+                      className="justify-center text-teal-950 text-sm font-normal truncate w-full"
+                      title={log.entity}
+                    >
                       {log.entity}
                     </div>
                   </div>
@@ -386,7 +388,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
               </div>
 
               {/* Field Column */}
-              <div className="w-80 flex flex-col justify-start items-start flex-shrink-0">
+              <div className="w-80 flex flex-col justify-start items-start flex-shrink-0 min-w-0">
                 <div className="self-stretch h-14 px-5 py-3 border-b border-stone-200 flex flex-col justify-center items-start">
                   <div className="self-stretch justify-start text-teal-950 text-sm font-medium leading-5">
                     Field
@@ -395,9 +397,12 @@ export const LogsTable: React.FC<LogsTableProps> = ({
                 {logs.map((log) => (
                   <div
                     key={`field-${log.id}`}
-                    className="self-stretch h-14 px-5 py-2 border-b border-stone-200 flex flex-col justify-center items-start"
+                    className="self-stretch h-14 px-5 py-2 border-b border-stone-200 flex flex-col justify-center items-start min-w-0"
                   >
-                    <div className="self-stretch justify-center text-teal-950 text-sm font-normal">
+                    <div
+                      className="self-stretch justify-center text-teal-950 text-sm font-normal truncate w-full"
+                      title={log.field}
+                    >
                       {log.field}
                     </div>
                   </div>
