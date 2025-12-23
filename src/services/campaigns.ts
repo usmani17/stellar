@@ -83,6 +83,7 @@ export interface CampaignDetail {
     startDate?: string;
     endDate?: string;
     budgetType?: string;
+    portfolioId?: string | number;
     description: string;
     targetingType?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (camelCase)
     targeting_type?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (snake_case)

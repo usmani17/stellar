@@ -154,6 +154,14 @@ export const Campaigns: React.FC = () => {
   const [createCampaignError, setCreateCampaignError] = useState<string | null>(
     null
   );
+  const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">(
+    "create"
+  );
+  const [initialCampaignData, setInitialCampaignData] =
+    useState<Partial<CreateCampaignData> | null>(null);
+  const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
+    string | number | null
+  >(null);
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
@@ -758,10 +766,11 @@ export const Campaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.createCampaign(
-        accountIdNum,
-        data
-      );
+      const response = await campaignsService.createCampaign(accountIdNum, {
+        ...data,
+        // Ensure type matches the service payload (no empty string)
+        type: (data.type || "SP") as "SP" | "SB" | "SD",
+      });
 
       console.log("Create campaign response:", response);
 
@@ -881,6 +890,98 @@ export const Campaigns: React.FC = () => {
       // Don't close panel on error - let user fix and resubmit
       // Re-throw error so the form knows submission failed
       throw error;
+    }
+  };
+
+  // Shared submit handler for the campaign panel (create for now, edit wiring to be added)
+  const handleCampaignPanelSubmit = async (data: CreateCampaignData) => {
+    if (!accountId) return;
+    // For now, both create and edit flows reuse the create endpoint.
+    // A dedicated update endpoint can be wired here later.
+    await handleCreateCampaign(data);
+  };
+
+  // Open edit mode for an existing campaign (UI wiring; full edit flow can be added on top)
+  const handleOpenEditCampaign = async (row: Campaign) => {
+    if (!accountId) return;
+
+    try {
+      setEditLoadingCampaignId(row.campaignId);
+      setCampaignFormMode("edit");
+      setCreateCampaignError(null);
+      setCreateCampaignLoading(true);
+      setIsCreateCampaignPanelOpen(true);
+
+      const accountIdNum = parseInt(accountId);
+      const detail = await campaignsService.getCampaignDetail(
+        accountIdNum,
+        row.campaignId,
+        undefined,
+        undefined,
+        row.type
+      );
+
+      const campaign = detail.campaign;
+
+      // Normalize status into the values expected by the CreateCampaignPanel
+      let normalizedStatus: any = campaign.status;
+      if (row.type) {
+        const typeUpper = row.type.toUpperCase();
+        if (typeUpper === "SP" || typeUpper === "SB") {
+          // SP/SB: we want "Enabled" / "Paused" for the dropdown
+          const raw = String(campaign.status || "").toUpperCase();
+          if (raw === "PAUSED") {
+            normalizedStatus = "Paused";
+          } else {
+            normalizedStatus = "Enabled";
+          }
+        } else if (typeUpper === "SD") {
+          // SD: keep lower-case "enabled"/"paused" for the existing mapping logic
+          const raw = String(campaign.status || "").toLowerCase();
+          if (raw === "paused") {
+            normalizedStatus = "paused";
+          } else {
+            normalizedStatus = "enabled";
+          }
+        }
+      }
+
+      const initial: Partial<CreateCampaignData> = {
+        campaign_name: campaign.name || row.campaign_name,
+        type: (row.type?.toUpperCase() as any) || "SP",
+        // Try to pre-select profile if we have it on the row
+        profileId: (row as any).profile_id || undefined,
+        // Pre-select portfolio if present in campaign detail
+        portfolioId: (campaign as any).portfolioId
+          ? String((campaign as any).portfolioId)
+          : undefined,
+        budget:
+          typeof campaign.budget === "number"
+            ? campaign.budget
+            : row.daily_budget || 0,
+        budgetType:
+          (campaign.budgetType as any) || (row.budgetType as any) || "DAILY",
+        status: normalizedStatus || "Enabled",
+        startDate: campaign.startDate || row.startDate,
+        endDate: campaign.endDate,
+        targetingType:
+          (campaign.targetingType as any) ||
+          (campaign.targeting_type as any) ||
+          undefined,
+      };
+
+      setInitialCampaignData(initial);
+      // After data is loaded and form state is set, smoothly scroll to top
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      setEditLoadingCampaignId(null);
+    } catch (error) {
+      console.error("Failed to load campaign for edit:", error);
+      setCreateCampaignError("Failed to load campaign for edit");
+      setEditLoadingCampaignId(null);
+    } finally {
+      setCreateCampaignLoading(false);
     }
   };
 
@@ -1106,8 +1207,12 @@ export const Campaigns: React.FC = () => {
               </h1>
               <div className="flex items-center gap-2">
                 <CreateCampaignSection
-                  isOpen={isCreateCampaignPanelOpen}
+                  isOpen={
+                    isCreateCampaignPanelOpen && campaignFormMode === "create"
+                  }
                   onToggle={() => {
+                    setCampaignFormMode("create");
+                    setInitialCampaignData(null);
                     setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
                     setIsFilterPanelOpen(false); // Close filter panel when opening create panel
                   }}
@@ -1126,18 +1231,22 @@ export const Campaigns: React.FC = () => {
               </div>
             </div>
 
-            {/* Create Campaign Panel */}
+            {/* Create / Edit Campaign Panel */}
             {isCreateCampaignPanelOpen && (
               <CreateCampaignPanel
                 isOpen={isCreateCampaignPanelOpen}
                 onClose={() => {
                   setIsCreateCampaignPanelOpen(false);
                   setCreateCampaignError(null);
+                  setInitialCampaignData(null);
+                  setCampaignFormMode("create");
                 }}
-                onSubmit={handleCreateCampaign}
+                onSubmit={handleCampaignPanelSubmit}
                 accountId={accountId}
                 loading={createCampaignLoading}
                 submitError={createCampaignError}
+                mode={campaignFormMode}
+                initialData={initialCampaignData}
               />
             )}
 
@@ -2032,7 +2141,7 @@ export const Campaigns: React.FC = () => {
                           return (
                             <tr
                               key={campaign.campaignId}
-                              className={`${
+                              className={`group ${
                                 !isLastRow ? "border-b border-[#e8e8e3]" : ""
                               } hover:bg-gray-50 transition-colors`}
                             >
@@ -2063,27 +2172,82 @@ export const Campaigns: React.FC = () => {
                                 </div>
                               </td>
 
-                              {/* Campaign Name */}
+                              {/* Campaign Name (with edit icon) */}
                               <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
-                                <button
-                                  onClick={() => {
-                                    if (accountId) {
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          parseInt(accountId),
-                                          "amazon",
-                                          "campaigns",
-                                          `${campaign.type.toLowerCase()}_${
-                                            campaign.campaignId
-                                          }`
-                                        )
-                                      );
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditCampaign(campaign);
+                                    }}
+                                    className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60"
+                                    title="Edit campaign"
+                                    disabled={
+                                      editLoadingCampaignId ===
+                                      campaign.campaignId
                                     }
-                                  }}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
-                                >
-                                  {campaign.campaign_name || "Unnamed Campaign"}
-                                </button>
+                                  >
+                                    {editLoadingCampaignId ===
+                                    campaign.campaignId ? (
+                                      // Small spinner while campaign details load
+                                      <svg
+                                        className="w-4 h-4 text-[#136D6D] animate-spin"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                      >
+                                        <circle
+                                          className="opacity-25"
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          strokeWidth="4"
+                                        />
+                                        <path
+                                          className="opacity-75"
+                                          d="M4 12a8 8 0 018-8"
+                                          strokeWidth="4"
+                                          strokeLinecap="round"
+                                        />
+                                      </svg>
+                                    ) : (
+                                      <svg
+                                        className="w-4 h-4 text-[#556179]"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                      </svg>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (accountId) {
+                                        navigate(
+                                          buildMarketplaceRoute(
+                                            parseInt(accountId),
+                                            "amazon",
+                                            "campaigns",
+                                            `${campaign.type.toLowerCase()}_${
+                                              campaign.campaignId
+                                            }`
+                                          )
+                                        );
+                                      }
+                                    }}
+                                    className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
+                                  >
+                                    {campaign.campaign_name ||
+                                      "Unnamed Campaign"}
+                                  </button>
+                                </div>
                               </td>
 
                               {/* Profile */}

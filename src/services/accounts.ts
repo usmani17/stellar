@@ -167,5 +167,13 @@ export const accountsService = {
     });
     return response.data;
   },
+
+  // Amazon Portfolios (per account, not campaign-type specific)
+  getPortfolios: async (accountId: number): Promise<Array<{ id: string; name: string }>> => {
+    const response = await api.get<{ portfolios: Array<{ id: string; name: string }> }>(
+      `/accounts/${accountId}/portfolios/`
+    );
+    return response.data.portfolios || [];
+  },
 };
 
