@@ -1038,6 +1038,27 @@ export const Campaigns: React.FC = () => {
         );
       }
 
+      // 5. Check if portfolioId changed
+      const originalPortfolioId = original.portfolioId || "";
+      const newPortfolioId = data.portfolioId || "";
+      // Compare as strings (both could be empty string or undefined)
+      const originalPortfolioIdStr = originalPortfolioId
+        ? String(originalPortfolioId).trim()
+        : "";
+      const newPortfolioIdStr = newPortfolioId
+        ? String(newPortfolioId).trim()
+        : "";
+      if (originalPortfolioIdStr !== newPortfolioIdStr) {
+        // If newPortfolioId is empty, send null to remove portfolio assignment
+        updates.push(
+          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+            campaignIds: [campaignId],
+            action: "portfolioId",
+            portfolioId: newPortfolioIdStr || null,
+          })
+        );
+      }
+
       // Execute all updates
       if (updates.length === 0) {
         // No changes detected, just close the panel

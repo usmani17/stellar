@@ -1052,14 +1052,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         buttonClassName="w-full"
                         disabled={
-                          loadingPortfolios || portfolioOptions.length === 0 || mode === "edit"
+                          loadingPortfolios || portfolioOptions.length === 0
                         }
                       />
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
                       {errors.portfolioId && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.portfolioId}
@@ -1139,14 +1134,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         buttonClassName="w-full"
                         disabled={
-                          loadingPortfolios || portfolioOptions.length === 0 || mode === "edit"
+                          loadingPortfolios || portfolioOptions.length === 0
                         }
                       />
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
                       {errors.portfolioId && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.portfolioId}
@@ -1292,21 +1282,23 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                           Portfolio ID
                         </label>
-                        <input
-                          type="text"
-                          value={formData.portfolioId || ""}
-                          onChange={(e) =>
-                            handleChange("portfolioId", e.target.value)
+                        <Dropdown<string>
+                          options={portfolioOptions}
+                          value={formData.portfolioId || undefined}
+                          onChange={(value) => handleChange("portfolioId", value)}
+                          placeholder={
+                            loadingPortfolios
+                              ? "Loading portfolios..."
+                              : "Select portfolio (optional)"
                           }
-                          placeholder="Enter portfolio ID (optional)"
-                          disabled={mode === "edit"}
-                          className={`bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                            mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                          }`}
+                          buttonClassName="w-full"
+                          disabled={
+                            loadingPortfolios || portfolioOptions.length === 0
+                          }
                         />
-                        {mode === "edit" && (
-                          <p className="text-[10px] text-[#556179] mt-1 italic">
-                            Read-only in edit mode
+                        {errors.portfolioId && (
+                          <p className="text-[10px] text-red-500 mt-1">
+                            {errors.portfolioId}
                           </p>
                         )}
                       </div>
