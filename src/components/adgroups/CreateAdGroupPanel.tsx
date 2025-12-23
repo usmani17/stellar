@@ -7,6 +7,26 @@ export interface AdGroupInput {
   state: "ENABLED" | "PAUSED";
 }
 
+interface AdGroupError {
+  index: number;
+  field: keyof AdGroupInput;
+  message: string;
+}
+
+interface CreatedAdGroup {
+  adGroupId?: string;
+  name: string;
+  defaultBid: number;
+  state: "ENABLED" | "PAUSED";
+  index?: number;
+}
+
+interface FailedAdGroup {
+  index: number;
+  adgroup: AdGroupInput;
+  errors: Array<{ field?: string; message: string }>;
+}
+
 interface CreateAdGroupPanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +35,10 @@ interface CreateAdGroupPanelProps {
   campaignType?: string; // SP, SB, or SD
   loading?: boolean;
   submitError?: string | null;
+  fieldErrors?: Record<string, string>;
+  createdAdGroups?: CreatedAdGroup[];
+  failedCount?: number;
+  failedAdGroups?: FailedAdGroup[];
 }
 
 const STATE_OPTIONS = [
@@ -30,6 +54,10 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
   campaignType = "SP",
   loading = false,
   submitError = null,
+  fieldErrors = {},
+  createdAdGroups = [],
+  failedCount = 0,
+  failedAdGroups = [],
 }) => {
   // Generate default ad group name
   const generateDefaultAdGroupName = (type: string): string => {
@@ -58,6 +86,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
   const [errors, setErrors] = useState<
     Partial<Record<keyof AdGroupInput, string>>
   >({});
+  const [adGroupErrors, setAdGroupErrors] = useState<AdGroupError[]>([]);
 
   // Update default name when panel opens or campaign type changes
   useEffect(() => {
@@ -119,16 +148,139 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
       return;
     }
 
+    // Clear previous errors
+    setAdGroupErrors([]);
     onSubmit(addedAdGroups);
-    // Reset everything
-    setAddedAdGroups([]);
-    setCurrentAdGroup({
-      name: generateDefaultAdGroupName(campaignType),
-      defaultBid: 0.1,
-      state: "ENABLED",
-    });
-    setErrors({});
+    // Don't reset adgroups here - let parent handle success/error
   };
+
+  // Compute adjusted error indices based on created adgroups
+  // This needs to be computed synchronously for rendering
+  const getAdjustedErrorIndex = (originalIndex: number): number => {
+    if (createdAdGroups.length === 0) return originalIndex;
+    const createdIndices = new Set(
+      createdAdGroups
+        .map((cag) => cag.index)
+        .filter((idx) => idx !== undefined && idx !== null)
+    );
+    const removedBefore = Array.from(createdIndices).filter(
+      (idx) => idx < originalIndex
+    ).length;
+    return originalIndex - removedBefore;
+  };
+
+  // Process failed adgroups and field errors - adjust indices immediately
+  useEffect(() => {
+    const newAdGroupErrors: AdGroupError[] = [];
+
+    // Process failed adgroups - use index from backend response and adjust immediately
+    if (failedAdGroups && failedAdGroups.length > 0) {
+      failedAdGroups.forEach((failedAdGroup) => {
+        // Use the index from the backend response directly
+        const originalIndex = failedAdGroup.index;
+
+        // Only process if index is valid
+        if (originalIndex !== undefined && originalIndex !== null) {
+          // Adjust the index based on created adgroups
+          const adjustedIndex = getAdjustedErrorIndex(originalIndex);
+
+          // Map errors to the adgroup at this adjusted index
+          if (failedAdGroup.errors && failedAdGroup.errors.length > 0) {
+            failedAdGroup.errors.forEach((error) => {
+              // Map error field to AdGroupInput field
+              let field: keyof AdGroupInput = "name"; // Default
+              if (error.field) {
+                // Map Amazon API field names to frontend field names
+                const fieldMap: Record<string, keyof AdGroupInput> = {
+                  name: "name",
+                  defaultBid: "defaultBid",
+                  state: "state",
+                };
+                field =
+                  fieldMap[error.field] || (error.field as keyof AdGroupInput);
+              }
+
+              // Check if error already exists for this index+field to avoid duplicates
+              const exists = newAdGroupErrors.some(
+                (e) => e.index === adjustedIndex && e.field === field
+              );
+              if (!exists) {
+                newAdGroupErrors.push({
+                  index: adjustedIndex,
+                  field,
+                  message: error.message,
+                });
+              }
+            });
+          } else {
+            // If no specific errors, add a generic error to ensure the row is marked
+            const exists = newAdGroupErrors.some(
+              (e) => e.index === adjustedIndex && e.field === "name"
+            );
+            if (!exists) {
+              newAdGroupErrors.push({
+                index: adjustedIndex,
+                field: "name",
+                message: "Failed to create ad group",
+              });
+            }
+          }
+        }
+      });
+    }
+
+    // Process field errors (format: "field_$index") - adjust indices immediately
+    Object.entries(fieldErrors).forEach(([key, message]) => {
+      const match = key.match(/^(.+)_\$(\d+)$/);
+      if (match) {
+        const [, fieldName, indexStr] = match;
+        const originalIndex = parseInt(indexStr, 10);
+        if (!isNaN(originalIndex)) {
+          // Adjust the index based on created adgroups
+          const adjustedIndex = getAdjustedErrorIndex(originalIndex);
+
+          // Map field name to AdGroupInput field
+          const fieldMap: Record<string, keyof AdGroupInput> = {
+            name: "name",
+            defaultBid: "defaultBid",
+            state: "state",
+          };
+          const field =
+            fieldMap[fieldName] || (fieldName as keyof AdGroupInput);
+
+          // Check if error already exists for this index+field
+          const exists = newAdGroupErrors.some(
+            (e) => e.index === adjustedIndex && e.field === field
+          );
+          if (!exists) {
+            newAdGroupErrors.push({
+              index: adjustedIndex,
+              field,
+              message,
+            });
+          }
+        }
+      }
+    });
+
+    setAdGroupErrors(newAdGroupErrors);
+  }, [failedAdGroups, fieldErrors, createdAdGroups]);
+
+  // Handle successful adgroups - remove them from the list using index
+  useEffect(() => {
+    if (createdAdGroups && createdAdGroups.length > 0) {
+      const createdIndices = new Set(
+        createdAdGroups
+          .map((cag) => cag.index)
+          .filter((idx) => idx !== undefined && idx !== null)
+      );
+
+      // Remove adgroups at the indices that were successfully created
+      setAddedAdGroups((prev) => {
+        return prev.filter((_, index) => !createdIndices.has(index));
+      });
+    }
+  }, [createdAdGroups]);
 
   const handleCancel = () => {
     setAddedAdGroups([]);
@@ -138,6 +290,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
       state: "ENABLED",
     });
     setErrors({});
+    setAdGroupErrors([]);
     onClose();
   };
 
@@ -254,27 +407,86 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                 <tbody>
                   {addedAdGroups.map((adgroup, index) => {
                     const isLastRow = index === addedAdGroups.length - 1;
+                    // Check if this adgroup has errors
+                    const adGroupRowErrors = adGroupErrors.filter(
+                      (e) => e.index === index
+                    );
+                    const hasErrors = adGroupRowErrors.length > 0;
+
+                    // Check if this adgroup failed by comparing with adjusted indices
+                    const isFailedAdGroup = failedAdGroups.some((fag) => {
+                      if (fag.index === undefined || fag.index === null)
+                        return false;
+                      // Get the adjusted index for this failed adgroup
+                      const adjustedFailedIndex = getAdjustedErrorIndex(
+                        fag.index
+                      );
+                      return adjustedFailedIndex === index;
+                    });
+
+                    // If an adgroup failed but has no specific errors, we should still mark it
+                    // This handles cases where the backend reports a failure but no specific error message
+                    const shouldHighlight = hasErrors || isFailedAdGroup;
+
                     return (
                       <tr
                         key={index}
                         className={`${
                           !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                        } ${
+                          shouldHighlight ? "bg-red-50" : ""
                         } hover:bg-gray-50 transition-colors`}
                       >
                         <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {adgroup.name}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {adgroup.name}
+                            </span>
+                            {adGroupRowErrors
+                              .filter((e) => e.field === "name")
+                              .map((e, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] text-red-500 mt-1"
+                                >
+                                  {e.message}
+                                </span>
+                              ))}
+                          </div>
                         </td>
                         <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            ${adgroup.defaultBid.toFixed(2)}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              ${adgroup.defaultBid.toFixed(2)}
+                            </span>
+                            {adGroupRowErrors
+                              .filter((e) => e.field === "defaultBid")
+                              .map((e, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] text-red-500 mt-1"
+                                >
+                                  {e.message}
+                                </span>
+                              ))}
+                          </div>
                         </td>
                         <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {adgroup.state}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {adgroup.state}
+                            </span>
+                            {adGroupRowErrors
+                              .filter((e) => e.field === "state")
+                              .map((e, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] text-red-500 mt-1"
+                                >
+                                  {e.message}
+                                </span>
+                              ))}
+                          </div>
                         </td>
                         <td className="py-[10px] px-[10px]">
                           <button
@@ -295,18 +507,24 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
         </div>
       )}
 
-      {/* Error Display */}
+      {/* Error Summary */}
       {submitError && (
-        <div className="p-4 border-t border-gray-200 bg-red-50">
-          <p className="text-[12px] text-red-600">
-            {(() => {
-              try {
-                const errorData = JSON.parse(submitError);
-                return errorData.message || submitError;
-              } catch {
-                return submitError;
-              }
-            })()}
+        <div className="p-4 border-b border-gray-200 bg-red-50">
+          <p className="text-[13.3px] text-red-600">{submitError}</p>
+          {createdAdGroups.length > 0 && failedCount > 0 && (
+            <p className="text-[12px] text-red-600 mt-1">
+              {createdAdGroups.length} ad group(s) created successfully.{" "}
+              {failedCount} ad group(s) failed.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Success Summary */}
+      {createdAdGroups.length > 0 && failedCount === 0 && (
+        <div className="p-4 border-b border-gray-200 bg-green-50">
+          <p className="text-[13.3px] text-green-600">
+            {createdAdGroups.length} ad group(s) created successfully!
           </p>
         </div>
       )}
@@ -323,10 +541,10 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={addedAdGroups.length === 0}
+          disabled={addedAdGroups.length === 0 || loading}
           className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Add All Ad Groups
+          {loading ? "Creating..." : "Add All Ad Groups"}
         </button>
       </div>
     </div>

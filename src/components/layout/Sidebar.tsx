@@ -8,7 +8,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../contexts/SidebarContext";
 import StellarLogo from "../../assets/images/stellar-logo-v2 1.svg";
 import InstacartIcon from "../../assets/images/cib_instacart.svg";
-import CreateCampaignIcon from "../../assets/images/ri_amazon-fill.svg";
 import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
 import CampaignIconRegular from "../../assets/images/campaign.svg";
 import CampaignWhiteIcon from "../../assets/campaign-white.svg";
@@ -354,20 +353,6 @@ export const Sidebar: React.FC = () => {
           {(isCollapsed || !isAmazonSectionCollapsed) && (
             <div className="space-y-1">
               <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                }`}
-                title={isCollapsed ? "Create Campaign" : undefined}
-              >
-                <img src={CreateCampaignIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Create Campaign
-                  </span>
-                )}
-              </Link>
-              <Link
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
@@ -593,41 +578,6 @@ export const Sidebar: React.FC = () => {
           )}
           {(isCollapsed || !isGoogleSectionCollapsed) && (
             <div className="space-y-1">
-              <Link
-                to={
-                  accountId
-                    ? buildMarketplaceRoute(
-                        accountId,
-                        "google",
-                        "campaigns",
-                        "create"
-                      )
-                    : "/accounts"
-                }
-                onClick={(e) =>
-                  handleAccountRequiredClick(e, () =>
-                    accountId
-                      ? buildMarketplaceRoute(
-                          accountId,
-                          "google",
-                          "campaigns",
-                          "create"
-                        )
-                      : "/accounts/1/google/campaigns/create"
-                  )
-                }
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                }`}
-                title={isCollapsed ? "Create Campaign" : undefined}
-              >
-                <img src={CreateCampaignIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Create Campaign
-                  </span>
-                )}
-              </Link>
               <Link
                 to={
                   accountId

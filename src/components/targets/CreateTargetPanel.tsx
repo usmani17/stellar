@@ -174,47 +174,36 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     // Don't reset targets here - let parent handle success/error
   };
 
-  // Handle successful targets - remove them from the list
-  useEffect(() => {
-    if (createdTargets && createdTargets.length > 0) {
-      // Match created targets to addedTargets by content (since we don't have targetId initially)
-      setAddedTargets((prev) => {
-        return prev.filter((target) => {
-          // Check if this target was successfully created by matching content
-          const wasCreated = createdTargets.some((ct) => {
-            return (
-              ct.adGroupId === target.adGroupId &&
-              ct.bid === target.bid &&
-              ct.expressionType === target.expressionType &&
-              ct.expression?.[0]?.value === target.expressionValue &&
-              ct.state === target.state
-            );
-          });
-          return !wasCreated;
-        });
-      });
-    }
-  }, [createdTargets]);
+  // Helper function to compute adjusted index based on created targets
+  const getAdjustedErrorIndex = (originalIndex: number): number => {
+    if (createdTargets.length === 0) return originalIndex;
+    const createdIndices = new Set(
+      createdTargets
+        .map((ct) => ct.index)
+        .filter((idx) => idx !== undefined && idx !== null)
+    );
+    const removedBefore = Array.from(createdIndices).filter(
+      (idx) => idx < originalIndex
+    ).length;
+    return originalIndex - removedBefore;
+  };
 
-  // Process failed targets and field errors - map them to current addedTargets
+  // Process failed targets and field errors - adjust indices immediately
   useEffect(() => {
     const newTargetErrors: TargetError[] = [];
 
-    // Process failed targets - match them to addedTargets by content
+    // Process failed targets - use index from backend response and adjust immediately
     if (failedTargets && failedTargets.length > 0) {
       failedTargets.forEach((failedTarget) => {
-        // Find the matching target in addedTargets by content
-        const matchingIndex = addedTargets.findIndex(
-          (tgt) =>
-            tgt.adGroupId === failedTarget.target.adGroupId &&
-            tgt.bid === failedTarget.target.bid &&
-            tgt.expressionType === failedTarget.target.expressionType &&
-            tgt.expressionValue === failedTarget.target.expressionValue &&
-            tgt.state === failedTarget.target.state
-        );
+        // Use the index from the backend response directly
+        const originalIndex = failedTarget.index;
 
-        if (matchingIndex !== -1) {
-          // Map errors to the matching target
+        // Only process if index is valid
+        if (originalIndex !== undefined && originalIndex !== null) {
+          // Adjust the index based on created targets
+          const adjustedIndex = getAdjustedErrorIndex(originalIndex);
+
+          // Map errors to the target at this adjusted index
           failedTarget.errors.forEach((error) => {
             // Map error field to TargetInput field
             let field: keyof TargetInput = "expressionValue"; // Default
@@ -231,56 +220,76 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                 fieldMap[error.field] || (error.field as keyof TargetInput);
             }
 
-            newTargetErrors.push({
-              index: matchingIndex,
-              field,
-              message: error.message,
-            });
+            // Check if error already exists for this index+field to avoid duplicates
+            const exists = newTargetErrors.some(
+              (e) => e.index === adjustedIndex && e.field === field
+            );
+            if (!exists) {
+              newTargetErrors.push({
+                index: adjustedIndex,
+                field,
+                message: error.message,
+              });
+            }
           });
         }
       });
     }
 
-    // Process field errors (format: "field_$index")
+    // Process field errors (format: "field_$index") - adjust indices immediately
     Object.entries(fieldErrors).forEach(([key, message]) => {
       const match = key.match(/^(.+)_\$(\d+)$/);
       if (match) {
         const [, fieldName, indexStr] = match;
         const originalIndex = parseInt(indexStr, 10);
         if (!isNaN(originalIndex)) {
-          // Find the matching target in addedTargets by original index
-          // Since we might have removed some targets, we need to match by content
-          // For now, use the original index if it's still valid
-          if (originalIndex < addedTargets.length) {
-            // Map field name to TargetInput field
-            const fieldMap: Record<string, keyof TargetInput> = {
-              expression: "expressionValue",
-              expressionType: "expressionType",
-              bid: "bid",
-              state: "state",
-              adGroupId: "adGroupId",
-            };
-            const field =
-              fieldMap[fieldName] || (fieldName as keyof TargetInput);
+          // Adjust the index based on created targets
+          const adjustedIndex = getAdjustedErrorIndex(originalIndex);
 
-            // Check if error already exists for this index+field
-            const exists = newTargetErrors.some(
-              (e) => e.index === originalIndex && e.field === field
-            );
-            if (!exists) {
-              newTargetErrors.push({
-                index: originalIndex,
-                field,
-                message,
-              });
-            }
+          // Map field name to TargetInput field
+          const fieldMap: Record<string, keyof TargetInput> = {
+            expression: "expressionValue",
+            expressionType: "expressionType",
+            bid: "bid",
+            state: "state",
+            adGroupId: "adGroupId",
+          };
+          const field = fieldMap[fieldName] || (fieldName as keyof TargetInput);
+
+          // Check if error already exists for this index+field
+          const exists = newTargetErrors.some(
+            (e) => e.index === adjustedIndex && e.field === field
+          );
+          if (!exists) {
+            newTargetErrors.push({
+              index: adjustedIndex,
+              field,
+              message,
+            });
           }
         }
       }
     });
 
     setTargetErrors(newTargetErrors);
-  }, [failedTargets, fieldErrors, addedTargets]);
+  }, [failedTargets, fieldErrors, createdTargets]);
+
+  // Handle successful targets - remove them from the list using index
+  useEffect(() => {
+    if (createdTargets && createdTargets.length > 0) {
+      // Use index from response to remove only the specific target that was created
+      setAddedTargets((prev) => {
+        const createdIndices = new Set(
+          createdTargets
+            .map((ct) => ct.index)
+            .filter((idx) => idx !== undefined && idx !== null)
+        );
+
+        // Remove targets at the indices that were successfully created
+        return prev.filter((_, index) => !createdIndices.has(index));
+      });
+    }
+  }, [createdTargets]);
 
   const handleCancel = () => {
     setAddedTargets([]);
@@ -483,9 +492,19 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                       (e) => e.index === index
                     );
                     const hasErrors = targetRowErrors.length > 0;
-                    const isFailedTarget = failedTargets.some(
-                      (ft) => ft.index === index
-                    );
+                    // Check if this target failed by comparing with adjusted indices
+                    const isFailedTarget = failedTargets.some((ft) => {
+                      if (ft.index === undefined || ft.index === null)
+                        return false;
+                      // Get the adjusted index for this failed target
+                      const adjustedFailedIndex = getAdjustedErrorIndex(
+                        ft.index
+                      );
+                      return adjustedFailedIndex === index;
+                    });
+
+                    // If a target failed but has no specific errors, we should still mark it
+                    const shouldHighlight = hasErrors || isFailedTarget;
 
                     return (
                       <tr
@@ -493,7 +512,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         className={`${
                           !isLastRow ? "border-b border-[#e8e8e3]" : ""
                         } ${
-                          hasErrors || isFailedTarget ? "bg-red-50" : ""
+                          shouldHighlight ? "bg-red-50" : ""
                         } hover:bg-gray-50 transition-colors`}
                       >
                         <td className="py-[10px] px-[10px]">
