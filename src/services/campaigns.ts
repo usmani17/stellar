@@ -1094,7 +1094,7 @@ export const campaignsService = {
     accountId: number,
     payload: {
       campaignIds: Array<string | number>;
-      action: "status" | "budget" | "budgetType";
+      action: "status" | "budget" | "budgetType" | "name";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
       budgetType?: "DAILY" | "LIFETIME";
@@ -1102,6 +1102,7 @@ export const campaignsService = {
       value?: number;
       upperLimit?: number;
       lowerLimit?: number;
+      name?: string;
     }
   ) => {
     const url = `/accounts/${accountId}/campaigns/bulk-update/`;

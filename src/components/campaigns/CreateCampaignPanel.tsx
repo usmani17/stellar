@@ -11,6 +11,7 @@ interface CreateCampaignPanelProps {
   submitError?: string | null;
   mode?: "create" | "edit";
   initialData?: Partial<CreateCampaignData> | null;
+  campaignId?: string | number; // Campaign ID for edit mode (needed for updates)
 }
 
 export interface CreateCampaignData {
@@ -87,7 +88,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   submitError = null,
   mode = "create",
   initialData = null,
+  campaignId,
 }) => {
+  // Store original data for comparison in edit mode
+  const [originalData, setOriginalData] = useState<Partial<CreateCampaignData> | null>(null);
   const [formData, setFormData] = useState<CreateCampaignData>({
     campaign_name: "",
     type: "", // Start with empty to hide all fields
@@ -153,16 +157,22 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   // When opening in edit mode, pre-populate form with initial data
   useEffect(() => {
     if (isOpen && mode === "edit" && initialData) {
-      setFormData((prev) => ({
-        ...prev,
+      const newFormData = {
         ...initialData,
         // Ensure type is a valid value (fallback to previous if not provided)
-        type: (initialData.type as any) || prev.type,
+        type: (initialData.type as any) || "",
+      };
+      setFormData((prev) => ({
+        ...prev,
+        ...newFormData,
       }));
+      // Store original data for comparison
+      setOriginalData({ ...initialData });
     }
     if (isOpen && mode === "create" && !initialData) {
       // For fresh create opens, reset the form
       resetForm();
+      setOriginalData(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, mode, initialData]);
@@ -292,6 +302,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof CreateCampaignData, string>> = {};
 
+    // In edit mode, only validate editable fields: name, status, budget, budgetType
+    if (mode === "edit") {
+      if (!formData.campaign_name.trim()) {
+        newErrors.campaign_name = "Campaign name is required";
+      }
+
+      if (formData.budget <= 0) {
+        newErrors.budget = "Budget must be greater than 0";
+      }
+
+      // Status is a dropdown, so it should always have a value, but validate just in case
+      if (!formData.status) {
+        newErrors.status = "Status is required";
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    }
+
+    // Create mode: validate all required fields
     if (!formData.type) {
       newErrors.type = "Campaign type is required";
     }
@@ -469,7 +499,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Profile and Campaign Type - No gap between them */}
+              {/* Profile and Campaign Type - No gap between them */}
             <div className="flex gap-0">
               {/* Profile - First Field */}
               {profileOptions.length > 0 && (
@@ -485,8 +515,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       loadingProfiles ? "Loading profiles..." : "Select profile"
                     }
                     buttonClassName="w-full"
-                    disabled={loadingProfiles}
+                    disabled={loadingProfiles || mode === "edit"}
                   />
+                  {mode === "edit" && (
+                    <p className="text-[10px] text-[#556179] mt-1 italic">
+                      Read-only in edit mode
+                    </p>
+                  )}
                   {errors.profileId && (
                     <p className="text-[10px] text-red-500 mt-1">
                       {errors.profileId}
@@ -506,7 +541,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   onChange={(value) => handleChange("type", value)}
                   placeholder="Select campaign type"
                   buttonClassName="w-full"
+                  disabled={mode === "edit"}
                 />
+                {mode === "edit" && (
+                  <p className="text-[10px] text-[#556179] mt-1 italic">
+                    Read-only in edit mode
+                  </p>
+                )}
                 {errors.type && (
                   <p className="text-[10px] text-red-500 mt-1">{errors.type}</p>
                 )}
@@ -542,7 +583,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {/* Goal Options - Horizontal Layout */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {/* Drive page visits */}
-                  <label className="flex flex-col p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-[#136D6D] transition-colors">
+                  <label className={`flex flex-col p-4 border border-gray-200 rounded-lg transition-colors ${
+                    mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-[#136D6D]"
+                  }`}>
                     <div className="flex items-start mb-2">
                       <input
                         type="radio"
@@ -552,6 +595,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         onChange={(e) =>
                           handleChange("goal", e.target.value as any)
                         }
+                        disabled={mode === "edit"}
                         className="mt-1 mr-2 w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
                       />
                       <div className="flex-1">
@@ -574,7 +618,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </label>
 
                   {/* Grow brand impression share */}
-                  <label className="flex flex-col p-4 border-2 border-[#136D6D] rounded-lg cursor-pointer bg-[#f0f9f9]">
+                  <label className={`flex flex-col p-4 border-2 border-[#136D6D] rounded-lg bg-[#f0f9f9] ${
+                    mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                  }`}>
                     <div className="flex items-start mb-2">
                       <input
                         type="radio"
@@ -586,6 +632,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         onChange={(e) =>
                           handleChange("goal", e.target.value as any)
                         }
+                        disabled={mode === "edit"}
                         className="mt-1 mr-2 w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
                       />
                       <div className="flex-1">
@@ -613,7 +660,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </label>
 
                   {/* Reserve share of voice */}
-                  <label className="flex flex-col p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-[#136D6D] transition-colors relative">
+                  <label className={`flex flex-col p-4 border border-gray-200 rounded-lg transition-colors relative ${
+                    mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-[#136D6D]"
+                  }`}>
                     <div className="flex items-start mb-2">
                       <input
                         type="radio"
@@ -623,6 +672,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         onChange={(e) =>
                           handleChange("goal", e.target.value as any)
                         }
+                        disabled={mode === "edit"}
                         className="mt-1 mr-2 w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
                       />
                       <div className="flex-1">
@@ -728,6 +778,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 </div>
 
                 {/* Budget Type - Hidden for SP and SB campaigns (SB has it integrated in Budget field) */}
+                {/* Note: Budget Type is editable in edit mode for SD campaigns */}
                 {formData.type === "SD" && (
                   <div>
                     <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
@@ -739,6 +790,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       onChange={(value) => handleChange("budgetType", value)}
                       placeholder="Select budget type"
                       buttonClassName="w-full"
+                      disabled={false} // Budget Type is editable in edit mode
                     />
                   </div>
                 )}
@@ -799,7 +851,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         placeholder="Select targeting type"
                         buttonClassName="w-full"
+                        disabled={mode === "edit"}
                       />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -819,13 +877,19 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("startDate", e.target.value)
                           }
+                          disabled={mode === "edit"}
                           className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.startDate
                               ? "border-red-500"
                               : "border-gray-200"
-                          }`}
+                          } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
                         />
                       </div>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                       {errors.startDate && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.startDate}
@@ -846,13 +910,19 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("endDate", e.target.value)
                           }
                           min={formData.startDate || undefined}
+                          disabled={mode === "edit"}
                           className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
-                          }`}
+                          } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
                         />
                       </div>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                       {errors.endDate && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.endDate}
@@ -878,11 +948,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("startDate", e.target.value)
                           }
+                          disabled={mode === "edit"}
                           className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.startDate
                               ? "border-red-500"
                               : "border-gray-200"
-                          }`}
+                          } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
                         />
                         {formData.type === "SB" && (
                           <svg
@@ -900,6 +971,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           </svg>
                         )}
                       </div>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                       {errors.startDate && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.startDate}
@@ -920,11 +996,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("endDate", e.target.value)
                           }
                           min={formData.startDate || undefined}
+                          disabled={mode === "edit"}
                           className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
-                          }`}
+                          } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
                         />
                         {formData.type === "SB" && (
                           <svg
@@ -942,6 +1019,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           </svg>
                         )}
                       </div>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                       {errors.endDate && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.endDate}
@@ -970,9 +1052,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         buttonClassName="w-full"
                         disabled={
-                          loadingPortfolios || portfolioOptions.length === 0
+                          loadingPortfolios || portfolioOptions.length === 0 || mode === "edit"
                         }
                       />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                       {errors.portfolioId && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.portfolioId}
@@ -995,10 +1082,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         value={formData.tactic || ""}
                         onChange={(e) => handleChange("tactic", e.target.value)}
                         placeholder="Enter tactic (e.g., T00030)"
+                        disabled={mode === "edit"}
                         className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                           errors.tactic ? "border-red-500" : "border-gray-200"
-                        }`}
+                        } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
                       />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                       {errors.tactic && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.tactic}
@@ -1018,8 +1111,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("costType", e.target.value)
                         }
                         placeholder="Enter cost type (e.g., cpc)"
-                        className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        disabled={mode === "edit"}
+                        className={`bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                        }`}
                       />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                     </div>
 
                     {/* Portfolio ID */}
@@ -1038,9 +1139,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         buttonClassName="w-full"
                         disabled={
-                          loadingPortfolios || portfolioOptions.length === 0
+                          loadingPortfolios || portfolioOptions.length === 0 || mode === "edit"
                         }
                       />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                       {errors.portfolioId && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.portfolioId}
@@ -1064,8 +1170,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("brandEntityId", e.target.value)
                         }
                         placeholder="Enter brand entity ID"
-                        className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        disabled={mode === "edit"}
+                        className={`bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                        }`}
                       />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                     </div>
 
                     {/* SB Additional Fields - Product Location, Cost Type, etc. */}
@@ -1101,7 +1215,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             }
                             placeholder="Select product location"
                             buttonClassName="w-full"
+                            disabled={mode === "edit"}
                           />
+                          {mode === "edit" && (
+                            <p className="text-[10px] text-[#556179] mt-1 italic">
+                              Read-only in edit mode
+                            </p>
+                          )}
                         </div>
 
                         {/* Cost Type */}
@@ -1132,7 +1252,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             }
                             placeholder="Select cost type"
                             buttonClassName="w-full"
+                            disabled={mode === "edit"}
                           />
+                          {mode === "edit" && (
+                            <p className="text-[10px] text-[#556179] mt-1 italic">
+                              Read-only in edit mode
+                            </p>
+                          )}
                         </div>
 
                         {/* Smart Default */}
@@ -1151,7 +1277,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             }
                             placeholder="Select smart default (optional)"
                             buttonClassName="w-full"
+                            disabled={mode === "edit"}
                           />
+                          {mode === "edit" && (
+                            <p className="text-[10px] text-[#556179] mt-1 italic">
+                              Read-only in edit mode
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -1167,8 +1299,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("portfolioId", e.target.value)
                           }
                           placeholder="Enter portfolio ID (optional)"
-                          className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          disabled={mode === "edit"}
+                          className={`bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                            mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                          }`}
                         />
+                        {mode === "edit" && (
+                          <p className="text-[10px] text-[#556179] mt-1 italic">
+                            Read-only in edit mode
+                          </p>
+                        )}
                       </div>
 
                       {/* Targeted PG Deal ID */}
@@ -1183,8 +1323,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("targetedPGDealId", e.target.value)
                           }
                           placeholder="Enter DealId (required for FIXED_PRICE cost type)"
-                          className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          disabled={mode === "edit"}
+                          className={`bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                            mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                          }`}
                         />
+                        {mode === "edit" && (
+                          <p className="text-[10px] text-[#556179] mt-1 italic">
+                            Read-only in edit mode
+                          </p>
+                        )}
                       </div>
 
                       {/* Tags */}
@@ -1192,6 +1340,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                           Tags (Key-Value Pairs) - Max 50
                         </label>
+                        {mode === "edit" && (
+                          <p className="text-[10px] text-[#556179] mb-2 italic">
+                            Read-only in edit mode
+                          </p>
+                        )}
                         <div className="space-y-2">
                           {Object.entries(formData.tags || {}).map(
                             ([key, value], index) => (
@@ -1212,7 +1365,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     handleChange("tags", newTags);
                                   }}
                                   placeholder="Key"
-                                  className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                  disabled={mode === "edit"}
+                                  className={`bg-white flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                    mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                  }`}
                                 />
                                 <input
                                   type="text"
@@ -1223,7 +1379,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     handleChange("tags", newTags);
                                   }}
                                   placeholder="Value"
-                                  className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                  disabled={mode === "edit"}
+                                  className={`bg-white flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                    mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                  }`}
                                 />
                                 <button
                                   type="button"
@@ -1232,7 +1391,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     delete newTags[key];
                                     handleChange("tags", newTags);
                                   }}
-                                  className="px-3 py-2 text-red-500 hover:text-red-700 transition-colors"
+                                  disabled={mode === "edit"}
+                                  className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
+                                    mode === "edit" ? "opacity-50 cursor-not-allowed" : ""
+                                  }`}
                                   title="Remove"
                                 >
                                   <svg
@@ -1264,7 +1426,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 newTags[newKey] = "";
                                 handleChange("tags", newTags);
                               }}
-                              className="px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[11.2px]"
+                              disabled={mode === "edit"}
+                              className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[11.2px] ${
+                                mode === "edit" ? "opacity-50 cursor-not-allowed" : ""
+                              }`}
                             >
                               + Add Tag
                             </button>
@@ -1281,9 +1446,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* SB Bidding Section */}
                     <div className="md:col-span-2 mt-4">
-                      <h3 className="text-[14px] font-semibold text-[#072929] mb-4">
-                        Bidding
-                      </h3>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-[14px] font-semibold text-[#072929]">
+                          Bidding
+                        </h3>
+                        {mode === "edit" && (
+                          <p className="text-[10px] text-[#556179] italic">
+                            Read-only in edit mode
+                          </p>
+                        )}
+                      </div>
 
                       {/* Bid Optimization Field */}
                       <div className="mb-6">
@@ -1291,7 +1463,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           Bid Optimization
                         </label>
                         <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2 cursor-pointer">
+                          <label className={`flex items-center gap-2 ${
+                            mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                          }`}>
                             <input
                               type="checkbox"
                               checked={
@@ -1320,6 +1494,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                   return updated;
                                 });
                               }}
+                              disabled={mode === "edit"}
                               className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
                             />
                             <span className="text-[13.3px] font-medium text-[#072929]">
@@ -1444,7 +1619,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                       min="-99"
                                       max="900"
                                       step="1"
-                                      className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                      disabled={mode === "edit"}
+                                      className={`bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                        mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                      }`}
                                     />
                                   </div>
                                   <span className="text-[13px] text-[#072929]">
@@ -1509,7 +1687,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                       min="-99"
                                       max="900"
                                       step="1"
-                                      className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                      disabled={mode === "edit"}
+                                      className={`bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                        mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                      }`}
                                     />
                                   </div>
                                   <span className="text-[13px] text-[#072929]">
@@ -1526,7 +1707,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           <div className="space-y-4">
                             {/* Radio Buttons */}
                             <div className="space-y-3">
-                              <label className="flex items-center gap-3 cursor-pointer">
+                              <label className={`flex items-center gap-3 ${
+                                mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                              }`}>
                                 <input
                                   type="radio"
                                   name="audienceBidOption"
@@ -1534,13 +1717,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                   onChange={() =>
                                     setIncreaseBidsForAudiences(true)
                                   }
+                                  disabled={mode === "edit"}
                                   className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
                                 />
                                 <span className="text-[13px] font-medium text-[#072929]">
                                   Increase bids for audiences built by Amazon
                                 </span>
                               </label>
-                              <label className="flex items-center gap-3 cursor-pointer">
+                              <label className={`flex items-center gap-3 ${
+                                mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                              }`}>
                                 <input
                                   type="radio"
                                   name="audienceBidOption"
@@ -1548,6 +1734,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                   onChange={() =>
                                     setIncreaseBidsForAudiences(false)
                                   }
+                                  disabled={mode === "edit"}
                                   className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
                                 />
                                 <span className="text-[13px] font-medium text-[#072929]">
@@ -1590,6 +1777,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         }
                                         placeholder="Select audience"
                                         buttonClassName="w-full"
+                                        disabled={mode === "edit"}
                                       />
                                       <svg
                                         className="w-4 h-4 text-[#556179] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -1624,7 +1812,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           min="0"
                                           max="900"
                                           step="1"
-                                          className="bg-white w-24 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                          disabled={mode === "edit"}
+                                          className={`bg-white w-24 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                            mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                          }`}
                                         />
                                       </div>
                                       <span className="text-[13px] text-[#072929]">

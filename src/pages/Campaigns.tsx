@@ -162,6 +162,9 @@ export const Campaigns: React.FC = () => {
   const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
     string | number | null
   >(null);
+  const [campaignId, setCampaignId] = useState<string | number | undefined>(
+    undefined
+  );
 
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
@@ -915,12 +918,159 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  // Shared submit handler for the campaign panel (create for now, edit wiring to be added)
+  // Shared submit handler for the campaign panel
   const handleCampaignPanelSubmit = async (data: CreateCampaignData) => {
     if (!accountId) return;
-    // For now, both create and edit flows reuse the create endpoint.
-    // A dedicated update endpoint can be wired here later.
-    await handleCreateCampaign(data);
+
+    // If in edit mode, use update API instead of create
+    if (campaignFormMode === "edit" && campaignId) {
+      await handleUpdateCampaign(data);
+    } else {
+      await handleCreateCampaign(data);
+    }
+  };
+
+  // Handle campaign updates in edit mode
+  const handleUpdateCampaign = async (data: CreateCampaignData) => {
+    if (!accountId || !campaignId) return;
+
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) {
+      throw new Error("Invalid account ID");
+    }
+
+    setCreateCampaignLoading(true);
+    setCreateCampaignError(null);
+
+    try {
+      // Get original data to compare changes
+      const original = initialCampaignData;
+      if (!original) {
+        throw new Error("Original campaign data not available");
+      }
+
+      // Track which fields have changed
+      const updates: Array<Promise<any>> = [];
+
+      // 1. Check if name changed
+      if (
+        data.campaign_name !== original.campaign_name &&
+        data.campaign_name.trim()
+      ) {
+        updates.push(
+          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+            campaignIds: [campaignId],
+            action: "name",
+            name: data.campaign_name.trim(),
+          })
+        );
+      }
+
+      // 2. Check if status changed
+      const originalStatus = original.status || "";
+      const newStatus = data.status || "";
+
+      // Normalize status values for comparison (convert to lowercase for comparison)
+      const normalizeStatusForCompare = (s: string) => {
+        const upper = s.toUpperCase();
+        if (upper === "ENABLED" || upper === "ENABLE") return "enabled";
+        if (upper === "PAUSED" || upper === "PAUSE") return "paused";
+        return s.toLowerCase();
+      };
+
+      // Map status to API format
+      const statusMap: Record<string, "enable" | "pause"> = {
+        Enabled: "enable",
+        ENABLED: "enable",
+        enable: "enable",
+        enabled: "enable",
+        Paused: "pause",
+        PAUSED: "pause",
+        pause: "pause",
+        paused: "pause",
+      };
+
+      if (
+        normalizeStatusForCompare(newStatus) !==
+        normalizeStatusForCompare(originalStatus)
+      ) {
+        const statusValue = statusMap[newStatus] || "enable";
+        updates.push(
+          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+            campaignIds: [campaignId],
+            action: "status",
+            status: statusValue,
+          })
+        );
+      }
+
+      // 3. Check if budget changed
+      const originalBudget = original.budget || 0;
+      const newBudget = data.budget || 0;
+      if (Math.abs(newBudget - originalBudget) > 0.01) {
+        updates.push(
+          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+            campaignIds: [campaignId],
+            action: "budget",
+            budgetAction: "set",
+            unit: "amount",
+            value: newBudget,
+          })
+        );
+      }
+
+      // 4. Check if budgetType changed (only for SB and SD campaigns)
+      const originalBudgetType = original.budgetType || "";
+      const newBudgetType = data.budgetType || "";
+      // Normalize budgetType values for comparison
+      const normalizeBudgetType = (bt: string) => bt.toUpperCase();
+      if (
+        normalizeBudgetType(newBudgetType) !==
+          normalizeBudgetType(originalBudgetType) &&
+        (newBudgetType === "DAILY" || newBudgetType === "LIFETIME")
+      ) {
+        updates.push(
+          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+            campaignIds: [campaignId],
+            action: "budgetType",
+            budgetType: newBudgetType.toUpperCase() as "DAILY" | "LIFETIME",
+          })
+        );
+      }
+
+      // Execute all updates
+      if (updates.length === 0) {
+        // No changes detected, just close the panel
+        setIsCreateCampaignPanelOpen(false);
+        setCreateCampaignError(null);
+        setCreateCampaignLoading(false);
+        return;
+      }
+
+      await Promise.all(updates);
+
+      // Reset refs to force reload
+      requestIdRef.current = "";
+      loadingRef.current = false;
+
+      // Reload campaigns to get updated data
+      await loadCampaigns(accountIdNum);
+
+      // Close the panel
+      setIsCreateCampaignPanelOpen(false);
+      setCreateCampaignError(null);
+      setInitialCampaignData(null);
+      setCampaignFormMode("create");
+    } catch (error: any) {
+      console.error("Failed to update campaign:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to update campaign. Please try again.";
+      setCreateCampaignError(errorMessage);
+    } finally {
+      setCreateCampaignLoading(false);
+    }
   };
 
   // Open edit mode for an existing campaign (UI wiring; full edit flow can be added on top)
@@ -993,6 +1143,7 @@ export const Campaigns: React.FC = () => {
       };
 
       setInitialCampaignData(initial);
+      setCampaignId(row.campaignId);
       // After data is loaded and form state is set, smoothly scroll to top
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1262,6 +1413,7 @@ export const Campaigns: React.FC = () => {
                   setCreateCampaignError(null);
                   setInitialCampaignData(null);
                   setCampaignFormMode("create");
+                  setCampaignId(undefined);
                 }}
                 onSubmit={handleCampaignPanelSubmit}
                 accountId={accountId}
@@ -1269,6 +1421,7 @@ export const Campaigns: React.FC = () => {
                 submitError={createCampaignError}
                 mode={campaignFormMode}
                 initialData={initialCampaignData}
+                campaignId={campaignId}
               />
             )}
 
