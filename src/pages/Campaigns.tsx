@@ -133,7 +133,7 @@ export const Campaigns: React.FC = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<
-    "enable" | "pause" | "archive" | null
+    "enable" | "pause" | null
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -634,11 +634,11 @@ export const Campaigns: React.FC = () => {
       }
 
       if (inlineEditField === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
+        // Map status values - Note: "archive" is not allowed via API
+        const statusMap: Record<string, "enable" | "pause"> = {
           Enable: "enable",
           Paused: "pause",
-          Archived: "archive",
+          // Archived is read-only and cannot be set via API
         };
         const statusValue = statusMap[inlineEditNewValue] || "enable";
 
@@ -680,8 +680,13 @@ export const Campaigns: React.FC = () => {
         });
       }
 
-      // Reload campaigns
+      // Reset refs to force reload
+      requestIdRef.current = "";
+      loadingRef.current = false;
+
+      // Reload campaigns to get updated data
       await loadCampaigns(accountIdNum);
+
       setShowInlineEditModal(false);
       setInlineEditCampaign(null);
       setInlineEditField(null);
@@ -695,7 +700,7 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  const runBulkStatus = async (statusValue: "enable" | "pause" | "archive") => {
+  const runBulkStatus = async (statusValue: "enable" | "pause") => {
     if (!accountId || selectedCampaigns.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
@@ -707,7 +712,12 @@ export const Campaigns: React.FC = () => {
         action: "status",
         status: statusValue,
       });
-      // Refresh
+
+      // Reset refs to force reload
+      requestIdRef.current = "";
+      loadingRef.current = false;
+
+      // Refresh campaigns to get updated data
       await loadCampaigns(accountIdNum);
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
@@ -739,6 +749,12 @@ export const Campaigns: React.FC = () => {
         upperLimit: upper,
         lowerLimit: lower,
       });
+
+      // Reset refs to force reload
+      requestIdRef.current = "";
+      loadingRef.current = false;
+
+      // Refresh campaigns to get updated data
       await loadCampaigns(accountIdNum);
     } catch (error: any) {
       console.error("Failed to update budgets", error);
@@ -822,6 +838,12 @@ export const Campaigns: React.FC = () => {
           message: `Campaign "${data.campaign_name}" created successfully!`,
           isSuccess: true,
         });
+
+        // Reset refs to force reload
+        requestIdRef.current = "";
+        loadingRef.current = false;
+
+        // Refresh campaigns to get updated data
         await loadCampaigns(accountIdNum);
       }
     } catch (error: any) {
@@ -1317,7 +1339,7 @@ export const Campaigns: React.FC = () => {
                         {[
                           { value: "enable", label: "Enabled" },
                           { value: "pause", label: "Pause" },
-                          { value: "archive", label: "Archive" },
+                          // Note: "archive" is removed - archived campaigns are read-only and cannot be set via API
                           { value: "edit_budget", label: "Edit Budget" },
                         ].map((opt) => (
                           <button
@@ -1333,7 +1355,7 @@ export const Campaigns: React.FC = () => {
                               } else {
                                 setShowBudgetPanel(false);
                                 setPendingStatusAction(
-                                  opt.value as "enable" | "pause" | "archive"
+                                  opt.value as "enable" | "pause"
                                 );
                                 setIsBudgetChange(false);
                                 setShowConfirmationModal(true);
@@ -2276,7 +2298,7 @@ export const Campaigns: React.FC = () => {
                                     options={[
                                       { value: "Enabled", label: "Enabled" },
                                       { value: "Paused", label: "Paused" },
-                                      { value: "Archived", label: "Archived" },
+                                      // Note: "Archived" is not included as it's read-only and cannot be set via API
                                     ]}
                                     value={editedValue}
                                     onChange={(val) => {
@@ -2294,10 +2316,30 @@ export const Campaigns: React.FC = () => {
                                   />
                                 ) : (
                                   <div
-                                    onClick={() =>
-                                      startInlineEdit(campaign, "status")
+                                    onClick={() => {
+                                      // Prevent editing if campaign is archived
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      if (currentStatus === "ARCHIVED") {
+                                        return; // Archived campaigns are read-only
+                                      }
+                                      startInlineEdit(campaign, "status");
+                                    }}
+                                    className={`${
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer hover:bg-gray-50"
+                                    } rounded px-2 py-1`}
+                                    title={
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                        : undefined
                                     }
-                                    className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                   >
                                     <StatusBadge
                                       status={campaign.status || "Enabled"}
@@ -2335,10 +2377,30 @@ export const Campaigns: React.FC = () => {
                                   </div>
                                 ) : (
                                   <p
-                                    onClick={() =>
-                                      startInlineEdit(campaign, "budget")
+                                    onClick={() => {
+                                      // Prevent editing if campaign is archived
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      if (currentStatus === "ARCHIVED") {
+                                        return; // Archived campaigns are read-only
+                                      }
+                                      startInlineEdit(campaign, "budget");
+                                    }}
+                                    className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer hover:bg-gray-50"
+                                    }`}
+                                    title={
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                        : undefined
                                     }
-                                    className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                   >
                                     {formatCurrency(campaign.daily_budget || 0)}
                                   </p>
@@ -2371,10 +2433,30 @@ export const Campaigns: React.FC = () => {
                                   />
                                 ) : (
                                   <p
-                                    onClick={() =>
-                                      startInlineEdit(campaign, "budgetType")
+                                    onClick={() => {
+                                      // Prevent editing if campaign is archived
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      if (currentStatus === "ARCHIVED") {
+                                        return; // Archived campaigns are read-only
+                                      }
+                                      startInlineEdit(campaign, "budgetType");
+                                    }}
+                                    className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer hover:bg-gray-50"
+                                    }`}
+                                    title={
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                        : undefined
                                     }
-                                    className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                   >
                                     {campaign.budgetType || "—"}
                                   </p>

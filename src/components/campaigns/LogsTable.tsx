@@ -507,78 +507,69 @@ export const LogsTable: React.FC<LogsTableProps> = ({
           )}
         </div>
 
-        {/* Pagination - Figma Style */}
+        {/* Pagination */}
         {!loading && logs.length > 0 && (
-          <div className="w-full flex items-center justify-end gap-2">
-            <span className="text-sm text-teal-950">Page</span>
-            <div className="relative">
-              <input
-                type="number"
-                min="1"
-                max={totalPages}
-                value={currentPage}
-                onChange={(e) => {
-                  const page = parseInt(e.target.value);
-                  if (page >= 1 && page <= totalPages) {
-                    handlePageChange(page);
-                  }
-                }}
-                className="w-16 px-2 py-1.5 border border-stone-200 rounded text-sm text-teal-950 text-center focus:outline-none focus:ring-2 focus:ring-forest-f40"
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5">
-                <button
-                  onClick={() => {
-                    if (currentPage < totalPages) {
-                      handlePageChange(currentPage + 1);
-                    }
-                  }}
-                  disabled={currentPage >= totalPages}
-                  className="h-2.5 w-3 flex items-center justify-center text-teal-950 hover:text-forest-f40 disabled:opacity-30 disabled:cursor-not-allowed"
-                  type="button"
-                >
-                  <svg
-                    className="w-2 h-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+          <div className="flex items-center justify-end mt-4">
+            <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
+              <button
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+              >
+                Previous
+              </button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                      currentPage === pageNum
+                        ? "bg-white text-[#136D6D] font-semibold"
+                        : "text-black hover:bg-gray-50"
+                    }`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 15l7-7 7 7"
-                    />
-                  </svg>
-                </button>
+                    {pageNum}
+                  </button>
+                );
+              })}
+              {totalPages > 5 && currentPage < totalPages - 2 && (
+                <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                  ...
+                </span>
+              )}
+              {totalPages > 5 && (
                 <button
-                  onClick={() => {
-                    if (currentPage > 1) {
-                      handlePageChange(currentPage - 1);
-                    }
-                  }}
-                  disabled={currentPage <= 1}
-                  className="h-2.5 w-3 flex items-center justify-center text-teal-950 hover:text-forest-f40 disabled:opacity-30 disabled:cursor-not-allowed"
-                  type="button"
+                  onClick={() => handlePageChange(totalPages)}
+                  className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                    currentPage === totalPages
+                      ? "bg-white text-[#136D6D] font-semibold"
+                      : "text-black hover:bg-gray-50"
+                  }`}
                 >
-                  <svg
-                    className="w-2 h-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                  {totalPages}
                 </button>
-              </div>
+              )}
+              <button
+                onClick={() =>
+                  handlePageChange(Math.min(totalPages, currentPage + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+              >
+                Next
+              </button>
             </div>
-            <span className="text-sm text-teal-950">
-              of {totalPages} Result
-            </span>
           </div>
         )}
       </div>
