@@ -154,7 +154,7 @@ export const Campaigns: React.FC = () => {
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
     campaignId: string | number;
-    field: "budget" | "budgetType" | "status";
+    field: "budget" | "budgetType" | "status" | "name";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
@@ -163,7 +163,7 @@ export const Campaigns: React.FC = () => {
     null
   );
   const [inlineEditField, setInlineEditField] = useState<
-    "budget" | "budgetType" | "status" | null
+    "budget" | "budgetType" | "status" | "name" | null
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
@@ -525,7 +525,7 @@ export const Campaigns: React.FC = () => {
   // Inline edit handlers
   const startInlineEdit = (
     campaign: Campaign,
-    field: "budget" | "budgetType" | "status"
+    field: "budget" | "budgetType" | "status" | "name"
   ) => {
     setEditingCell({ campaignId: campaign.campaignId, field });
     if (field === "budget") {
@@ -534,6 +534,8 @@ export const Campaigns: React.FC = () => {
       setEditedValue(campaign.budgetType || "");
     } else if (field === "status") {
       setEditedValue(campaign.status || "Enabled");
+    } else if (field === "name") {
+      setEditedValue(campaign.campaign_name || "");
     }
   };
 
@@ -582,6 +584,17 @@ export const Campaigns: React.FC = () => {
       const oldValue = (campaign.status || "Enabled").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
+    } else if (editingCell.field === "name") {
+      // Check if name changed (trim whitespace for comparison)
+      const oldValue = (campaign.campaign_name || "").trim();
+      const newValue = valueToCheck.trim();
+      hasChanged = newValue !== oldValue && newValue.length > 0;
+      // Name cannot be empty
+      if (newValue.length === 0) {
+        alert("Campaign name cannot be empty");
+        cancelInlineEdit();
+        return;
+      }
     }
 
     if (!hasChanged) {
@@ -601,6 +614,9 @@ export const Campaigns: React.FC = () => {
     } else if (editingCell.field === "status") {
       oldValue = campaign.status || "Enabled";
       newValue = valueToCheck;
+    } else if (editingCell.field === "name") {
+      oldValue = campaign.campaign_name || "—";
+      newValue = valueToCheck.trim();
     }
 
     setInlineEditCampaign(campaign);
@@ -665,6 +681,13 @@ export const Campaigns: React.FC = () => {
           campaignIds: [inlineEditCampaign.campaignId],
           action: "budgetType",
           budgetType: budgetTypeValue,
+        });
+      } else if (inlineEditField === "name") {
+        // Update campaign name
+        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          campaignIds: [inlineEditCampaign.campaignId],
+          action: "name",
+          name: inlineEditNewValue.trim(),
         });
       }
 
@@ -1726,6 +1749,8 @@ export const Campaigns: React.FC = () => {
                               ? "Budget"
                               : inlineEditField === "budgetType"
                               ? "Budget Type"
+                              : inlineEditField === "name"
+                              ? "Campaign Name"
                               : "Status"}
                             :
                           </span>
@@ -2044,25 +2069,78 @@ export const Campaigns: React.FC = () => {
 
                               {/* Campaign Name */}
                               <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
-                                <button
-                                  onClick={() => {
-                                    if (accountId) {
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          parseInt(accountId),
-                                          "amazon",
-                                          "campaigns",
-                                          `${campaign.type.toLowerCase()}_${
-                                            campaign.campaignId
-                                          }`
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
-                                >
-                                  {campaign.campaign_name || "Unnamed Campaign"}
-                                </button>
+                                {editingCell?.campaignId ===
+                                  campaign.campaignId &&
+                                editingCell?.field === "name" ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={editedValue}
+                                      onChange={(e) =>
+                                        handleInlineEditChange(e.target.value)
+                                      }
+                                      onBlur={(e) => {
+                                        const inputValue = e.target.value;
+                                        confirmInlineEdit(inputValue);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.currentTarget.blur();
+                                        } else if (e.key === "Escape") {
+                                          cancelInlineEdit();
+                                        }
+                                      }}
+                                      autoFocus
+                                      className="flex-1 px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      onClick={() =>
+                                        startInlineEdit(campaign, "name")
+                                      }
+                                      className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1 truncate"
+                                    >
+                                      {campaign.campaign_name ||
+                                        "Unnamed Campaign"}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (accountId) {
+                                          navigate(
+                                            buildMarketplaceRoute(
+                                              parseInt(accountId),
+                                              "amazon",
+                                              "campaigns",
+                                              `${campaign.type.toLowerCase()}_${
+                                                campaign.campaignId
+                                              }`
+                                            )
+                                          );
+                                        }
+                                      }}
+                                      className="flex-shrink-0 text-[#136d6d] hover:text-[#0E4E4E] cursor-pointer p-1"
+                                      title="View campaign details"
+                                    >
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={2}
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                )}
                               </td>
 
                               {/* Profile */}
