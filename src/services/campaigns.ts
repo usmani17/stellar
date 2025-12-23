@@ -1117,7 +1117,7 @@ export const campaignsService = {
       value?: number;
     }
   ) => {
-    const url = `/accounts/${accountId}/bulk-update-adgroups/`;
+    const url = `/accounts/${accountId}/adgroups/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
