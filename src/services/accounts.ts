@@ -3,7 +3,7 @@ import api from './api';
 export interface Channel {
   id: number;
   channel_name: string;
-  channel_type: 'amazon' | 'google' | 'walmart';
+  channel_type: 'amazon' | 'google' | 'walmart' | 'tiktok';
   status: 'active' | 'inactive' | 'pending';
   account: number;
   account_id?: number;
@@ -115,6 +115,21 @@ export const accountsService = {
     return response.data;
   },
 
+  // TikTok OAuth
+  initiateTikTokOAuth: async (accountId: number): Promise<{ auth_url: string }> => {
+    const response = await api.get<{ auth_url: string }>(`/accounts/tiktok-oauth/initiate/?account_id=${accountId}`);
+    return response.data;
+  },
+
+  handleTikTokOAuthCallback: async (code: string, state?: string): Promise<Channel> => {
+    const response = await api.post<Channel>('/accounts/tiktok-oauth/callback/', {
+      code,
+      state,
+    });
+    console.log('TikTok OAuth callback service response:', response.data);
+    return response.data;
+  },
+
   // Google Profiles (now using channel_id, similar to Amazon profiles)
   getGoogleProfiles: async (channelId: number): Promise<{ profiles: any[]; total: number; selected: number }> => {
     const response = await api.get<{ profiles: any[]; total: number; selected: number }>(`/accounts/channels/${channelId}/google-profiles/`);
@@ -151,6 +166,14 @@ export const accountsService = {
       profiles: profiles || [],
     });
     return response.data;
+  },
+
+  // Amazon Portfolios (per account, not campaign-type specific)
+  getPortfolios: async (accountId: number): Promise<Array<{ id: string; name: string }>> => {
+    const response = await api.get<{ portfolios: Array<{ id: string; name: string }> }>(
+      `/accounts/${accountId}/portfolios/`
+    );
+    return response.data.portfolios || [];
   },
 };
 

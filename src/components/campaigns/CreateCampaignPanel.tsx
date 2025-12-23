@@ -9,6 +9,8 @@ interface CreateCampaignPanelProps {
   accountId?: string;
   loading?: boolean;
   submitError?: string | null;
+  mode?: "create" | "edit";
+  initialData?: Partial<CreateCampaignData> | null;
 }
 
 export interface CreateCampaignData {
@@ -83,6 +85,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   accountId,
   loading = false,
   submitError = null,
+  mode = "create",
+  initialData = null,
 }) => {
   const [formData, setFormData] = useState<CreateCampaignData>({
     campaign_name: "",
@@ -124,6 +128,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     Array<{ value: string; label: string }>
   >([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [portfolioOptions, setPortfolioOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [loadingPortfolios, setLoadingPortfolios] = useState(false);
   const [errors, setErrors] = useState<
     Partial<Record<keyof CreateCampaignData, string>>
   >({});
@@ -134,6 +142,30 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       loadProfiles();
     }
   }, [isOpen, accountId]);
+
+  // Load portfolios when panel opens (not campaign-type specific)
+  useEffect(() => {
+    if (isOpen) {
+      loadPortfolios();
+    }
+  }, [isOpen]);
+
+  // When opening in edit mode, pre-populate form with initial data
+  useEffect(() => {
+    if (isOpen && mode === "edit" && initialData) {
+      setFormData((prev) => ({
+        ...prev,
+        ...initialData,
+        // Ensure type is a valid value (fallback to previous if not provided)
+        type: (initialData.type as any) || prev.type,
+      }));
+    }
+    if (isOpen && mode === "create" && !initialData) {
+      // For fresh create opens, reset the form
+      resetForm();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode, initialData]);
 
   // Parse field errors from submitError
   useEffect(() => {
@@ -184,6 +216,28 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       setProfileOptions([]);
     } finally {
       setLoadingProfiles(false);
+    }
+  };
+
+  const loadPortfolios = async () => {
+    if (!accountId) return;
+
+    try {
+      setLoadingPortfolios(true);
+      const portfolios = await accountsService.getPortfolios(
+        parseInt(accountId)
+      );
+      const options =
+        portfolios?.map((p) => ({
+          value: p.id,
+          label: `${p.name} (${p.id})`,
+        })) || [];
+      setPortfolioOptions(options);
+    } catch (error) {
+      console.error("Failed to load portfolios:", error);
+      setPortfolioOptions([]);
+    } finally {
+      setLoadingPortfolios(false);
     }
   };
 
@@ -252,6 +306,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
     if (profileOptions.length > 0 && !formData.profileId) {
       newErrors.profileId = "Profile is required";
+    }
+
+    // Portfolio is required when portfolios exist
+    if (portfolioOptions.length > 0 && !formData.portfolioId) {
+      newErrors.portfolioId = "Portfolio is required";
     }
 
     // Start Date is required
@@ -406,7 +465,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       <form onSubmit={handleSubmit}>
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
-            Create Campaign
+            {mode === "edit" ? "Edit Campaign" : "Create Campaign"}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -900,15 +959,25 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                         Portfolio ID
                       </label>
-                      <input
-                        type="text"
-                        value={formData.portfolioId || ""}
-                        onChange={(e) =>
-                          handleChange("portfolioId", e.target.value)
+                      <Dropdown<string>
+                        options={portfolioOptions}
+                        value={formData.portfolioId || undefined}
+                        onChange={(value) => handleChange("portfolioId", value)}
+                        placeholder={
+                          loadingPortfolios
+                            ? "Loading portfolios..."
+                            : "Select portfolio (optional)"
                         }
-                        placeholder="Enter portfolio ID (optional)"
-                        className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        buttonClassName="w-full"
+                        disabled={
+                          loadingPortfolios || portfolioOptions.length === 0
+                        }
                       />
+                      {errors.portfolioId && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.portfolioId}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -958,15 +1027,25 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                         Portfolio ID
                       </label>
-                      <input
-                        type="text"
-                        value={formData.portfolioId || ""}
-                        onChange={(e) =>
-                          handleChange("portfolioId", e.target.value)
+                      <Dropdown<string>
+                        options={portfolioOptions}
+                        value={formData.portfolioId || undefined}
+                        onChange={(value) => handleChange("portfolioId", value)}
+                        placeholder={
+                          loadingPortfolios
+                            ? "Loading portfolios..."
+                            : "Select portfolio (optional)"
                         }
-                        placeholder="Enter portfolio ID (optional)"
-                        className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        buttonClassName="w-full"
+                        disabled={
+                          loadingPortfolios || portfolioOptions.length === 0
+                        }
                       />
+                      {errors.portfolioId && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.portfolioId}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
@@ -1593,9 +1672,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Creating..." : "Create Campaign"}
+            {loading
+              ? mode === "edit"
+                ? "Saving..."
+                : "Creating..."
+              : mode === "edit"
+              ? "Save Changes"
+              : "Create Campaign"}
           </button>
         </div>
 

@@ -132,6 +132,8 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
   };
 
   const handleSubmit = () => {
+    console.log("handleSubmit called, addedKeywords:", addedKeywords);
+
     if (addedKeywords.length === 0) {
       alert("Please add at least one keyword before submitting.");
       return;
@@ -139,6 +141,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
     // Clear previous errors
     setKeywordErrors([]);
+    console.log("Calling onSubmit with", addedKeywords.length, "keywords");
     onSubmit(addedKeywords);
     // Don't reset keywords here - let parent handle success/error
   };
