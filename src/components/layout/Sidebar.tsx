@@ -27,6 +27,7 @@ const GOOGLE_SECTION_STORAGE_KEY = "google-section-collapsed";
 const MARKETING_CHANNELS_SECTION_STORAGE_KEY =
   "marketing-channels-section-collapsed";
 const OVERVIEW_SECTION_STORAGE_KEY = "overview-section-collapsed";
+const LOG_HISTORY_SECTION_STORAGE_KEY = "log-history-section-collapsed";
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
@@ -53,6 +54,11 @@ export const Sidebar: React.FC = () => {
   const [isOverviewSectionCollapsed, setIsOverviewSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(OVERVIEW_SECTION_STORAGE_KEY);
+      return saved === "true" || saved === null; // Default to collapsed
+    });
+  const [isLogHistorySectionCollapsed, setIsLogHistorySectionCollapsed] =
+    useState<boolean>(() => {
+      const saved = localStorage.getItem(LOG_HISTORY_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
 
@@ -106,6 +112,13 @@ export const Sidebar: React.FC = () => {
     );
   }, [isOverviewSectionCollapsed]);
 
+  useEffect(() => {
+    localStorage.setItem(
+      LOG_HISTORY_SECTION_STORAGE_KEY,
+      String(isLogHistorySectionCollapsed)
+    );
+  }, [isLogHistorySectionCollapsed]);
+
   const toggleAmazonSection = () => {
     setIsAmazonSectionCollapsed((prev) => !prev);
   };
@@ -120,6 +133,10 @@ export const Sidebar: React.FC = () => {
 
   const toggleOverviewSection = () => {
     setIsOverviewSectionCollapsed((prev) => !prev);
+  };
+
+  const toggleLogHistorySection = () => {
+    setIsLogHistorySectionCollapsed((prev) => !prev);
   };
 
   const isActive = (path: string) => {
@@ -149,6 +166,12 @@ export const Sidebar: React.FC = () => {
     }
     if (path === "/targets") {
       return location.pathname.includes("/targets");
+    }
+    if (path === "/log-history" || path === "/logs") {
+      return (
+        location.pathname.includes("/log-history") ||
+        location.pathname.includes("/logs")
+      );
     }
     return location.pathname === path;
   };
@@ -926,6 +949,88 @@ export const Sidebar: React.FC = () => {
                 {!isCollapsed && (
                   <span className="text-[12.32px] font-normal leading-[16px]">
                     Pixels-Like Box
+                  </span>
+                )}
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Log / History Section */}
+        <div className="mb-6">
+          {!isCollapsed && (
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                Log / History
+              </h2>
+              <button
+                onClick={toggleLogHistorySection}
+                className="p-1 rounded hover:bg-gray-100 transition-colors"
+                aria-label={
+                  isLogHistorySectionCollapsed
+                    ? "Expand Log / History section"
+                    : "Collapse Log / History section"
+                }
+              >
+                <svg
+                  className={`w-4 h-4 text-gray-600 transition-transform ${
+                    isLogHistorySectionCollapsed
+                      ? "rotate-[-90deg]"
+                      : "rotate-0"
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            </div>
+          )}
+          {(isCollapsed || !isLogHistorySectionCollapsed) && (
+            <div className="space-y-1">
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/log-history`
+                    : "/log-history"
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/log-history") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/log-history")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Log / History" : undefined}
+              >
+                <svg
+                  className={`w-5 h-5 ${
+                    isActive("/log-history") ? "brightness-0 invert" : ""
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/log-history") ? "!text-white" : ""
+                    }`}
+                  >
+                    Log / History
                   </span>
                 )}
               </Link>

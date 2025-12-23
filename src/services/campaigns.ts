@@ -1093,9 +1093,10 @@ export const campaignsService = {
     accountId: number,
     payload: {
       campaignIds: Array<string | number>;
-      action: "status" | "budget";
+      action: "status" | "budget" | "budgetType";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
+      budgetType?: "DAILY" | "LIFETIME";
       unit?: "percent" | "amount";
       value?: number;
       upperLimit?: number;
@@ -1116,7 +1117,7 @@ export const campaignsService = {
       value?: number;
     }
   ) => {
-    const url = `/accounts/${accountId}/adgroups/bulk-update/`;
+    const url = `/accounts/${accountId}/bulk-update-adgroups/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -1427,7 +1428,13 @@ export const campaignsService = {
   createAdGroups: async (
     accountId: number,
     campaignId: string | number,
-    payload: { adgroups: Array<{ name: string; defaultBid: number; state: "ENABLED" | "PAUSED" }> }
+    payload: {
+      adgroups: Array<{
+        name: string;
+        defaultBid: number;
+        state: "ENABLED" | "PAUSED";
+      }>;
+    }
   ) => {
     const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/create/`;
     const response = await api.post(url, payload);

@@ -20,6 +20,7 @@ import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 import { KeywordsTable } from "../components/campaigns/KeywordsTable";
 import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
 import { TargetsTable } from "../components/campaigns/TargetsTable";
+import { LogsTable } from "../components/campaigns/LogsTable";
 import {
   FilterPanel,
   type FilterValues,
@@ -3853,11 +3854,23 @@ export const CampaignDetail: React.FC = () => {
               </>
             )}
 
+            {activeTab === "Logs" && (
+              <div className="mt-6">
+                <LogsTable
+                  accountId={accountId}
+                  campaignId={campaignId}
+                  showHeader={false}
+                  showExport={true}
+                />
+              </div>
+            )}
+
             {activeTab !== "Overview" &&
               activeTab !== "Ad Groups" &&
               activeTab !== "Keywords" &&
               activeTab !== "Product Ads" &&
-              activeTab !== "Targets" && (
+              activeTab !== "Targets" &&
+              activeTab !== "Logs" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
                 </div>

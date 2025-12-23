@@ -115,3 +115,4 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
     </div>
   );
 };
+

@@ -656,12 +656,20 @@ export const Campaigns: React.FC = () => {
           value: budgetValue,
         });
       } else if (inlineEditField === "budgetType") {
-        // Note: BudgetType updates are not currently supported by the backend/Amazon API
-        // This is a read-only field from Amazon's API
-        // For now, we'll show an error message
-        throw new Error(
-          "Budget Type updates are not currently supported. This field is read-only."
-        );
+        // Map budgetType values to uppercase
+        const budgetTypeMap: Record<string, "DAILY" | "LIFETIME"> = {
+          Daily: "DAILY",
+          DAILY: "DAILY",
+          Lifetime: "LIFETIME",
+          LIFETIME: "LIFETIME",
+        };
+        const budgetTypeValue = budgetTypeMap[inlineEditNewValue] || "DAILY";
+
+        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          campaignIds: [inlineEditCampaign.campaignId],
+          action: "budgetType",
+          budgetType: budgetTypeValue,
+        });
       }
 
       // Reload campaigns

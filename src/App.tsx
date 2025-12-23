@@ -40,6 +40,7 @@ import { GoogleKeywords } from "./pages/google/GoogleKeywords";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
 import { Dashboards } from "./pages/Dashboards";
+import { LogHistory } from "./pages/LogHistory";
 
 function App() {
   return (
@@ -182,6 +183,40 @@ function App() {
                       <Layout>
                         <Accounts />
                       </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/log-history"
+                  element={
+                    <ProtectedRoute>
+                      <Layout>
+                        <LogHistory />
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/log-history"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <LogHistory />
+                        </Layout>
+                      </AccountRequiredRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/accounts/:accountId/log-history/:campaignId"
+                  element={
+                    <ProtectedRoute>
+                      <AccountRequiredRoute>
+                        <Layout>
+                          <LogHistory />
+                        </Layout>
+                      </AccountRequiredRoute>
                     </ProtectedRoute>
                   }
                 />

@@ -1,6 +1,7 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 // Store a reference to the Auth0 getAccessTokenSilently function
 // This will be set by AuthContext
@@ -13,7 +14,7 @@ export const setAuth0TokenGetter = (getter: () => Promise<string | null>) => {
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -21,8 +22,8 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     // Try to get token from Auth0 first, fallback to localStorage
-    let token = localStorage.getItem('accessToken');
-    
+    let token = localStorage.getItem("accessToken");
+
     // If no token in localStorage, try to get it from Auth0
     if (!token) {
       try {
@@ -33,15 +34,22 @@ api.interceptors.request.use(
         // Not in Auth0 context, continue with localStorage token
       }
     }
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log(`[API] Making ${config.method?.toUpperCase()} request to ${config.url}`, {
-        hasToken: !!token,
-        tokenPreview: token.substring(0, 20) + '...'
-      });
+      console.log(
+        `[API] Making ${config.method?.toUpperCase()} request to ${config.url}`,
+        {
+          hasToken: !!token,
+          tokenPreview: token.substring(0, 20) + "...",
+        }
+      );
     } else {
-      console.warn(`[API] Making ${config.method?.toUpperCase()} request to ${config.url} without token`);
+      console.warn(
+        `[API] Making ${config.method?.toUpperCase()} request to ${
+          config.url
+        } without token`
+      );
     }
     return config;
   },
@@ -53,7 +61,11 @@ api.interceptors.request.use(
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => {
-    console.log(`[API] Response from ${response.config.url}:`, response.status, response.statusText);
+    console.log(
+      `[API] Response from ${response.config.url}:`,
+      response.status,
+      response.statusText
+    );
     return response;
   },
   async (error) => {
@@ -61,17 +73,17 @@ api.interceptors.response.use(
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
-      message: error.message
+      message: error.message,
     });
-    
+
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       // Check if this is Auth0 authentication (no refresh token in localStorage)
-      const refreshToken = localStorage.getItem('refreshToken');
-      
+      const refreshToken = localStorage.getItem("refreshToken");
+
       if (refreshToken) {
         // Traditional login - use backend refresh endpoint
         try {
@@ -80,16 +92,16 @@ api.interceptors.response.use(
           });
 
           const { access } = response.data;
-          localStorage.setItem('accessToken', access);
+          localStorage.setItem("accessToken", access);
           originalRequest.headers.Authorization = `Bearer ${access}`;
 
           return api(originalRequest);
         } catch (refreshError) {
           // Refresh failed, clear everything and redirect to login
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
           return Promise.reject(refreshError);
         }
       } else {
@@ -99,21 +111,21 @@ api.interceptors.response.use(
           if (auth0GetToken) {
             const token = await auth0GetToken();
             if (token) {
-              localStorage.setItem('accessToken', token);
+              localStorage.setItem("accessToken", token);
               originalRequest.headers.Authorization = `Bearer ${token}`;
               return api(originalRequest);
             }
           }
-          
+
           // If no token getter is available, try to get from Auth0 context
           // This is a fallback - the AuthContext should set the getter
-          throw new Error('Auth0 token getter not available');
+          throw new Error("Auth0 token getter not available");
         } catch (auth0Error) {
           // Auth0 refresh failed, clear everything and redirect to login
-          console.error('Auth0 token refresh failed:', auth0Error);
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+          console.error("Auth0 token refresh failed:", auth0Error);
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
           return Promise.reject(auth0Error);
         }
       }
@@ -124,4 +136,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-
