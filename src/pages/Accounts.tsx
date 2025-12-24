@@ -4,6 +4,11 @@ import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { accountsService, type Account } from "../services/accounts";
+import {
+  useCreateAccount,
+  useUpdateAccount,
+  useDeleteAccount,
+} from "../hooks/mutations/useAccountMutations";
 import { Sidebar } from "../components/layout/Sidebar";
 import { AccountsHeader } from "../components/layout/AccountsHeader";
 import { Button, Card, DeleteConfirmationModal, Menu } from "../components/ui";
@@ -14,7 +19,7 @@ import GoogleIcon from "../assets/images/ri_google-fill.svg";
 // import CriteoIcon from "../assets/images/criteo.svg"; // Add when Criteo icon is available
 
 export const Accounts: React.FC = () => {
-  const { accounts, loading: accountsLoading, refreshAccounts } = useAccounts();
+  const { accounts, loading: accountsLoading } = useAccounts();
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,7 +35,6 @@ export const Accounts: React.FC = () => {
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [creatingAccount, setCreatingAccount] = useState(false);
   const [searching, setSearching] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
@@ -43,10 +47,12 @@ export const Accounts: React.FC = () => {
     field: "name";
   } | null>(null);
   const [editedAccountName, setEditedAccountName] = useState<string>("");
-  const [updatingAccount, setUpdatingAccount] = useState(false);
 
-  // Refresh accounts when navigating to this page (e.g., after OAuth flow)
-  const hasRefreshedRef = useRef<string>("");
+  // React Query mutation hooks
+  const createAccountMutation = useCreateAccount();
+  const updateAccountMutation = useUpdateAccount();
+  const deleteAccountMutation = useDeleteAccount();
+
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Set page title
@@ -56,16 +62,6 @@ export const Accounts: React.FC = () => {
       resetPageTitle();
     };
   }, []);
-
-  useEffect(() => {
-    if (location.pathname === "/accounts") {
-      const currentKey = `${location.pathname}-${location.search}`;
-      if (hasRefreshedRef.current !== currentKey) {
-        hasRefreshedRef.current = currentKey;
-        refreshAccounts();
-      }
-    }
-  }, [location.pathname, location.search, refreshAccounts]);
 
   // Cleanup search timeout on unmount
   useEffect(() => {
@@ -86,16 +82,15 @@ export const Accounts: React.FC = () => {
       return;
     }
 
-    setCreatingAccount(true);
     try {
-      await accountsService.createAccount({ name: newAccountName.trim() });
+      await createAccountMutation.mutateAsync({
+        name: newAccountName.trim(),
+      });
       setNewAccountName("");
       setShowCreateAccount(false);
-      await refreshAccounts();
+      // React Query automatically invalidates and refetches accounts list
     } catch (error: any) {
       alert(error.response?.data?.error || "Failed to create account");
-    } finally {
-      setCreatingAccount(false);
     }
   };
 
@@ -119,11 +114,11 @@ export const Accounts: React.FC = () => {
     setDeletingAccountId(id);
 
     try {
-      await accountsService.deleteAccount(id);
-      await refreshAccounts();
-    } catch (error) {
+      await deleteAccountMutation.mutateAsync(id);
+      // React Query automatically invalidates and refetches accounts list
+    } catch (error: any) {
       console.error("Failed to delete account:", error);
-      alert("Failed to delete account");
+      alert(error.response?.data?.error || "Failed to delete account");
     } finally {
       setDeletingAccountId(null);
     }
@@ -212,18 +207,18 @@ export const Accounts: React.FC = () => {
       return;
     }
 
-    setUpdatingAccount(true);
     try {
-      await accountsService.updateAccount(editingAccount.accountId, {
-        name: newName.trim(),
+      await updateAccountMutation.mutateAsync({
+        id: editingAccount.accountId,
+        data: {
+          name: newName.trim(),
+        },
       });
-      await refreshAccounts();
       cancelEditAccountName();
+      // React Query automatically invalidates and refetches accounts list
     } catch (error: any) {
       console.error("Failed to update account:", error);
       alert(error.response?.data?.error || "Failed to update account name");
-    } finally {
-      setUpdatingAccount(false);
     }
   };
 
@@ -329,11 +324,11 @@ export const Accounts: React.FC = () => {
                     </Button>
                     <Button
                       onClick={handleCreateAccount}
-                      disabled={creatingAccount}
+                      disabled={createAccountMutation.isPending}
                       size="sm"
                       className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {creatingAccount ? (
+                      {createAccountMutation.isPending ? (
                         <>
                           <svg
                             className="animate-spin h-4 w-4 text-white"
@@ -544,7 +539,7 @@ export const Accounts: React.FC = () => {
                                       }
                                     }}
                                     autoFocus
-                                    disabled={updatingAccount}
+                                    disabled={updateAccountMutation.isPending}
                                     className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
                                   />
                                 ) : (
@@ -750,7 +745,9 @@ export const Accounts: React.FC = () => {
                   </table>
                 </div>
                 {/* Loading overlay for refreshing after creation */}
-                {(creatingAccount ||
+                {(createAccountMutation.isPending ||
+                  updateAccountMutation.isPending ||
+                  deleteAccountMutation.isPending ||
                   (accountsLoading && accounts.length > 0)) && (
                   <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
                     <div className="flex flex-col items-center gap-2">
@@ -775,8 +772,12 @@ export const Accounts: React.FC = () => {
                         ></path>
                       </svg>
                       <p className="text-[14px] text-[#556179]">
-                        {creatingAccount
+                        {createAccountMutation.isPending
                           ? "Creating account..."
+                          : updateAccountMutation.isPending
+                          ? "Updating account..."
+                          : deleteAccountMutation.isPending
+                          ? "Deleting account..."
                           : "Refreshing accounts..."}
                       </p>
                     </div>

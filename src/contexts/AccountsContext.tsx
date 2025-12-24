@@ -1,12 +1,11 @@
 import React, {
   createContext,
   useContext,
-  useState,
-  useEffect,
   useCallback,
-  useRef,
+  useMemo,
   type ReactNode,
 } from "react";
+import { useAccounts as useAccountsQuery } from "../hooks/queries/useAccounts";
 import { accountsService, type Account } from "../services/accounts";
 import { getAccountIdFromUrl } from "../utils/urlHelpers";
 
@@ -27,38 +26,23 @@ const AccountsContext = createContext<AccountsContextType | undefined>(
 export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const loadingRef = useRef(false);
+  // Use React Query hook for accounts data
+  const {
+    data: accounts = [],
+    isLoading: loading,
+    error,
+    refetch,
+  } = useAccountsQuery();
 
+  // loadAccounts is kept for backward compatibility but uses React Query's refetch
   const loadAccounts = useCallback(async () => {
-    // Prevent duplicate simultaneous requests
-    if (loadingRef.current) {
-      return;
-    }
+    await refetch();
+  }, [refetch]);
 
-    try {
-      loadingRef.current = true;
-      setLoading(true);
-      setError(null);
-      const accountsData = await accountsService.getAccounts();
-      setAccounts(Array.isArray(accountsData) ? accountsData : []);
-    } catch (err) {
-      const error =
-        err instanceof Error ? err : new Error("Failed to load accounts");
-      setError(error);
-      console.error("Failed to load accounts:", err);
-      setAccounts([]);
-    } finally {
-      setLoading(false);
-      loadingRef.current = false;
-    }
-  }, []);
-
+  // refreshAccounts is an alias for loadAccounts (backward compatibility)
   const refreshAccounts = useCallback(async () => {
-    await loadAccounts();
-  }, [loadAccounts]);
+    await refetch();
+  }, [refetch]);
 
   // Helper to get account by ID
   const getAccountById = useCallback(
@@ -80,26 +64,30 @@ export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
     [getAccountById]
   );
 
-  // Load accounts on mount (only once)
-  useEffect(() => {
-    // Only load if we're not already loading
-    if (!loadingRef.current) {
-      loadAccounts();
-    }
-  }, []); // Empty deps - only run on mount
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo<AccountsContextType>(
+    () => ({
+      accounts,
+      loading,
+      error: error || null,
+      loadAccounts,
+      refreshAccounts,
+      getAccountById,
+      getCurrentAccount,
+    }),
+    [
+      accounts,
+      loading,
+      error,
+      loadAccounts,
+      refreshAccounts,
+      getAccountById,
+      getCurrentAccount,
+    ]
+  );
 
   return (
-    <AccountsContext.Provider
-      value={{
-        accounts,
-        loading,
-        error,
-        loadAccounts,
-        refreshAccounts,
-        getAccountById,
-        getCurrentAccount,
-      }}
-    >
+    <AccountsContext.Provider value={contextValue}>
       {children}
     </AccountsContext.Provider>
   );

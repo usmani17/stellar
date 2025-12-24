@@ -4,6 +4,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DateRangeProvider } from "./contexts/DateRangeContext";
 import { AccountsProvider } from "./contexts/AccountsContext";
@@ -422,12 +423,13 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-              </Routes>
-            </Router>
-          </SidebarProvider>
-        </AccountsProvider>
-      </DateRangeProvider>
-    </AuthProvider>
+          </Routes>
+        </Router>
+        {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+      </SidebarProvider>
+    </AccountsProvider>
+  </DateRangeProvider>
+</AuthProvider>
   );
 }
 
