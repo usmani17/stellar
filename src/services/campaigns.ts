@@ -1100,7 +1100,8 @@ export const campaignsService = {
         | "budgetType"
         | "name"
         | "portfolioId"
-        | "endDate";
+        | "endDate"
+        | "targetingType";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
       budgetType?: "DAILY" | "LIFETIME";
@@ -1111,6 +1112,7 @@ export const campaignsService = {
       name?: string;
       portfolioId?: string | null;
       endDate?: string | null;
+      targetingType?: "AUTO" | "MANUAL";
     }
   ) => {
     const url = `/accounts/${accountId}/campaigns/bulk-update/`;

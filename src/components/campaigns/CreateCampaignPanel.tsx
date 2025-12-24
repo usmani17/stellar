@@ -905,13 +905,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         placeholder="Select targeting type"
                         buttonClassName="w-full"
-                        disabled={mode === "edit"}
                       />
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>

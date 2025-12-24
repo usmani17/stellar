@@ -1108,6 +1108,31 @@ export const Campaigns: React.FC = () => {
         );
       }
 
+      // 7. Check if targetingType changed (for SP campaigns)
+      if (data.type === "SP") {
+        const originalTargetingType = original.targetingType || "";
+        const newTargetingType = data.targetingType || "";
+        // Normalize for comparison (handle both cases)
+        const normalizeTargetingType = (tt: string) => {
+          if (!tt) return "";
+          return tt.toUpperCase();
+        };
+        if (
+          normalizeTargetingType(originalTargetingType) !==
+          normalizeTargetingType(newTargetingType)
+        ) {
+          updates.push(
+            campaignsService.bulkUpdateCampaigns(accountIdNum, {
+              campaignIds: [campaignId],
+              action: "targetingType",
+              targetingType: newTargetingType.toUpperCase() as
+                | "AUTO"
+                | "MANUAL",
+            })
+          );
+        }
+      }
+
       // Execute all updates
       if (updates.length === 0) {
         // No changes detected, just close the panel
