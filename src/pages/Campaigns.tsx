@@ -695,9 +695,16 @@ export const Campaigns: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating campaign:", error);
-      alert("Failed to update campaign. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update campaign. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setInlineEditLoading(false);
     }
@@ -724,6 +731,14 @@ export const Campaigns: React.FC = () => {
       await loadCampaigns(accountIdNum);
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update campaigns. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setBulkLoading(false);
     }

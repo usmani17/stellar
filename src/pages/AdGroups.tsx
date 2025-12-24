@@ -681,9 +681,16 @@ export const AdGroups: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating adgroup:", error);
-      alert("Failed to update adgroup. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update adgroup. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setInlineEditLoading(false);
     }
@@ -785,7 +792,14 @@ export const AdGroups: React.FC = () => {
       setPendingStatusAction(null);
     } catch (error: any) {
       console.error("Failed to update adgroups", error);
-      alert("Failed to update adgroups. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update adgroups. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -872,7 +886,14 @@ export const AdGroups: React.FC = () => {
       setLowerLimit("");
     } catch (error: any) {
       console.error("Failed to update adgroups", error);
-      alert("Failed to update adgroups. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update adgroups. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setBulkLoading(false);
     }

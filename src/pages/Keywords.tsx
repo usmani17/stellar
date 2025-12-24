@@ -681,9 +681,16 @@ export const Keywords: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating keyword:", error);
-      alert("Failed to update keyword. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update keyword. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setInlineEditLoading(false);
     }
@@ -785,7 +792,14 @@ export const Keywords: React.FC = () => {
       setPendingStatusAction(null);
     } catch (error: any) {
       console.error("Failed to update keywords", error);
-      alert("Failed to update keywords. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update keywords. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -872,7 +886,14 @@ export const Keywords: React.FC = () => {
       setLowerLimit("");
     } catch (error: any) {
       console.error("Failed to update keywords", error);
-      alert("Failed to update keywords. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update keywords. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setBulkLoading(false);
     }
