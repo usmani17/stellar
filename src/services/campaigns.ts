@@ -1120,6 +1120,17 @@ export const campaignsService = {
     return response.data;
   },
 
+  bulkDeleteCampaigns: async (
+    accountId: number,
+    payload: {
+      campaignIds: Array<string | number>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
   bulkUpdateAdGroups: async (
     accountId: number,
     payload: {

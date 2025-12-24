@@ -135,6 +135,7 @@ export const Campaigns: React.FC = () => {
   const [pendingStatusAction, setPendingStatusAction] = useState<
     "enable" | "pause" | null
   >(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
@@ -739,6 +740,43 @@ export const Campaigns: React.FC = () => {
         isOpen: true,
         message: errorMessage,
       });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const runBulkDelete = async () => {
+    if (!accountId || selectedCampaigns.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setBulkLoading(true);
+      await campaignsService.bulkDeleteCampaigns(accountIdNum, {
+        campaignIds: Array.from(selectedCampaigns),
+      });
+
+      // Reset refs to force reload
+      requestIdRef.current = "";
+      loadingRef.current = false;
+
+      // Refresh campaigns to get updated data (deleted campaigns will be filtered out)
+      await loadCampaigns(accountIdNum);
+
+      // Clear selection after successful delete
+      setSelectedCampaigns(new Set());
+      setShowDeleteModal(false);
+    } catch (error: any) {
+      console.error("Failed to delete campaigns", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete campaigns. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+      setShowDeleteModal(false);
     } finally {
       setBulkLoading(false);
     }
@@ -1587,8 +1625,8 @@ export const Campaigns: React.FC = () => {
                         {[
                           { value: "enable", label: "Enabled" },
                           { value: "pause", label: "Pause" },
-                          // Note: "archive" is removed - archived campaigns are read-only and cannot be set via API
                           { value: "edit_budget", label: "Edit Budget" },
+                          { value: "delete", label: "Delete" },
                         ].map((opt) => (
                           <button
                             key={opt.value}
@@ -1600,6 +1638,9 @@ export const Campaigns: React.FC = () => {
                               if (selectedCampaigns.size === 0) return;
                               if (opt.value === "edit_budget") {
                                 setShowBudgetPanel(true);
+                              } else if (opt.value === "delete") {
+                                setShowBudgetPanel(false);
+                                setShowDeleteModal(true);
                               } else {
                                 setShowBudgetPanel(false);
                                 setPendingStatusAction(
@@ -2084,6 +2125,56 @@ export const Campaigns: React.FC = () => {
                         className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {bulkLoading ? "Applying..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete Confirmation Modal */}
+              {showDeleteModal && (
+                <div
+                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !bulkLoading) {
+                      setShowDeleteModal(false);
+                    }
+                  }}
+                >
+                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                      Delete Campaigns?
+                    </h3>
+
+                    <p className="text-[12.16px] text-[#556179] mb-4">
+                      You are about to permanently delete{" "}
+                      {selectedCampaigns.size} selected campaign
+                      {selectedCampaigns.size !== 1 ? "s" : ""}. This will stop
+                      all ad serving immediately and cannot be undone. Deleted
+                      campaigns can still be viewed in reports but not edited or
+                      re-enabled.
+                    </p>
+
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!bulkLoading) {
+                            setShowDeleteModal(false);
+                          }
+                        }}
+                        disabled={bulkLoading}
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={runBulkDelete}
+                        disabled={bulkLoading}
+                        className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {bulkLoading ? "Deleting..." : "Confirm"}
                       </button>
                     </div>
                   </div>
