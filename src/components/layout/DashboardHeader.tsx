@@ -2,22 +2,20 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import "react-datepicker/dist/react-datepicker.css";
 import { useAccounts } from "../../contexts/AccountsContext";
+import { useChannels } from "../../contexts/GlobalStateContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import {
   buildMarketplaceRoute,
   getMarketplaceFromUrl,
 } from "../../utils/urlHelpers";
-import {
-  accountsService,
-  type Account,
-  type Channel,
-} from "../../services/accounts";
+import { type Account, type Channel } from "../../services/accounts";
 import CustomDateRangePicker from "../ui/CustomDateRangePicker";
 
 export const DashboardHeader: React.FC = () => {
   const { user, logout } = useAuth();
   const { accounts } = useAccounts();
+  const { getChannels, loadChannels, isLoading } = useChannels();
   const { startDate, endDate, setDateRange, formatDateRange } = useDateRange();
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,13 +26,6 @@ export const DashboardHeader: React.FC = () => {
     null
   );
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-
-  const [channelsByAccount, setChannelsByAccount] = useState<
-    Record<number, Channel[]>
-  >({});
-  const [channelsLoadingId, setChannelsLoadingId] = useState<number | null>(
-    null
-  );
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -89,24 +80,13 @@ export const DashboardHeader: React.FC = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const loadChannels = async (accountId: number) => {
-    if (channelsByAccount[accountId] || channelsLoadingId === accountId) return;
-
-    setChannelsLoadingId(accountId);
-    try {
-      const channels = await accountsService.getAccountChannels(accountId);
-      setChannelsByAccount((prev) => ({ ...prev, [accountId]: channels }));
-    } finally {
-      setChannelsLoadingId(null);
-    }
-  };
-
   // Get current marketplace/channel from URL
   const currentMarketplace = getMarketplaceFromUrl(location.pathname);
+  const selectedAccountChannels = selectedAccount
+    ? getChannels(selectedAccount.id)
+    : [];
   const selectedChannel = selectedAccount
-    ? channelsByAccount[selectedAccount.id]?.find(
-        (ch) => ch.channel_type === currentMarketplace
-      )
+    ? selectedAccountChannels.find((ch) => ch.channel_type === currentMarketplace)
     : null;
 
   return (
@@ -218,21 +198,27 @@ export const DashboardHeader: React.FC = () => {
                       }}
                     >
                       <ul>
-                        {channelsLoadingId === account.id && (
-                          <li className="px-3 py-2 text-[12.32px] text-[#556179]">
-                            Loading...
-                          </li>
-                        )}
-                        {channelsLoadingId !== account.id &&
-                          channelsByAccount[account.id] &&
-                          channelsByAccount[account.id].length === 0 && (
-                            <li className="px-3 py-2 text-[12.32px] text-[#556179]">
-                              No channels
-                            </li>
-                          )}
-                        {channelsByAccount[account.id] &&
-                          channelsByAccount[account.id].length > 0 &&
-                          channelsByAccount[account.id].map((channel) => (
+                        {(() => {
+                          const accountChannels = getChannels(account.id);
+                          const channelsLoading = isLoading(account.id);
+                          
+                          if (channelsLoading) {
+                            return (
+                              <li className="px-3 py-2 text-[12.32px] text-[#556179]">
+                                Loading...
+                              </li>
+                            );
+                          }
+                          
+                          if (accountChannels.length === 0) {
+                            return (
+                              <li className="px-3 py-2 text-[12.32px] text-[#556179]">
+                                No channels
+                              </li>
+                            );
+                          }
+                          
+                          return accountChannels.map((channel) => (
                             <li key={channel.id}>
                               <button
                                 onMouseDown={(e) => e.stopPropagation()}
@@ -252,7 +238,8 @@ export const DashboardHeader: React.FC = () => {
                                 {channel.channel_name}
                               </button>
                             </li>
-                          ))}
+                          ));
+                        })()}
                       </ul>
                     </div>
                   )}

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 import type { Channel } from "../services/accounts";
 import { useAccounts } from "../contexts/AccountsContext";
+import { useChannels } from "../contexts/GlobalStateContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
@@ -15,15 +16,19 @@ export const Channels: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
   const { accounts } = useAccounts();
+  const {
+    getChannels,
+    loadChannels,
+    isLoading: isLoadingChannels,
+    refreshChannels,
+  } = useChannels();
   const { sidebarWidth } = useSidebar();
   const [account, setAccount] = useState<{ id: number; name: string } | null>(
     null
   );
-  const [channels, setChannels] = useState<Channel[]>([]);
   const [profileCounts, setProfileCounts] = useState<
     Record<number, { selected: number; total: number }>
   >({});
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState<{
@@ -37,54 +42,12 @@ export const Channels: React.FC = () => {
   const [editedChannelName, setEditedChannelName] = useState<string>("");
   const [updatingChannel, setUpdatingChannel] = useState(false);
 
-  const loadData = useCallback(async () => {
-    if (!accountId) {
-      navigate("/accounts");
-      return;
-    }
+  // Get account ID number
+  const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
 
-    try {
-      setLoading(true);
-      const accountIdNum = parseInt(accountId, 10);
-
-      // Only fetch channels - account name comes from context or channel response
-      const channelsData = await accountsService.getAccountChannels(
-        accountIdNum
-      );
-      const channelsArray = Array.isArray(channelsData) ? channelsData : [];
-
-      // Set account name from context (already loaded) or from channel response
-      const foundAccount = accounts.find((acc) => acc.id === accountIdNum);
-      if (foundAccount) {
-        setAccount({ id: foundAccount.id, name: foundAccount.name });
-      } else if (channelsArray.length > 0 && channelsArray[0].account_name) {
-        // Fallback: use account_name from channel if available
-        setAccount({ id: accountIdNum, name: channelsArray[0].account_name });
-      } else {
-        // Last resort: set with just the ID
-        setAccount({ id: accountIdNum, name: `Account ${accountIdNum}` });
-      }
-
-      // Set channels immediately so UI can render
-      setChannels(channelsArray);
-
-      // Extract profile counts from channel data (now included in API response)
-      const counts: Record<number, { selected: number; total: number }> = {};
-      channelsArray.forEach((channel) => {
-        if (channel.profile_counts) {
-          counts[channel.id] = channel.profile_counts;
-        } else {
-          counts[channel.id] = { selected: 0, total: 0 };
-        }
-      });
-      setProfileCounts(counts);
-    } catch (error) {
-      console.error("Failed to load data:", error);
-      setChannels([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, accounts, navigate]);
+  // Get channels from global context
+  const channels = accountIdNum ? getChannels(accountIdNum) : [];
+  const loading = accountIdNum ? isLoadingChannels(accountIdNum) : false;
 
   // Set page title
   useEffect(() => {
@@ -94,9 +57,45 @@ export const Channels: React.FC = () => {
     };
   }, []);
 
+  // Load channels when accountId changes
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!accountIdNum) {
+      navigate("/accounts");
+      return;
+    }
+
+    // Set account name from context
+    const foundAccount = accounts.find((acc) => acc.id === accountIdNum);
+    if (foundAccount) {
+      setAccount({ id: foundAccount.id, name: foundAccount.name });
+    } else {
+      // Last resort: set with just the ID
+      setAccount({ id: accountIdNum, name: `Account ${accountIdNum}` });
+    }
+
+    // Load channels from global context (deduplicated)
+    loadChannels(accountIdNum);
+  }, [accountIdNum, accounts, navigate, loadChannels]);
+
+  // Update profile counts when channels change
+  useEffect(() => {
+    if (channels.length > 0) {
+      const counts: Record<number, { selected: number; total: number }> = {};
+      channels.forEach((channel) => {
+        if (channel.profile_counts) {
+          counts[channel.id] = channel.profile_counts;
+        } else {
+          counts[channel.id] = { selected: 0, total: 0 };
+        }
+      });
+      setProfileCounts(counts);
+
+      // Update account name from channel if not found in accounts context
+      if (!account && channels.length > 0 && channels[0].account_name) {
+        setAccount({ id: accountIdNum!, name: channels[0].account_name });
+      }
+    }
+  }, [channels, account, accountIdNum]);
 
   const handleConnectAmazon = async () => {
     if (!account) return;
@@ -176,7 +175,7 @@ export const Channels: React.FC = () => {
   };
 
   const confirmEditChannelName = async (newName: string) => {
-    if (!editingChannel || !newName.trim()) {
+    if (!editingChannel || !newName.trim() || !accountIdNum) {
       cancelEditChannelName();
       return;
     }
@@ -189,17 +188,15 @@ export const Channels: React.FC = () => {
 
     setUpdatingChannel(true);
     try {
-      if (!accountId) {
-        throw new Error("Account ID is required");
-      }
       await accountsService.updateChannel(
-        parseInt(accountId, 10),
+        accountIdNum,
         editingChannel.channelId,
         {
           channel_name: newName.trim(),
         }
       );
-      await loadData();
+      // Refresh channels from global context after update
+      await refreshChannels(accountIdNum);
       cancelEditChannelName();
     } catch (error: any) {
       console.error("Failed to update channel:", error);

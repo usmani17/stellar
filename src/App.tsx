@@ -8,6 +8,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DateRangeProvider } from "./contexts/DateRangeContext";
 import { AccountsProvider } from "./contexts/AccountsContext";
+import { GlobalStateProvider } from "./contexts/GlobalStateContext";
 import { SidebarProvider } from "./contexts/SidebarContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { PublicRoute } from "./components/auth/PublicRoute";
@@ -48,7 +49,8 @@ function App() {
     <AuthProvider>
       <DateRangeProvider>
         <AccountsProvider>
-          <SidebarProvider>
+          <GlobalStateProvider>
+            <SidebarProvider>
             <Router>
               <Routes>
                 <Route
@@ -427,6 +429,7 @@ function App() {
         </Router>
         {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
       </SidebarProvider>
+          </GlobalStateProvider>
     </AccountsProvider>
   </DateRangeProvider>
 </AuthProvider>
