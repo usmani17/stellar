@@ -3006,6 +3006,7 @@ export const CampaignDetail: React.FC = () => {
                   <AdGroupsTable
                     adgroups={adgroups}
                     loading={adgroupsLoading}
+                    campaignId={campaignId} // Pass campaignId to hide Campaign Name column
                     onSelectAll={handleSelectAllAdGroups}
                     onSelect={handleSelectAdGroup}
                     selectedIds={selectedAdGroupIds}
@@ -3997,6 +3998,115 @@ export const CampaignDetail: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Inline Edit Confirmation Modal for Ad Groups */}
+      {pendingAdGroupChange && (() => {
+        const adgroup = adgroups.find((ag) => ag.id === pendingAdGroupChange.id);
+        const adgroupName = adgroup?.name || "Unnamed Ad Group";
+        const fieldLabel = pendingAdGroupChange.field === "status" ? "Status" : "Default Bid";
+        
+        // Format old value
+        let oldValueDisplay = "";
+        if (pendingAdGroupChange.field === "default_bid") {
+          oldValueDisplay = pendingAdGroupChange.oldValue.startsWith("$")
+            ? pendingAdGroupChange.oldValue
+            : `$${parseFloat(pendingAdGroupChange.oldValue || "0").toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
+        } else {
+          oldValueDisplay = pendingAdGroupChange.oldValue === "enabled"
+            ? "Enabled"
+            : pendingAdGroupChange.oldValue === "paused"
+            ? "Paused"
+            : pendingAdGroupChange.oldValue === "archived"
+            ? "Archived"
+            : pendingAdGroupChange.oldValue;
+        }
+        
+        // Format new value
+        let newValueDisplay = "";
+        if (pendingAdGroupChange.field === "default_bid") {
+          newValueDisplay = pendingAdGroupChange.newValue.startsWith("$")
+            ? pendingAdGroupChange.newValue
+            : `$${parseFloat(pendingAdGroupChange.newValue || "0").toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`;
+        } else {
+          newValueDisplay = pendingAdGroupChange.newValue === "enabled"
+            ? "Enabled"
+            : pendingAdGroupChange.newValue === "paused"
+            ? "Paused"
+            : pendingAdGroupChange.newValue === "archived"
+            ? "Archived"
+            : pendingAdGroupChange.newValue;
+        }
+        
+        return (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !adGroupEditLoading.has(pendingAdGroupChange.id)) {
+                cancelAdGroupChange();
+              }
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                Confirm {fieldLabel} Change
+              </h3>
+              
+              <div className="mb-4">
+                <p className="text-[12.16px] text-[#556179] mb-2">
+                  Ad Group:{" "}
+                  <span className="font-semibold text-[#072929]">
+                    {adgroupName}
+                  </span>
+                </p>
+                <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[12.16px] text-[#556179]">
+                      {fieldLabel}:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {oldValueDisplay}
+                      </span>
+                      <span className="text-[12.16px] text-[#556179]">→</span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {newValueDisplay}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={cancelAdGroupChange}
+                  disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
+                  className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAdGroupChange}
+                  disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
+                  className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                >
+                  {adGroupEditLoading.has(pendingAdGroupChange.id)
+                    ? "Updating..."
+                    : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

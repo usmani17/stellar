@@ -21,6 +21,7 @@ import {
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 
 export const AdGroups: React.FC = () => {
   const navigate = useNavigate();
@@ -52,9 +53,9 @@ export const AdGroups: React.FC = () => {
     }>
   >([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAdgroups, setSelectedAdgroups] = useState<
-    Set<string | number>
-  >(new Set());
+  const [selectedAdgroups, setSelectedAdgroups] = useState<Set<number>>(
+    new Set()
+  );
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
@@ -142,28 +143,50 @@ export const AdGroups: React.FC = () => {
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
 
-  // Inline edit state
-  const [editingCell, setEditingCell] = useState<{
-    adgroupId: string | number;
-    field: "default_bid" | "status";
+  // Inline edit state - matching AdGroupsTable pattern
+  const [editingAdGroupField, setEditingAdGroupField] = useState<{
+    id: number;
+    field: "status" | "default_bid";
   } | null>(null);
-  const [editedValue, setEditedValue] = useState<string>("");
-  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
-  const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [inlineEditAdgroup, setInlineEditAdgroup] = useState<AdGroup | null>(
-    null
+  const [editedAdGroupValue, setEditedAdGroupValue] = useState<string>("");
+  const [pendingAdGroupChange, setPendingAdGroupChange] = useState<{
+    id: number;
+    field: "status" | "default_bid";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
+  const [adGroupEditLoading, setAdGroupEditLoading] = useState<Set<number>>(
+    new Set()
   );
-  const [inlineEditField, setInlineEditField] = useState<
-    "default_bid" | "status" | null
-  >(null);
-  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
-  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
 
   const toggleChartMetric = (key: string) => {
-    setChartToggles((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    const validKeys: Array<
+      | "sales"
+      | "spend"
+      | "sales1d"
+      | "sales7d"
+      | "sales14d"
+      | "impressions"
+      | "clicks"
+      | "acos"
+      | "roas"
+    > = [
+      "sales",
+      "spend",
+      "sales1d",
+      "sales7d",
+      "sales14d",
+      "impressions",
+      "clicks",
+      "acos",
+      "roas",
+    ];
+    if (validKeys.includes(key as any)) {
+      setChartToggles((prev) => ({
+        ...prev,
+        [key]: !prev[key as keyof typeof prev],
+      }));
+    }
   };
 
   // Set page title
@@ -550,150 +573,141 @@ export const AdGroups: React.FC = () => {
     );
   };
 
-  // Inline edit handlers
-  const startInlineEdit = (
-    adgroup: AdGroup,
-    field: "default_bid" | "status"
+  // Ad Group inline edit handlers - matching AdGroupsTable pattern
+  const handleAdGroupEditStart = (
+    id: number,
+    field: "status" | "default_bid",
+    currentValue: string
   ) => {
-    setEditingCell({ adgroupId: adgroup.adGroupId, field });
-    if (field === "default_bid") {
-      // Extract numeric value from formatted string
-      const bidValue = parseFloat(
-        (adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, "")
-      );
-      setEditedValue(bidValue.toString());
-    } else if (field === "status") {
-      setEditedValue(adgroup.status || "Enabled");
-    }
+    setEditingAdGroupField({ id, field });
+    setEditedAdGroupValue(currentValue);
+    setPendingAdGroupChange(null);
   };
 
-  const cancelInlineEdit = () => {
-    setEditingCell(null);
-    setEditedValue("");
+  const handleAdGroupEditChange = (value: string) => {
+    setEditedAdGroupValue(value);
   };
 
-  const handleInlineEditChange = (value: string) => {
-    setEditedValue(value);
-  };
+  const handleAdGroupEditEnd = () => {
+    if (!editingAdGroupField) return;
 
-  const confirmInlineEdit = (newValueOverride?: string) => {
-    if (!editingCell || !accountId) return;
-
-    const adgroup = adgroups.find((a) => a.adGroupId === editingCell.adgroupId);
-    if (!adgroup) return;
-
-    // Use override value if provided, otherwise use state
-    const valueToCheck =
-      newValueOverride !== undefined ? newValueOverride : editedValue;
-
-    // Check if value actually changed
-    let hasChanged = false;
-    if (editingCell.field === "default_bid") {
-      // Parse the new value, handling empty strings
-      const newBidStr = valueToCheck.trim();
-      const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
-      const oldBid = parseFloat(
-        (adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, "")
-      );
-
-      // Check if the value is a valid number and if it changed
-      if (isNaN(newBid)) {
-        // Invalid number, cancel edit
-        cancelInlineEdit();
-        return;
-      }
-      hasChanged = Math.abs(newBid - oldBid) > 0.01;
-    } else if (editingCell.field === "status") {
-      // Normalize status values for comparison
-      const oldValue = (adgroup.status || "Enabled").trim();
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
-    }
-
-    if (!hasChanged) {
-      cancelInlineEdit();
+    const adgroup = adgroups.find((ag) => ag.id === editingAdGroupField.id);
+    if (!adgroup) {
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
       return;
     }
 
+    let hasChanged = false;
     let oldValue = "";
-    let newValue = valueToCheck;
 
-    if (editingCell.field === "default_bid") {
-      oldValue = formatCurrency(
-        parseFloat((adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, ""))
-      );
-      newValue = formatCurrency(parseFloat(valueToCheck) || 0);
-    } else if (editingCell.field === "status") {
-      oldValue = adgroup.status || "Enabled";
-      newValue = valueToCheck;
+    if (editingAdGroupField.field === "status") {
+      const statusLower = adgroup.status?.toLowerCase() || "enabled";
+      const currentStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "enabled"
+          : statusLower === "paused"
+          ? "paused"
+          : "archived";
+      oldValue = currentStatus;
+      hasChanged = editedAdGroupValue !== currentStatus;
+    } else if (editingAdGroupField.field === "default_bid") {
+      const currentBid = adgroup.default_bid
+        ? adgroup.default_bid.replace(/[^0-9.]/g, "")
+        : "0";
+      oldValue = adgroup.default_bid || "$0.00";
+      hasChanged =
+        editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
     }
 
-    setInlineEditAdgroup(adgroup);
-    setInlineEditField(editingCell.field);
-    setInlineEditOldValue(oldValue);
-    setInlineEditNewValue(newValue);
-    setShowInlineEditModal(true);
-    setEditingCell(null);
+    if (hasChanged) {
+      setPendingAdGroupChange({
+        id: editingAdGroupField.id,
+        field: editingAdGroupField.field,
+        newValue: editedAdGroupValue,
+        oldValue: oldValue,
+      });
+      setEditingAdGroupField(null);
+    } else {
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
+    }
   };
 
-  const runInlineEdit = async () => {
-    if (!inlineEditAdgroup || !inlineEditField || !accountId) return;
+  const confirmAdGroupChange = async () => {
+    if (!pendingAdGroupChange || !accountId) return;
 
-    setInlineEditLoading(true);
+    const adgroup = adgroups.find((ag) => ag.id === pendingAdGroupChange.id);
+    if (!adgroup || !adgroup.adGroupId) {
+      alert("Ad group ID not found");
+      setPendingAdGroupChange(null);
+      return;
+    }
+
+    setAdGroupEditLoading((prev) => new Set(prev).add(pendingAdGroupChange.id));
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "status") {
+      if (pendingAdGroupChange.field === "status") {
         // Map status values
         const statusMap: Record<string, "enable" | "pause" | "archive"> = {
-          Enabled: "enable",
-          Paused: "pause",
-          Archived: "archive",
+          enabled: "enable",
+          paused: "pause",
+          archived: "archive",
         };
-        const statusValue = statusMap[inlineEditNewValue] || "enable";
+        const statusValue =
+          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "enable";
 
         await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [inlineEditAdgroup.adGroupId],
+          adgroupIds: [adgroup.adGroupId],
           action: "status",
           status: statusValue,
         });
-      } else if (inlineEditField === "default_bid") {
-        // Extract numeric value from formatted string
-        const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+      } else if (pendingAdGroupChange.field === "default_bid") {
+        // Extract numeric value
+        const bidValue = parseFloat(pendingAdGroupChange.newValue);
         if (isNaN(bidValue)) {
           throw new Error("Invalid bid value");
         }
 
         await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [inlineEditAdgroup.adGroupId],
+          adgroupIds: [adgroup.adGroupId],
           action: "default_bid",
           value: bidValue,
         });
       }
 
-      // Reload adgroups to show updated values
+      // Reload adgroups
       await loadAdGroups(accountIdNum);
-      setShowInlineEditModal(false);
-      setInlineEditAdgroup(null);
-      setInlineEditField(null);
-      setInlineEditOldValue("");
-      setInlineEditNewValue("");
+      setPendingAdGroupChange(null);
+      setEditingAdGroupField(null);
+      setEditedAdGroupValue("");
     } catch (error: any) {
-      console.error("Error updating adgroup:", error);
+      console.error("Error updating ad group:", error);
       const errorMessage =
         error?.response?.data?.error ||
         error?.message ||
-        "Failed to update adgroup. Please try again.";
+        "Failed to update ad group. Please try again.";
       setErrorModal({
         isOpen: true,
         message: errorMessage,
       });
     } finally {
-      setInlineEditLoading(false);
+      setAdGroupEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingAdGroupChange.id);
+        return newSet;
+      });
     }
+  };
+
+  const cancelAdGroupChange = () => {
+    setPendingAdGroupChange(null);
+    setEditingAdGroupField(null);
+    setEditedAdGroupValue("");
   };
 
   // Close dropdown when clicking outside
@@ -721,53 +735,6 @@ export const AdGroups: React.FC = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showBulkActions, showExportDropdown]);
-
-  // Cancel inline edit when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (editingCell && !showInlineEditModal) {
-        const target = event.target as HTMLElement;
-        const isDropdownMenu =
-          target.closest('[class*="z-50"]') ||
-          target.closest('[class*="shadow-lg"]') ||
-          target.closest('button[type="button"]');
-        const isInput = target.closest("input");
-        const isModal = target.closest('[class*="fixed"]');
-
-        if (!isInput && !isDropdownMenu && !isModal) {
-          setTimeout(() => {
-            if (editingCell && !showInlineEditModal) {
-              cancelInlineEdit();
-            }
-          }, 150);
-        }
-      }
-    };
-
-    if (editingCell && !showInlineEditModal) {
-      const timeout = setTimeout(() => {
-        document.addEventListener("mousedown", handleClickOutside);
-      }, 200);
-
-      return () => {
-        clearTimeout(timeout);
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }
-  }, [editingCell, showInlineEditModal]);
-
-  const formatCurrency = (value: string | number) => {
-    const numValue =
-      typeof value === "string"
-        ? parseFloat(value.replace(/[^0-9.-]+/g, ""))
-        : value;
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(numValue || 0);
-  };
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -862,10 +829,12 @@ export const AdGroups: React.FC = () => {
         // Prevent negative or zero
         newBid = Math.max(newBid, 0);
 
-        updates.push({
-          adgroupId: adgroup.adGroupId,
-          newBid: Math.round(newBid * 100) / 100,
-        });
+        if (adgroup.adGroupId) {
+          updates.push({
+            adgroupId: adgroup.adGroupId,
+            newBid: Math.round(newBid * 100) / 100,
+          });
+        }
       }
 
       // Update each adgroup individually
@@ -925,17 +894,28 @@ export const AdGroups: React.FC = () => {
     return [];
   }, [chartDataFromApi]);
 
-  const allSelected =
-    adgroups.length > 0 && selectedAdgroups.size === adgroups.length;
-  const someSelected =
-    selectedAdgroups.size > 0 && selectedAdgroups.size < adgroups.length;
-
-  const handleSelectAll = (checked: boolean) => {
+  const handleSelectAllAdGroups = (checked: boolean) => {
     if (checked) {
       const allIds = new Set(adgroups.map((ag) => ag.id));
       setSelectedAdgroups(allIds);
     } else {
       setSelectedAdgroups(new Set());
+    }
+  };
+
+  const handleSelectAdGroup = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedAdgroups((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(id);
+        return newSet;
+      });
+    } else {
+      setSelectedAdgroups((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
   };
 
@@ -972,6 +952,128 @@ export const AdGroups: React.FC = () => {
         onClose={() => setErrorModal({ isOpen: false, message: "" })}
         message={errorModal.message}
       />
+
+      {/* Inline Edit Confirmation Modal */}
+      {pendingAdGroupChange &&
+        (() => {
+          const adgroup = adgroups.find(
+            (ag) => ag.id === pendingAdGroupChange.id
+          );
+          const adgroupName = adgroup?.name || "Unnamed Ad Group";
+          const fieldLabel =
+            pendingAdGroupChange.field === "status" ? "Status" : "Default Bid";
+
+          // Format old value
+          let oldValueDisplay = "";
+          if (pendingAdGroupChange.field === "default_bid") {
+            oldValueDisplay = pendingAdGroupChange.oldValue.startsWith("$")
+              ? pendingAdGroupChange.oldValue
+              : `$${parseFloat(
+                  pendingAdGroupChange.oldValue || "0"
+                ).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`;
+          } else {
+            oldValueDisplay =
+              pendingAdGroupChange.oldValue === "enabled"
+                ? "Enabled"
+                : pendingAdGroupChange.oldValue === "paused"
+                ? "Paused"
+                : pendingAdGroupChange.oldValue === "archived"
+                ? "Archived"
+                : pendingAdGroupChange.oldValue;
+          }
+
+          // Format new value
+          let newValueDisplay = "";
+          if (pendingAdGroupChange.field === "default_bid") {
+            newValueDisplay = pendingAdGroupChange.newValue.startsWith("$")
+              ? pendingAdGroupChange.newValue
+              : `$${parseFloat(
+                  pendingAdGroupChange.newValue || "0"
+                ).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`;
+          } else {
+            newValueDisplay =
+              pendingAdGroupChange.newValue === "enabled"
+                ? "Enabled"
+                : pendingAdGroupChange.newValue === "paused"
+                ? "Paused"
+                : pendingAdGroupChange.newValue === "archived"
+                ? "Archived"
+                : pendingAdGroupChange.newValue;
+          }
+
+          return (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              onClick={(e) => {
+                if (
+                  e.target === e.currentTarget &&
+                  !adGroupEditLoading.has(pendingAdGroupChange.id)
+                ) {
+                  cancelAdGroupChange();
+                }
+              }}
+            >
+              <div
+                className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                  Confirm {fieldLabel} Change
+                </h3>
+
+                <div className="mb-4">
+                  <p className="text-[12.16px] text-[#556179] mb-2">
+                    Ad Group:{" "}
+                    <span className="font-semibold text-[#072929]">
+                      {adgroupName}
+                    </span>
+                  </p>
+                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {fieldLabel}:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {oldValueDisplay}
+                        </span>
+                        <span className="text-[12.16px] text-[#556179]">→</span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {newValueDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={cancelAdGroupChange}
+                    disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmAdGroupChange}
+                    disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                  >
+                    {adGroupEditLoading.has(pendingAdGroupChange.id)
+                      ? "Updating..."
+                      : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {/* Sidebar */}
       <Sidebar />
@@ -1465,418 +1567,26 @@ export const AdGroups: React.FC = () => {
               )}
 
               {/* Table */}
-              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
-                <div className="overflow-x-auto w-full">
-                  {loading ? (
-                    <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                      Loading ad groups...
-                    </div>
-                  ) : adgroups.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-[13.3px] text-[#556179] mb-4">
-                        No ad groups found
-                      </p>
-                    </div>
-                  ) : (
-                    <table className="min-w-[1200px] w-full">
-                      <thead>
-                        <tr className="border-b border-[#e8e8e3]">
-                          {/* Checkbox Header */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
-                            <div className="flex items-center justify-center">
-                              <Checkbox
-                                checked={allSelected}
-                                indeterminate={someSelected && !allSelected}
-                                onChange={handleSelectAll}
-                                size="small"
-                              />
-                            </div>
-                          </th>
-
-                          {/* Ad Group Name */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[150px] max-w-[200px]`}
-                            onClick={() => handleSort("name")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Ad Group Name
-                              {getSortIcon("name")}
-                            </div>
-                          </th>
-
-                          {/* State */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("status")}
-                          >
-                            <div className="flex items-center gap-1">
-                              State
-                              {getSortIcon("status")}
-                            </div>
-                          </th>
-
-                          {/* Default Bid */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("default_bid")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Default Bid
-                              {getSortIcon("default_bid")}
-                            </div>
-                          </th>
-
-                          {/* Campaign Name */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[150px] max-w-[200px]">
-                            Campaign Name
-                          </th>
-
-                          {/* Profile */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                            Profile
-                          </th>
-
-                          {/* Type */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("type")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Type
-                              {getSortIcon("type")}
-                            </div>
-                          </th>
-
-                          {/* Spends */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("spends")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Spends
-                              {getSortIcon("spends")}
-                            </div>
-                          </th>
-
-                          {/* Sales */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("sales")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Sales
-                              {getSortIcon("sales")}
-                            </div>
-                          </th>
-
-                          {/* Impressions */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("impressions")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Impressions
-                              {getSortIcon("impressions")}
-                            </div>
-                          </th>
-
-                          {/* Clicks */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("clicks")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Clicks
-                              {getSortIcon("clicks")}
-                            </div>
-                          </th>
-
-                          {/* CTR */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("ctr")}
-                          >
-                            <div className="flex items-center gap-1">
-                              CTR
-                              {getSortIcon("ctr")}
-                            </div>
-                          </th>
-
-                          {/* ACOS */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("acos")}
-                          >
-                            <div className="flex items-center gap-1">
-                              ACOS
-                              {getSortIcon("acos")}
-                            </div>
-                          </th>
-
-                          {/* ROAS */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("roas")}
-                          >
-                            <div className="flex items-center gap-1">
-                              ROAS
-                              {getSortIcon("roas")}
-                            </div>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Summary Row - First row after headings */}
-                        {summary && (
-                          <tr className="bg-[#f5f5f0] font-semibold border-b border-[#e8e8e3]">
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              Total ({summary.total_adgroups})
-                            </td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {formatCurrency(summary.total_spends)}
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {formatCurrency(summary.total_sales)}
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {summary.total_impressions.toLocaleString()}
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {summary.total_clicks.toLocaleString()}
-                            </td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {summary.avg_acos.toFixed(2)}%
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {summary.avg_roas.toFixed(2)}x
-                            </td>
-                          </tr>
-                        )}
-                        {adgroups.map((adgroup, index) => {
-                          const isLastRow = index === adgroups.length - 1;
-                          return (
-                            <tr
-                              key={adgroup.id}
-                              className={`${
-                                !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                              } hover:bg-gray-50 transition-colors`}
-                            >
-                              {/* Checkbox */}
-                              <td className="py-[10px] px-[10px]">
-                                <div className="flex items-center justify-center">
-                                  <Checkbox
-                                    checked={selectedAdgroups.has(adgroup.id)}
-                                    onChange={(checked) => {
-                                      if (checked) {
-                                        setSelectedAdgroups((prev) => {
-                                          const newSet = new Set(prev);
-                                          newSet.add(adgroup.id);
-                                          return newSet;
-                                        });
-                                      } else {
-                                        setSelectedAdgroups((prev) => {
-                                          const newSet = new Set(prev);
-                                          newSet.delete(adgroup.id);
-                                          return newSet;
-                                        });
-                                      }
-                                    }}
-                                    size="small"
-                                  />
-                                </div>
-                              </td>
-
-                              {/* Ad Group Name */}
-                              <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
-                                  {adgroup.name || "Unnamed Ad Group"}
-                                </span>
-                              </td>
-
-                              {/* State */}
-                              <td className="py-[10px] px-[10px]">
-                                {editingCell?.adgroupId === adgroup.adGroupId &&
-                                editingCell?.field === "status" ? (
-                                  <Dropdown
-                                    options={[
-                                      { value: "Enabled", label: "Enabled" },
-                                      { value: "Paused", label: "Paused" },
-                                      { value: "Archived", label: "Archived" },
-                                    ]}
-                                    value={editedValue}
-                                    onChange={(val) => {
-                                      const newValue = val as string;
-                                      handleInlineEditChange(newValue);
-                                      setTimeout(() => {
-                                        confirmInlineEdit(newValue);
-                                      }, 100);
-                                    }}
-                                    defaultOpen={true}
-                                    closeOnSelect={true}
-                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                    width="w-full"
-                                    align="center"
-                                  />
-                                ) : (
-                                  <div
-                                    onClick={() =>
-                                      startInlineEdit(adgroup, "status")
-                                    }
-                                    className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  >
-                                    <StatusBadge
-                                      status={adgroup.status || "Enabled"}
-                                    />
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* Default Bid */}
-                              <td className="py-[10px] px-[10px]">
-                                {editingCell?.adgroupId === adgroup.adGroupId &&
-                                editingCell?.field === "default_bid" ? (
-                                  <div className="flex items-center justify-center">
-                                    <input
-                                      type="number"
-                                      value={editedValue}
-                                      onChange={(e) =>
-                                        handleInlineEditChange(e.target.value)
-                                      }
-                                      onBlur={(e) => {
-                                        const inputValue = e.target.value;
-                                        confirmInlineEdit(inputValue);
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          e.currentTarget.blur();
-                                        } else if (e.key === "Escape") {
-                                          cancelInlineEdit();
-                                        }
-                                      }}
-                                      autoFocus
-                                      className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                                    />
-                                  </div>
-                                ) : (
-                                  <p
-                                    onClick={() =>
-                                      startInlineEdit(adgroup, "default_bid")
-                                    }
-                                    className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  >
-                                    {adgroup.default_bid || "$0.00"}
-                                  </p>
-                                )}
-                              </td>
-
-                              {/* Campaign Name */}
-                              <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <button
-                                  onClick={() => {
-                                    if (accountId && adgroup.campaignId) {
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          parseInt(accountId),
-                                          "amazon",
-                                          "campaigns",
-                                          `${
-                                            adgroup.type?.toLowerCase() || "sp"
-                                          }_${adgroup.campaignId}`
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
-                                >
-                                  {adgroup.campaign_name || "—"}
-                                </button>
-                              </td>
-
-                              {/* Profile */}
-                              <td className="py-[10px] px-[10px] min-w-[150px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                  {adgroup.profile_name &&
-                                  adgroup.profile_name.trim() !== ""
-                                    ? adgroup.profile_name
-                                    : "—"}
-                                </span>
-                              </td>
-
-                              {/* Type */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
-                                  {adgroup.type || "SP"}
-                                </span>
-                              </td>
-
-                              {/* Spends */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {adgroup.spends || "$0.00"}
-                                </span>
-                              </td>
-
-                              {/* Sales */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {adgroup.sales || "$0.00"}
-                                </span>
-                              </td>
-
-                              {/* Impressions */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {(adgroup.impressions || 0).toLocaleString()}
-                                </span>
-                              </td>
-
-                              {/* Clicks */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {(adgroup.clicks || 0).toLocaleString()}
-                                </span>
-                              </td>
-
-                              {/* CTR */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {adgroup.ctr || "0.00%"}
-                                </span>
-                              </td>
-
-                              {/* ACOS */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {adgroup.acos
-                                    ? `${parseFloat(adgroup.acos).toFixed(2)}%`
-                                    : "0.00%"}
-                                </span>
-                              </td>
-
-                              {/* ROAS */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {adgroup.roas
-                                    ? `${parseFloat(adgroup.roas).toFixed(2)} x`
-                                    : "0.00 x"}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-
+              <AdGroupsTable
+                adgroups={adgroups}
+                loading={loading}
+                // campaignId not provided, so all columns including Campaign Name will show
+                onSelectAll={handleSelectAllAdGroups}
+                onSelect={handleSelectAdGroup}
+                selectedIds={selectedAdgroups}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                editingField={editingAdGroupField}
+                editedValue={editedAdGroupValue}
+                onEditStart={handleAdGroupEditStart}
+                onEditChange={handleAdGroupEditChange}
+                onEditEnd={handleAdGroupEditEnd}
+                inlineEditLoading={adGroupEditLoading}
+                pendingChange={pendingAdGroupChange}
+                onConfirmChange={confirmAdGroupChange}
+                onCancelChange={cancelAdGroupChange}
+              />
               {/* Pagination */}
               {!loading && adgroups.length > 0 && (
                 <div className="flex items-center justify-end mt-4">
@@ -1948,73 +1658,6 @@ export const AdGroups: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Inline Edit Confirmation Modal */}
-      {showInlineEditModal && inlineEditAdgroup && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => {
-            if (!inlineEditLoading) {
-              setShowInlineEditModal(false);
-            }
-          }}
-        >
-          <div
-            className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-              Confirm Edit
-            </h3>
-            <div className="mb-4">
-              <p className="text-[12.16px] text-[#556179] mb-2">
-                {inlineEditField === "status"
-                  ? "State"
-                  : inlineEditField === "default_bid"
-                  ? "Default Bid"
-                  : "Field"}{" "}
-                will be updated:
-              </p>
-              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[12.16px] text-[#556179]">From:</span>
-                  <span className="text-[12.16px] font-semibold text-[#072929]">
-                    {inlineEditOldValue}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-[12.16px] text-[#556179]">To:</span>
-                  <span className="text-[12.16px] font-semibold text-[#136D6D]">
-                    {inlineEditNewValue}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowInlineEditModal(false);
-                  setInlineEditAdgroup(null);
-                  setInlineEditField(null);
-                  setInlineEditOldValue("");
-                  setInlineEditNewValue("");
-                }}
-                disabled={inlineEditLoading}
-                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={runInlineEdit}
-                disabled={inlineEditLoading}
-                className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
-              >
-                {inlineEditLoading ? "Updating..." : "Confirm"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

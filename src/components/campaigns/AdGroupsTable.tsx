@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
 import type { AdGroup } from "../../services/campaigns";
@@ -6,6 +7,7 @@ import type { AdGroup } from "../../services/campaigns";
 interface AdGroupsTableProps {
   adgroups: AdGroup[];
   loading?: boolean;
+  campaignId?: string | number; // Optional campaignId - when provided, hides Campaign Name column
   onSelectAll?: (checked: boolean) => void;
   onSelect?: (id: number, checked: boolean) => void;
   selectedIds?: Set<number>;
@@ -41,6 +43,7 @@ interface AdGroupsTableProps {
 export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   adgroups,
   loading = false,
+  campaignId, // Optional: when provided, hides Campaign Name column
   onSelectAll,
   onSelect,
   selectedIds = new Set(),
@@ -59,6 +62,25 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   showTotalRow = false,
   totalRow,
 }) => {
+  const navigate = useNavigate();
+  const { accountId } = useParams<{ accountId: string }>();
+
+  // When campaignId is provided, we're in campaign detail view - hide Campaign Name column
+  // When campaignId is not provided, we're in all adgroups view - show all columns
+  const showCampaignColumn = !campaignId;
+
+  // Navigate to campaign detail page
+  const handleCampaignNameClick = (adgroup: AdGroup, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!accountId || !adgroup.campaignId) return;
+
+    // Build campaignTypeAndId in format: sp_123456, sb_123456, or sd_123456
+    // Default to 'sp' if type is not available
+    const campaignType = (adgroup.type || "sp").toLowerCase();
+    const campaignTypeAndId = `${campaignType}_${adgroup.campaignId}`;
+
+    navigate(`/accounts/${accountId}/amazon/campaigns/${campaignTypeAndId}`);
+  };
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
       return (
@@ -167,6 +189,35 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                     Ad Group ID
                   </th>
 
+                  {/* Campaign Name Header - Only show when not in campaign detail */}
+                  {showCampaignColumn && (
+                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[150px] max-w-[200px]">
+                      Campaign Name
+                    </th>
+                  )}
+
+                  {/* Profile Header - Only show when not in campaign detail */}
+                  {showCampaignColumn && (
+                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      Profile
+                    </th>
+                  )}
+
+                  {/* Type Header - Only show when not in campaign detail */}
+                  {showCampaignColumn && (
+                    <th
+                      className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                        onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
+                      onClick={() => onSort?.("type")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Type
+                        {getSortIcon("type")}
+                      </div>
+                    </th>
+                  )}
+
                   {/* State Header */}
                   <th
                     className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
@@ -223,6 +274,66 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       {getSortIcon("sales")}
                     </div>
                   </th>
+
+                  {/* Impressions Header - Only show when not in campaign detail */}
+                  {showCampaignColumn && (
+                    <th
+                      className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                        onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
+                      onClick={() => onSort?.("impressions")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Impressions
+                        {getSortIcon("impressions")}
+                      </div>
+                    </th>
+                  )}
+
+                  {/* Clicks Header - Only show when not in campaign detail */}
+                  {showCampaignColumn && (
+                    <th
+                      className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                        onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
+                      onClick={() => onSort?.("clicks")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Clicks
+                        {getSortIcon("clicks")}
+                      </div>
+                    </th>
+                  )}
+
+                  {/* ACOS Header - Only show when not in campaign detail */}
+                  {showCampaignColumn && (
+                    <th
+                      className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                        onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
+                      onClick={() => onSort?.("acos")}
+                    >
+                      <div className="flex items-center gap-1">
+                        ACOS
+                        {getSortIcon("acos")}
+                      </div>
+                    </th>
+                  )}
+
+                  {/* ROAS Header - Only show when not in campaign detail */}
+                  {showCampaignColumn && (
+                    <th
+                      className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                        onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                      }`}
+                      onClick={() => onSort?.("roas")}
+                    >
+                      <div className="flex items-center gap-1">
+                        ROAS
+                        {getSortIcon("roas")}
+                      </div>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -249,8 +360,8 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       </td>
 
                       {/* Ad Group Name */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full whitespace-nowrap">
                           {adgroup.name}
                         </span>
                       </td>
@@ -261,6 +372,47 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           {adgroup.adGroupId || "—"}
                         </span>
                       </td>
+
+                      {/* Campaign Name - Only show when not in campaign detail */}
+                      {showCampaignColumn && (
+                        <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
+                          {adgroup.campaignId ? (
+                            <button
+                              onClick={(e) =>
+                                handleCampaignNameClick(adgroup, e)
+                              }
+                              className="text-[13.3px] text-[#136D6D] hover:text-[#0f5a5a] hover:underline leading-[1.26] text-left truncate block w-full cursor-pointer"
+                              title={
+                                adgroup.campaign_name || "View campaign details"
+                              }
+                            >
+                              {adgroup.campaign_name || "—"}
+                            </button>
+                          ) : (
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
+                              {adgroup.campaign_name || "—"}
+                            </span>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Profile - Only show when not in campaign detail */}
+                      {showCampaignColumn && (
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block w-full whitespace-nowrap">
+                            {adgroup.profile_name || "—"}
+                          </span>
+                        </td>
+                      )}
+
+                      {/* Type - Only show when not in campaign detail */}
+                      {showCampaignColumn && (
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] ">
+                            {adgroup.type || "—"}
+                          </span>
+                        </td>
+                      )}
 
                       {/* State */}
                       <td className="py-[10px] px-[10px]">
@@ -396,46 +548,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                 maximumFractionDigits: 2,
                               })}
                             </span>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={onConfirmChange}
-                                className="p-1 hover:bg-green-50 rounded transition-colors"
-                                title="Yes"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-green-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={onCancelChange}
-                                className="p-1 hover:bg-red-50 rounded transition-colors"
-                                title="No"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-red-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
                           </div>
                         ) : editingField?.id === adgroup.id &&
                           editingField?.field === "default_bid" ? (
@@ -495,17 +607,75 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           {adgroup.sales}
                         </span>
                       </td>
+
+                      {/* Impressions - Only show when not in campaign detail */}
+                      {showCampaignColumn && (
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {adgroup.impressions?.toLocaleString() || "0"}
+                          </span>
+                        </td>
+                      )}
+
+                      {/* Clicks - Only show when not in campaign detail */}
+                      {showCampaignColumn && (
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {adgroup.clicks?.toLocaleString() || "0"}
+                          </span>
+                        </td>
+                      )}
+
+                      {/* ACOS - Only show when not in campaign detail */}
+                      {showCampaignColumn && (
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {adgroup.acos || "—"}
+                          </span>
+                        </td>
+                      )}
+
+                      {/* ROAS - Only show when not in campaign detail */}
+                      {showCampaignColumn && (
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {adgroup.roas || "—"}
+                          </span>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
                 {/* Total Row */}
                 {showTotalRow && totalRow && (
                   <tr className="border-t-2 border-[#136D6D] bg-[#f9f9f6] font-semibold">
-                    <td className="py-[10px] px-[10px]" colSpan={4}>
+                    <td
+                      className="py-[10px] px-[10px]"
+                      colSpan={showCampaignColumn ? 7 : 4}
+                    >
                       <span className="text-[13.3px] text-[#072929] leading-[1.26]">
                         Total
                       </span>
                     </td>
+                    {showCampaignColumn && (
+                      <>
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
+                            —
+                          </span>
+                        </td>
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
+                            —
+                          </span>
+                        </td>
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
+                            —
+                          </span>
+                        </td>
+                      </>
+                    )}
                     <td className="py-[10px] px-[10px]">
                       <span className="text-[13.3px] text-[#072929] leading-[1.26]">
                         —
@@ -526,6 +696,30 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         {totalRow.sales}
                       </span>
                     </td>
+                    {showCampaignColumn && (
+                      <>
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
+                            —
+                          </span>
+                        </td>
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
+                            —
+                          </span>
+                        </td>
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
+                            —
+                          </span>
+                        </td>
+                        <td className="py-[10px] px-[10px]">
+                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
+                            —
+                          </span>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 )}
               </tbody>
