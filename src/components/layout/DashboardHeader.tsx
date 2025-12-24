@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import "react-datepicker/dist/react-datepicker.css";
 import { useAccounts } from "../../contexts/AccountsContext";
-import { useChannels } from "../../contexts/GlobalStateContext";
+import { useChannels } from "../../hooks/queries/useChannels";
 import { useAuth } from "../../contexts/AuthContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import {
@@ -12,10 +12,60 @@ import {
 import { type Account, type Channel } from "../../services/accounts";
 import CustomDateRangePicker from "../ui/CustomDateRangePicker";
 
+// Component to render channels list for an account (uses React Query hook properly)
+const AccountChannelsList: React.FC<{
+  accountId: number;
+  navigate: ReturnType<typeof useNavigate>;
+  onClose: () => void;
+}> = ({ accountId, navigate, onClose }) => {
+  const { data: accountChannels = [], isLoading: channelsLoading } = useChannels(accountId);
+  
+  return (
+    <div
+      className="absolute top-0 left-full w-64 bg-white border border-[#e8e8e3] rounded-[10px] shadow-lg z-50"
+      onMouseEnter={(e) => {
+        e.stopPropagation();
+      }}
+    >
+      <ul>
+        {channelsLoading ? (
+          <li className="px-3 py-2 text-[12.32px] text-[#556179]">
+            Loading...
+          </li>
+        ) : accountChannels.length === 0 ? (
+          <li className="px-3 py-2 text-[12.32px] text-[#556179]">
+            No channels
+          </li>
+        ) : (
+          accountChannels.map((channel) => (
+            <li key={channel.id}>
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => {
+                  navigate(
+                    buildMarketplaceRoute(
+                      accountId,
+                      channel.channel_type,
+                      "campaigns"
+                    )
+                  );
+                  onClose();
+                }}
+                className="w-full text-left px-3 py-2 text-[12.32px] hover:bg-gray-50"
+              >
+                {channel.channel_name}
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+    </div>
+  );
+};
+
 export const DashboardHeader: React.FC = () => {
   const { user, logout } = useAuth();
   const { accounts } = useAccounts();
-  const { getChannels, loadChannels, isLoading } = useChannels();
   const { startDate, endDate, setDateRange, formatDateRange } = useDateRange();
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,13 +95,8 @@ export const DashboardHeader: React.FC = () => {
     }
   }, [params.accountId, accounts, selectedAccount]);
 
-  // Load channels for selected account when it changes
-  useEffect(() => {
-    if (selectedAccount) {
-      loadChannels(selectedAccount.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAccount?.id]);
+  // Note: Channels are now loaded automatically via React Query hooks
+  // No need to manually load channels - the useChannels hook handles it
 
   // Click outside
   useEffect(() => {
@@ -82,9 +127,11 @@ export const DashboardHeader: React.FC = () => {
 
   // Get current marketplace/channel from URL
   const currentMarketplace = getMarketplaceFromUrl(location.pathname);
-  const selectedAccountChannels = selectedAccount
-    ? getChannels(selectedAccount.id)
-    : [];
+  
+  // Use React Query hook for selected account's channels
+  const { data: selectedAccountChannels = [] } = useChannels(
+    selectedAccount?.id
+  );
   const selectedChannel = selectedAccount
     ? selectedAccountChannels.find((ch) => ch.channel_type === currentMarketplace)
     : null;
@@ -102,7 +149,6 @@ export const DashboardHeader: React.FC = () => {
             setIsAccountDropdownOpen(open);
             if (open && selectedAccount) {
               setExpandedAccountId(selectedAccount.id);
-              loadChannels(selectedAccount.id);
             } else {
               setExpandedAccountId(null);
             }
@@ -155,7 +201,6 @@ export const DashboardHeader: React.FC = () => {
                         hoverTimeoutRef.current = null;
                       }
                       setExpandedAccountId(account.id);
-                      loadChannels(account.id);
                     }}
                     onMouseLeave={() => {
                       hoverTimeoutRef.current = window.setTimeout(() => {
@@ -184,8 +229,13 @@ export const DashboardHeader: React.FC = () => {
                   </button>
 
                   {expandedAccountId === account.id && (
-                    <div
-                      className="absolute top-0 left-full w-64 bg-white border border-[#e8e8e3] rounded-[10px] shadow-lg z-50"
+                    <AccountChannelsList
+                      accountId={account.id}
+                      navigate={navigate}
+                      onClose={() => {
+                        setIsAccountDropdownOpen(false);
+                        setExpandedAccountId(null);
+                      }}
                       onMouseEnter={() => {
                         if (hoverTimeoutRef.current) {
                           clearTimeout(hoverTimeoutRef.current);
@@ -196,52 +246,7 @@ export const DashboardHeader: React.FC = () => {
                       onMouseLeave={() => {
                         setExpandedAccountId(null);
                       }}
-                    >
-                      <ul>
-                        {(() => {
-                          const accountChannels = getChannels(account.id);
-                          const channelsLoading = isLoading(account.id);
-                          
-                          if (channelsLoading) {
-                            return (
-                              <li className="px-3 py-2 text-[12.32px] text-[#556179]">
-                                Loading...
-                              </li>
-                            );
-                          }
-                          
-                          if (accountChannels.length === 0) {
-                            return (
-                              <li className="px-3 py-2 text-[12.32px] text-[#556179]">
-                                No channels
-                              </li>
-                            );
-                          }
-                          
-                          return accountChannels.map((channel) => (
-                            <li key={channel.id}>
-                              <button
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onClick={() => {
-                                  navigate(
-                                    buildMarketplaceRoute(
-                                      account.id,
-                                      channel.channel_type,
-                                      "campaigns"
-                                    )
-                                  );
-                                  setIsAccountDropdownOpen(false);
-                                  setExpandedAccountId(null);
-                                }}
-                                className="w-full text-left px-3 py-2 text-[12.32px] hover:bg-gray-50"
-                              >
-                                {channel.channel_name}
-                              </button>
-                            </li>
-                          ));
-                        })()}
-                      </ul>
-                    </div>
+                    />
                   )}
                 </li>
               ))}

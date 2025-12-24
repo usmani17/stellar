@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 import type { Channel } from "../services/accounts";
 import { useAccounts } from "../contexts/AccountsContext";
-import { useChannels } from "../contexts/GlobalStateContext";
+import { useChannelsHelpers } from "../contexts/GlobalStateContext";
+import { useChannels } from "../hooks/queries/useChannels";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
@@ -16,12 +17,7 @@ export const Channels: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
   const { accounts } = useAccounts();
-  const {
-    getChannels,
-    loadChannels,
-    isLoading: isLoadingChannels,
-    refreshChannels,
-  } = useChannels();
+  const { refreshChannels } = useChannelsHelpers();
   const { sidebarWidth } = useSidebar();
   const [account, setAccount] = useState<{ id: number; name: string } | null>(
     null
@@ -45,9 +41,8 @@ export const Channels: React.FC = () => {
   // Get account ID number
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
 
-  // Get channels from global context
-  const channels = accountIdNum ? getChannels(accountIdNum) : [];
-  const loading = accountIdNum ? isLoadingChannels(accountIdNum) : false;
+  // Use React Query hook for channels
+  const { data: channels = [], isLoading: loading } = useChannels(accountIdNum);
 
   // Set page title
   useEffect(() => {
@@ -57,7 +52,7 @@ export const Channels: React.FC = () => {
     };
   }, []);
 
-  // Load channels when accountId changes
+  // Set account name when accountId or accounts change
   useEffect(() => {
     if (!accountIdNum) {
       navigate("/accounts");
@@ -72,10 +67,7 @@ export const Channels: React.FC = () => {
       // Last resort: set with just the ID
       setAccount({ id: accountIdNum, name: `Account ${accountIdNum}` });
     }
-
-    // Load channels from global context (deduplicated)
-    loadChannels(accountIdNum);
-  }, [accountIdNum, accounts, navigate, loadChannels]);
+  }, [accountIdNum, accounts, navigate]);
 
   // Update profile counts when channels change
   useEffect(() => {
@@ -211,13 +203,6 @@ export const Channels: React.FC = () => {
     (channel.channel_name || "")
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
-  );
-
-  // Menu icons
-  const MoreVertIcon = () => (
-    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-    </svg>
   );
 
   const isConnecting = oauthLoading?.accountId === account?.id;

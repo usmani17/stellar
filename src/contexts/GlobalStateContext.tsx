@@ -1,24 +1,24 @@
 import React, {
   createContext,
   useContext,
-  useState,
   useCallback,
-  useRef,
   useMemo,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { accountsService, type Channel } from "../services/accounts";
+import { queryKeys } from "../hooks/queries/queryKeys";
 
 interface GlobalStateContextType {
   // Channels state management
   channels: {
-    // Get channels for a specific account
+    // Get channels for a specific account (from cache)
     getChannels: (accountId: number) => Channel[];
     // Get loading state for a specific account
     isLoading: (accountId: number) => boolean;
     // Get error for a specific account
     getError: (accountId: number) => Error | null;
-    // Load channels for a specific account (deduplicated - only one call at a time)
+    // Load channels for a specific account (imperative - triggers fetch if not cached)
     loadChannels: (accountId: number) => Promise<void>;
     // Refresh channels for a specific account
     refreshChannels: (accountId: number) => Promise<void>;
@@ -37,159 +37,116 @@ const GlobalStateContext = createContext<GlobalStateContextType | undefined>(
 export const GlobalStateProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  // Store channels by account ID
-  const [channelsByAccount, setChannelsByAccount] = useState<
-    Record<number, Channel[]>
-  >({});
-
-  // Store loading states by account ID
-  const [loadingByAccount, setLoadingByAccount] = useState<
-    Record<number, boolean>
-  >({});
-
-  // Store errors by account ID
-  const [errorsByAccount, setErrorsByAccount] = useState<
-    Record<number, Error | null>
-  >({});
-
-  // Track ongoing requests to prevent duplicate calls
-  const ongoingRequestsRef = useRef<Set<number>>(new Set());
+  const queryClient = useQueryClient();
 
   /**
    * Load channels for a specific account
-   * Deduplicates requests - if a request is already in progress, it won't make another call
+   * Uses React Query's fetchQuery which handles caching and deduplication automatically
    */
-  const loadChannels = useCallback(async (accountId: number) => {
-    // If channels already exist for this account, don't reload
-    if (channelsByAccount[accountId]) {
-      return;
-    }
+  const loadChannels = useCallback(
+    async (accountId: number) => {
+      const queryKey = queryKeys.channels.lists(accountId);
 
-    // If a request is already in progress for this account, don't make another call
-    if (ongoingRequestsRef.current.has(accountId)) {
-      return;
-    }
+      // Check if data already exists in cache
+      const cachedData = queryClient.getQueryData<Channel[]>(queryKey);
+      if (cachedData) {
+        // Data already cached, no need to fetch
+        return;
+      }
 
-    // Mark request as ongoing
-    ongoingRequestsRef.current.add(accountId);
-    setLoadingByAccount((prev) => ({ ...prev, [accountId]: true }));
-    setErrorsByAccount((prev) => ({ ...prev, [accountId]: null }));
-
-    try {
-      const channels = await accountsService.getAccountChannels(accountId);
-      const channelsArray = Array.isArray(channels) ? channels : [];
-
-      setChannelsByAccount((prev) => ({
-        ...prev,
-        [accountId]: channelsArray,
-      }));
-      setErrorsByAccount((prev) => ({ ...prev, [accountId]: null }));
-    } catch (err) {
-      const error =
-        err instanceof Error ? err : new Error("Failed to load channels");
-      setErrorsByAccount((prev) => ({ ...prev, [accountId]: error }));
-      console.error(`Failed to load channels for account ${accountId}:`, err);
-    } finally {
-      setLoadingByAccount((prev) => ({ ...prev, [accountId]: false }));
-      ongoingRequestsRef.current.delete(accountId);
-    }
-  }, [channelsByAccount]);
+      // Fetch data using React Query (handles deduplication automatically)
+      await queryClient.fetchQuery<Channel[], Error>({
+        queryKey,
+        queryFn: async () => {
+          const data = await accountsService.getAccountChannels(accountId);
+          return Array.isArray(data) ? data : [];
+        },
+      });
+    },
+    [queryClient] // queryClient from useQueryClient is stable but should be in deps
+  );
 
   /**
    * Refresh channels for a specific account
-   * This will always make a new API call, even if channels already exist
+   * This will always make a new API call, even if channels already exist in cache
    */
-  const refreshChannels = useCallback(async (accountId: number) => {
-    // If a request is already in progress for this account, don't make another call
-    if (ongoingRequestsRef.current.has(accountId)) {
-      return;
-    }
+  const refreshChannels = useCallback(
+    async (accountId: number) => {
+      const queryKey = queryKeys.channels.lists(accountId);
 
-    // Mark request as ongoing
-    ongoingRequestsRef.current.add(accountId);
-    setLoadingByAccount((prev) => ({ ...prev, [accountId]: true }));
-    setErrorsByAccount((prev) => ({ ...prev, [accountId]: null }));
-
-    try {
-      const channels = await accountsService.getAccountChannels(accountId);
-      const channelsArray = Array.isArray(channels) ? channels : [];
-
-      setChannelsByAccount((prev) => ({
-        ...prev,
-        [accountId]: channelsArray,
-      }));
-      setErrorsByAccount((prev) => ({ ...prev, [accountId]: null }));
-    } catch (err) {
-      const error =
-        err instanceof Error ? err : new Error("Failed to load channels");
-      setErrorsByAccount((prev) => ({ ...prev, [accountId]: error }));
-      console.error(`Failed to refresh channels for account ${accountId}:`, err);
-    } finally {
-      setLoadingByAccount((prev) => ({ ...prev, [accountId]: false }));
-      ongoingRequestsRef.current.delete(accountId);
-    }
-  }, []);
+      // Use invalidateQueries to mark as stale and refetch
+      await queryClient.invalidateQueries({ queryKey });
+    },
+    [queryClient]
+  );
 
   /**
-   * Get channels for a specific account
+   * Get channels for a specific account from React Query cache
    */
   const getChannels = useCallback(
     (accountId: number): Channel[] => {
-      return channelsByAccount[accountId] || [];
+      const queryKey = queryKeys.channels.lists(accountId);
+      const data = queryClient.getQueryData<Channel[]>(queryKey);
+      return data || [];
     },
-    [channelsByAccount]
+    [queryClient]
   );
 
   /**
-   * Get loading state for a specific account
+   * Get loading state for a specific account from React Query
    */
   const isLoading = useCallback(
     (accountId: number): boolean => {
-      return loadingByAccount[accountId] || false;
+      const queryKey = queryKeys.channels.lists(accountId);
+
+      // If data exists in cache, we're definitely not loading
+      const cachedData = queryClient.getQueryData<Channel[]>(queryKey);
+      if (cachedData !== undefined && cachedData !== null) {
+        return false;
+      }
+
+      // Check query from cache directly for more accurate state
+      const query = queryClient.getQueryCache().find({ queryKey });
+      if (!query) {
+        // No query in cache means it hasn't been fetched, so not loading
+        return false;
+      }
+
+      // Check if actively fetching
+      return query.state.fetchStatus === "fetching";
     },
-    [loadingByAccount]
+    [queryClient]
   );
 
   /**
-   * Get error for a specific account
+   * Get error for a specific account from React Query
    */
   const getError = useCallback(
     (accountId: number): Error | null => {
-      return errorsByAccount[accountId] || null;
+      const queryKey = queryKeys.channels.lists(accountId);
+      const queryState = queryClient.getQueryState(queryKey);
+      return (queryState?.error as Error) || null;
     },
-    [errorsByAccount]
+    [queryClient]
   );
 
   /**
-   * Clear channels for a specific account
+   * Clear channels for a specific account from React Query cache
    */
-  const clearChannels = useCallback((accountId: number) => {
-    setChannelsByAccount((prev) => {
-      const next = { ...prev };
-      delete next[accountId];
-      return next;
-    });
-    setLoadingByAccount((prev) => {
-      const next = { ...prev };
-      delete next[accountId];
-      return next;
-    });
-    setErrorsByAccount((prev) => {
-      const next = { ...prev };
-      delete next[accountId];
-      return next;
-    });
-  }, []);
+  const clearChannels = useCallback(
+    (accountId: number) => {
+      const queryKey = queryKeys.channels.lists(accountId);
+      queryClient.removeQueries({ queryKey });
+    },
+    [queryClient]
+  );
 
   /**
-   * Clear all channels
+   * Clear all channels from React Query cache
    */
   const clearAllChannels = useCallback(() => {
-    setChannelsByAccount({});
-    setLoadingByAccount({});
-    setErrorsByAccount({});
-    ongoingRequestsRef.current.clear();
-  }, []);
+    queryClient.removeQueries({ queryKey: queryKeys.channels.all });
+  }, [queryClient]);
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo<GlobalStateContextType>(
@@ -236,11 +193,15 @@ export const useGlobalState = (): GlobalStateContextType => {
 };
 
 /**
- * Hook to access channels state (convenience hook)
- * Usage: const { getChannels, loadChannels, ... } = useChannels();
+ * Hook to access channels state (convenience hook for imperative methods)
+ * Usage: const { getChannels, loadChannels, ... } = useChannelsHelpers();
+ *
+ * For React Query hooks with proper loading states, use useChannels from hooks/queries/useChannels
  */
-export const useChannels = () => {
+export const useChannelsHelpers = () => {
   const { channels } = useGlobalState();
   return channels;
 };
 
+// Re-export the React Query hook for convenience
+export { useChannels } from "../hooks/queries/useChannels";
