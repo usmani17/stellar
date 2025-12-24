@@ -1053,7 +1053,41 @@ export const Campaigns: React.FC = () => {
         );
       }
 
-      // 5. Check if portfolioId changed
+      // 5. Check if endDate changed (for SP campaigns)
+      if (data.type === "SP") {
+        const originalEndDate = original.endDate || "";
+        const newEndDate = data.endDate || "";
+
+        // Convert both to YYYYMMDD format for comparison
+        const normalizeEndDate = (dateStr: string): string => {
+          if (!dateStr) return "";
+          // If already in YYYYMMDD format, return as is
+          if (!dateStr.includes("-") && /^\d{8}$/.test(dateStr)) return dateStr;
+          // If in YYYY-MM-DD format, convert to YYYYMMDD
+          if (dateStr.includes("-")) {
+            return dateStr.replace(/-/g, "");
+          }
+          return dateStr;
+        };
+
+        const originalEndDateNormalized = normalizeEndDate(originalEndDate);
+        const newEndDateNormalized = normalizeEndDate(newEndDate);
+
+        if (originalEndDateNormalized !== newEndDateNormalized) {
+          // Format as YYYYMMDD for API (or null if empty)
+          const endDateForAPI = newEndDateNormalized || null;
+
+          updates.push(
+            campaignsService.bulkUpdateCampaigns(accountIdNum, {
+              campaignIds: [campaignId],
+              action: "endDate",
+              endDate: endDateForAPI,
+            })
+          );
+        }
+      }
+
+      // 6. Check if portfolioId changed
       const originalPortfolioId = original.portfolioId || "";
       const newPortfolioId = data.portfolioId || "";
       // Compare as strings (both could be empty string or undefined)

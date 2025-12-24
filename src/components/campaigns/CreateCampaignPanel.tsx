@@ -64,9 +64,10 @@ const CAMPAIGN_TYPES = [
   { value: "SD", label: "Sponsored Display" },
 ];
 
+// SP campaigns only support DAILY budget type
 const BUDGET_TYPES = [
   { value: "DAILY", label: "DAILY" },
-  { value: "LIFETIME", label: "LIFETIME" },
+  { value: "LIFETIME", label: "LIFETIME" }, // Only for SB/SD campaigns
 ];
 
 const STATE_OPTIONS = [
@@ -154,6 +155,18 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     }
   }, [isOpen]);
 
+  // Helper function to convert YYYYMMDD to YYYY-MM-DD format (for date input)
+  const convertDateToInputFormat = (dateStr: string | undefined): string => {
+    if (!dateStr) return "";
+    // If already in YYYY-MM-DD format, return as is
+    if (dateStr.includes("-")) return dateStr;
+    // If in YYYYMMDD format, convert to YYYY-MM-DD
+    if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
+      return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+    }
+    return dateStr;
+  };
+
   // When opening in edit mode, pre-populate form with initial data
   useEffect(() => {
     if (isOpen && mode === "edit" && initialData) {
@@ -161,12 +174,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         ...initialData,
         // Ensure type is a valid value (fallback to previous if not provided)
         type: (initialData.type as any) || "",
+        // Convert endDate from YYYYMMDD to YYYY-MM-DD format if needed
+        endDate: convertDateToInputFormat(initialData.endDate),
+        // Ensure SP campaigns always have DAILY budget type
+        budgetType: initialData.type === "SP" ? "DAILY" : (initialData.budgetType || "DAILY"),
       };
       setFormData((prev) => ({
         ...prev,
         ...newFormData,
       }));
-      // Store original data for comparison
+      // Store original data for comparison (with original endDate format)
       setOriginalData({ ...initialData });
     }
     if (isOpen && mode === "create" && !initialData) {
@@ -277,6 +294,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       // If campaign type is changed, automatically set budgetType and generate default name
       if (field === "type") {
         if (value === "SP") {
+          // SP campaigns ONLY support DAILY budget type
           updated.budgetType = "DAILY";
           updated.status = "Enabled";
         } else if (value === "SD") {
@@ -291,6 +309,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           updated.campaign_name = generateDefaultCampaignName(value);
         }
       }
+      
+      // Ensure SP campaigns always use DAILY budget type (prevent any changes to LIFETIME)
+      if (updated.type === "SP" && field === "budgetType" && value !== "DAILY") {
+        updated.budgetType = "DAILY";
+      }
       return updated;
     });
     // Clear error for this field
@@ -302,7 +325,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof CreateCampaignData, string>> = {};
 
-    // In edit mode, only validate editable fields: name, status, budget, budgetType
+    // In edit mode, only validate editable fields: name, status, budget, endDate
     if (mode === "edit") {
       if (!formData.campaign_name.trim()) {
         newErrors.campaign_name = "Campaign name is required";
@@ -315,6 +338,18 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       // Status is a dropdown, so it should always have a value, but validate just in case
       if (!formData.status) {
         newErrors.status = "Status is required";
+      }
+
+      // Validate end date for SP campaigns (must be today or in the future, can be empty)
+      if (formData.type === "SP" && formData.endDate) {
+        const selectedDate = new Date(formData.endDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+        selectedDate.setHours(0, 0, 0, 0);
+        
+        if (selectedDate < today) {
+          newErrors.endDate = "End date must be today or in the future";
+        }
       }
 
       setErrors(newErrors);
@@ -380,7 +415,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       if (data.portfolioId) {
         basePayload.portfolioId = data.portfolioId;
       }
-      // budgetType is always "DAILY" (handled in backend)
+      // SP campaigns ONLY support DAILY budget type - always set to DAILY
+      basePayload.budgetType = "DAILY";
+      
+      // Format endDate as YYYYMMDD if provided (convert from YYYY-MM-DD)
+      // Amazon API expects YYYYMMDD format (e.g., "20261231")
+      if (data.endDate && data.endDate.trim()) {
+        // Convert from YYYY-MM-DD to YYYYMMDD
+        const dateFormatted = data.endDate.replace(/-/g, "");
+        if (dateFormatted.length === 8) {
+          basePayload.endDate = dateFormatted;
+        } else {
+          // If format is unexpected, try to use as-is or log warning
+          console.warn("Unexpected endDate format:", data.endDate);
+          basePayload.endDate = data.endDate;
+        }
+      } else {
+        // If empty, send empty string (API will handle null/empty to remove end date)
+        basePayload.endDate = "";
+      }
+      
       return basePayload;
     } else if (data.type === "SB") {
       // SB specific fields
@@ -897,7 +951,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       )}
                     </div>
 
-                    {/* End Date */}
+                    {/* End Date - Editable for SP campaigns */}
                     <div className="w-[33.333%] ml-6">
                       <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                         End Date
@@ -909,20 +963,28 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("endDate", e.target.value)
                           }
-                          min={formData.startDate || undefined}
-                          disabled={mode === "edit"}
+                          min={new Date().toISOString().split("T")[0]} // Minimum date is today
                           className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
-                          } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
+                          }`}
                         />
+                        {/* Clear button to remove end date */}
+                        {formData.endDate && (
+                          <button
+                            type="button"
+                            onClick={() => handleChange("endDate", "")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#556179] hover:text-[#072929] text-[12px] font-medium"
+                            title="Clear end date"
+                          >
+                            ×
+                          </button>
+                        )}
                       </div>
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
+                      <p className="text-[10px] text-[#556179] mt-1">
+                        Optional - Leave empty for no end date
+                      </p>
                       {errors.endDate && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.endDate}
