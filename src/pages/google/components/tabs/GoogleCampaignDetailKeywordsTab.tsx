@@ -313,7 +313,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
               </p>
             </div>
           ) : (
-            <table className="min-w-[900px] w-full">
+            <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
@@ -335,7 +335,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("match_type")}
                   >
                     <div className="flex items-center gap-1">
@@ -343,11 +343,11 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                       {getSortIcon("match_type", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
                     Ad Group
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
@@ -356,7 +356,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("cpc_bid_dollars")}
                   >
                     <div className="flex items-center gap-1">
@@ -390,7 +390,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                           {keyword.keyword_text || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         {updatingKeywordId === keyword.id && pendingChange?.field === "match_type" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -467,12 +467,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                           </span>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden lg:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {keyword.adgroup_name || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         {updatingKeywordId === keyword.id && pendingChange?.field === "status" ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
@@ -545,7 +545,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                           </div>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         {updatingKeywordId === keyword.id && pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">

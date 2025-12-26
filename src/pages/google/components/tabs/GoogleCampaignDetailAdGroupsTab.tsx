@@ -32,6 +32,7 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   onUpdateAdGroupStatus?: (adgroupId: number, status: string) => Promise<void>;
   onUpdateAdGroupBid?: (adgroupId: number, bid: number) => Promise<void>;
+  campaignType?: string;
 }
 
 export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGroupsTabProps> = ({
@@ -60,6 +61,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
   getSortIcon,
   onUpdateAdGroupStatus,
   onUpdateAdGroupBid,
+  campaignType,
 }) => {
   const [editingAdGroupId, setEditingAdGroupId] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<"status" | "bid" | null>(null);
@@ -71,6 +73,9 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
     oldValue: string;
   } | null>(null);
   const [updatingAdGroupId, setUpdatingAdGroupId] = useState<number | null>(null);
+
+  // Check if this is a shopping campaign - ad groups don't have headlines/final URLs
+  const isShoppingCampaign = campaignType?.toUpperCase() === "SHOPPING";
 
   const handleStatusClick = (adgroup: GoogleAdGroup) => {
     if (onUpdateAdGroupStatus) {
@@ -291,7 +296,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
               </p>
             </div>
           ) : (
-            <table className="min-w-[800px] w-full">
+            <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
@@ -324,16 +329,26 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  {!isShoppingCampaign && (
+                    <>
+                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                        Headlines
+                      </th>
+                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                        Final URLs
+                      </th>
+                    </>
+                  )}
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     Bid
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     CTR
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     Spends
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     Sales
                   </th>
                 </tr>
@@ -362,7 +377,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                           {adgroup.adgroup_name || adgroup.name || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <div className="relative w-full">
                           {updatingAdGroupId === adgroup.id && pendingChange?.field === "status" ? (
                             <div className="flex items-center gap-2">
@@ -465,7 +480,25 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                           )}
                         </div>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      {!isShoppingCampaign && (
+                        <>
+                          <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {adgroup.headlines && Array.isArray(adgroup.headlines) && adgroup.headlines.length > 0
+                                ? adgroup.headlines.map((h: any) => h.text || h).join(", ")
+                                : "—"}
+                            </span>
+                          </td>
+                          <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
+                              {adgroup.final_urls && adgroup.final_urls.length > 0
+                                ? adgroup.final_urls[0]
+                                : "—"}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         {updatingAdGroupId === adgroup.id && pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -556,17 +589,17 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                           </p>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatPercentage(adgroup.ctr)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.spends)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.sales)}
                         </span>

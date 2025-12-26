@@ -21,10 +21,17 @@ import {
   GoogleCampaignsTable,
   type GoogleCampaign,
 } from "./components/GoogleCampaignsTable";
+import { CreateGoogleCampaignSection } from "../../components/campaigns/CreateGoogleCampaignSection";
+import {
+  CreateGoogleCampaignPanel,
+  type CreateGoogleCampaignData,
+} from "../../components/campaigns/CreateGoogleCampaignPanel";
+import { ErrorModal } from "../../components/ui/ErrorModal";
 
 // GoogleCampaign interface is now imported from GoogleCampaignsTable
 
 export const GoogleCampaigns: React.FC = () => {
+  const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
@@ -65,6 +72,22 @@ export const GoogleCampaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
+    useState(false);
+  const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
+  const [createCampaignError, setCreateCampaignError] = useState<string | null>(
+    null
+  );
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    message: string;
+    title?: string;
+    isSuccess?: boolean;
+    actionButton?: {
+      text: string;
+      onClick: () => void;
+    };
+  }>({ isOpen: false, message: "" });
 
   // Chart toggles (visual parity with Amazon Campaigns)
   const [chartToggles, setChartToggles] = useState({
@@ -117,25 +140,9 @@ export const GoogleCampaigns: React.FC = () => {
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    campaignId: string | number;
-    newStatus: string;
-    oldStatus: string;
-  } | null>(null);
-  const [pendingBudgetChange, setPendingBudgetChange] = useState<{
-    campaignId: string | number;
-    newBudget: number;
-    oldBudget: number;
-  } | null>(null);
-  const [pendingDateChange, setPendingDateChange] = useState<{
-    campaignId: string | number;
-    field: "start_date" | "end_date";
-    newDate: string;
-    oldDate: string;
-  } | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportType, setExportType] = useState<"current_view" | "all_data">("current_view");
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -146,16 +153,22 @@ export const GoogleCampaigns: React.FC = () => {
       ) {
         setShowBulkActions(false);
       }
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    if (showBulkActions) {
+    if (showBulkActions || showExportDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showBulkActions]);
+  }, [showBulkActions, showExportDropdown]);
 
   // Cancel inline edit when clicking outside
   useEffect(() => {
@@ -384,6 +397,131 @@ export const GoogleCampaigns: React.FC = () => {
       setTotal(0);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
+    if (!accountId) return;
+
+    setCreateCampaignLoading(true);
+    setCreateCampaignError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.createGoogleCampaign(
+        accountIdNum,
+        data
+      );
+
+      console.log("Create Google campaign response:", response);
+
+      // Extract campaign ID from response
+      let campaignId: string | number | null = null;
+      if (response?.campaign_id) {
+        campaignId = response.campaign_id;
+      }
+
+      // Close the panel and stop loading
+      setIsCreateCampaignPanelOpen(false);
+      setCreateCampaignLoading(false);
+      setCreateCampaignError(null);
+
+      // Show success modal with navigation button if we have campaign ID
+      if (campaignId) {
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `Campaign "${data.name}" created successfully!`,
+          isSuccess: true,
+          actionButton: {
+            text: "View Campaign",
+            onClick: () => {
+              setErrorModal({ isOpen: false, message: "" });
+              navigate(`/accounts/${accountIdNum}/google-campaigns/${campaignId}`);
+            },
+          },
+        });
+        await loadCampaigns(accountIdNum);
+      } else {
+        // If no campaign ID, show success and reload campaigns
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `Campaign "${data.name}" created successfully!`,
+          isSuccess: true,
+        });
+
+        // Refresh campaigns to get updated data
+        await loadCampaigns(accountIdNum);
+      }
+    } catch (error: any) {
+      console.error("Failed to create Google campaign:", error);
+      setCreateCampaignLoading(false);
+
+      // Extract error message from backend response
+      let errorMessage = "Failed to create campaign. Please try again.";
+      let errorDetails = null;
+      let fieldErrors: Record<string, string> = {};
+
+      if (error?.response?.data) {
+        // Check for validation errors (400 status)
+        if (error.response.status === 400) {
+          // Check for field-specific validation errors
+          if (error.response.data.field_errors) {
+            fieldErrors = error.response.data.field_errors;
+          }
+
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        } else {
+          // Check for error message
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+
+          // Check for detailed error information
+          if (error.response.data.details) {
+            errorDetails = error.response.data.details;
+            // If details is an object with errors, format it
+            if (
+              typeof errorDetails === "object" &&
+              !Array.isArray(errorDetails)
+            ) {
+              if (errorDetails.errors) {
+                errorMessage = `Google Ads API errors: ${JSON.stringify(
+                  errorDetails.errors
+                )}`;
+              } else if (errorDetails.message) {
+                errorMessage = `Google Ads API error: ${errorDetails.message}`;
+              }
+            }
+          }
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      // Pass field errors to the panel via a custom error object
+      const errorWithFields = {
+        message: errorMessage,
+        fieldErrors: fieldErrors,
+      };
+
+      // Store error with field errors as JSON string
+      setCreateCampaignError(JSON.stringify(errorWithFields));
+
+      // Don't close panel on error - let user fix and resubmit
+      // Re-throw error so the form knows submission failed
+      throw error;
     }
   };
 
@@ -641,6 +779,18 @@ export const GoogleCampaigns: React.FC = () => {
     campaign: GoogleCampaign,
     field: "budget" | "status" | "start_date" | "end_date"
   ) => {
+    // Prevent editing start_date if it's in the past - silently do nothing
+    if (field === "start_date") {
+      const startDateStr = parseDateToYYYYMMDD(campaign.start_date);
+      if (startDateStr) {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        if (startDateStr < todayStr) {
+          return; // Silently prevent editing past start dates
+        }
+      }
+    }
+    
     setEditingCell({ campaignId: campaign.campaign_id, field });
     if (field === "budget") {
       setEditedValue((campaign.daily_budget || 0).toString());
@@ -762,67 +912,77 @@ export const GoogleCampaigns: React.FC = () => {
       return;
     }
 
-    // For status changes, show inline confirmation instead of modal
+    // For status changes, show modal
     if (editingCell.field === "status") {
-      setPendingStatusChange({
-        campaignId: editingCell.campaignId,
-        newStatus: valueToCheck,
-        oldStatus: campaign.status || "ENABLED",
-      });
-      // Keep editing cell open to show confirmation buttons
+      const oldStatusRaw = campaign.status || "ENABLED";
+      const newStatusRaw = valueToCheck.trim();
+      
+      // Format status values for display (convert ENABLED -> Enabled, PAUSED -> Paused, REMOVED -> Removed)
+      const statusDisplayMap: Record<string, string> = {
+        ENABLED: "Enabled",
+        PAUSED: "Paused",
+        REMOVED: "Removed",
+        Enabled: "Enabled",
+        Paused: "Paused",
+        Removed: "Removed",
+      };
+      const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
+      const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
+      
+      setInlineEditCampaign(campaign);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(oldValue);
+      setInlineEditNewValue(newValue);
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
-    // For budget, show inline confirmation buttons
+    // For budget, show modal
     if (editingCell.field === "budget") {
       const newBudget = parseFloat(valueToCheck) || 0;
       const oldBudget = campaign.daily_budget || 0;
       
-      setPendingBudgetChange({
-        campaignId: editingCell.campaignId,
-        newBudget: newBudget,
-        oldBudget: oldBudget,
-      });
-      // Keep editing cell open to show confirmation buttons
+      setInlineEditCampaign(campaign);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(formatCurrency(oldBudget));
+      setInlineEditNewValue(formatCurrency(newBudget));
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
-    // For start_date and end_date, show inline confirmation buttons
+    // For start_date and end_date, show modal
     if (editingCell.field === "start_date" || editingCell.field === "end_date") {
-      // Normalize old date to YYYY-MM-DD format
-      let oldDateFormatted = "";
-      const oldDate = campaign[editingCell.field];
-      if (oldDate) {
-        try {
-          const date = new Date(oldDate);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            oldDateFormatted = `${year}-${month}-${day}`;
-          }
-        } catch (e) {
-          console.error(`Error parsing ${editingCell.field}:`, e, oldDate);
-        }
-      }
+      // Format dates for display
+      const oldDateStr = parseDateToYYYYMMDD(campaign[editingCell.field]);
+      const newDateStr = valueToCheck.trim();
       
-      const pendingChange = {
-        campaignId: editingCell.campaignId,
-        field: editingCell.field,
-        newDate: valueToCheck.trim(),
-        oldDate: oldDateFormatted,
+      // Format dates for display (MM/DD/YYYY format)
+      const formatDateForDisplay = (dateStr: string) => {
+        if (!dateStr) return "—";
+        try {
+          const parts = dateStr.split("-");
+          if (parts.length !== 3) {
+            return dateStr;
+          }
+          const [year, month, day] = parts;
+          return `${month}/${day}/${year}`;
+        } catch (e) {
+          return dateStr;
+        }
       };
       
-      console.log(`[${editingCell.field}] Setting pendingDateChange:`, pendingChange);
-      console.log(`[${editingCell.field}] Current editingCell:`, editingCell);
-      console.log(`[${editingCell.field}] Campaign:`, campaign);
+      // Store formatted values for display in modal
+      const oldValue = oldDateStr ? formatDateForDisplay(oldDateStr) : "—";
       
-      // Clear editing cell so the input disappears and confirmation buttons show
+      setInlineEditCampaign(campaign);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(oldValue);
+      // Store the raw YYYY-MM-DD value for API call (we'll format it for display in modal)
+      setInlineEditNewValue(newDateStr);
+      setShowInlineEditModal(true);
       setEditingCell(null);
-      setEditedValue("");
-      setPendingDateChange(pendingChange);
-      // Keep editing cell open to show confirmation buttons
-      console.log(`[${editingCell.field}] Pending date change set, returning`);
       return;
     }
 
@@ -838,210 +998,6 @@ export const GoogleCampaigns: React.FC = () => {
     setEditingCell(null);
   };
 
-  const runInlineBudgetUpdate = async (
-    campaignId: string | number,
-    newBudget: number
-  ) => {
-    if (!accountId) return;
-
-    const campaign = campaigns.find((c) => c.campaign_id === campaignId);
-    if (!campaign) return;
-
-    setUpdatingField({ campaignId, field: "budget" });
-    
-    // Optimistically update the local state
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((c) =>
-        c.campaign_id === campaignId ? { ...c, daily_budget: newBudget } : c
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      if (isNaN(newBudget) || newBudget <= 0) {
-        throw new Error("Invalid budget value");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
-        action: "budget",
-        budgetAction: "set",
-        unit: "amount",
-        value: newBudget,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - keep the optimistic update
-      setPendingBudgetChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error("Error updating campaign budget:", error);
-      // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((c) =>
-          c.campaign_id === campaignId ? campaign : c
-        )
-      );
-      alert("Failed to update campaign budget. Please try again.");
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  const runInlineDateUpdate = async (
-    campaignId: string | number,
-    field: "start_date" | "end_date",
-    newDate: string
-  ) => {
-    if (!accountId) return;
-
-    const campaign = campaigns.find((c) => c.campaign_id === campaignId);
-    if (!campaign) return;
-
-    setUpdatingField({ campaignId, field });
-    
-    // Parse the date value first to ensure consistency
-    const dateValue = parseDateToYYYYMMDD(newDate);
-    console.log(`[${field}] Date value for API:`, {
-      original: newDate,
-      parsed: dateValue
-    });
-
-    // Optimistically update the local state with the parsed date value
-    let optimisticValue: any = {};
-    if (field === "start_date") {
-      optimisticValue = { start_date: dateValue || null };
-    } else if (field === "end_date") {
-      optimisticValue = { end_date: dateValue || null };
-    }
-
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((c) =>
-        c.campaign_id === campaignId ? { ...c, ...optimisticValue } : c
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
-        action: field,
-        [field]: dateValue || undefined,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - ensure the state has the correct value from API response
-      // The response might contain the updated value, use it if available
-      const updatedCampaign = response.updated_campaigns?.find(
-        (c: any) => c.campaign_id === campaignId
-      );
-      
-      if (updatedCampaign?.value) {
-        // Use the value from API response to ensure consistency
-        const apiDateValue = updatedCampaign.value;
-        setCampaigns((prevCampaigns) =>
-          prevCampaigns.map((c) =>
-            c.campaign_id === campaignId
-              ? { ...c, [field]: apiDateValue }
-              : c
-          )
-        );
-        console.log(`[${field}] Updated state with API response value:`, apiDateValue);
-      }
-
-      setPendingDateChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error(`Error updating campaign ${field}:`, error);
-      // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((c) =>
-          c.campaign_id === campaignId ? campaign : c
-        )
-      );
-      alert(`Failed to update campaign ${field}. Please try again.`);
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  const runInlineStatusUpdate = async (campaignId: string | number, newStatus: string) => {
-    if (!accountId) return;
-
-    setUpdatingField({ campaignId, field: "status" });
-    
-    // Optimistically update the local state
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((campaign) =>
-        campaign.campaign_id === campaignId
-          ? { ...campaign, status: newStatus }
-          : campaign
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
-          ENABLED: "ENABLED",
-          PAUSED: "PAUSED",
-          REMOVED: "REMOVED",
-          Enabled: "ENABLED",
-          Paused: "PAUSED",
-          Removed: "REMOVED",
-        };
-      const statusValue = statusMap[newStatus] || "ENABLED";
-
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
-          action: "status",
-          status: statusValue,
-        });
-
-      // Check for errors in response
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - keep the optimistic update
-      setPendingStatusChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error("Error updating campaign status:", error);
-      // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((campaign) =>
-          campaign.campaign_id === campaignId
-            ? { ...campaign, status: pendingStatusChange?.oldStatus || campaign.status }
-            : campaign
-        )
-      );
-      alert("Failed to update campaign status. Please try again.");
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
   const runInlineEdit = async () => {
     if (!inlineEditCampaign || !inlineEditField || !accountId) return;
 
@@ -1052,7 +1008,32 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "budget") {
+      if (inlineEditField === "status") {
+        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
+        // Handle both formatted display values (from modal) and raw values
+        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          REMOVED: "REMOVED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+          Removed: "REMOVED",
+          enable: "ENABLED",
+          pause: "PAUSED",
+          removed: "REMOVED",
+        };
+        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+          campaignIds: [inlineEditCampaign.campaign_id],
+          action: "status",
+          status: statusValue,
+        });
+
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
+      } else if (inlineEditField === "budget") {
         const budgetValue = parseFloat(
           inlineEditNewValue.replace(/[^0-9.]/g, "")
         );
@@ -1060,56 +1041,28 @@ export const GoogleCampaigns: React.FC = () => {
           throw new Error("Invalid budget value");
         }
 
-        await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
           campaignIds: [inlineEditCampaign.campaign_id],
           action: "budget",
           budgetAction: "set",
           unit: "amount",
           value: budgetValue,
         });
-      } else if (inlineEditField === "start_date") {
-        // Extract date from formatted string or use raw value
-        let dateValue = inlineEditNewValue;
-        if (dateValue === "—" || !dateValue) {
-          dateValue = "";
-        } else {
-          // Try to parse the formatted date back to YYYY-MM-DD
-          const date = new Date(inlineEditNewValue);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            dateValue = `${year}-${month}-${day}`;
-          }
-        }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: "start_date",
-          start_date: dateValue || undefined,
-        });
-        
         if (response.errors && response.errors.length > 0) {
           throw new Error(response.errors[0]);
         }
-      } else if (inlineEditField === "end_date") {
-        let dateValue = inlineEditNewValue;
-        if (dateValue === "—" || !dateValue) {
+      } else if (inlineEditField === "start_date" || inlineEditField === "end_date") {
+        // inlineEditNewValue should already be in YYYY-MM-DD format from the date input
+        let dateValue = inlineEditNewValue.trim();
+        if (!dateValue || dateValue === "—") {
           dateValue = "";
-        } else {
-          const date = new Date(inlineEditNewValue);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            dateValue = `${year}-${month}-${day}`;
-          }
         }
 
         const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
           campaignIds: [inlineEditCampaign.campaign_id],
-          action: "end_date",
-          end_date: dateValue || undefined,
+          action: inlineEditField,
+          [inlineEditField]: dateValue || undefined,
         });
         
         if (response.errors && response.errors.length > 0) {
@@ -1242,13 +1195,15 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (exportType: "all_data" | "current_view") => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    // Keep dropdown open and show loading
+    setShowExportDropdown(true);
+    setExportLoading(true);
     try {
-      setExporting(true);
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
@@ -1266,12 +1221,17 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       await campaignsService.exportGoogleCampaigns(accountIdNum, params, exportType);
-      setShowExportModal(false);
+      
+      // Close dropdown after a short delay to show success
+      setTimeout(() => {
+        setShowExportDropdown(false);
+      }, 500);
     } catch (error: any) {
       console.error("Failed to export campaigns:", error);
       alert("Failed to export campaigns. Please try again.");
+      setShowExportDropdown(false);
     } finally {
-      setExporting(false);
+      setExportLoading(false);
     }
   };
 
@@ -1356,12 +1316,10 @@ export const GoogleCampaigns: React.FC = () => {
   const someSelected =
     selectedCampaigns.size > 0 && selectedCampaigns.size < campaigns.length;
 
-  const toggleChartMetric = (
-    metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
-  ) => {
+  const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
       ...prev,
-      [metric]: !prev[metric],
+      [metric]: !prev[metric as keyof typeof prev],
     }));
   };
 
@@ -1419,6 +1377,16 @@ export const GoogleCampaigns: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white flex">
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
+        message={errorModal.message}
+        isSuccess={errorModal.isSuccess}
+        actionButton={errorModal.actionButton}
+      />
+
       {/* Sidebar */}
       <Sidebar />
 
@@ -1439,8 +1407,20 @@ export const GoogleCampaigns: React.FC = () => {
                 Google Campaign Manager
               </h1>
               <div className="flex items-center gap-3">
+                <CreateGoogleCampaignSection
+                  isOpen={
+                    isCreateCampaignPanelOpen
+                  }
+                  onToggle={() => {
+                    setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
+                    setIsFilterPanelOpen(false); // Close filter panel when opening create panel
+                  }}
+                />
                 <button
-                  onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                  onClick={() => {
+                    setIsFilterPanelOpen(!isFilterPanelOpen);
+                    setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
+                  }}
                   className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                 >
                   <svg
@@ -1505,6 +1485,21 @@ export const GoogleCampaigns: React.FC = () => {
                 </Button>
               </div>
             </div>
+
+            {/* Create / Edit Campaign Panel */}
+            {isCreateCampaignPanelOpen && (
+              <CreateGoogleCampaignPanel
+                isOpen={isCreateCampaignPanelOpen}
+                onClose={() => {
+                  setIsCreateCampaignPanelOpen(false);
+                  setCreateCampaignError(null);
+                }}
+                onSubmit={handleCreateGoogleCampaign}
+                accountId={accountId}
+                loading={createCampaignLoading}
+                submitError={createCampaignError}
+              />
+            )}
 
             {/* Sync Messages */}
             {syncMessage && (
@@ -1582,106 +1577,185 @@ export const GoogleCampaigns: React.FC = () => {
                     ({total} total)
                   </span>
                 </h2>
-                <div
-                  className="relative inline-flex justify-end gap-2"
-                  ref={dropdownRef}
-                >
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => setShowExportModal(true)}
-                    disabled={exporting || loading || campaigns.length === 0}
+                <div className="flex items-center justify-end gap-2">
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={dropdownRef}
                   >
-                    {exporting ? (
-                      <>
-                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-[#072929] border-t-transparent"></span>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Exporting...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-4 h-4 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Export
-                        </span>
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowBulkActions((prev) => !prev);
-                      setShowBudgetPanel(false);
-                    }}
-                  >
-                    <svg
-                      className="w-4 h-4 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowBulkActions((prev) => !prev);
+                        setShowBudgetPanel(false);
+                        setShowExportDropdown(false);
+                      }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
-                    </span>
-                  </Button>
-                  {showBulkActions && (
-                    <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                      <div className="overflow-y-auto">
-                        {[
-                          { value: "ENABLED", label: "Enable" },
-                          { value: "PAUSED", label: "Pause" },
-                          { value: "REMOVED", label: "Remove" },
-                          { value: "edit_budget", label: "Edit Budget" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            disabled={selectedCampaigns.size === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (selectedCampaigns.size === 0) return;
-                              if (opt.value === "edit_budget") {
-                                setShowBudgetPanel(true);
-                              } else {
-                                setShowBudgetPanel(false);
-                                setPendingStatusAction(
-                                  opt.value as "ENABLED" | "PAUSED" | "REMOVED"
-                                );
-                                setIsBudgetChange(false);
-                                setShowConfirmationModal(true);
-                              }
-                              setShowBulkActions(false);
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                      <svg
+                        className="w-4 h-4 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Edit
+                      </span>
+                    </Button>
+                    {showBulkActions && (
+                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        <div className="overflow-y-auto">
+                          {[
+                            { value: "ENABLED", label: "Enable" },
+                            { value: "PAUSED", label: "Pause" },
+                            { value: "REMOVED", label: "Remove" },
+                            { value: "edit_budget", label: "Edit Budget" },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              disabled={selectedCampaigns.size === 0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedCampaigns.size === 0) return;
+                                if (opt.value === "edit_budget") {
+                                  setShowBudgetPanel(true);
+                                } else {
+                                  setShowBudgetPanel(false);
+                                  setPendingStatusAction(
+                                    opt.value as "ENABLED" | "PAUSED" | "REMOVED"
+                                  );
+                                  setIsBudgetChange(false);
+                                  setShowConfirmationModal(true);
+                                }
+                                setShowBulkActions(false);
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={exportDropdownRef}
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={(e) => {
+                        if (exportLoading) return;
+                        e.stopPropagation();
+                        setShowExportDropdown((prev) => !prev);
+                        setShowBulkActions(false);
+                        setShowBudgetPanel(false);
+                      }}
+                      disabled={exportLoading || loading || campaigns.length === 0}
+                    >
+                      {exportLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        </div>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Export
+                          </span>
+                        </>
+                      )}
+                    </Button>
+                    {(showExportDropdown || exportLoading) && (
+                      <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        {exportLoading ? (
+                          <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                            <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <p className="text-[13px] text-[#072929] font-medium">
+                              Exporting...
+                            </p>
+                            <p className="text-[11px] text-[#556179] text-center px-2">
+                              Please wait while we prepare your file
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="overflow-y-auto">
+                            {[
+                              { value: "bulk_export", label: "Export All" },
+                              {
+                                value: "current_view",
+                                label: "Export Current View",
+                              },
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  const exportType =
+                                    opt.value === "bulk_export"
+                                      ? "all_data"
+                                      : "current_view";
+                                  // Keep dropdown open during export
+                                  await handleExport(exportType);
+                                }}
+                                disabled={exportLoading}
+                              >
+                                <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                  <svg
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <rect
+                                      width="20"
+                                      height="20"
+                                      rx="3.2"
+                                      fill="#072929"
+                                    />
+                                    <path
+                                      d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                      stroke="#F9F9F6"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </div>
+                                <span className="font-normal">{opt.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -2048,89 +2122,6 @@ export const GoogleCampaigns: React.FC = () => {
                 </div>
               )}
 
-              {/* Export Modal */}
-              {showExportModal && (
-                <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowExportModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Export Campaigns
-                    </h3>
-                    <div className="mb-6">
-                      <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
-                        Export Type
-                      </label>
-                      <Dropdown
-                        options={[
-                          { value: "current_view", label: "Current View" },
-                          { value: "all_data", label: "All Data" },
-                        ]}
-                        value={exportType}
-                        onChange={(val) => {
-                          setExportType(val as "current_view" | "all_data");
-                        }}
-                        buttonClassName="w-full"
-                        width="w-full"
-                      />
-                      <p className="text-[10.64px] text-[#727272] mt-2">
-                        {exportType === "current_view"
-                          ? `Exporting ${campaigns.length} campaign${campaigns.length !== 1 ? "s" : ""} from the current page (${total} total available)`
-                          : `Exporting all ${total} campaign${total !== 1 ? "s" : ""} matching your filters`}
-                      </p>
-                    </div>
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowExportModal(false);
-                          setExportType("current_view");
-                        }}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExport}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        {exporting ? (
-                          <>
-                            <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            Download
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Inline Edit Confirmation Modal */}
               {showInlineEditModal && inlineEditCampaign && inlineEditField && (
                 <div
@@ -2138,6 +2129,10 @@ export const GoogleCampaigns: React.FC = () => {
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowInlineEditModal(false);
+                      setInlineEditCampaign(null);
+                      setInlineEditField(null);
+                      setInlineEditOldValue("");
+                      setInlineEditNewValue("");
                     }
                   }}
                 >
@@ -2181,7 +2176,17 @@ export const GoogleCampaigns: React.FC = () => {
                               →
                             </span>
                             <span className="text-[12.8px] font-semibold text-[#072929]">
-                              {inlineEditNewValue}
+                              {inlineEditField === "start_date" || inlineEditField === "end_date"
+                                ? (() => {
+                                    // Format YYYY-MM-DD to MM/DD/YYYY for display
+                                    if (!inlineEditNewValue || inlineEditNewValue === "—") return "—";
+                                    const parts = inlineEditNewValue.split("-");
+                                    if (parts.length === 3) {
+                                      return `${parts[1]}/${parts[2]}/${parts[0]}`;
+                                    }
+                                    return inlineEditNewValue;
+                                  })()
+                                : inlineEditNewValue}
                             </span>
                           </div>
                         </div>
@@ -2230,8 +2235,6 @@ export const GoogleCampaigns: React.FC = () => {
                 isCancelling={isCancelling}
                 summary={summary}
                 updatingField={updatingField}
-                pendingBudgetChange={pendingBudgetChange}
-                pendingStatusChange={pendingStatusChange}
                 onSelectAll={handleSelectAll}
                 onSelectCampaign={handleSelectCampaign}
                 onSort={handleSort}
@@ -2239,22 +2242,6 @@ export const GoogleCampaigns: React.FC = () => {
                 onCancelInlineEdit={cancelInlineEdit}
                 onInlineEditChange={handleInlineEditChange}
                 onConfirmInlineEdit={confirmInlineEdit}
-                onConfirmBudgetChange={runInlineBudgetUpdate}
-                onCancelBudgetChange={() => {
-                  setPendingBudgetChange(null);
-                  cancelInlineEdit();
-                }}
-                onConfirmStatusChange={runInlineStatusUpdate}
-                onCancelStatusChange={() => {
-                  setPendingStatusChange(null);
-                  cancelInlineEdit();
-                }}
-                pendingDateChange={pendingDateChange}
-                onConfirmDateChange={runInlineDateUpdate}
-                onCancelDateChange={() => {
-                  setPendingDateChange(null);
-                  cancelInlineEdit();
-                }}
                 formatCurrency={formatCurrency}
                 formatPercentage={formatPercentage}
                 getStatusBadge={getStatusBadge}
@@ -2275,11 +2262,50 @@ export const GoogleCampaigns: React.FC = () => {
                     >
                       Previous
                     </button>
-                    <span className="px-4 py-2 text-[10.64px] text-[#556179] flex items-center">
-                      Page {currentPage} of {totalPages} • Showing{" "}
-                      {(currentPage - 1) * itemsPerPage + 1}–{" "}
-                      {Math.min(currentPage * itemsPerPage, total)} of {total}
-                    </span>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      // Ensure pageNum is within valid range [1, totalPages]
+                      pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                            currentPage === pageNum
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                        ...
+                      </span>
+                    )}
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                          currentPage === totalPages
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        {totalPages}
+                      </button>
+                    )}
                     <button
                       onClick={() =>
                         setCurrentPage((prev) => Math.min(totalPages, prev + 1))

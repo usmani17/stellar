@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { buildMarketplaceRoute } from "../../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -15,11 +14,24 @@ import { OverviewTab } from "./components/tabs/OverviewTab";
 import { GoogleCampaignDetailAdGroupsTab } from "./components/tabs/GoogleCampaignDetailAdGroupsTab";
 import { GoogleCampaignDetailAdsTab } from "./components/tabs/GoogleCampaignDetailAdsTab";
 import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaignDetailKeywordsTab";
+import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
+import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
 import type {
   GoogleAdGroup,
   GoogleAd,
   GoogleKeyword,
 } from "./components/tabs/types";
+import { CreateGoogleAdGroupPanel, type AdGroupInput } from "../../components/google/CreateGoogleAdGroupPanel";
+import { CreateGoogleAdPanel, type AdInput } from "../../components/google/CreateGoogleAdPanel";
+import { CreateGoogleKeywordPanel, type KeywordInput } from "../../components/google/CreateGoogleKeywordPanel";
+import { CreateGooglePmaxAssetGroupPanel, type PmaxAssetGroupInput } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
+import { CreateGoogleShoppingEntitiesPanel, type ShoppingEntityInput } from "../../components/google/CreateGoogleShoppingEntitiesPanel";
+import { CreateGooglePmaxAssetGroupSection } from "../../components/google/CreateGooglePmaxAssetGroupSection";
+import { CreateGoogleShoppingEntitiesSection } from "../../components/google/CreateGoogleShoppingEntitiesSection";
+import { CreateGoogleAdGroupSection } from "../../components/google/CreateGoogleAdGroupSection";
+import { CreateGoogleAdSection } from "../../components/google/CreateGoogleAdSection";
+import { CreateGoogleKeywordSection } from "../../components/google/CreateGoogleKeywordSection";
+import { ErrorModal } from "../../components/ui/ErrorModal";
 
 interface GoogleCampaignDetail {
   campaign: {
@@ -132,8 +144,41 @@ export const GoogleCampaignDetail: React.FC = () => {
   const [syncingAdsAnalytics, setSyncingAdsAnalytics] = useState(false);
   const [syncingKeywordsAnalytics, setSyncingKeywordsAnalytics] =
     useState(false);
+  const [syncingAssetGroups, setSyncingAssetGroups] = useState(false);
+  // Asset Groups state (for Performance Max)
+  const [assetGroups, setAssetGroups] = useState<any[]>([]);
+  const [assetGroupsLoading, setAssetGroupsLoading] = useState(false);
+  const [selectedAssetGroupIds, setSelectedAssetGroupIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [assetGroupsCurrentPage, setAssetGroupsCurrentPage] = useState(1);
+  const [assetGroupsTotalPages, setAssetGroupsTotalPages] = useState(0);
+  const [assetGroupsSortBy, setAssetGroupsSortBy] = useState<string>("id");
+  const [assetGroupsSortOrder, setAssetGroupsSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+  const [isAssetGroupsFilterPanelOpen, setIsAssetGroupsFilterPanelOpen] =
+    useState(false);
+  const [assetGroupsFilters, setAssetGroupsFilters] = useState<FilterValues>([]);
+
+  // Product Groups state (for Shopping)
+  const [productGroups, setProductGroups] = useState<any[]>([]);
+  const [productGroupsLoading, setProductGroupsLoading] = useState(false);
+  const [selectedProductGroupIds, setSelectedProductGroupIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [productGroupsCurrentPage, setProductGroupsCurrentPage] = useState(1);
+  const [productGroupsTotalPages, setProductGroupsTotalPages] = useState(0);
+  const [productGroupsSortBy, setProductGroupsSortBy] = useState<string>("id");
+  const [productGroupsSortOrder, setProductGroupsSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+  const [isProductGroupsFilterPanelOpen, setIsProductGroupsFilterPanelOpen] =
+    useState(false);
+  const [productGroupsFilters, setProductGroupsFilters] = useState<FilterValues>([]);
+
   const [syncMessage, setSyncMessage] = useState<{
-    type: "adgroups" | "ads" | "keywords" | null;
+    type: "adgroups" | "ads" | "keywords" | "assetgroups" | "productgroups" | null;
     message: string | null;
   }>({ type: null, message: null });
 
@@ -144,7 +189,55 @@ export const GoogleCampaignDetail: React.FC = () => {
     orders: false,
   });
 
-  const tabs = ["Overview", "Ad Groups", "Ads", "Keywords"];
+  // Creation panel state
+  const [isCreateSearchEntitiesPanelOpen, setIsCreateSearchEntitiesPanelOpen] = useState(false);
+  const [isCreatePmaxAssetGroupPanelOpen, setIsCreatePmaxAssetGroupPanelOpen] = useState(false);
+  const [isCreateShoppingEntitiesPanelOpen, setIsCreateShoppingEntitiesPanelOpen] = useState(false);
+  
+  // Creation loading and error state
+  const [createSearchEntitiesLoading, setCreateSearchEntitiesLoading] = useState(false);
+  const [createSearchEntitiesError, setCreateSearchEntitiesError] = useState<string | null>(null);
+  const [createPmaxAssetGroupLoading, setCreatePmaxAssetGroupLoading] = useState(false);
+  const [createPmaxAssetGroupError, setCreatePmaxAssetGroupError] = useState<string | null>(null);
+  const [createShoppingEntitiesLoading, setCreateShoppingEntitiesLoading] = useState(false);
+  const [createShoppingEntitiesError, setCreateShoppingEntitiesError] = useState<string | null>(null);
+  
+  // Error modal state
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    message: string;
+    title?: string;
+    isSuccess?: boolean;
+    errorDetails?: Array<{
+      entity?: string;
+      type?: string;
+      policy_name?: string;
+      policy_description?: string;
+      violating_text?: string;
+      error_code?: string;
+      message?: string;
+      is_exemptible?: boolean;
+      user_message?: string;
+    }>;
+  }>({ isOpen: false, message: "" });
+
+  // Compute available tabs based on campaign type
+  const tabs = useMemo(() => {
+    if (!campaignDetail?.campaign?.advertising_channel_type) {
+      return ["Overview", "Ad Groups", "Ads", "Keywords"];
+    }
+
+    const channelType = campaignDetail.campaign.advertising_channel_type.toUpperCase();
+
+    if (channelType === "PERFORMANCE_MAX") {
+      return ["Overview", "Asset Groups"];
+    } else if (channelType === "SHOPPING") {
+      return ["Overview", "Ad Groups", "Product Groups"];
+    } else {
+      // SEARCH or default
+      return ["Overview", "Ad Groups", "Ads", "Keywords"];
+    }
+  }, [campaignDetail?.campaign?.advertising_channel_type]);
 
   // Set page title
   useEffect(() => {
@@ -163,12 +256,18 @@ export const GoogleCampaignDetail: React.FC = () => {
     setAdgroups([]);
     setAds([]);
     setKeywords([]);
+    setAssetGroups([]);
+    setProductGroups([]);
     setSelectedAdGroupIds(new Set());
     setSelectedAdIds(new Set());
     setSelectedKeywordIds(new Set());
+    setSelectedAssetGroupIds(new Set());
+    setSelectedProductGroupIds(new Set());
     setAdgroupsCurrentPage(1);
     setAdsCurrentPage(1);
     setKeywordsCurrentPage(1);
+    setAssetGroupsCurrentPage(1);
+    setProductGroupsCurrentPage(1);
     setSyncMessage({ type: null, message: null });
 
     if (accountId && campaignId) {
@@ -194,6 +293,77 @@ export const GoogleCampaignDetail: React.FC = () => {
       setKeywordsCurrentPage(1);
     }
   }, [activeTab, startDate, endDate, keywordsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Asset Groups") {
+      setAssetGroupsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, assetGroupsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Product Groups") {
+      setProductGroupsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, productGroupsFilters]);
+
+  const buildAssetGroupsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+    filterList.forEach((filter) => {
+      if (filter.field === "name") {
+        // Map "name" field to "asset_group_name" or "name" for Asset Groups
+        if (filter.operator === "contains") {
+          params.name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.name = filter.value;
+        }
+      } else if (filter.field === "status") {
+        params.status = filter.value;
+      }
+    });
+    return params;
+  };
+
+  const loadAssetGroups = useCallback(async () => {
+    try {
+      setAssetGroupsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setAssetGroupsLoading(false);
+        return;
+      }
+
+      const data = await campaignsService.getGoogleAssetGroups(
+        accountIdNum,
+        parseInt(campaignId, 10),
+        {
+          page: assetGroupsCurrentPage,
+          page_size: 10,
+          sort_by: assetGroupsSortBy,
+          order: assetGroupsSortOrder,
+          ...buildAssetGroupsFilterParams(assetGroupsFilters),
+        }
+      );
+
+      setAssetGroups(data.asset_groups || []);
+      setAssetGroupsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load asset groups:", error);
+      setAssetGroups([]);
+      setAssetGroupsTotalPages(0);
+    } finally {
+      setAssetGroupsLoading(false);
+    }
+  }, [
+    accountId,
+    campaignId,
+    assetGroupsCurrentPage,
+    assetGroupsSortBy,
+    assetGroupsSortOrder,
+    assetGroupsFilters,
+  ]);
 
   useEffect(() => {
     if (accountId && campaignId && activeTab === "Ad Groups") {
@@ -242,6 +412,111 @@ export const GoogleCampaignDetail: React.FC = () => {
     keywordsSortOrder,
     keywordsFilters,
   ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Asset Groups") {
+      loadAssetGroups();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    assetGroupsCurrentPage,
+    assetGroupsSortBy,
+    assetGroupsSortOrder,
+    assetGroupsFilters,
+    loadAssetGroups,
+  ]);
+
+  const loadProductGroups = useCallback(async () => {
+    try {
+      setProductGroupsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setProductGroupsLoading(false);
+        return;
+      }
+
+      // Product groups are stored in the ads table with ad_type = 'SHOPPING_PRODUCT_AD'
+      const data = await campaignsService.getGoogleAds(
+        accountIdNum,
+        parseInt(campaignId, 10),
+        undefined,
+        {
+          page: productGroupsCurrentPage,
+          page_size: 10,
+          sort_by: productGroupsSortBy,
+          order: productGroupsSortOrder,
+          ad_type: 'SHOPPING_PRODUCT_AD', // Filter for product groups only
+          start_date: startDate ? startDate.toISOString().split("T")[0] : undefined,
+          end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+          ...buildAdsFilterParams(productGroupsFilters),
+        }
+      );
+
+      setProductGroups(data.ads || []);
+      setProductGroupsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load product groups:", error);
+      setProductGroups([]);
+      setProductGroupsTotalPages(0);
+    } finally {
+      setProductGroupsLoading(false);
+    }
+  }, [
+    accountId,
+    campaignId,
+    productGroupsCurrentPage,
+    productGroupsSortBy,
+    productGroupsSortOrder,
+    startDate,
+    endDate,
+    productGroupsFilters,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Product Groups") {
+      loadProductGroups();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    productGroupsCurrentPage,
+    productGroupsSortBy,
+    productGroupsSortOrder,
+    productGroupsFilters,
+    loadProductGroups,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Asset Groups") {
+      loadAssetGroups();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    assetGroupsCurrentPage,
+    assetGroupsSortBy,
+    assetGroupsSortOrder,
+    assetGroupsFilters,
+    loadAssetGroups,
+  ]);
+
+  // Switch away from hidden tabs when campaign type changes
+  useEffect(() => {
+    if (!tabs.includes(activeTab)) {
+      setActiveTab("Overview");
+    }
+  }, [tabs, activeTab]);
 
   const loadCampaignDetail = async () => {
     try {
@@ -940,6 +1215,54 @@ export const GoogleCampaignDetail: React.FC = () => {
     }
   };
 
+  const handleSyncAssetGroups = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingAssetGroups(true);
+      setSyncMessage({ type: null, message: null });
+      const result = await campaignsService.syncGoogleAssetGroups(accountIdNum);
+      let message =
+        result.message || `Successfully synced ${result.synced} asset groups`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorText = result.errors.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage({ type: "assetgroups", message });
+
+      // Reset to first page and reload asset groups after sync
+      if (result.synced > 0) {
+        setAssetGroupsCurrentPage(1);
+        // Small delay to ensure database is updated
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      await loadAssetGroups();
+
+      if (result.synced > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync asset groups:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync asset groups from Google Ads";
+      setSyncMessage({ type: "assetgroups", message: errorMessage });
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+    } finally {
+      setSyncingAssetGroups(false);
+    }
+  };
+
   const toggleChartMetric = (
     metric: "sales" | "spend" | "clicks" | "orders"
   ) => {
@@ -947,6 +1270,505 @@ export const GoogleCampaignDetail: React.FC = () => {
       ...prev,
       [metric]: !prev[metric],
     }));
+  };
+
+  // Handler for creating Ad Group (ad group + minimal ad)
+  const handleCreateAdGroup = async (entity: AdGroupInput) => {
+    if (!accountId || !campaignId) return;
+
+    setCreateSearchEntitiesLoading(true);
+    setCreateSearchEntitiesError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      const response = await campaignsService.createGoogleSearchEntities(
+        accountIdNum,
+        campaignIdNum,
+        entity
+      );
+
+      // Build summary message - only count entities that were actually created
+      const adgroupCount = response.adgroup ? 1 : 0;
+      const adCount = response.ad ? 1 : 0;
+      const keywordCount = response.keywords ? response.keywords.length : 0;
+      const errorCount = response.errors ? response.errors.length : 0;
+      
+      // Only count entities that exist in response
+      const createdEntities = [];
+      if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
+      if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
+      if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
+      
+      const totalCreated = adgroupCount + adCount + keywordCount;
+
+      // Check for errors in response
+      if (response.errors && response.errors.length > 0) {
+        const summaryParts = [];
+        if (totalCreated > 0) {
+          summaryParts.push(`Successfully created: ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'} (${createdEntities.join(', ')})`);
+        }
+        if (errorCount > 0) {
+          summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
+        }
+        
+        const summaryMessage = summaryParts.join("\n\n");
+        
+        // Don't set submitError - errors are shown in modal
+        setErrorModal({
+          isOpen: true,
+          title: "Creation Summary",
+          message: summaryMessage,
+          isSuccess: false,
+          errorDetails: response.error_details || undefined,
+        });
+        
+        // Reload data to show new entities even if there are errors
+        await loadAdGroups();
+        await loadAds();
+      } else {
+        // Success - close panel and show success message
+        setIsCreateSearchEntitiesPanelOpen(false);
+        setCreateSearchEntitiesError(null);
+        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'}:\n${createdEntities.map(e => `• ${e}`).join('\n')}`;
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: successMessage.trim(),
+          isSuccess: true,
+        });
+
+        // Reload data to show new entities
+        await loadAdGroups();
+        await loadAds();
+      }
+    } catch (error: any) {
+      console.error("Failed to create ad group:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create ad group. Please try again.";
+      // Don't set submitError - errors are shown in modal
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateSearchEntitiesLoading(false);
+    }
+  };
+
+  // Handler for creating Ad (ad group + ad)
+  const handleCreateAd = async (entity: AdInput) => {
+    if (!accountId || !campaignId) return;
+
+    setCreateSearchEntitiesLoading(true);
+    setCreateSearchEntitiesError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      const response = await campaignsService.createGoogleSearchEntities(
+        accountIdNum,
+        campaignIdNum,
+        entity
+      );
+
+      // Build summary message - only count entities that were actually created
+      const adgroupCount = response.adgroup ? 1 : 0;
+      const adCount = response.ad ? 1 : 0;
+      const keywordCount = response.keywords ? response.keywords.length : 0;
+      const errorCount = response.errors ? response.errors.length : 0;
+      
+      // Only count entities that exist in response
+      const createdEntities = [];
+      if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
+      if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
+      if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
+      
+      const totalCreated = adgroupCount + adCount + keywordCount;
+
+      // Check for errors in response
+      if (response.errors && response.errors.length > 0) {
+        const summaryParts = [];
+        if (totalCreated > 0) {
+          summaryParts.push(`Successfully created: ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'} (${createdEntities.join(', ')})`);
+        }
+        if (errorCount > 0) {
+          summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
+        }
+        
+        const summaryMessage = summaryParts.join("\n\n");
+        
+        // Don't set submitError - errors are shown in modal
+        setErrorModal({
+          isOpen: true,
+          title: "Creation Summary",
+          message: summaryMessage,
+          isSuccess: false,
+          errorDetails: response.error_details || undefined,
+        });
+        
+        // Reload data to show new entities even if there are errors
+        await loadAdGroups();
+        await loadAds();
+      } else {
+        // Success - close panel and show success message
+        setIsCreateSearchEntitiesPanelOpen(false);
+        setCreateSearchEntitiesError(null);
+        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'}:\n${createdEntities.map(e => `• ${e}`).join('\n')}`;
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: successMessage.trim(),
+          isSuccess: true,
+        });
+
+        // Reload data to show new entities
+        await loadAdGroups();
+        await loadAds();
+      }
+    } catch (error: any) {
+      console.error("Failed to create ad:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create ad. Please try again.";
+      // Don't set submitError - errors are shown in modal
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateSearchEntitiesLoading(false);
+    }
+  };
+
+  // Handler for creating Keywords (ad group + minimal ad + keywords)
+  const handleCreateKeywords = async (entity: KeywordInput) => {
+    if (!accountId || !campaignId) return;
+
+    setCreateSearchEntitiesLoading(true);
+    setCreateSearchEntitiesError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      const response = await campaignsService.createGoogleSearchEntities(
+        accountIdNum,
+        campaignIdNum,
+        entity
+      );
+
+      // Build summary message - only count entities that were actually created
+      const adgroupCount = response.adgroup ? 1 : 0;
+      const adCount = response.ad ? 1 : 0;
+      const keywordCount = response.keywords ? response.keywords.length : 0;
+      const errorCount = response.errors ? response.errors.length : 0;
+      
+      // Only count entities that exist in response
+      const createdEntities = [];
+      if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
+      if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
+      if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
+      
+      const totalCreated = adgroupCount + adCount + keywordCount;
+
+      // Check for errors in response
+      if (response.errors && response.errors.length > 0) {
+        const summaryParts = [];
+        if (totalCreated > 0) {
+          summaryParts.push(`Successfully created: ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'} (${createdEntities.join(', ')})`);
+        }
+        if (errorCount > 0) {
+          summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
+        }
+        
+        const summaryMessage = summaryParts.join("\n\n");
+        
+        // Don't set submitError - errors are shown in modal
+        setErrorModal({
+          isOpen: true,
+          title: "Creation Summary",
+          message: summaryMessage,
+          isSuccess: false,
+          errorDetails: response.error_details || undefined,
+        });
+        
+        // Reload data to show new entities even if there are errors
+        await loadAdGroups();
+        await loadKeywords();
+      } else {
+        // Success - close panel and show success message
+        setIsCreateSearchEntitiesPanelOpen(false);
+        setCreateSearchEntitiesError(null);
+        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'}:\n${createdEntities.map(e => `• ${e}`).join('\n')}`;
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: successMessage.trim(),
+          isSuccess: true,
+        });
+
+        // Reload data to show new entities
+        await loadAdGroups();
+        await loadKeywords();
+      }
+    } catch (error: any) {
+      console.error("Failed to create keywords:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create keywords. Please try again.";
+      // Don't set submitError - errors are shown in modal
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateSearchEntitiesLoading(false);
+    }
+  };
+
+  // Handler for creating Performance Max asset group
+  const handleCreatePmaxAssetGroup = async (entity: PmaxAssetGroupInput) => {
+    if (!accountId || !campaignId) return;
+
+    setCreatePmaxAssetGroupLoading(true);
+    setCreatePmaxAssetGroupError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      const response = await campaignsService.createGooglePmaxAssetGroup(
+        accountIdNum,
+        campaignIdNum,
+        entity
+      );
+
+      if (response.error) {
+        setCreatePmaxAssetGroupError(response.error);
+        setErrorModal({
+          isOpen: true,
+          title: "Error",
+          message: response.error,
+          isSuccess: false,
+        });
+      } else {
+        // Success - close panel and show success message
+        setIsCreatePmaxAssetGroupPanelOpen(false);
+        setCreatePmaxAssetGroupError(null);
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: "Asset group created successfully!",
+          isSuccess: true,
+        });
+
+        // Reload asset groups to show the newly created one
+        await loadAssetGroups();
+      }
+    } catch (error: any) {
+      console.error("Failed to create asset group:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create asset group. Please try again.";
+      setCreatePmaxAssetGroupError(errorMessage);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreatePmaxAssetGroupLoading(false);
+    }
+  };
+
+  // Handler for creating Shopping ad group only (for Ad Groups tab)
+  const handleCreateShoppingAdGroup = async (entity: AdGroupInput) => {
+    if (!accountId || !campaignId) return;
+
+    setCreateShoppingEntitiesLoading(true);
+    setCreateShoppingEntitiesError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      // Convert AdGroupInput to ShoppingEntityInput (only adgroup, no product_group)
+      // Note: This is for creating just an ad group, not a product ad
+      // For product ads, use handleCreateShoppingEntities instead
+      const shoppingEntity: ShoppingEntityInput = {
+        adgroup: entity.adgroup,
+        product_group: {
+          cpc_bid: 0.01, // Default bid, but this won't be used since we're only creating ad group
+        },
+      };
+
+      const response = await campaignsService.createGoogleShoppingEntities(
+        accountIdNum,
+        campaignIdNum,
+        shoppingEntity
+      );
+
+      if (response.error) {
+        setCreateShoppingEntitiesError(response.error);
+        setErrorModal({
+          isOpen: true,
+          title: "Error",
+          message: response.error,
+          isSuccess: false,
+        });
+      } else {
+        // Success - close panel and show success message
+        setIsCreateShoppingEntitiesPanelOpen(false);
+        setCreateShoppingEntitiesError(null);
+        const adgroupName = response.adgroup?.name || "Ad group";
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `Ad group "${adgroupName}" created successfully!`,
+          isSuccess: true,
+        });
+
+        // Reload data to show new entities
+        await loadAdGroups();
+      }
+    } catch (error: any) {
+      console.error("Failed to create shopping ad group:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create ad group. Please try again.";
+      setCreateShoppingEntitiesError(errorMessage);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateShoppingEntitiesLoading(false);
+    }
+  };
+
+  // Handler for creating Shopping entities (ad group + product group)
+  const handleCreateShoppingEntities = async (entity: ShoppingEntityInput) => {
+    if (!accountId || !campaignId) return;
+
+    setCreateShoppingEntitiesLoading(true);
+    setCreateShoppingEntitiesError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      const response = await campaignsService.createGoogleShoppingEntities(
+        accountIdNum,
+        campaignIdNum,
+        entity
+      );
+
+      if (response.error) {
+        setCreateShoppingEntitiesError(response.error);
+        setErrorModal({
+          isOpen: true,
+          title: "Error",
+          message: response.error,
+          isSuccess: false,
+        });
+      } else {
+        // Success - close panel and show success message
+        setIsCreateShoppingEntitiesPanelOpen(false);
+        setCreateShoppingEntitiesError(null);
+        const adgroupName = response.adgroup?.name || "Ad group";
+        const successMessage = response.product_group
+          ? `Product ad created successfully in "${adgroupName}"!`
+          : `Ad group "${adgroupName}" created successfully!`;
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: successMessage,
+          isSuccess: true,
+        });
+
+        // Reload data to show new entities
+        await loadAdGroups();
+        // Reload product groups if we're on the Product Groups tab
+        if (activeTab === "Product Groups") {
+          await loadProductGroups();
+        }
+      }
+    } catch (error: any) {
+      console.error("Failed to create shopping entities:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create entities. Please try again.";
+      setCreateShoppingEntitiesError(errorMessage);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateShoppingEntitiesLoading(false);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -1520,38 +2342,186 @@ export const GoogleCampaignDetail: React.FC = () => {
                 />
               )}
 
-              {activeTab === "Ad Groups" && (
-                <GoogleCampaignDetailAdGroupsTab
-                  adgroups={adgroups}
-                  loading={adgroupsLoading}
-                  selectedAdGroupIds={selectedAdGroupIds}
-                  onSelectAll={handleSelectAllAdGroups}
-                  onSelectAdGroup={handleSelectAdGroup}
-                  sortBy={adgroupsSortBy}
-                  sortOrder={adgroupsSortOrder}
-                  onSort={handleAdGroupsSort}
-                  currentPage={adgroupsCurrentPage}
-                  totalPages={adgroupsTotalPages}
-                  onPageChange={handleAdGroupsPageChange}
-                  isFilterPanelOpen={isAdGroupsFilterPanelOpen}
-                  onToggleFilterPanel={() =>
-                    setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen)
-                  }
-                  filters={adgroupsFilters}
-                  onApplyFilters={(newFilters) => {
-                    setAdgroupsFilters(newFilters);
-                    setAdgroupsCurrentPage(1);
+              {activeTab === "Asset Groups" && (
+                <>
+                  {/* Create Asset Group Panel - Only for PERFORMANCE_MAX campaigns */}
+                  {campaignDetail?.campaign.advertising_channel_type === "PERFORMANCE_MAX" && (
+                    <>
+                      <div className="mb-4 flex justify-end">
+                        <CreateGooglePmaxAssetGroupSection
+                          isOpen={isCreatePmaxAssetGroupPanelOpen}
+                          onToggle={() => {
+                            setIsCreatePmaxAssetGroupPanelOpen(!isCreatePmaxAssetGroupPanelOpen);
+                            setIsAssetGroupsFilterPanelOpen(false);
+                          }}
+                        />
+                      </div>
+                      {isCreatePmaxAssetGroupPanelOpen && campaignId && (
+                        <CreateGooglePmaxAssetGroupPanel
+                          isOpen={isCreatePmaxAssetGroupPanelOpen}
+                          onClose={() => {
+                            setIsCreatePmaxAssetGroupPanelOpen(false);
+                            setCreatePmaxAssetGroupError(null);
+                          }}
+                          onSubmit={handleCreatePmaxAssetGroup}
+                          campaignId={campaignId}
+                          loading={createPmaxAssetGroupLoading}
+                          submitError={createPmaxAssetGroupError}
+                        />
+                      )}
+                    </>
+                  )}
+                  <GoogleCampaignDetailAssetGroupsTab
+                  assetGroups={assetGroups}
+                  loading={assetGroupsLoading}
+                  selectedAssetGroupIds={selectedAssetGroupIds}
+                  onSelectAll={(checked) => {
+                    if (checked) {
+                      setSelectedAssetGroupIds(new Set(assetGroups.map((ag) => ag.id)));
+                    } else {
+                      setSelectedAssetGroupIds(new Set());
+                    }
                   }}
-                  syncing={syncingAdGroups}
-                  onSync={handleSyncAdGroups}
-                  syncingAnalytics={syncingAdGroupsAnalytics}
-                  onSyncAnalytics={handleSyncAdGroupsAnalytics}
+                  onSelectAssetGroup={(id, checked) => {
+                    setSelectedAssetGroupIds((prev) => {
+                      const newSet = new Set(prev);
+                      if (checked) {
+                        newSet.add(id);
+                      } else {
+                        newSet.delete(id);
+                      }
+                      return newSet;
+                    });
+                  }}
+                  sortBy={assetGroupsSortBy}
+                  sortOrder={assetGroupsSortOrder}
+                  onSort={(column) => {
+                    if (assetGroupsSortBy === column) {
+                      setAssetGroupsSortOrder(assetGroupsSortOrder === "asc" ? "desc" : "asc");
+                    } else {
+                      setAssetGroupsSortBy(column);
+                      setAssetGroupsSortOrder("asc");
+                    }
+                    setAssetGroupsCurrentPage(1);
+                  }}
+                  currentPage={assetGroupsCurrentPage}
+                  totalPages={assetGroupsTotalPages}
+                  onPageChange={setAssetGroupsCurrentPage}
+                  isFilterPanelOpen={isAssetGroupsFilterPanelOpen}
+                  onToggleFilterPanel={() =>
+                    setIsAssetGroupsFilterPanelOpen(!isAssetGroupsFilterPanelOpen)
+                  }
+                  filters={assetGroupsFilters}
+                  onApplyFilters={(newFilters) => {
+                    setAssetGroupsFilters(newFilters);
+                    setAssetGroupsCurrentPage(1);
+                  }}
+                  syncing={syncingAssetGroups}
+                  onSync={handleSyncAssetGroups}
+                  syncingAnalytics={false}
+                  onSyncAnalytics={async () => {
+                    // TODO: Implement asset groups analytics sync
+                    console.log("Sync asset groups analytics not yet implemented");
+                  }}
                   syncMessage={
-                    syncMessage.type === "adgroups" ? syncMessage.message : null
+                    syncMessage.type === "assetgroups" ? syncMessage.message : null
                   }
                   formatPercentage={formatPercentage}
                   formatCurrency2Decimals={formatCurrency2Decimals}
                   getSortIcon={getSortIcon}
+                />
+                </>
+              )}
+
+              {activeTab === "Ad Groups" && (
+                <>
+                  {/* Create Ad Group Panel - For SEARCH and SHOPPING campaigns */}
+                  {(campaignDetail?.campaign.advertising_channel_type === "SEARCH" ||
+                    campaignDetail?.campaign.advertising_channel_type === "SHOPPING") && (
+                    <>
+                      <div className="mb-4 flex justify-end">
+                        <CreateGoogleAdGroupSection
+                          isOpen={
+                            campaignDetail?.campaign.advertising_channel_type === "SEARCH"
+                              ? isCreateSearchEntitiesPanelOpen
+                              : isCreateShoppingEntitiesPanelOpen
+                          }
+                          onToggle={() => {
+                            if (campaignDetail?.campaign.advertising_channel_type === "SEARCH") {
+                              setIsCreateSearchEntitiesPanelOpen(!isCreateSearchEntitiesPanelOpen);
+                            } else {
+                              setIsCreateShoppingEntitiesPanelOpen(!isCreateShoppingEntitiesPanelOpen);
+                            }
+                            setIsAdGroupsFilterPanelOpen(false);
+                          }}
+                        />
+                      </div>
+                      {campaignDetail?.campaign.advertising_channel_type === "SEARCH" &&
+                        isCreateSearchEntitiesPanelOpen &&
+                        campaignId && (
+                          <CreateGoogleAdGroupPanel
+                            isOpen={isCreateSearchEntitiesPanelOpen}
+                            onClose={() => {
+                              setIsCreateSearchEntitiesPanelOpen(false);
+                              setCreateSearchEntitiesError(null);
+                            }}
+                            onSubmit={handleCreateAdGroup}
+                            campaignId={campaignId}
+                            campaignName={campaignDetail?.campaign.name}
+                            loading={createSearchEntitiesLoading}
+                            submitError={null}
+                          />
+                        )}
+                      {campaignDetail?.campaign.advertising_channel_type === "SHOPPING" &&
+                        isCreateShoppingEntitiesPanelOpen &&
+                        campaignId && (
+                          <CreateGoogleAdGroupPanel
+                            isOpen={isCreateShoppingEntitiesPanelOpen}
+                            onClose={() => {
+                              setIsCreateShoppingEntitiesPanelOpen(false);
+                              setCreateShoppingEntitiesError(null);
+                            }}
+                            onSubmit={handleCreateShoppingAdGroup}
+                            campaignId={campaignId}
+                            campaignName={campaignDetail?.campaign.name}
+                            loading={createShoppingEntitiesLoading}
+                            submitError={createShoppingEntitiesError}
+                          />
+                        )}
+                    </>
+                  )}
+                  <GoogleCampaignDetailAdGroupsTab
+                    adgroups={adgroups}
+                    loading={adgroupsLoading}
+                    selectedAdGroupIds={selectedAdGroupIds}
+                    onSelectAll={handleSelectAllAdGroups}
+                    onSelectAdGroup={handleSelectAdGroup}
+                    sortBy={adgroupsSortBy}
+                    sortOrder={adgroupsSortOrder}
+                    onSort={handleAdGroupsSort}
+                    currentPage={adgroupsCurrentPage}
+                    totalPages={adgroupsTotalPages}
+                    onPageChange={handleAdGroupsPageChange}
+                    isFilterPanelOpen={isAdGroupsFilterPanelOpen}
+                    onToggleFilterPanel={() =>
+                      setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen)
+                    }
+                    filters={adgroupsFilters}
+                    onApplyFilters={(newFilters) => {
+                      setAdgroupsFilters(newFilters);
+                      setAdgroupsCurrentPage(1);
+                    }}
+                    syncing={syncingAdGroups}
+                    onSync={handleSyncAdGroups}
+                    syncingAnalytics={syncingAdGroupsAnalytics}
+                    onSyncAnalytics={handleSyncAdGroupsAnalytics}
+                    syncMessage={
+                      syncMessage.type === "adgroups" ? syncMessage.message : null
+                    }
+                    formatPercentage={formatPercentage}
+                    formatCurrency2Decimals={formatCurrency2Decimals}
+                    getSortIcon={getSortIcon}
+                    campaignType={campaignDetail?.campaign?.advertising_channel_type}
                   onUpdateAdGroupStatus={async (
                     adgroupId: number,
                     status: string
@@ -1641,10 +2611,68 @@ export const GoogleCampaignDetail: React.FC = () => {
                     }
                   }}
                 />
+                </>
               )}
 
-              {activeTab === "Ads" && (
-                <GoogleCampaignDetailAdsTab
+              {activeTab === "Ads" && campaignDetail?.campaign.advertising_channel_type !== "PERFORMANCE_MAX" && (
+                <>
+                  {/* Create Ad Panel - For SEARCH campaigns */}
+                  {campaignDetail?.campaign.advertising_channel_type === "SEARCH" && (
+                    <>
+                      <div className="mb-4 flex justify-end">
+                        <CreateGoogleAdSection
+                          isOpen={isCreateSearchEntitiesPanelOpen}
+                          onToggle={() => {
+                            setIsCreateSearchEntitiesPanelOpen(!isCreateSearchEntitiesPanelOpen);
+                            setIsAdsFilterPanelOpen(false);
+                          }}
+                        />
+                      </div>
+                      {isCreateSearchEntitiesPanelOpen && campaignId && (
+                        <CreateGoogleAdPanel
+                          isOpen={isCreateSearchEntitiesPanelOpen}
+                          onClose={() => {
+                            setIsCreateSearchEntitiesPanelOpen(false);
+                            setCreateSearchEntitiesError(null);
+                          }}
+                          onSubmit={handleCreateAd}
+                          campaignId={campaignId}
+                          accountId={accountId || ""}
+                          loading={createSearchEntitiesLoading}
+                          submitError={null}
+                        />
+                      )}
+                    </>
+                  )}
+                  {/* Create Product Ad Panel - For SHOPPING campaigns */}
+                  {campaignDetail?.campaign.advertising_channel_type === "SHOPPING" && (
+                    <>
+                      <div className="mb-4 flex justify-end">
+                        <CreateGoogleShoppingEntitiesSection
+                          isOpen={isCreateShoppingEntitiesPanelOpen}
+                          onToggle={() => {
+                            setIsCreateShoppingEntitiesPanelOpen(!isCreateShoppingEntitiesPanelOpen);
+                            setIsAdsFilterPanelOpen(false);
+                          }}
+                        />
+                      </div>
+                      {isCreateShoppingEntitiesPanelOpen && campaignId && accountId && (
+                        <CreateGoogleShoppingEntitiesPanel
+                          isOpen={isCreateShoppingEntitiesPanelOpen}
+                          onClose={() => {
+                            setIsCreateShoppingEntitiesPanelOpen(false);
+                            setCreateShoppingEntitiesError(null);
+                          }}
+                          onSubmit={handleCreateShoppingEntities}
+                          campaignId={campaignId}
+                          accountId={accountId}
+                          loading={createShoppingEntitiesLoading}
+                          submitError={createShoppingEntitiesError}
+                        />
+                      )}
+                    </>
+                  )}
+                  <GoogleCampaignDetailAdsTab
                   ads={ads}
                   loading={adsLoading}
                   selectedAdIds={selectedAdIds}
@@ -1707,10 +2735,40 @@ export const GoogleCampaignDetail: React.FC = () => {
                     }
                   }}
                 />
+                </>
               )}
 
               {activeTab === "Keywords" && (
-                <GoogleCampaignDetailKeywordsTab
+                <>
+                  {/* Create Keywords Panel - Only for SEARCH campaigns */}
+                  {campaignDetail?.campaign.advertising_channel_type === "SEARCH" && (
+                    <>
+                      <div className="mb-4 flex justify-end">
+                        <CreateGoogleKeywordSection
+                          isOpen={isCreateSearchEntitiesPanelOpen}
+                          onToggle={() => {
+                            setIsCreateSearchEntitiesPanelOpen(!isCreateSearchEntitiesPanelOpen);
+                            setIsKeywordsFilterPanelOpen(false);
+                          }}
+                        />
+                      </div>
+                      {isCreateSearchEntitiesPanelOpen && campaignId && accountId && (
+                        <CreateGoogleKeywordPanel
+                          isOpen={isCreateSearchEntitiesPanelOpen}
+                          onClose={() => {
+                            setIsCreateSearchEntitiesPanelOpen(false);
+                            setCreateSearchEntitiesError(null);
+                          }}
+                          onSubmit={handleCreateKeywords}
+                          campaignId={campaignId}
+                          accountId={accountId}
+                          loading={createSearchEntitiesLoading}
+                          submitError={null}
+                        />
+                      )}
+                    </>
+                  )}
+                  <GoogleCampaignDetailKeywordsTab
                   keywords={keywords}
                   loading={keywordsLoading}
                   selectedKeywordIds={selectedKeywordIds}
@@ -1840,7 +2898,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         {
                           keywordIds: [keyword.keyword_id],
                           action: "match_type",
-                          match_type: matchType as 'EXACT' | 'PHRASE' | 'BROAD' | 'BROAD_MATCH_MODIFIER',
+                          match_type: matchType as 'EXACT' | 'PHRASE' | 'BROAD',
                         }
                       );
 
@@ -1861,6 +2919,96 @@ export const GoogleCampaignDetail: React.FC = () => {
                     }
                   }}
                 />
+                </>
+              )}
+
+              {activeTab === "Product Groups" && (
+                <>
+                  {/* Create Shopping Entities Panel - Only for SHOPPING campaigns */}
+                  {campaignDetail?.campaign.advertising_channel_type === "SHOPPING" && (
+                    <>
+                      <div className="mb-4 flex justify-end">
+                        <CreateGoogleShoppingEntitiesSection
+                          isOpen={isCreateShoppingEntitiesPanelOpen}
+                          onToggle={() => {
+                            setIsCreateShoppingEntitiesPanelOpen(!isCreateShoppingEntitiesPanelOpen);
+                            // Close filter panel if exists
+                          }}
+                        />
+                      </div>
+                      {isCreateShoppingEntitiesPanelOpen && campaignId && accountId && (
+                        <CreateGoogleShoppingEntitiesPanel
+                          isOpen={isCreateShoppingEntitiesPanelOpen}
+                          onClose={() => {
+                            setIsCreateShoppingEntitiesPanelOpen(false);
+                            setCreateShoppingEntitiesError(null);
+                          }}
+                          onSubmit={handleCreateShoppingEntities}
+                          campaignId={campaignId}
+                          accountId={accountId}
+                          loading={createShoppingEntitiesLoading}
+                          submitError={createShoppingEntitiesError}
+                        />
+                      )}
+                    </>
+                  )}
+                  <GoogleCampaignDetailProductGroupsTab
+                  productGroups={productGroups}
+                  loading={productGroupsLoading}
+                  selectedProductGroupIds={selectedProductGroupIds}
+                  onSelectAll={(checked) => {
+                    if (checked) {
+                      setSelectedProductGroupIds(new Set(productGroups.map((pg) => pg.id)));
+                    } else {
+                      setSelectedProductGroupIds(new Set());
+                    }
+                  }}
+                  onSelectProductGroup={(id, checked) => {
+                    setSelectedProductGroupIds((prev) => {
+                      const newSet = new Set(prev);
+                      if (checked) {
+                        newSet.add(id);
+                      } else {
+                        newSet.delete(id);
+                      }
+                      return newSet;
+                    });
+                  }}
+                  sortBy={productGroupsSortBy}
+                  sortOrder={productGroupsSortOrder}
+                  onSort={(column) => {
+                    if (productGroupsSortBy === column) {
+                      setProductGroupsSortOrder(productGroupsSortOrder === "asc" ? "desc" : "asc");
+                    } else {
+                      setProductGroupsSortBy(column);
+                      setProductGroupsSortOrder("asc");
+                    }
+                    setProductGroupsCurrentPage(1);
+                  }}
+                  currentPage={productGroupsCurrentPage}
+                  totalPages={productGroupsTotalPages}
+                  onPageChange={setProductGroupsCurrentPage}
+                  isFilterPanelOpen={isProductGroupsFilterPanelOpen}
+                  onToggleFilterPanel={() =>
+                    setIsProductGroupsFilterPanelOpen(!isProductGroupsFilterPanelOpen)
+                  }
+                  filters={productGroupsFilters}
+                  onApplyFilters={(newFilters) => {
+                    setProductGroupsFilters(newFilters);
+                    setProductGroupsCurrentPage(1);
+                  }}
+                  syncing={syncingAds}
+                  onSync={handleSyncAds}
+                  syncingAnalytics={syncingAdsAnalytics}
+                  onSyncAnalytics={handleSyncAdsAnalytics}
+                  syncMessage={
+                    syncMessage.type === "ads" ? syncMessage.message : null
+                  }
+                  getSortIcon={getSortIcon}
+                  formatCurrency2Decimals={formatCurrency2Decimals}
+                  formatPercentage={formatPercentage}
+                />
+                </>
               )}
             </div>
           </div>
@@ -1920,6 +3068,16 @@ export const GoogleCampaignDetail: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
+        message={errorModal.message}
+        isSuccess={errorModal.isSuccess}
+        errorDetails={errorModal.errorDetails}
+      />
     </div>
   );
 };

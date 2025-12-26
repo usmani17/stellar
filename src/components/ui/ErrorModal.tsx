@@ -1,12 +1,25 @@
 import React from "react";
 import { Button } from "./Button";
 
+interface ErrorDetail {
+  entity?: string;
+  type?: string;
+  policy_name?: string;
+  policy_description?: string;
+  violating_text?: string;
+  error_code?: string;
+  message?: string;
+  is_exemptible?: boolean;
+  user_message?: string;
+}
+
 interface ErrorModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
   message: string;
   isSuccess?: boolean;
+  errorDetails?: ErrorDetail[];
   actionButton?: {
     text: string;
     onClick: () => void;
@@ -19,6 +32,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   title = "Error",
   message,
   isSuccess = false,
+  errorDetails,
   actionButton,
 }) => {
   if (!isOpen) return null;
@@ -32,7 +46,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+      <div className={`relative bg-white rounded-xl shadow-2xl ${errorDetails && errorDetails.length > 0 ? 'max-w-2xl' : 'max-w-md'} w-full mx-4 border border-[#E8E8E3]`}>
         <div className="p-6">
           {/* Icon */}
           <div className="flex items-center justify-center mb-4">
@@ -74,15 +88,76 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
           </div>
 
           {/* Header */}
-          <div className="mb-4 text-center">
-            <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+          <div className="mb-4">
+            <h3 className="text-[20px] font-semibold text-[#072929] mb-3 text-center">
               {title}
             </h3>
-            <div className="max-h-[200px] overflow-y-auto">
-              <p className="text-[14px] text-[#556179] whitespace-pre-wrap break-words">
-                {message}
-              </p>
-            </div>
+            
+            {/* Summary Message */}
+            {message && (
+              <div className="mb-4">
+                <p className="text-[14px] text-[#556179] whitespace-pre-wrap break-words">
+                  {message}
+                </p>
+              </div>
+            )}
+
+            {/* Error Details Table */}
+            {errorDetails && errorDetails.length > 0 && (
+              <div className="max-h-[400px] overflow-y-auto border border-[#e8e8e3] rounded-lg">
+                <table className="w-full text-left">
+                  <thead className="bg-[#f5f5f0] sticky top-0">
+                    <tr>
+                      <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
+                        Entity
+                      </th>
+                      <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
+                        Policy/Error
+                      </th>
+                      <th className="py-2 px-3 text-[12px] font-semibold text-[#29303f] border-b border-[#e8e8e3]">
+                        Details
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {errorDetails.map((error, index) => (
+                      <tr key={index} className={index !== errorDetails.length - 1 ? "border-b border-[#e8e8e3]" : ""}>
+                        <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
+                          {error.entity || "—"}
+                        </td>
+                        <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
+                          {error.policy_name || error.error_code || "Error"}
+                        </td>
+                        <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
+                          <div className="space-y-1">
+                            {error.violating_text && (
+                              <div>
+                                <span className="font-medium">Violating text:</span> "{error.violating_text}"
+                              </div>
+                            )}
+                            {error.policy_description && (
+                              <div className="text-[12px] text-[#556179]">
+                                {error.policy_description}
+                              </div>
+                            )}
+                            {error.message && !error.policy_description && (
+                              <div className="text-[12px] text-[#556179]">
+                                {error.message}
+                              </div>
+                            )}
+                            {error.is_exemptible && (
+                              <div className="text-[11px] text-blue-600 italic">
+                                (This violation may be exemptible)
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Actions */}

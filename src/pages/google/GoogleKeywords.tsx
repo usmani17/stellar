@@ -1,4 +1,3 @@
-import { buildMarketplaceRoute } from "../../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
@@ -103,7 +102,7 @@ export const GoogleKeywords: React.FC = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [updatingField, setUpdatingField] = useState<{
+  const [updatingField] = useState<{
     keywordId: string | number;
     field: "bid" | "status" | "match_type";
   } | null>(null);
@@ -114,26 +113,9 @@ export const GoogleKeywords: React.FC = () => {
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    keywordId: string | number;
-    newStatus: string;
-    oldStatus: string;
-  } | null>(null);
-  const [pendingBidChange, setPendingBidChange] = useState<{
-    keywordId: string | number;
-    newBid: number;
-    oldBid: number;
-  } | null>(null);
-  const [pendingMatchTypeChange, setPendingMatchTypeChange] = useState<{
-    keywordId: string | number;
-    newMatchType: string;
-    oldMatchType: string;
-  } | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportType, setExportType] = useState<"current_view" | "all_data">(
-    "current_view"
-  );
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -144,16 +126,22 @@ export const GoogleKeywords: React.FC = () => {
       ) {
         setShowBulkActions(false);
       }
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    if (showBulkActions) {
+    if (showBulkActions || showExportDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showBulkActions]);
+  }, [showBulkActions, showExportDropdown]);
 
   // Cancel inline edit when clicking outside
   useEffect(() => {
@@ -671,212 +659,156 @@ export const GoogleKeywords: React.FC = () => {
       return;
     }
 
+    // If skipModal is true (e.g., when canceling), just cancel without showing modal
     if (skipModal) {
       cancelInlineEdit();
       return;
     }
 
-    // For status changes, show inline confirmation
+    // For all fields, show modal
     if (editingCell.field === "status") {
-      setPendingStatusChange({
-        keywordId: editingCell.keywordId,
-        newStatus: valueToCheck,
-        oldStatus: keyword.status || "ENABLED",
-      });
+      const oldStatusRaw = keyword.status || "ENABLED";
+      const newStatusRaw = valueToCheck.trim();
+      
+      // Format status values for display
+      const statusDisplayMap: Record<string, string> = {
+        ENABLED: "Enabled",
+        PAUSED: "Paused",
+        Enabled: "Enabled",
+        Paused: "Paused",
+      };
+      const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
+      const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
+      
+      setInlineEditKeyword(keyword);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(oldValue);
+      setInlineEditNewValue(newValue);
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
-    // For bid, show inline confirmation buttons
+    // For bid, show modal
     if (editingCell.field === "bid") {
       const newBid = parseFloat(valueToCheck) || 0;
       const oldBid = keyword.cpc_bid_dollars || 0;
-
-      setPendingBidChange({
-        keywordId: editingCell.keywordId,
-        newBid: newBid,
-        oldBid: oldBid,
-      });
+      
+      setInlineEditKeyword(keyword);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(formatCurrency(oldBid));
+      setInlineEditNewValue(formatCurrency(newBid));
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
-    // For match_type, show inline confirmation buttons
+    // For match_type, show modal
     if (editingCell.field === "match_type") {
-      setPendingMatchTypeChange({
-        keywordId: editingCell.keywordId,
-        newMatchType: valueToCheck.trim(),
-        oldMatchType: keyword.match_type || "EXACT",
-      });
+      const oldValue = keyword.match_type || "EXACT";
+      const newValue = valueToCheck.trim();
+      
+      const matchTypeDisplayMap: Record<string, string> = {
+        EXACT: "Exact",
+        PHRASE: "Phrase",
+        BROAD: "Broad",
+        Exact: "Exact",
+        Phrase: "Phrase",
+        Broad: "Broad",
+      };
+      const oldDisplayValue = matchTypeDisplayMap[oldValue] || oldValue;
+      const newDisplayValue = matchTypeDisplayMap[newValue] || newValue;
+      
+      setInlineEditKeyword(keyword);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(oldDisplayValue);
+      setInlineEditNewValue(newDisplayValue);
+      setShowInlineEditModal(true);
       setEditingCell(null);
-      setEditedValue("");
       return;
     }
   };
 
-  const runInlineBidUpdate = async (
-    keywordId: string | number,
-    newBid: number
-  ) => {
-    if (!accountId) return;
+  const runInlineEdit = async () => {
+    if (!inlineEditKeyword || !inlineEditField || !accountId) return;
 
-    const keyword = keywords.find((k) => k.keyword_id === keywordId);
-    if (!keyword) return;
-
-    setUpdatingField({ keywordId, field: "bid" });
-
-    setKeywords((prevKeywords) =>
-      prevKeywords.map((k) =>
-        k.keyword_id === keywordId ? { ...k, cpc_bid_dollars: newBid } : k
-      )
-    );
-
+    setInlineEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
 
-      if (isNaN(newBid) || newBid <= 0) {
-        throw new Error("Invalid bid value");
-      }
+      if (inlineEditField === "status") {
+        // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+        };
+        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-      const response = await campaignsService.bulkUpdateGoogleKeywords(
-        accountIdNum,
-        {
-          keywordIds: [keywordId],
-          action: "bid",
-          bid: newBid,
-        }
-      );
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      setPendingBidChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error("Error updating keyword bid:", error);
-      setKeywords((prevKeywords) =>
-        prevKeywords.map((k) => (k.keyword_id === keywordId ? keyword : k))
-      );
-      alert("Failed to update keyword bid. Please try again.");
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  const runInlineMatchTypeUpdate = async (
-    keywordId: string | number,
-    newMatchType: string
-  ) => {
-    if (!accountId) return;
-
-    const keyword = keywords.find((k) => k.keyword_id === keywordId);
-    if (!keyword) return;
-
-    setUpdatingField({ keywordId, field: "match_type" });
-
-    setKeywords((prevKeywords) =>
-      prevKeywords.map((k) =>
-        k.keyword_id === keywordId ? { ...k, match_type: newMatchType } : k
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleKeywords(
-        accountIdNum,
-        {
-          keywordIds: [keywordId],
-          action: "match_type",
-          match_type: newMatchType as "EXACT" | "PHRASE" | "BROAD",
-        }
-      );
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      setPendingMatchTypeChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error("Error updating keyword match type:", error);
-      setKeywords((prevKeywords) =>
-        prevKeywords.map((k) => (k.keyword_id === keywordId ? keyword : k))
-      );
-      alert("Failed to update keyword match type. Please try again.");
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  const runInlineStatusUpdate = async (
-    keywordId: string | number,
-    newStatus: string
-  ) => {
-    if (!accountId) return;
-
-    setUpdatingField({ keywordId, field: "status" });
-
-    setKeywords((prevKeywords) =>
-      prevKeywords.map((keyword) =>
-        keyword.keyword_id === keywordId
-          ? { ...keyword, status: newStatus }
-          : keyword
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-        ENABLED: "ENABLED",
-        PAUSED: "PAUSED",
-        Enabled: "ENABLED",
-        Paused: "PAUSED",
-      };
-      const statusValue = statusMap[newStatus] || "ENABLED";
-
-      const response = await campaignsService.bulkUpdateGoogleKeywords(
-        accountIdNum,
-        {
-          keywordIds: [keywordId],
+        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+          keywordIds: [inlineEditKeyword.keyword_id],
           action: "status",
           status: statusValue,
-        }
-      );
+        });
 
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
+      } else if (inlineEditField === "bid") {
+        const bidValue = parseFloat(
+          inlineEditNewValue.replace(/[^0-9.]/g, "")
+        );
+        if (isNaN(bidValue)) {
+          throw new Error("Invalid bid value");
+        }
+
+        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+          keywordIds: [inlineEditKeyword.keyword_id],
+          action: "bid",
+          bid: bidValue,
+        });
+
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
+      } else if (inlineEditField === "match_type") {
+        // Map match type values
+        const matchTypeMap: Record<string, "EXACT" | "PHRASE" | "BROAD"> = {
+          EXACT: "EXACT",
+          PHRASE: "PHRASE",
+          BROAD: "BROAD",
+          Exact: "EXACT",
+          Phrase: "PHRASE",
+          Broad: "BROAD",
+        };
+        const matchTypeValue = matchTypeMap[inlineEditNewValue] || "EXACT";
+
+        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+          keywordIds: [inlineEditKeyword.keyword_id],
+          action: "match_type",
+          match_type: matchTypeValue,
+        });
+        
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
       }
 
-      setPendingStatusChange(null);
-      setEditingCell(null);
-      setEditedValue("");
+      await loadKeywords(accountIdNum);
+      setShowInlineEditModal(false);
+      setInlineEditKeyword(null);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
     } catch (error) {
-      console.error("Error updating keyword status:", error);
-      setKeywords((prevKeywords) =>
-        prevKeywords.map((keyword) =>
-          keyword.keyword_id === keywordId
-            ? {
-                ...keyword,
-                status: pendingStatusChange?.oldStatus || keyword.status,
-              }
-            : keyword
-        )
-      );
-      alert("Failed to update keyword status. Please try again.");
+      console.error("Error updating keyword:", error);
+      alert("Failed to update keyword. Please try again.");
     } finally {
-      setUpdatingField(null);
+      setInlineEditLoading(false);
     }
   };
 
@@ -1035,13 +967,15 @@ export const GoogleKeywords: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (exportType: "all_data" | "current_view") => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    // Keep dropdown open and show loading
+    setShowExportDropdown(true);
+    setExportLoading(true);
     try {
-      setExporting(true);
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
@@ -1052,6 +986,7 @@ export const GoogleKeywords: React.FC = () => {
         ...buildFilterParams(filters),
       };
 
+      // Add pagination for current view export
       if (exportType === "current_view") {
         params.page = currentPage;
         params.page_size = itemsPerPage;
@@ -1062,12 +997,17 @@ export const GoogleKeywords: React.FC = () => {
         params,
         exportType
       );
-      setShowExportModal(false);
+      
+      // Close dropdown after a short delay to show success
+      setTimeout(() => {
+        setShowExportDropdown(false);
+      }, 500);
     } catch (error: any) {
       console.error("Failed to export keywords:", error);
       alert("Failed to export keywords. Please try again.");
+      setShowExportDropdown(false);
     } finally {
-      setExporting(false);
+      setExportLoading(false);
     }
   };
 
@@ -1108,12 +1048,10 @@ export const GoogleKeywords: React.FC = () => {
   const someSelected =
     selectedKeywords.size > 0 && selectedKeywords.size < keywords.length;
 
-  const toggleChartMetric = (
-    metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
-  ) => {
+  const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
       ...prev,
-      [metric]: !prev[metric],
+      [metric]: !prev[metric as keyof typeof prev],
     }));
   };
 
@@ -1331,73 +1269,151 @@ export const GoogleKeywords: React.FC = () => {
                     ({total} total)
                   </span>
                 </h2>
-                <div
-                  className="relative inline-flex justify-end gap-2"
-                  ref={dropdownRef}
-                >
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => setShowExportModal(true)}
-                    disabled={exporting || loading || keywords.length === 0}
+                <div className="flex items-center justify-end gap-2">
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={exportDropdownRef}
                   >
-                    {exporting ? (
-                      <>
-                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-[#072929] border-t-transparent"></span>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Exporting...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-4 h-4 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Export
-                        </span>
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowBulkActions((prev) => !prev);
-                      setShowBidPanel(false);
-                    }}
-                  >
-                    <svg
-                      className="w-4 h-4 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={(e) => {
+                        if (exportLoading) return;
+                        e.stopPropagation();
+                        setShowExportDropdown((prev) => !prev);
+                        setShowBulkActions(false);
+                        setShowBidPanel(false);
+                      }}
+                      disabled={exportLoading || loading || keywords.length === 0}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
-                    </span>
-                  </Button>
-                  {showBulkActions && (
-                    <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                      <div className="overflow-y-auto">
+                      {exportLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        </div>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Export
+                          </span>
+                        </>
+                      )}
+                    </Button>
+                    {(showExportDropdown || exportLoading) && (
+                      <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        {exportLoading ? (
+                          <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                            <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <p className="text-[13px] text-[#072929] font-medium">
+                              Exporting...
+                            </p>
+                            <p className="text-[11px] text-[#556179] text-center px-2">
+                              Please wait while we prepare your file
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="overflow-y-auto">
+                            {[
+                              { value: "bulk_export", label: "Export All" },
+                              {
+                                value: "current_view",
+                                label: "Export Current View",
+                              },
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  const exportType =
+                                    opt.value === "bulk_export"
+                                      ? "all_data"
+                                      : "current_view";
+                                  // Keep dropdown open during export
+                                  await handleExport(exportType);
+                                }}
+                                disabled={exportLoading}
+                              >
+                                <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                  <svg
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <rect
+                                      width="20"
+                                      height="20"
+                                      rx="3.2"
+                                      fill="#072929"
+                                    />
+                                    <path
+                                      d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                      stroke="#F9F9F6"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </div>
+                                <span className="font-normal">{opt.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={dropdownRef}
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowBulkActions((prev) => !prev);
+                        setShowBidPanel(false);
+                        setShowExportDropdown(false);
+                      }}
+                    >
+                      <svg
+                        className="w-4 h-4 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Edit
+                      </span>
+                    </Button>
+                    {showBulkActions && (
+                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        <div className="overflow-y-auto">
                         {[
                           { value: "ENABLED", label: "Enable" },
                           { value: "PAUSED", label: "Pause" },
@@ -1427,9 +1443,10 @@ export const GoogleKeywords: React.FC = () => {
                             {opt.label}
                           </button>
                         ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1790,87 +1807,84 @@ export const GoogleKeywords: React.FC = () => {
                 </div>
               )}
 
-              {/* Export Modal */}
-              {showExportModal && (
+
+              {/* Inline Edit Confirmation Modal */}
+              {showInlineEditModal && inlineEditKeyword && inlineEditField && (
                 <div
                   className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
-                      setShowExportModal(false);
+                      setShowInlineEditModal(false);
+                      setInlineEditKeyword(null);
+                      setInlineEditField(null);
+                      setInlineEditOldValue("");
+                      setInlineEditNewValue("");
                     }
                   }}
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
                     <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Export Keywords
+                      Confirm{" "}
+                      {inlineEditField === "bid"
+                        ? "Bid"
+                        : inlineEditField === "status"
+                        ? "Status"
+                        : "Match Type"}{" "}
+                      Change
                     </h3>
-                    <div className="mb-6">
-                      <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
-                        Export Type
-                      </label>
-                      <Dropdown
-                        options={[
-                          { value: "current_view", label: "Current View" },
-                          { value: "all_data", label: "All Data" },
-                        ]}
-                        value={exportType}
-                        onChange={(val) => {
-                          setExportType(val as "current_view" | "all_data");
-                        }}
-                        buttonClassName="w-full"
-                        width="w-full"
-                      />
-                      <p className="text-[10.64px] text-[#727272] mt-2">
-                        {exportType === "current_view"
-                          ? `Exporting ${keywords.length} keyword${
-                              keywords.length !== 1 ? "s" : ""
-                            } from the current page (${total} total available)`
-                          : `Exporting all ${total} keyword${
-                              total !== 1 ? "s" : ""
-                            } matching your filters`}
+                    <div className="mb-4">
+                      <p className="text-[12.8px] text-[#556179] mb-2">
+                        Keyword:{" "}
+                        <span className="font-semibold text-[#072929]">
+                          {inlineEditKeyword.keyword_text ||
+                            "Unnamed Keyword"}
+                        </span>
                       </p>
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[12.8px] text-[#556179]">
+                            {inlineEditField === "bid"
+                              ? "Bid"
+                              : inlineEditField === "status"
+                              ? "Status"
+                              : "Match Type"}
+                            :
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[12.8px] text-[#556179]">
+                              {inlineEditOldValue}
+                            </span>
+                            <span className="text-[12.8px] text-[#556179]">
+                              →
+                            </span>
+                            <span className="text-[12.8px] font-semibold text-[#072929]">
+                              {inlineEditNewValue}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex justify-end gap-3">
                       <button
                         type="button"
                         onClick={() => {
-                          setShowExportModal(false);
-                          setExportType("current_view");
+                          setShowInlineEditModal(false);
+                          setInlineEditKeyword(null);
+                          setInlineEditField(null);
+                          setInlineEditOldValue("");
+                          setInlineEditNewValue("");
                         }}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={handleExport}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        onClick={runInlineEdit}
+                        disabled={inlineEditLoading}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {exporting ? (
-                          <>
-                            <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            Download
-                          </>
-                        )}
+                        {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>
                     </div>
                   </div>
@@ -1893,9 +1907,9 @@ export const GoogleKeywords: React.FC = () => {
                 isCancelling={isCancelling}
                 summary={summary}
                 updatingField={updatingField}
-                pendingBidChange={pendingBidChange}
-                pendingStatusChange={pendingStatusChange}
-                pendingMatchTypeChange={pendingMatchTypeChange}
+                pendingBidChange={null}
+                pendingStatusChange={null}
+                pendingMatchTypeChange={null}
                 onSelectAll={handleSelectAll}
                 onSelectKeyword={handleSelectKeyword}
                 onSort={handleSort}
@@ -1903,21 +1917,12 @@ export const GoogleKeywords: React.FC = () => {
                 onCancelInlineEdit={cancelInlineEdit}
                 onInlineEditChange={handleInlineEditChange}
                 onConfirmInlineEdit={confirmInlineEdit}
-                onConfirmBidChange={runInlineBidUpdate}
-                onCancelBidChange={() => {
-                  setPendingBidChange(null);
-                  cancelInlineEdit();
-                }}
-                onConfirmStatusChange={runInlineStatusUpdate}
-                onCancelStatusChange={() => {
-                  setPendingStatusChange(null);
-                  cancelInlineEdit();
-                }}
-                onConfirmMatchTypeChange={runInlineMatchTypeUpdate}
-                onCancelMatchTypeChange={() => {
-                  setPendingMatchTypeChange(null);
-                  cancelInlineEdit();
-                }}
+                onConfirmBidChange={() => {}}
+                onCancelBidChange={() => {}}
+                onConfirmStatusChange={() => {}}
+                onCancelStatusChange={() => {}}
+                onConfirmMatchTypeChange={() => {}}
+                onCancelMatchTypeChange={() => {}}
                 formatCurrency={formatCurrency}
                 formatPercentage={formatPercentage}
                 getStatusBadge={getStatusBadge}

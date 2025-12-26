@@ -304,12 +304,28 @@ export function GoogleAdsTable<T = any>({
       case "start_date":
       case "end_date":
         const isStartDate = column.type === "start_date";
+        // For end_date, set min to the campaign's start_date if it exists
+        let minDate: string | undefined;
+        if (isStartDate) {
+          // Use local date calculation to avoid timezone issues
+          const today = new Date();
+          minDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        } else {
+          // For end_date, get the start_date from the row
+          const startDate = (row as any).start_date;
+          if (startDate) {
+            const parsedStartDate = parseDateToYYYYMMDD(startDate);
+            if (parsedStartDate) {
+              minDate = parsedStartDate;
+            }
+          }
+        }
         return (
           <div className="flex items-center">
             <input
               type="date"
               value={editedValue}
-              min={isStartDate ? new Date().toISOString().split("T")[0] : undefined}
+              min={minDate}
               onChange={(e) => onInlineEditChange(e.target.value)}
               onBlur={(e) => {
                 if (isCancelling) return;

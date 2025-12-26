@@ -10,6 +10,8 @@ export interface GoogleAdGroup {
   sales?: number | string;
   campaign_id?: number;
   campaign_name?: string;
+  headlines?: any[];
+  final_urls?: string[];
 }
 
 export interface GoogleAd {

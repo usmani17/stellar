@@ -48,22 +48,6 @@ interface GoogleCampaignsTableProps {
     campaignId: string | number;
     field: "budget" | "status" | "start_date" | "end_date";
   } | null;
-  pendingBudgetChange: {
-    campaignId: string | number;
-    newBudget: number;
-    oldBudget: number;
-  } | null;
-  pendingStatusChange: {
-    campaignId: string | number;
-    newStatus: string;
-    oldStatus: string;
-  } | null;
-  pendingDateChange: {
-    campaignId: string | number;
-    field: "start_date" | "end_date";
-    newDate: string;
-    oldDate: string;
-  } | null;
   summary: {
     total_campaigns: number;
     total_spends: number;
@@ -80,12 +64,6 @@ interface GoogleCampaignsTableProps {
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
   onConfirmInlineEdit: (value: string) => void;
-  onConfirmBudgetChange: (campaignId: string | number, newBudget: number) => void;
-  onCancelBudgetChange: () => void;
-  onConfirmStatusChange: (campaignId: string | number, newStatus: string) => void;
-  onCancelStatusChange: () => void;
-  onConfirmDateChange: (campaignId: string | number, field: "start_date" | "end_date", newDate: string) => void;
-  onCancelDateChange: () => void;
   formatCurrency: (value: number) => string;
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
@@ -107,9 +85,6 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
   editedValue,
   isCancelling,
   updatingField,
-  pendingBudgetChange,
-  pendingStatusChange,
-  pendingDateChange,
   summary,
   onSelectAll,
   onSelectCampaign,
@@ -118,12 +93,6 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
   onCancelInlineEdit,
   onInlineEditChange,
   onConfirmInlineEdit,
-  onConfirmBudgetChange,
-  onCancelBudgetChange,
-  onConfirmStatusChange,
-  onCancelStatusChange,
-  onConfirmDateChange,
-  onCancelDateChange,
   formatCurrency,
   formatPercentage,
   getStatusBadge,
@@ -141,29 +110,8 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
     field: updatingField.field,
   } : null;
 
-  // Map pending changes to shared format
-  const pendingChanges = useMemo(() => ({
-    budget: pendingBudgetChange ? {
-      itemId: pendingBudgetChange.campaignId,
-      newValue: pendingBudgetChange.newBudget,
-      oldValue: pendingBudgetChange.oldBudget,
-    } : null,
-    status: pendingStatusChange ? {
-      itemId: pendingStatusChange.campaignId,
-      newValue: pendingStatusChange.newStatus,
-      oldValue: pendingStatusChange.oldStatus,
-    } : null,
-    start_date: pendingDateChange?.field === "start_date" ? {
-      itemId: pendingDateChange.campaignId,
-      newValue: pendingDateChange.newDate,
-      oldValue: pendingDateChange.oldDate,
-    } : null,
-    end_date: pendingDateChange?.field === "end_date" ? {
-      itemId: pendingDateChange.campaignId,
-      newValue: pendingDateChange.newDate,
-      oldValue: pendingDateChange.oldDate,
-    } : null,
-  }), [pendingBudgetChange, pendingStatusChange, pendingDateChange]);
+  // Map pending changes to shared format (dates now use modal, so no pending changes)
+  const pendingChanges = useMemo(() => ({}), []);
 
   // Map summary to shared format
   const sharedSummary = summary ? {
@@ -300,26 +248,14 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
     onConfirmInlineEdit(value);
   };
 
-  // Handle confirm change - route to appropriate handler
+  // Handle confirm change - route to appropriate handler (dates now use modal)
   const handleConfirmChange = (itemId: string | number, field: string, newValue: any) => {
-    if (field === "status") {
-      onConfirmStatusChange(itemId, newValue);
-    } else if (field === "budget") {
-      onConfirmBudgetChange(itemId, newValue);
-    } else if (field === "start_date" || field === "end_date") {
-      onConfirmDateChange(itemId, field as "start_date" | "end_date", newValue);
-    }
+    // Dates are handled via modal, not inline confirmation
   };
 
-  // Handle cancel change
+  // Handle cancel change (dates now use modal)
   const handleCancelChange = (field: string) => {
-    if (field === "status") {
-      onCancelStatusChange();
-    } else if (field === "budget") {
-      onCancelBudgetChange();
-    } else if (field === "start_date" || field === "end_date") {
-      onCancelDateChange();
-    }
+    // Dates are handled via modal, not inline confirmation
   };
 
   return (
