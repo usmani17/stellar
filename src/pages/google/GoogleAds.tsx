@@ -88,7 +88,7 @@ export const GoogleAds: React.FC = () => {
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
-  const [updatingField] = useState<{
+  const [updatingField, setUpdatingField] = useState<{
     adId: string | number;
     field: "status";
   } | null>(null);

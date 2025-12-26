@@ -80,9 +80,9 @@ export const Dropdown = <T extends string | number = string>({
   }, [defaultOpen, disabled]);
 
   // Filter options based on search query
-  // If onSearchChange is provided, use external search (show all options as they're pre-filtered)
-  // Otherwise, filter locally
-  const filteredOptions = searchable && !onSearchChange
+  // If onSearchChange is provided, still filter locally for immediate UI feedback
+  // while the parent handles external search and updates options prop
+  const filteredOptions = searchable
     ? options.filter((opt) =>
         opt.label.toLowerCase().includes(searchQuery.toLowerCase())
       )

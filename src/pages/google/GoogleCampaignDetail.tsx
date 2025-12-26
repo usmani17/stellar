@@ -413,23 +413,6 @@ export const GoogleCampaignDetail: React.FC = () => {
     keywordsFilters,
   ]);
 
-  useEffect(() => {
-    if (accountId && campaignId && activeTab === "Asset Groups") {
-      loadAssetGroups();
-    }
-  }, [
-    accountId,
-    campaignId,
-    activeTab,
-    startDate,
-    endDate,
-    assetGroupsCurrentPage,
-    assetGroupsSortBy,
-    assetGroupsSortOrder,
-    assetGroupsFilters,
-    loadAssetGroups,
-  ]);
-
   const loadProductGroups = useCallback(async () => {
     try {
       setProductGroupsLoading(true);
@@ -453,7 +436,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           ad_type: 'SHOPPING_PRODUCT_AD', // Filter for product groups only
           start_date: startDate ? startDate.toISOString().split("T")[0] : undefined,
           end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-          ...buildAdsFilterParams(productGroupsFilters),
+          ...buildProductGroupsFilterParams(productGroupsFilters),
         }
       );
 
@@ -583,6 +566,27 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Map "name" field to "ad_type" for Google Ads
         params.ad_type = filter.value;
       } else if (filter.field === "status") {
+        params.status = filter.value;
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
+        }
+      }
+    });
+    return params;
+  };
+
+  const buildProductGroupsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+    filterList.forEach((filter) => {
+      // Product groups only support status filtering
+      // Note: "name" field should not map to "ad_type" for product groups
+      // since we already filter by ad_type: 'SHOPPING_PRODUCT_AD'
+      if (filter.field === "status") {
         params.status = filter.value;
       } else if (filter.field === "adgroup_name") {
         if (filter.operator === "contains") {

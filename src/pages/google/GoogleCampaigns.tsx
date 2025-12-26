@@ -510,14 +510,9 @@ export const GoogleCampaigns: React.FC = () => {
         errorMessage = error.message;
       }
 
-      // Pass field errors to the panel via a custom error object
-      const errorWithFields = {
-        message: errorMessage,
-        fieldErrors: fieldErrors,
-      };
-
-      // Store error with field errors as JSON string
-      setCreateCampaignError(JSON.stringify(errorWithFields));
+      // Store error message as plain string for display
+      // Note: Field errors are handled separately by the panel if needed
+      setCreateCampaignError(errorMessage);
 
       // Don't close panel on error - let user fix and resubmit
       // Re-throw error so the form knows submission failed
