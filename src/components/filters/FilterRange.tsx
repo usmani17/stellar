@@ -29,7 +29,7 @@ export const FilterRange: React.FC<FilterRangeProps> = ({
       <select
         value={operator}
         onChange={(e) => onOperatorChange(e.target.value as FilterOperator)}
-        className="px-2 py-1.5 border border-gray-300 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white min-w-[80px]"
+        className="px-2 py-1.5 border border-gray-300 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-[#FEFEFB] min-w-[80px]"
       >
         {operators.map((op) => (
           <option key={op} value={op}>
@@ -44,7 +44,7 @@ export const FilterRange: React.FC<FilterRangeProps> = ({
         value={value}
         onChange={(e) => onValueChange(e.target.value ? parseFloat(e.target.value) : '')}
         placeholder="Value"
-        className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-[#FEFEFB]"
       />
 
       {/* Second Value Input (for 'between' operator) */}
@@ -56,7 +56,7 @@ export const FilterRange: React.FC<FilterRangeProps> = ({
             value={value2 || ''}
             onChange={(e) => onValue2Change(e.target.value ? parseFloat(e.target.value) : '')}
             placeholder="Value"
-            className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-[#FEFEFB]"
           />
         </>
       )}

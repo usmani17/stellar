@@ -28,7 +28,7 @@ export const AuthFormField: React.FC<AuthFormFieldProps> = ({
       <div
         className={`
         self-stretch h-12 px-3 py-2 
-        bg-background-field 
+        bg-[#FEFEFB] 
         rounded-xl 
         border border-sandstorm-s40
         inline-flex justify-start items-center gap-2

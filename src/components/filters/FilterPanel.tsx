@@ -495,7 +495,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   setSelectedOperator("");
                 }
               }}
-              buttonClassName="w-full"
+              buttonClassName="w-full bg-[#FEFEFB]"
             />
           </div>
 
@@ -528,7 +528,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
                 onChange={(value) => setSelectedOperator(value)}
-                buttonClassName="w-full"
+                buttonClassName="w-full bg-[#FEFEFB]"
               />
             </div>
           )}
@@ -547,7 +547,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     loadingProfiles ? "Loading profiles..." : "Select Profile"
                   }
                   onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full"
+                  buttonClassName="w-full bg-[#FEFEFB]"
                   disabled={loadingProfiles}
                 />
               ) : isStateOrType ? (
@@ -564,7 +564,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     selectedField === "state" ? "State" : "Type"
                   }`}
                   onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full"
+                  buttonClassName="w-full bg-[#FEFEFB]"
                 />
               ) : isTargetingType ? (
                 <Dropdown<string>
@@ -575,7 +575,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue || undefined}
                   placeholder="Select Targeting Type"
                   onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full"
+                  buttonClassName="w-full bg-[#FEFEFB]"
                 />
               ) : isStatusOrChannelType ? (
                 <Dropdown<string>
@@ -591,7 +591,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     selectedField === "status" ? "Status" : "Channel Type"
                   }`}
                   onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full"
+                  buttonClassName="w-full bg-[#FEFEFB]"
                 />
               ) : selectedField === "budget" ? (
                 <input
@@ -599,7 +599,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter budget"
-                  className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                 />
               ) : (
                 <input
@@ -607,7 +607,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter value"
-                  className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                 />
               )}
             </div>
@@ -648,7 +648,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       <div className="p-4 flex items-center justify-end gap-3">
         <button
           onClick={handleClearAll}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
         >
           Clear All
         </button>

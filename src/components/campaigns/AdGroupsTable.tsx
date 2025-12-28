@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
+import { Dropdown } from "../ui/Dropdown";
 import type { AdGroup } from "../../services/campaigns";
 
 interface AdGroupsTableProps {
@@ -23,6 +24,7 @@ interface AdGroupsTableProps {
   ) => void;
   onEditChange?: (value: string) => void;
   onEditEnd?: () => void;
+  onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
     id: number;
@@ -32,12 +34,15 @@ interface AdGroupsTableProps {
   } | null;
   onConfirmChange?: () => void;
   onCancelChange?: () => void;
-  showTotalRow?: boolean;
-  totalRow?: {
-    spends: string;
-    sales: string;
-    ctr: string;
-  };
+  summary?: {
+    total_adgroups: number;
+    total_spends: number;
+    total_sales: number;
+    total_impressions: number;
+    total_clicks: number;
+    avg_acos: number;
+    avg_roas: number;
+  } | null;
 }
 
 export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
@@ -55,12 +60,12 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   onEditStart,
   onEditChange,
   onEditEnd,
+  onEditCancel,
   inlineEditLoading = new Set(),
   pendingChange = null,
   onConfirmChange,
   onCancelChange,
-  showTotalRow = false,
-  totalRow,
+  summary,
 }) => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
@@ -142,7 +147,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
       <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -156,8 +161,8 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
           </div>
         ) : (
           <div className="max-h-[600px] overflow-y-auto">
-            <table className="min-w-full">
-              <thead className="sticky top-0 bg-[#fefefb] z-10">
+            <table className="min-w-[1200px] w-full">
+              <thead className="sticky top-0 bg-sandstorm-s20 z-10">
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
@@ -220,7 +225,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                   {/* State Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[115px] ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("status")}
@@ -337,14 +342,71 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                 </tr>
               </thead>
               <tbody>
+                {/* Summary Row */}
+                {summary && (
+                  <tr className="bg-[#f5f5f0] font-semibold">
+                    <td className="py-[10px] px-[10px]"></td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      Total ({summary.total_adgroups})
+                    </td>
+                    <td className="py-[10px] px-[10px]"></td>
+                    {showCampaignColumn && (
+                      <>
+                        <td className="py-[10px] px-[10px]"></td>
+                        <td className="py-[10px] px-[10px]"></td>
+                        <td className="py-[10px] px-[10px]"></td>
+                      </>
+                    )}
+                    <td className="py-[10px] px-[10px]"></td>
+                    <td className="py-[10px] px-[10px]"></td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {summary.total_impressions > 0
+                        ? `${(
+                            (summary.total_clicks / summary.total_impressions) *
+                            100
+                          ).toFixed(2)}%`
+                        : "0.00%"}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      $
+                      {summary.total_spends.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      $
+                      {summary.total_sales.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                    {showCampaignColumn && (
+                      <>
+                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {summary.total_impressions.toLocaleString()}
+                        </td>
+                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {summary.total_clicks.toLocaleString()}
+                        </td>
+                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {summary.avg_acos.toFixed(2)}%
+                        </td>
+                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {summary.avg_roas.toFixed(2)}x
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                )}
                 {adgroups.map((adgroup, index) => {
                   const isLastRow = index === adgroups.length - 1;
                   return (
                     <tr
                       key={adgroup.id}
-                      className={`${
+                      className={`group ${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      } hover:bg-gray-100 transition-colors`}
                     >
                       {/* Checkbox */}
                       <td className="py-[10px] px-[10px]">
@@ -415,7 +477,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       )}
 
                       {/* State */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] min-w-[115px]">
                         {inlineEditLoading.has(adgroup.id) ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -483,22 +545,39 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         ) : editingField?.id === adgroup.id &&
                           editingField?.field === "status" ? (
                           <div className="flex items-center gap-2">
-                            <select
-                              value={editedValue}
-                              onChange={(e) => onEditChange?.(e.target.value)}
-                              className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1"
-                              autoFocus
-                              onBlur={onEditEnd}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === "Escape") {
+                            <Dropdown
+                              options={[
+                                { value: "enabled", label: "Enabled" },
+                                { value: "paused", label: "Paused" },
+                                { value: "archived", label: "Archived" },
+                              ]}
+                              value={(() => {
+                                if (editedValue) return editedValue;
+                                const statusLower =
+                                  adgroup.status?.toLowerCase() || "enabled";
+                                return statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                  ? "enabled"
+                                  : statusLower === "paused"
+                                  ? "paused"
+                                  : "archived";
+                              })()}
+                              onChange={(val) => {
+                                onEditChange?.(val as string);
+                                setTimeout(() => {
                                   onEditEnd?.();
-                                }
+                                }, 100);
                               }}
-                            >
-                              <option value="enabled">Enabled</option>
-                              <option value="paused">Paused</option>
-                              <option value="archived">Archived</option>
-                            </select>
+                              onClose={() => {
+                                // Cancel edit on blur/close without selection
+                                onEditCancel?.();
+                              }}
+                              defaultOpen={true}
+                              closeOnSelect={true}
+                              buttonClassName="w-full text-[13.3px] px-2 py-1"
+                              width="w-full"
+                              align="center"
+                            />
                           </div>
                         ) : (
                           <div
@@ -646,82 +725,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                     </tr>
                   );
                 })}
-                {/* Total Row */}
-                {showTotalRow && totalRow && (
-                  <tr className="border-t-2 border-[#136D6D] bg-[#f9f9f6] font-semibold">
-                    <td
-                      className="py-[10px] px-[10px]"
-                      colSpan={showCampaignColumn ? 7 : 4}
-                    >
-                      <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                        Total
-                      </span>
-                    </td>
-                    {showCampaignColumn && (
-                      <>
-                        <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                            —
-                          </span>
-                        </td>
-                        <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                            —
-                          </span>
-                        </td>
-                        <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                            —
-                          </span>
-                        </td>
-                      </>
-                    )}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                        —
-                      </span>
-                    </td>
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                        {totalRow.ctr}
-                      </span>
-                    </td>
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                        {totalRow.spends}
-                      </span>
-                    </td>
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                        {totalRow.sales}
-                      </span>
-                    </td>
-                    {showCampaignColumn && (
-                      <>
-                        <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                            —
-                          </span>
-                        </td>
-                        <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                            —
-                          </span>
-                        </td>
-                        <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                            —
-                          </span>
-                        </td>
-                        <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#072929] leading-[1.26]">
-                            —
-                          </span>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>

@@ -244,12 +244,12 @@ export const GoogleAds: React.FC = () => {
       } else {
         setChartDataFromApi([]);
       }
-          if (responseWithChart.summary) {
-            setSummary(responseWithChart.summary);
-          } else {
-            setSummary(null);
-          }
-          setSelectedAds(new Set());
+      if (responseWithChart.summary) {
+        setSummary(responseWithChart.summary);
+      } else {
+        setSummary(null);
+      }
+      setSelectedAds(new Set());
     } catch (error) {
       console.error("Failed to load Google ads:", error);
       setAds([]);
@@ -286,7 +286,7 @@ export const GoogleAds: React.FC = () => {
       setAds(adsArray);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
-      
+
       // Store chart data from API if available
       const responseWithChart = response as any;
       console.log("🔍 [CHART DEBUG] Checking for chart_data in response:", {
@@ -297,7 +297,9 @@ export const GoogleAds: React.FC = () => {
         chartDataPreview: responseWithChart.chart_data?.slice(0, 3),
         fullResponseKeys: Object.keys(responseWithChart),
         hasSummary: !!responseWithChart.summary,
-        summaryKeys: responseWithChart.summary ? Object.keys(responseWithChart.summary) : [],
+        summaryKeys: responseWithChart.summary
+          ? Object.keys(responseWithChart.summary)
+          : [],
       });
       if (
         responseWithChart.chart_data &&
@@ -315,7 +317,10 @@ export const GoogleAds: React.FC = () => {
         setChartDataFromApi([]);
       }
       if (responseWithChart.summary) {
-        console.log("✅ [SUMMARY DEBUG] Setting summary:", responseWithChart.summary);
+        console.log(
+          "✅ [SUMMARY DEBUG] Setting summary:",
+          responseWithChart.summary
+        );
         setSummary(responseWithChart.summary);
       } else {
         console.log("❌ [SUMMARY DEBUG] No summary found in response");
@@ -771,8 +776,7 @@ export const GoogleAds: React.FC = () => {
   };
 
   const allSelected = ads.length > 0 && selectedAds.size === ads.length;
-  const someSelected =
-    selectedAds.size > 0 && selectedAds.size < ads.length;
+  const someSelected = selectedAds.size > 0 && selectedAds.size < ads.length;
 
   const toggleChartMetric = (
     metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
@@ -841,7 +845,7 @@ export const GoogleAds: React.FC = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                  className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -1106,8 +1110,8 @@ export const GoogleAds: React.FC = () => {
                     <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
                       <div className="flex items-center gap-2">
                         <span className="text-[12.16px] text-[#556179]">
-                          {selectedAds.size} ad{selectedAds.size !== 1 ? "s" : ""}{" "}
-                          will be updated:
+                          {selectedAds.size} ad
+                          {selectedAds.size !== 1 ? "s" : ""} will be updated:
                         </span>
                         <span className="text-[12.16px] font-semibold text-[#072929]">
                           Status change
@@ -1200,7 +1204,7 @@ export const GoogleAds: React.FC = () => {
                           }
                         }}
                         disabled={bulkLoading}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
@@ -1256,8 +1260,12 @@ export const GoogleAds: React.FC = () => {
                       />
                       <p className="text-[10.64px] text-[#727272] mt-2">
                         {exportType === "current_view"
-                          ? `Exporting ${ads.length} ad${ads.length !== 1 ? "s" : ""} from the current page (${total} total available)`
-                          : `Exporting all ${total} ad${total !== 1 ? "s" : ""} matching your filters`}
+                          ? `Exporting ${ads.length} ad${
+                              ads.length !== 1 ? "s" : ""
+                            } from the current page (${total} total available)`
+                          : `Exporting all ${total} ad${
+                              total !== 1 ? "s" : ""
+                            } matching your filters`}
                       </p>
                     </div>
                     <div className="flex justify-end gap-3">
@@ -1268,7 +1276,7 @@ export const GoogleAds: React.FC = () => {
                           setExportType("current_view");
                         }}
                         disabled={exporting}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>

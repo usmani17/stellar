@@ -3,7 +3,10 @@ import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
-import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import {
+  FilterPanel,
+  type FilterValues,
+} from "../../../../components/filters/FilterPanel";
 import type { GoogleKeyword } from "./types";
 
 interface GoogleCampaignDetailKeywordsTabProps {
@@ -27,13 +30,22 @@ interface GoogleCampaignDetailKeywordsTabProps {
   syncingAnalytics?: boolean;
   onSyncAnalytics?: () => void;
   syncMessage: string | null;
-  getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
+  getSortIcon: (
+    column: string,
+    currentSortBy: string,
+    currentSortOrder: "asc" | "desc"
+  ) => React.ReactNode;
   onUpdateKeywordStatus?: (keywordId: number, status: string) => Promise<void>;
   onUpdateKeywordBid?: (keywordId: number, bid: number) => Promise<void>;
-  onUpdateKeywordMatchType?: (keywordId: number, matchType: string) => Promise<void>;
+  onUpdateKeywordMatchType?: (
+    keywordId: number,
+    matchType: string
+  ) => Promise<void>;
 }
 
-export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywordsTabProps> = ({
+export const GoogleCampaignDetailKeywordsTab: React.FC<
+  GoogleCampaignDetailKeywordsTabProps
+> = ({
   keywords,
   loading,
   selectedKeywordIds,
@@ -60,7 +72,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
   onUpdateKeywordMatchType,
 }) => {
   const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
-  const [editingField, setEditingField] = useState<"status" | "bid" | "match_type" | null>(null);
+  const [editingField, setEditingField] = useState<
+    "status" | "bid" | "match_type" | null
+  >(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
   const [editingBid, setEditingBid] = useState<string>("");
   const [editingMatchType, setEditingMatchType] = useState<string>("");
@@ -70,7 +84,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
     newValue: string;
     oldValue: string;
   } | null>(null);
-  const [updatingKeywordId, setUpdatingKeywordId] = useState<number | null>(null);
+  const [updatingKeywordId, setUpdatingKeywordId] = useState<number | null>(
+    null
+  );
 
   const handleStatusClick = (keyword: GoogleKeyword) => {
     if (onUpdateKeywordStatus) {
@@ -113,9 +129,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
         oldValue: oldStatus,
       });
     }
-      setEditingKeywordId(null);
-      setEditingField(null);
-      setEditingStatus("");
+    setEditingKeywordId(null);
+    setEditingField(null);
+    setEditingStatus("");
   };
 
   const handleBidChange = (keywordId: number, newBid: string) => {
@@ -125,7 +141,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
     const bidValue = parseFloat(newBid);
     const oldBid = (keyword.cpc_bid_dollars || 0).toString();
 
-    if (!isNaN(bidValue) && bidValue >= 0 && newBid !== oldBid && newBid !== "") {
+    if (
+      !isNaN(bidValue) &&
+      bidValue >= 0 &&
+      newBid !== oldBid &&
+      newBid !== ""
+    ) {
       setPendingChange({
         id: keywordId,
         field: "bid",
@@ -133,9 +154,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
         oldValue: oldBid,
       });
     }
-        setEditingKeywordId(null);
-        setEditingField(null);
-        setEditingBid("");
+    setEditingKeywordId(null);
+    setEditingField(null);
+    setEditingBid("");
   };
 
   const handleMatchTypeChange = (keywordId: number, newMatchType: string) => {
@@ -170,13 +191,21 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
         if (!isNaN(bidValue)) {
           await onUpdateKeywordBid(pendingChange.id, bidValue);
         }
-      } else if (pendingChange.field === "match_type" && onUpdateKeywordMatchType) {
-        await onUpdateKeywordMatchType(pendingChange.id, pendingChange.newValue);
+      } else if (
+        pendingChange.field === "match_type" &&
+        onUpdateKeywordMatchType
+      ) {
+        await onUpdateKeywordMatchType(
+          pendingChange.id,
+          pendingChange.newValue
+        );
       }
       setPendingChange(null);
     } catch (error) {
       console.error("Failed to update keyword:", error);
-      alert(`Failed to update keyword ${pendingChange.field}. Please try again.`);
+      alert(
+        `Failed to update keyword ${pendingChange.field}. Please try again.`
+      );
     } finally {
       setUpdatingKeywordId(null);
     }
@@ -184,11 +213,11 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
 
   const cancelChange = () => {
     setPendingChange(null);
-      setEditingKeywordId(null);
-      setEditingField(null);
+    setEditingKeywordId(null);
+    setEditingField(null);
     setEditingStatus("");
-      setEditingBid("");
-      setEditingMatchType("");
+    setEditingBid("");
+    setEditingMatchType("");
   };
   return (
     <>
@@ -196,14 +225,18 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
       {syncMessage && (
         <div className="mb-4">
           <Banner
-            type={syncMessage.includes("error") || syncMessage.includes("Failed") ? "error" : "success"}
+            type={
+              syncMessage.includes("error") || syncMessage.includes("Failed")
+                ? "error"
+                : "success"
+            }
             message={syncMessage}
             dismissable={true}
             onDismiss={() => {}}
           />
         </div>
       )}
-      
+
       {/* Header with Filter Button and Sync Button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
@@ -212,7 +245,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleFilterPanel}
-            className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -319,7 +352,10 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
-                        checked={keywords.length > 0 && keywords.every((kw) => selectedKeywordIds.has(kw.id))}
+                        checked={
+                          keywords.length > 0 &&
+                          keywords.every((kw) => selectedKeywordIds.has(kw.id))
+                        }
                         onChange={onSelectAll}
                         size="small"
                       />
@@ -380,7 +416,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedKeywordIds.has(keyword.id)}
-                            onChange={(checked) => onSelectKeyword(keyword.id, checked)}
+                            onChange={(checked) =>
+                              onSelectKeyword(keyword.id, checked)
+                            }
                             size="small"
                           />
                         </div>
@@ -391,14 +429,16 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                         </span>
                       </td>
                       <td className="py-[10px] px-[10px]">
-                        {updatingKeywordId === keyword.id && pendingChange?.field === "match_type" ? (
+                        {updatingKeywordId === keyword.id &&
+                        pendingChange?.field === "match_type" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
                           </div>
-                        ) : pendingChange?.id === keyword.id && pendingChange?.field === "match_type" ? (
+                        ) : pendingChange?.id === keyword.id &&
+                          pendingChange?.field === "match_type" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {pendingChange.newValue}
@@ -444,7 +484,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                               </button>
                             </div>
                           </div>
-                        ) : editingKeywordId === keyword.id && editingField === "match_type" && onUpdateKeywordMatchType ? (
+                        ) : editingKeywordId === keyword.id &&
+                          editingField === "match_type" &&
+                          onUpdateKeywordMatchType ? (
                           <Dropdown
                             options={[
                               { value: "EXACT", label: "Exact match" },
@@ -452,7 +494,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                               { value: "BROAD", label: "Broad match" },
                             ]}
                             value={editingMatchType}
-                            onChange={(val) => handleMatchTypeChange(keyword.id, val as string)}
+                            onChange={(val) =>
+                              handleMatchTypeChange(keyword.id, val as string)
+                            }
                             defaultOpen={true}
                             closeOnSelect={true}
                             buttonClassName="text-[13.3px] px-2 py-1"
@@ -460,8 +504,15 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                           />
                         ) : (
                           <span
-                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${onUpdateKeywordMatchType ? "cursor-pointer hover:underline" : ""}`}
-                            onClick={() => onUpdateKeywordMatchType && handleMatchTypeClick(keyword)}
+                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                              onUpdateKeywordMatchType
+                                ? "cursor-pointer hover:underline"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              onUpdateKeywordMatchType &&
+                              handleMatchTypeClick(keyword)
+                            }
                           >
                             {keyword.match_type || "—"}
                           </span>
@@ -473,12 +524,14 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                         </span>
                       </td>
                       <td className="py-[10px] px-[10px]">
-                        {updatingKeywordId === keyword.id && pendingChange?.field === "status" ? (
+                        {updatingKeywordId === keyword.id &&
+                        pendingChange?.field === "status" ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
                           </div>
-                        ) : pendingChange?.id === keyword.id && pendingChange?.field === "status" ? (
+                        ) : pendingChange?.id === keyword.id &&
+                          pendingChange?.field === "status" ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
                             <div className="flex items-center gap-1">
@@ -522,7 +575,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                               </button>
                             </div>
                           </div>
-                        ) : editingKeywordId === keyword.id && editingField === "status" && onUpdateKeywordStatus ? (
+                        ) : editingKeywordId === keyword.id &&
+                          editingField === "status" &&
+                          onUpdateKeywordStatus ? (
                           <Dropdown
                             options={[
                               { value: "ENABLED", label: "Enabled" },
@@ -530,7 +585,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                               { value: "REMOVED", label: "Removed" },
                             ]}
                             value={editingStatus}
-                            onChange={(val) => handleStatusChange(keyword.id, val as string)}
+                            onChange={(val) =>
+                              handleStatusChange(keyword.id, val as string)
+                            }
                             defaultOpen={true}
                             closeOnSelect={true}
                             buttonClassName="text-[13.3px] px-2 py-1"
@@ -538,22 +595,33 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                           />
                         ) : (
                           <div
-                            className={onUpdateKeywordStatus ? "cursor-pointer hover:underline" : ""}
-                            onClick={() => onUpdateKeywordStatus && handleStatusClick(keyword)}
+                            className={
+                              onUpdateKeywordStatus
+                                ? "cursor-pointer hover:underline"
+                                : ""
+                            }
+                            onClick={() =>
+                              onUpdateKeywordStatus &&
+                              handleStatusClick(keyword)
+                            }
                           >
-                            {keyword.status && <StatusBadge status={keyword.status} />}
+                            {keyword.status && (
+                              <StatusBadge status={keyword.status} />
+                            )}
                           </div>
                         )}
                       </td>
                       <td className="py-[10px] px-[10px]">
-                        {updatingKeywordId === keyword.id && pendingChange?.field === "bid" ? (
+                        {updatingKeywordId === keyword.id &&
+                        pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               ${parseFloat(pendingChange.newValue).toFixed(2)}
                             </span>
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
                           </div>
-                        ) : pendingChange?.id === keyword.id && pendingChange?.field === "bid" ? (
+                        ) : pendingChange?.id === keyword.id &&
+                          pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               ${parseFloat(pendingChange.newValue).toFixed(2)}
@@ -599,38 +667,51 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                               </button>
                             </div>
                           </div>
-                        ) : editingKeywordId === keyword.id && editingField === "bid" && onUpdateKeywordBid ? (
+                        ) : editingKeywordId === keyword.id &&
+                          editingField === "bid" &&
+                          onUpdateKeywordBid ? (
                           <div className="flex items-center">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editingBid}
-                            onChange={(e) => setEditingBid(e.target.value)}
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={editingBid}
+                              onChange={(e) => setEditingBid(e.target.value)}
                               onBlur={() => {
                                 const inputValue = editingBid;
-                                const oldValue = (keyword.cpc_bid_dollars || 0).toString();
-                                if (inputValue === oldValue || inputValue === "") {
+                                const oldValue = (
+                                  keyword.cpc_bid_dollars || 0
+                                ).toString();
+                                if (
+                                  inputValue === oldValue ||
+                                  inputValue === ""
+                                ) {
                                   cancelChange();
                                 } else {
                                   handleBidChange(keyword.id, editingBid);
                                 }
                               }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
                                   e.currentTarget.blur();
-                              } else if (e.key === "Escape") {
+                                } else if (e.key === "Escape") {
                                   cancelChange();
-                              }
-                            }}
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
-                            autoFocus
-                          />
+                                }
+                              }}
+                              className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
+                              autoFocus
+                            />
                           </div>
                         ) : (
                           <span
-                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${onUpdateKeywordBid ? "cursor-pointer hover:underline" : ""}`}
-                            onClick={() => onUpdateKeywordBid && handleBidClick(keyword)}
+                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                              onUpdateKeywordBid
+                                ? "cursor-pointer hover:underline"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              onUpdateKeywordBid && handleBidClick(keyword)
+                            }
                           >
                             ${keyword.cpc_bid_dollars?.toFixed(2) || "0.00"}
                           </span>
@@ -699,7 +780,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
               </button>
             )}
             <button
-              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                onPageChange(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
               className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
             >
@@ -711,4 +794,3 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
     </>
   );
 };
-

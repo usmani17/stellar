@@ -135,7 +135,9 @@ export const GoogleCampaigns: React.FC = () => {
   } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [exportType, setExportType] = useState<"current_view" | "all_data">("current_view");
+  const [exportType, setExportType] = useState<"current_view" | "all_data">(
+    "current_view"
+  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -156,6 +158,13 @@ export const GoogleCampaigns: React.FC = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showBulkActions]);
+
+  // Close budget panel when no campaigns are selected
+  useEffect(() => {
+    if (selectedCampaigns.size === 0) {
+      setShowBudgetPanel(false);
+    }
+  }, [selectedCampaigns.size]);
 
   // Cancel inline edit when clicking outside
   useEffect(() => {
@@ -634,6 +643,10 @@ export const GoogleCampaigns: React.FC = () => {
       newSelected.delete(campaignId);
     }
     setSelectedCampaigns(newSelected);
+    // Close budget panel when selection changes
+    if (newSelected.size === 0) {
+      setShowBudgetPanel(false);
+    }
   };
 
   // Inline edit handlers
@@ -703,20 +716,22 @@ export const GoogleCampaigns: React.FC = () => {
       const oldValue = parseDateToYYYYMMDD(campaign.start_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-      
+
       console.log("[start_date] Date comparison:", {
         campaignId: editingCell.campaignId,
         oldValue,
         newValue,
         hasChanged,
-        rawStartDate: campaign.start_date
+        rawStartDate: campaign.start_date,
       });
 
       // Validate: start date cannot be in the past
       // Compare YYYY-MM-DD strings directly to avoid timezone issues
       if (newValue) {
         const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const todayStr = `${today.getFullYear()}-${String(
+          today.getMonth() + 1
+        ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
         if (newValue < todayStr) {
           validationError = "Start date cannot be in the past";
           alert(validationError);
@@ -729,13 +744,13 @@ export const GoogleCampaigns: React.FC = () => {
       const oldValue = parseDateToYYYYMMDD(campaign.end_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-      
+
       console.log("[end_date] Date comparison:", {
         campaignId: editingCell.campaignId,
         oldValue,
         newValue,
         hasChanged,
-        rawEndDate: campaign.end_date
+        rawEndDate: campaign.end_date,
       });
 
       // Validate: end date cannot be before start date
@@ -777,7 +792,7 @@ export const GoogleCampaigns: React.FC = () => {
     if (editingCell.field === "budget") {
       const newBudget = parseFloat(valueToCheck) || 0;
       const oldBudget = campaign.daily_budget || 0;
-      
+
       setPendingBudgetChange({
         campaignId: editingCell.campaignId,
         newBudget: newBudget,
@@ -788,7 +803,10 @@ export const GoogleCampaigns: React.FC = () => {
     }
 
     // For start_date and end_date, show inline confirmation buttons
-    if (editingCell.field === "start_date" || editingCell.field === "end_date") {
+    if (
+      editingCell.field === "start_date" ||
+      editingCell.field === "end_date"
+    ) {
       // Normalize old date to YYYY-MM-DD format
       let oldDateFormatted = "";
       const oldDate = campaign[editingCell.field];
@@ -805,18 +823,21 @@ export const GoogleCampaigns: React.FC = () => {
           console.error(`Error parsing ${editingCell.field}:`, e, oldDate);
         }
       }
-      
+
       const pendingChange = {
         campaignId: editingCell.campaignId,
         field: editingCell.field,
         newDate: valueToCheck.trim(),
         oldDate: oldDateFormatted,
       };
-      
-      console.log(`[${editingCell.field}] Setting pendingDateChange:`, pendingChange);
+
+      console.log(
+        `[${editingCell.field}] Setting pendingDateChange:`,
+        pendingChange
+      );
       console.log(`[${editingCell.field}] Current editingCell:`, editingCell);
       console.log(`[${editingCell.field}] Campaign:`, campaign);
-      
+
       // Clear editing cell so the input disappears and confirmation buttons show
       setEditingCell(null);
       setEditedValue("");
@@ -848,7 +869,7 @@ export const GoogleCampaigns: React.FC = () => {
     if (!campaign) return;
 
     setUpdatingField({ campaignId, field: "budget" });
-    
+
     // Optimistically update the local state
     setCampaigns((prevCampaigns) =>
       prevCampaigns.map((c) =>
@@ -866,13 +887,16 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid budget value");
       }
 
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
-        action: "budget",
-        budgetAction: "set",
-        unit: "amount",
-        value: newBudget,
-      });
+      const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        accountIdNum,
+        {
+          campaignIds: [campaignId],
+          action: "budget",
+          budgetAction: "set",
+          unit: "amount",
+          value: newBudget,
+        }
+      );
 
       if (response.errors && response.errors.length > 0) {
         throw new Error(response.errors[0]);
@@ -886,9 +910,7 @@ export const GoogleCampaigns: React.FC = () => {
       console.error("Error updating campaign budget:", error);
       // Revert optimistic update on error
       setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((c) =>
-          c.campaign_id === campaignId ? campaign : c
-        )
+        prevCampaigns.map((c) => (c.campaign_id === campaignId ? campaign : c))
       );
       alert("Failed to update campaign budget. Please try again.");
     } finally {
@@ -907,12 +929,12 @@ export const GoogleCampaigns: React.FC = () => {
     if (!campaign) return;
 
     setUpdatingField({ campaignId, field });
-    
+
     // Parse the date value first to ensure consistency
     const dateValue = parseDateToYYYYMMDD(newDate);
     console.log(`[${field}] Date value for API:`, {
       original: newDate,
-      parsed: dateValue
+      parsed: dateValue,
     });
 
     // Optimistically update the local state with the parsed date value
@@ -935,11 +957,14 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
-        action: field,
-        [field]: dateValue || undefined,
-      });
+      const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        accountIdNum,
+        {
+          campaignIds: [campaignId],
+          action: field,
+          [field]: dateValue || undefined,
+        }
+      );
 
       if (response.errors && response.errors.length > 0) {
         throw new Error(response.errors[0]);
@@ -950,18 +975,19 @@ export const GoogleCampaigns: React.FC = () => {
       const updatedCampaign = response.updated_campaigns?.find(
         (c: any) => c.campaign_id === campaignId
       );
-      
+
       if (updatedCampaign?.value) {
         // Use the value from API response to ensure consistency
         const apiDateValue = updatedCampaign.value;
         setCampaigns((prevCampaigns) =>
           prevCampaigns.map((c) =>
-            c.campaign_id === campaignId
-              ? { ...c, [field]: apiDateValue }
-              : c
+            c.campaign_id === campaignId ? { ...c, [field]: apiDateValue } : c
           )
         );
-        console.log(`[${field}] Updated state with API response value:`, apiDateValue);
+        console.log(
+          `[${field}] Updated state with API response value:`,
+          apiDateValue
+        );
       }
 
       setPendingDateChange(null);
@@ -971,9 +997,7 @@ export const GoogleCampaigns: React.FC = () => {
       console.error(`Error updating campaign ${field}:`, error);
       // Revert optimistic update on error
       setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((c) =>
-          c.campaign_id === campaignId ? campaign : c
-        )
+        prevCampaigns.map((c) => (c.campaign_id === campaignId ? campaign : c))
       );
       alert(`Failed to update campaign ${field}. Please try again.`);
     } finally {
@@ -981,11 +1005,14 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const runInlineStatusUpdate = async (campaignId: string | number, newStatus: string) => {
+  const runInlineStatusUpdate = async (
+    campaignId: string | number,
+    newStatus: string
+  ) => {
     if (!accountId) return;
 
     setUpdatingField({ campaignId, field: "status" });
-    
+
     // Optimistically update the local state
     setCampaigns((prevCampaigns) =>
       prevCampaigns.map((campaign) =>
@@ -1001,21 +1028,24 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
-          ENABLED: "ENABLED",
-          PAUSED: "PAUSED",
-          REMOVED: "REMOVED",
-          Enabled: "ENABLED",
-          Paused: "PAUSED",
-          Removed: "REMOVED",
-        };
+      const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+        ENABLED: "ENABLED",
+        PAUSED: "PAUSED",
+        REMOVED: "REMOVED",
+        Enabled: "ENABLED",
+        Paused: "PAUSED",
+        Removed: "REMOVED",
+      };
       const statusValue = statusMap[newStatus] || "ENABLED";
 
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-        campaignIds: [campaignId],
+      const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        accountIdNum,
+        {
+          campaignIds: [campaignId],
           action: "status",
           status: statusValue,
-        });
+        }
+      );
 
       // Check for errors in response
       if (response.errors && response.errors.length > 0) {
@@ -1032,7 +1062,10 @@ export const GoogleCampaigns: React.FC = () => {
       setCampaigns((prevCampaigns) =>
         prevCampaigns.map((campaign) =>
           campaign.campaign_id === campaignId
-            ? { ...campaign, status: pendingStatusChange?.oldStatus || campaign.status }
+            ? {
+                ...campaign,
+                status: pendingStatusChange?.oldStatus || campaign.status,
+              }
             : campaign
         )
       );
@@ -1083,12 +1116,15 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: "start_date",
-          start_date: dateValue || undefined,
-        });
-        
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: "start_date",
+            start_date: dateValue || undefined,
+          }
+        );
+
         if (response.errors && response.errors.length > 0) {
           throw new Error(response.errors[0]);
         }
@@ -1106,12 +1142,15 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: "end_date",
-          end_date: dateValue || undefined,
-        });
-        
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: "end_date",
+            end_date: dateValue || undefined,
+          }
+        );
+
         if (response.errors && response.errors.length > 0) {
           throw new Error(response.errors[0]);
         }
@@ -1213,7 +1252,7 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
-      
+
       await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
@@ -1223,7 +1262,7 @@ export const GoogleCampaigns: React.FC = () => {
         upperLimit: upper,
         lowerLimit: lower,
       });
-      
+
       // Close modal and reload campaigns with loading state
       setShowConfirmationModal(false);
       setShowBudgetPanel(false);
@@ -1265,7 +1304,11 @@ export const GoogleCampaigns: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleCampaigns(accountIdNum, params, exportType);
+      await campaignsService.exportGoogleCampaigns(
+        accountIdNum,
+        params,
+        exportType
+      );
       setShowExportModal(false);
     } catch (error: any) {
       console.error("Failed to export campaigns:", error);
@@ -1441,7 +1484,7 @@ export const GoogleCampaigns: React.FC = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                  className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -1572,727 +1615,728 @@ export const GoogleCampaigns: React.FC = () => {
               title="Performance Trends"
             />
 
-            {/* Google Campaigns Table Card */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
-              {/* Card Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                  Campaigns{" "}
-                  <span className="text-[12.8px] font-normal text-[#727272]">
-                    ({total} total)
-                  </span>
-                </h2>
-                <div
-                  className="relative inline-flex justify-end gap-2"
-                  ref={dropdownRef}
+            {/* Edit and Export Buttons - Above Table */}
+            <div className="flex items-center justify-end gap-2">
+              <div
+                className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setShowExportModal(true)}
+                  disabled={exporting || loading || campaigns.length === 0}
                 >
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => setShowExportModal(true)}
-                    disabled={exporting || loading || campaigns.length === 0}
-                  >
-                    {exporting ? (
-                      <>
-                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-[#072929] border-t-transparent"></span>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Exporting...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-4 h-4 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Export
-                        </span>
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowBulkActions((prev) => !prev);
-                      setShowBudgetPanel(false);
-                    }}
-                  >
-                    <svg
-                      className="w-4 h-4 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
-                    </span>
-                  </Button>
-                  {showBulkActions && (
-                    <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                      <div className="overflow-y-auto">
-                        {[
-                          { value: "ENABLED", label: "Enable" },
-                          { value: "PAUSED", label: "Pause" },
-                          { value: "REMOVED", label: "Remove" },
-                          { value: "edit_budget", label: "Edit Budget" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            disabled={selectedCampaigns.size === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (selectedCampaigns.size === 0) return;
-                              if (opt.value === "edit_budget") {
-                                setShowBudgetPanel(true);
-                              } else {
-                                setShowBudgetPanel(false);
-                                setPendingStatusAction(
-                                  opt.value as "ENABLED" | "PAUSED" | "REMOVED"
-                                );
-                                setIsBudgetChange(false);
-                                setShowConfirmationModal(true);
-                              }
-                              setShowBulkActions(false);
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Budget editor panel */}
-              {selectedCampaigns.size > 0 && showBudgetPanel && (
-                <div className="px-6 mb-4">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="flex flex-wrap items-end gap-3 justify-between">
-                      <div className="w-[160px]">
-                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Action
-                        </label>
-                        <Dropdown
-                          options={[
-                            { value: "increase", label: "Increase By" },
-                            { value: "decrease", label: "Decrease By" },
-                            { value: "set", label: "Set To" },
-                          ]}
-                          value={budgetAction}
-                          onChange={(val) => {
-                            const action = val as typeof budgetAction;
-                            setBudgetAction(action);
-                            if (action === "set") {
-                              setBudgetUnit("amount");
-                            }
-                          }}
-                          buttonClassName="w-full"
-                          width="w-full"
+                  {exporting ? (
+                    <>
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-[#072929] border-t-transparent"></span>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Exporting...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                         />
-                      </div>
-                      {(budgetAction === "increase" ||
-                        budgetAction === "decrease") && (
-                        <div className="w-[140px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Unit
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "percent"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBudgetUnit("percent")}
-                            >
-                              %
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "amount"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBudgetUnit("amount")}
-                            >
-                              $
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      <div className="w-[160px]">
-                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Value
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={budgetValue}
-                            onChange={(e) => setBudgetValue(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
-                            {budgetUnit === "percent" ? "%" : "$"}
-                          </span>
-                        </div>
-                      </div>
-                      {budgetAction === "increase" && (
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Upper Limit (optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={upperLimit}
-                            onChange={(e) => setUpperLimit(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                        </div>
-                      )}
-                      {budgetAction === "decrease" && (
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Lower Limit (optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={lowerLimit}
-                            onChange={(e) => setLowerLimit(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 ml-auto">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowBudgetPanel(false);
-                            setShowBulkActions(false);
-                          }}
-                          className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!budgetValue) return;
-                            setIsBudgetChange(true);
-                            setPendingStatusAction(null);
-                            setShowConfirmationModal(true);
-                          }}
-                          disabled={bulkLoading || !budgetValue}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Confirmation Modal */}
-              {showConfirmationModal && (
-                <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Export
+                      </span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
                   onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowConfirmationModal(false);
-                    }
+                    e.stopPropagation();
+                    setShowBulkActions((prev) => !prev);
+                    setShowBudgetPanel(false);
                   }}
                 >
-                  <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
-                    {bulkLoading && (
-                      <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-xl">
-                        <div className="flex flex-col items-center gap-3">
-                          <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
-                          <span className="text-[12.8px] font-medium text-[#136D6D]">
-                            Updating campaigns...
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBudgetChange
-                        ? "Confirm Budget Changes"
-                        : "Confirm Status Changes"}
-                    </h3>
-
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                        {selectedCampaigns.size} campaign
-                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
-                          updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBudgetChange ? "Budget" : "Status"} change
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Campaign Preview Table */}
-                    {(() => {
-                      const selectedCampaignsData = getSelectedCampaignsData();
-                      const previewCount = Math.min(
-                        10,
-                        selectedCampaignsData.length
-                      );
-                      const hasMore = selectedCampaignsData.length > 10;
-
-                      return (
-                        <div className="mb-6">
-                          <div className="mb-2">
-                            <span className="text-[10.64px] text-[#556179]">
-                              {hasMore
-                                ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                : `${selectedCampaignsData.length} campaign${
-                                    selectedCampaignsData.length !== 1
-                                      ? "s"
-                                      : ""
-                                  } selected`}
-                            </span>
-                          </div>
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <table className="w-full">
-                              <thead className="bg-sandstorm-s20">
-                                <tr>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Campaign Name
-                                  </th>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Old Value
-                                  </th>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    New Value
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {selectedCampaignsData
-                                  .slice(0, 10)
-                                  .map((campaign) => {
-                                    const oldBudget =
-                                      campaign.daily_budget || 0;
-                                    const oldStatus =
-                                      campaign.status || "ENABLED";
-                                    const newBudget = isBudgetChange
-                                      ? calculateNewBudget(oldBudget)
-                                      : oldBudget;
-                                    const newStatus = pendingStatusAction
-                                      ? pendingStatusAction
-                                      : oldStatus;
-
-                                    return (
-                                      <tr
-                                        key={campaign.campaign_id}
-                                        className="border-b border-gray-200 last:border-b-0"
-                                      >
-                                        <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                          {campaign.campaign_name ||
-                                            "Unnamed Campaign"}
-                                        </td>
-                                        <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                          {isBudgetChange
-                                            ? `$${oldBudget.toFixed(2)}`
-                                            : oldStatus}
-                                        </td>
-                                        <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                          {isBudgetChange
-                                            ? `$${newBudget.toFixed(2)}`
-                                            : newStatus}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    <div className="space-y-3 mb-6">
-                        {isBudgetChange ? (
-                          <>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                                Action:
-                              </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetAction === "increase"
-                                  ? "Increase By"
-                                  : budgetAction === "decrease"
-                                  ? "Decrease By"
-                                  : "Set To"}
-                              </span>
-                            </div>
-
-                            {(budgetAction === "increase" ||
-                              budgetAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                  Unit:
-                                </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  {budgetUnit === "percent"
-                                    ? "Percentage (%)"
-                                    : "Amount ($)"}
-                                </span>
-                              </div>
-                            )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                                Value:
-                              </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetValue}{" "}
-                                {budgetUnit === "percent" ? "%" : "$"}
-                              </span>
-                            </div>
-
-                            {budgetAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                  Upper Limit:
-                                </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  ${upperLimit}
-                                </span>
-                              </div>
-                            )}
-
-                            {budgetAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                  Lower Limit:
-                                </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  ${lowerLimit}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                              New Status:
-                            </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {pendingStatusAction
-                                ? pendingStatusAction.charAt(0) +
-                                  pendingStatusAction.slice(1).toLowerCase()
-                                : ""}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowConfirmationModal(false);
-                          setPendingStatusAction(null);
-                        }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (isBudgetChange) {
-                            await runBulkBudget();
-                          } else if (pendingStatusAction) {
-                            setShowConfirmationModal(false);
-                            await runBulkStatus(pendingStatusAction);
+                  <svg
+                    className="w-5 h-5 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                  <span className="text-[10.64px] text-[#072929] font-normal">
+                    Edit
+                  </span>
+                </Button>
+                {showBulkActions && (
+                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="overflow-y-auto">
+                      {[
+                        { value: "ENABLED", label: "Enable" },
+                        { value: "PAUSED", label: "Pause" },
+                        { value: "REMOVED", label: "Remove" },
+                        { value: "edit_budget", label: "Edit Budget" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          disabled={selectedCampaigns.size === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedCampaigns.size === 0) return;
+                            if (opt.value === "edit_budget") {
+                              setShowBudgetPanel(true);
+                            } else {
+                              setShowBudgetPanel(false);
+                              setPendingStatusAction(
+                                opt.value as "ENABLED" | "PAUSED" | "REMOVED"
+                              );
+                              setIsBudgetChange(false);
+                              setShowConfirmationModal(true);
+                            }
                             setShowBulkActions(false);
-                          }
-                          setPendingStatusAction(null);
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Updating..." : "Confirm"}
-                      </button>
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            </div>
 
-              {/* Export Modal */}
-              {showExportModal && (
-                <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowExportModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Export Campaigns
-                    </h3>
-                    <div className="mb-6">
-                      <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
-                        Export Type
+            {/* Google Campaigns Table Card */}
+            {/* Card Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
+                Campaigns{" "}
+                <span className="text-[12.8px] font-normal text-[#727272]">
+                  ({total} total)
+                </span>
+              </h2>
+            </div>
+
+            {/* Budget editor panel */}
+            {selectedCampaigns.size > 0 && showBudgetPanel && (
+              <div className="mb-4">
+                <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
+                  <div className="flex flex-wrap items-end gap-3 justify-between">
+                    <div className="w-[160px]">
+                      <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                        Action
                       </label>
                       <Dropdown
                         options={[
-                          { value: "current_view", label: "Current View" },
-                          { value: "all_data", label: "All Data" },
+                          { value: "increase", label: "Increase By" },
+                          { value: "decrease", label: "Decrease By" },
+                          { value: "set", label: "Set To" },
                         ]}
-                        value={exportType}
+                        value={budgetAction}
                         onChange={(val) => {
-                          setExportType(val as "current_view" | "all_data");
+                          const action = val as typeof budgetAction;
+                          setBudgetAction(action);
+                          if (action === "set") {
+                            setBudgetUnit("amount");
+                          }
                         }}
-                        buttonClassName="w-full"
+                        buttonClassName="w-full bg-[#FEFEFB]"
                         width="w-full"
                       />
-                      <p className="text-[10.64px] text-[#727272] mt-2">
-                        {exportType === "current_view"
-                          ? `Exporting ${campaigns.length} campaign${campaigns.length !== 1 ? "s" : ""} from the current page (${total} total available)`
-                          : `Exporting all ${total} campaign${total !== 1 ? "s" : ""} matching your filters`}
-                      </p>
                     </div>
-                    <div className="flex justify-end gap-3">
+                    {(budgetAction === "increase" ||
+                      budgetAction === "decrease") && (
+                      <div className="w-[140px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Unit
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                              budgetUnit === "percent"
+                                ? "bg-forest-f40  border-forest-f40"
+                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                            }`}
+                            onClick={() => setBudgetUnit("percent")}
+                          >
+                            %
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                              budgetUnit === "amount"
+                                ? "bg-forest-f40  border-forest-f40"
+                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                            }`}
+                            onClick={() => setBudgetUnit("amount")}
+                          >
+                            $
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="w-[160px]">
+                      <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                        Value
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={budgetValue}
+                          onChange={(e) => setBudgetValue(e.target.value)}
+                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                          {budgetUnit === "percent" ? "%" : "$"}
+                        </span>
+                      </div>
+                    </div>
+                    {budgetAction === "increase" && (
+                      <div className="w-[160px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Upper Limit (optional)
+                        </label>
+                        <input
+                          type="number"
+                          value={upperLimit}
+                          onChange={(e) => setUpperLimit(e.target.value)}
+                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
+                      </div>
+                    )}
+                    {budgetAction === "decrease" && (
+                      <div className="w-[160px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Lower Limit (optional)
+                        </label>
+                        <input
+                          type="number"
+                          value={lowerLimit}
+                          onChange={(e) => setLowerLimit(e.target.value)}
+                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 ml-auto">
                       <button
                         type="button"
                         onClick={() => {
-                          setShowExportModal(false);
-                          setExportType("current_view");
+                          setShowBudgetPanel(false);
+                          setShowBulkActions(false);
                         }}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={handleExport}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        onClick={() => {
+                          if (!budgetValue) return;
+                          setIsBudgetChange(true);
+                          setPendingStatusAction(null);
+                          setShowConfirmationModal(true);
+                        }}
+                        disabled={bulkLoading || !budgetValue}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {exporting ? (
-                          <>
-                            <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            Download
-                          </>
-                        )}
+                        Apply
                       </button>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Inline Edit Confirmation Modal */}
-              {showInlineEditModal && inlineEditCampaign && inlineEditField && (
-                <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowInlineEditModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Confirm{" "}
-                      {inlineEditField === "budget"
-                        ? "Budget"
-                        : inlineEditField === "status"
-                        ? "Status"
-                        : inlineEditField === "start_date"
-                        ? "Start Date"
-                        : "End Date"}{" "}
-                      Change
-                    </h3>
-                    <div className="mb-4">
-                      <p className="text-[12.8px] text-[#556179] mb-2">
-                        Campaign:{" "}
-                        <span className="font-semibold text-[#072929]">
-                          {inlineEditCampaign.campaign_name ||
-                            "Unnamed Campaign"}
+            {/* Confirmation Modal */}
+            {showConfirmationModal && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setShowConfirmationModal(false);
+                  }
+                }}
+              >
+                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
+                  {bulkLoading && (
+                    <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-xl">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
+                        <span className="text-[12.8px] font-medium text-[#136D6D]">
+                          Updating campaigns...
                         </span>
-                      </p>
-                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[12.8px] text-[#556179]">
-                            {inlineEditField === "budget"
-                              ? "Budget"
-                              : inlineEditField === "status"
-                              ? "Status"
-                              : inlineEditField === "start_date"
-                              ? "Start Date"
-                              : "End Date"}
-                            :
+                      </div>
+                    </div>
+                  )}
+                  <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                    {isBudgetChange
+                      ? "Confirm Budget Changes"
+                      : "Confirm Status Changes"}
+                  </h3>
+
+                  {/* Summary */}
+                  <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {selectedCampaigns.size} campaign
+                        {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                        updated:
+                      </span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {isBudgetChange ? "Budget" : "Status"} change
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Campaign Preview Table */}
+                  {(() => {
+                    const selectedCampaignsData = getSelectedCampaignsData();
+                    const previewCount = Math.min(
+                      10,
+                      selectedCampaignsData.length
+                    );
+                    const hasMore = selectedCampaignsData.length > 10;
+
+                    return (
+                      <div className="mb-6">
+                        <div className="mb-2">
+                          <span className="text-[10.64px] text-[#556179]">
+                            {hasMore
+                              ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
+                              : `${selectedCampaignsData.length} campaign${
+                                  selectedCampaignsData.length !== 1 ? "s" : ""
+                                } selected`}
                           </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12.8px] text-[#556179]">
-                              {inlineEditOldValue}
+                        </div>
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                          <table className="w-full">
+                            <thead className="bg-sandstorm-s20">
+                              <tr>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                  Campaign Name
+                                </th>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                  Old Value
+                                </th>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                  New Value
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedCampaignsData
+                                .slice(0, 10)
+                                .map((campaign) => {
+                                  const oldBudget = campaign.daily_budget || 0;
+                                  const oldStatus =
+                                    campaign.status || "ENABLED";
+                                  const newBudget = isBudgetChange
+                                    ? calculateNewBudget(oldBudget)
+                                    : oldBudget;
+                                  const newStatus = pendingStatusAction
+                                    ? pendingStatusAction
+                                    : oldStatus;
+
+                                  return (
+                                    <tr
+                                      key={campaign.campaign_id}
+                                      className="border-b border-gray-200 last:border-b-0"
+                                    >
+                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                        {campaign.campaign_name ||
+                                          "Unnamed Campaign"}
+                                      </td>
+                                      <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                        {isBudgetChange
+                                          ? `$${oldBudget.toFixed(2)}`
+                                          : oldStatus}
+                                      </td>
+                                      <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                        {isBudgetChange
+                                          ? `$${newBudget.toFixed(2)}`
+                                          : newStatus}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="space-y-3 mb-6">
+                    {isBudgetChange ? (
+                      <>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            Action:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {budgetAction === "increase"
+                              ? "Increase By"
+                              : budgetAction === "decrease"
+                              ? "Decrease By"
+                              : "Set To"}
+                          </span>
+                        </div>
+
+                        {(budgetAction === "increase" ||
+                          budgetAction === "decrease") && (
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Unit:
                             </span>
-                            <span className="text-[12.8px] text-[#556179]">
-                              →
-                            </span>
-                            <span className="text-[12.8px] font-semibold text-[#072929]">
-                              {inlineEditNewValue}
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {budgetUnit === "percent"
+                                ? "Percentage (%)"
+                                : "Amount ($)"}
                             </span>
                           </div>
+                        )}
+
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            Value:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {budgetValue} {budgetUnit === "percent" ? "%" : "$"}
+                          </span>
+                        </div>
+
+                        {budgetAction === "increase" && upperLimit && (
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Upper Limit:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              ${upperLimit}
+                            </span>
+                          </div>
+                        )}
+
+                        {budgetAction === "decrease" && lowerLimit && (
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Lower Limit:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              ${lowerLimit}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-[12.16px] text-[#556179]">
+                          New Status:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {pendingStatusAction
+                            ? pendingStatusAction.charAt(0) +
+                              pendingStatusAction.slice(1).toLowerCase()
+                            : ""}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowConfirmationModal(false);
+                        setPendingStatusAction(null);
+                      }}
+                      className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (isBudgetChange) {
+                          await runBulkBudget();
+                        } else if (pendingStatusAction) {
+                          setShowConfirmationModal(false);
+                          await runBulkStatus(pendingStatusAction);
+                          setShowBulkActions(false);
+                        }
+                        setPendingStatusAction(null);
+                      }}
+                      disabled={bulkLoading}
+                      className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bulkLoading ? "Updating..." : "Confirm"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Export Modal */}
+            {showExportModal && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setShowExportModal(false);
+                  }
+                }}
+              >
+                <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                  <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                    Export Campaigns
+                  </h3>
+                  <div className="mb-6">
+                    <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
+                      Export Type
+                    </label>
+                    <Dropdown
+                      options={[
+                        { value: "current_view", label: "Current View" },
+                        { value: "all_data", label: "All Data" },
+                      ]}
+                      value={exportType}
+                      onChange={(val) => {
+                        setExportType(val as "current_view" | "all_data");
+                      }}
+                      buttonClassName="w-full"
+                      width="w-full"
+                    />
+                    <p className="text-[10.64px] text-[#727272] mt-2">
+                      {exportType === "current_view"
+                        ? `Exporting ${campaigns.length} campaign${
+                            campaigns.length !== 1 ? "s" : ""
+                          } from the current page (${total} total available)`
+                        : `Exporting all ${total} campaign${
+                            total !== 1 ? "s" : ""
+                          } matching your filters`}
+                    </p>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExportModal(false);
+                        setExportType("current_view");
+                      }}
+                      disabled={exporting}
+                      className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExport}
+                      disabled={exporting}
+                      className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {exporting ? (
+                        <>
+                          <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                          Exporting...
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          Download
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Inline Edit Confirmation Modal */}
+            {showInlineEditModal && inlineEditCampaign && inlineEditField && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setShowInlineEditModal(false);
+                  }
+                }}
+              >
+                <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                  <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                    Confirm{" "}
+                    {inlineEditField === "budget"
+                      ? "Budget"
+                      : inlineEditField === "status"
+                      ? "Status"
+                      : inlineEditField === "start_date"
+                      ? "Start Date"
+                      : "End Date"}{" "}
+                    Change
+                  </h3>
+                  <div className="mb-4">
+                    <p className="text-[12.8px] text-[#556179] mb-2">
+                      Campaign:{" "}
+                      <span className="font-semibold text-[#072929]">
+                        {inlineEditCampaign.campaign_name || "Unnamed Campaign"}
+                      </span>
+                    </p>
+                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[12.8px] text-[#556179]">
+                          {inlineEditField === "budget"
+                            ? "Budget"
+                            : inlineEditField === "status"
+                            ? "Status"
+                            : inlineEditField === "start_date"
+                            ? "Start Date"
+                            : "End Date"}
+                          :
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.8px] text-[#556179]">
+                            {inlineEditOldValue}
+                          </span>
+                          <span className="text-[12.8px] text-[#556179]">
+                            →
+                          </span>
+                          <span className="text-[12.8px] font-semibold text-[#072929]">
+                            {inlineEditNewValue}
+                          </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowInlineEditModal(false);
-                          setInlineEditCampaign(null);
-                          setInlineEditField(null);
-                          setInlineEditOldValue("");
-                          setInlineEditNewValue("");
-                        }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={runInlineEdit}
-                        disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {inlineEditLoading ? "Updating..." : "Confirm"}
-                      </button>
-                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Table */}
-              <GoogleCampaignsTable
-                campaigns={campaigns}
-                loading={loading}
-                sorting={sorting}
-                accountId={accountId || ""}
-                selectedCampaigns={selectedCampaigns}
-                allSelected={allSelected}
-                someSelected={someSelected}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                editingCell={editingCell}
-                editedValue={editedValue}
-                isCancelling={isCancelling}
-                summary={summary}
-                updatingField={updatingField}
-                pendingBudgetChange={pendingBudgetChange}
-                pendingStatusChange={pendingStatusChange}
-                onSelectAll={handleSelectAll}
-                onSelectCampaign={handleSelectCampaign}
-                onSort={handleSort}
-                onStartInlineEdit={startInlineEdit}
-                onCancelInlineEdit={cancelInlineEdit}
-                onInlineEditChange={handleInlineEditChange}
-                onConfirmInlineEdit={confirmInlineEdit}
-                onConfirmBudgetChange={runInlineBudgetUpdate}
-                onCancelBudgetChange={() => {
-                  setPendingBudgetChange(null);
-                  cancelInlineEdit();
-                }}
-                onConfirmStatusChange={runInlineStatusUpdate}
-                onCancelStatusChange={() => {
-                  setPendingStatusChange(null);
-                  cancelInlineEdit();
-                }}
-                pendingDateChange={pendingDateChange}
-                onConfirmDateChange={runInlineDateUpdate}
-                onCancelDateChange={() => {
-                  setPendingDateChange(null);
-                  cancelInlineEdit();
-                }}
-                formatCurrency={formatCurrency}
-                formatPercentage={formatPercentage}
-                getStatusBadge={getStatusBadge}
-                getChannelTypeLabel={getChannelTypeLabel}
-                getSortIcon={getSortIcon}
-              />
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-end mt-4">
-                  <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
+                  <div className="flex justify-end gap-3">
                     <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(1, prev - 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                      type="button"
+                      onClick={() => {
+                        setShowInlineEditModal(false);
+                        setInlineEditCampaign(null);
+                        setInlineEditField(null);
+                        setInlineEditOldValue("");
+                        setInlineEditNewValue("");
+                      }}
+                      className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      Previous
+                      Cancel
                     </button>
-                    <span className="px-4 py-2 text-[10.64px] text-[#556179] flex items-center">
-                      Page {currentPage} of {totalPages} • Showing{" "}
-                      {(currentPage - 1) * itemsPerPage + 1}–{" "}
-                      {Math.min(currentPage * itemsPerPage, total)} of {total}
-                    </span>
                     <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                      type="button"
+                      onClick={runInlineEdit}
+                      disabled={inlineEditLoading}
+                      className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Next
+                      {inlineEditLoading ? "Updating..." : "Confirm"}
                     </button>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Table */}
+            <GoogleCampaignsTable
+              campaigns={campaigns}
+              loading={loading}
+              sorting={sorting}
+              accountId={accountId || ""}
+              selectedCampaigns={selectedCampaigns}
+              allSelected={allSelected}
+              someSelected={someSelected}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              editingCell={editingCell}
+              editedValue={editedValue}
+              isCancelling={isCancelling}
+              summary={summary}
+              updatingField={updatingField}
+              pendingBudgetChange={pendingBudgetChange}
+              pendingStatusChange={pendingStatusChange}
+              onSelectAll={handleSelectAll}
+              onSelectCampaign={handleSelectCampaign}
+              onSort={handleSort}
+              onStartInlineEdit={startInlineEdit}
+              onCancelInlineEdit={cancelInlineEdit}
+              onInlineEditChange={handleInlineEditChange}
+              onConfirmInlineEdit={confirmInlineEdit}
+              onConfirmBudgetChange={runInlineBudgetUpdate}
+              onCancelBudgetChange={() => {
+                setPendingBudgetChange(null);
+                cancelInlineEdit();
+              }}
+              onConfirmStatusChange={runInlineStatusUpdate}
+              onCancelStatusChange={() => {
+                setPendingStatusChange(null);
+                cancelInlineEdit();
+              }}
+              pendingDateChange={pendingDateChange}
+              onConfirmDateChange={runInlineDateUpdate}
+              onCancelDateChange={() => {
+                setPendingDateChange(null);
+                cancelInlineEdit();
+              }}
+              formatCurrency={formatCurrency}
+              formatPercentage={formatPercentage}
+              getStatusBadge={getStatusBadge}
+              getChannelTypeLabel={getChannelTypeLabel}
+              getSortIcon={getSortIcon}
+            />
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-end mt-4">
+                <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-4 py-2 text-[10.64px] text-[#556179] flex items-center">
+                    Page {currentPage} of {totalPages} • Showing{" "}
+                    {(currentPage - 1) * itemsPerPage + 1}–{" "}
+                    {Math.min(currentPage * itemsPerPage, total)} of {total}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Sync Message */}
             {syncMessage && (

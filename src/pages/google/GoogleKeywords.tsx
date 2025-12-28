@@ -1189,7 +1189,7 @@ export const GoogleKeywords: React.FC = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                  className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -1472,7 +1472,7 @@ export const GoogleKeywords: React.FC = () => {
                               className={`flex-1 px-3 py-2 rounded-lg border items-center ${
                                 bidUnit === "percent"
                                   ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
                               }`}
                               onClick={() => setBidUnit("percent")}
                             >
@@ -1483,7 +1483,7 @@ export const GoogleKeywords: React.FC = () => {
                               className={`flex-1 px-3 py-2 rounded-lg border items-center ${
                                 bidUnit === "amount"
                                   ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
                               }`}
                               onClick={() => setBidUnit("amount")}
                             >
@@ -1541,7 +1541,7 @@ export const GoogleKeywords: React.FC = () => {
                             setShowBidPanel(false);
                             setShowBulkActions(false);
                           }}
-                          className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
+                          className="px-4 py-2.5 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
                         >
                           Cancel
                         </button>
@@ -1766,7 +1766,7 @@ export const GoogleKeywords: React.FC = () => {
                           setShowConfirmationModal(false);
                           setPendingStatusAction(null);
                         }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1838,7 +1838,7 @@ export const GoogleKeywords: React.FC = () => {
                           setExportType("current_view");
                         }}
                         disabled={exporting}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>

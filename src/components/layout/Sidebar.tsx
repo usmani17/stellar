@@ -193,7 +193,7 @@ export const Sidebar: React.FC = () => {
 
   return (
     <div
-      className="sidebar-nav border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto bg-sandstorm-s20 transition-all duration-300"
+      className="sidebar-nav border-r border-[rgba(0,0,0,0.1)] h-screen fixed left-0 top-0 overflow-y-auto bg-[#f9f9f6] transition-all duration-300"
       style={{ width: `${sidebarWidth}px` }}
     >
       <div className="p-4">

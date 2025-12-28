@@ -14,19 +14,6 @@ export const CreateCampaignSection: React.FC<CreateCampaignSectionProps> = ({
       onClick={onToggle}
       className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors"
     >
-      <svg
-        className="w-5 h-5 text-white"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 4v16m8-8H4"
-        />
-      </svg>
       <span className="text-[10.64px] text-white font-normal">
         Create Campaign
       </span>

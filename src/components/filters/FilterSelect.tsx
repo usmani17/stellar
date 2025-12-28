@@ -16,7 +16,7 @@ export const FilterSelect: React.FC<FilterSelectProps> = ({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-2 py-1.5 border border-gray-300 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+      className="w-full px-2 py-1.5 border border-gray-300 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-[#FEFEFB]"
     >
       <option value="">Select {definition.label}</option>
       {definition.options?.map((option) => (

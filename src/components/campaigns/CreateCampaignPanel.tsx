@@ -38,6 +38,7 @@ export interface CreateCampaignData {
   country?: string;
   // Bidding object
   bidding?: {
+    strategy?: "LEGACY_FOR_SALES" | "AUTO_FOR_SALES" | "MANUAL";
     bidOptimization?: boolean;
     shopperCohortBidAdjustments?: Array<{
       shopperCohortType: "AUDIENCE_SEGMENT";
@@ -56,6 +57,8 @@ export interface CreateCampaignData {
   tactic?: string;
   // Targeting Type (for SP campaigns)
   targetingType?: "AUTO" | "MANUAL";
+  // Site Restrictions (for SP campaigns)
+  siteRestrictions?: "AMAZON_BUSINESS";
 }
 
 const CAMPAIGN_TYPES = [
@@ -92,7 +95,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   campaignId,
 }) => {
   // Store original data for comparison in edit mode
-  const [originalData, setOriginalData] = useState<Partial<CreateCampaignData> | null>(null);
+  const [originalData, setOriginalData] =
+    useState<Partial<CreateCampaignData> | null>(null);
   const [formData, setFormData] = useState<CreateCampaignData>({
     campaign_name: "",
     type: "", // Start with empty to hide all fields
@@ -104,7 +108,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     profileId: "",
     // SB fields
     brandEntityId: "",
-    goal: "GROW_BRAND_IMPRESSION_SHARE", // Default to selected option
+    goal: "DRIVE_PAGE_VISITS", // Default to Drive page visits
     productLocation: "SOLD_ON_AMAZON",
     costType: "CPC",
     portfolioId: "",
@@ -115,6 +119,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     tactic: "",
     // Targeting Type
     targetingType: "AUTO",
+    // Site Restrictions
+    siteRestrictions: undefined,
     // Bidding
     bidding: {
       bidOptimization: true,
@@ -123,7 +129,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     },
   });
   const [activeBiddingTab, setActiveBiddingTab] = useState<
-    "placements" | "audiences"
+    "strategy" | "placements" | "audiences"
   >("placements");
   const [increaseBidsForAudiences, setIncreaseBidsForAudiences] =
     useState<boolean>(true);
@@ -162,7 +168,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     if (dateStr.includes("-")) return dateStr;
     // If in YYYYMMDD format, convert to YYYY-MM-DD
     if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
-      return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+      return `${dateStr.substring(0, 4)}-${dateStr.substring(
+        4,
+        6
+      )}-${dateStr.substring(6, 8)}`;
     }
     return dateStr;
   };
@@ -177,7 +186,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         // Convert endDate from YYYYMMDD to YYYY-MM-DD format if needed
         endDate: convertDateToInputFormat(initialData.endDate),
         // Ensure SP campaigns always have DAILY budget type
-        budgetType: initialData.type === "SP" ? "DAILY" : (initialData.budgetType || "DAILY"),
+        budgetType:
+          initialData.type === "SP"
+            ? "DAILY"
+            : initialData.budgetType || "DAILY",
       };
       setFormData((prev) => ({
         ...prev,
@@ -297,21 +309,30 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           // SP campaigns ONLY support DAILY budget type
           updated.budgetType = "DAILY";
           updated.status = "Enabled";
+          // Set active bidding tab to "strategy" for SP campaigns
+          setActiveBiddingTab("strategy");
         } else if (value === "SD") {
           updated.budgetType = "daily"; // SD uses lowercase
           updated.status = "enabled"; // SD uses lowercase
         } else if (value === "SB") {
           updated.budgetType = "DAILY"; // Default for SB
           updated.status = "ENABLED"; // SB uses uppercase
+          updated.goal = "DRIVE_PAGE_VISITS"; // Default goal for SB campaigns
+          // Set active bidding tab to "placements" for SB campaigns (no strategy tab)
+          setActiveBiddingTab("placements");
         }
         // Generate default campaign name with type and timestamp
         if (value && typeof value === "string") {
           updated.campaign_name = generateDefaultCampaignName(value);
         }
       }
-      
+
       // Ensure SP campaigns always use DAILY budget type (prevent any changes to LIFETIME)
-      if (updated.type === "SP" && field === "budgetType" && value !== "DAILY") {
+      if (
+        updated.type === "SP" &&
+        field === "budgetType" &&
+        value !== "DAILY"
+      ) {
         updated.budgetType = "DAILY";
       }
       return updated;
@@ -346,7 +367,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
         selectedDate.setHours(0, 0, 0, 0);
-        
+
         if (selectedDate < today) {
           newErrors.endDate = "End date must be today or in the future";
         }
@@ -388,6 +409,18 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       newErrors.tactic = "Tactic is required for Sponsored Display campaigns";
     }
 
+    // SP specific: strategy is required if dynamicBidding (bidding) is provided (only for create mode)
+    if (
+      formData.type === "SP" &&
+      formData.bidding &&
+      !formData.bidding.strategy
+    ) {
+      // Strategy is required for create requests if dynamicBidding is provided
+      // This prevents submission - error message is shown in the Strategy tab UI
+      setErrors(newErrors);
+      return false;
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -415,9 +448,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       if (data.portfolioId) {
         basePayload.portfolioId = data.portfolioId;
       }
+      if (data.siteRestrictions) {
+        basePayload.siteRestrictions = data.siteRestrictions;
+      }
+      if (data.tags && Object.keys(data.tags).length > 0) {
+        basePayload.tags = data.tags;
+      }
       // SP campaigns ONLY support DAILY budget type - always set to DAILY
       basePayload.budgetType = "DAILY";
-      
+
       // Format endDate as YYYYMMDD if provided (convert from YYYY-MM-DD)
       // Amazon API expects YYYYMMDD format (e.g., "20261231")
       if (data.endDate && data.endDate.trim()) {
@@ -434,7 +473,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         // If empty, send empty string (API will handle null/empty to remove end date)
         basePayload.endDate = "";
       }
-      
+      if (data.bidding) {
+        basePayload.bidding = data.bidding;
+      }
+
       return basePayload;
     } else if (data.type === "SB") {
       // SB specific fields
@@ -526,6 +568,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       tactic: "",
       // Targeting Type
       targetingType: "AUTO",
+      // Site Restrictions
+      siteRestrictions: undefined,
       // Bidding
       bidding: {
         bidOptimization: true,
@@ -552,208 +596,185 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             {mode === "edit" ? "Edit Campaign" : "Create Campaign"}
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Profile and Campaign Type - No gap between them */}
-            <div className="flex gap-0">
-              {/* Profile - First Field */}
-              {profileOptions.length > 0 && (
-                <div className="w-[33.333%]">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                    Profile *
+          {/* Form Fields - Layout matching Figma */}
+          <div className="space-y-6">
+            {/* Row 1: Profile | Campaign Type | State (only for SB) */}
+            {formData.type === "SB" ? (
+              <div className="grid grid-cols-3 gap-6">
+                {/* Profile */}
+                {profileOptions.length > 0 && (
+                  <div>
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Profile
+                    </label>
+                    <Dropdown<string>
+                      options={profileOptions}
+                      value={formData.profileId || undefined}
+                      onChange={(value) => handleChange("profileId", value)}
+                      placeholder={
+                        loadingProfiles
+                          ? "Loading profiles..."
+                          : "Select profile"
+                      }
+                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      disabled={loadingProfiles || mode === "edit"}
+                    />
+                    {mode === "edit" && (
+                      <p className="text-[10px] text-[#556179] mt-1 italic">
+                        Read-only in edit mode
+                      </p>
+                    )}
+                    {errors.profileId && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.profileId}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Campaign Type */}
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    Campaign Type
                   </label>
                   <Dropdown<string>
-                    options={profileOptions}
-                    value={formData.profileId || undefined}
-                    onChange={(value) => handleChange("profileId", value)}
-                    placeholder={
-                      loadingProfiles ? "Loading profiles..." : "Select profile"
-                    }
-                    buttonClassName="w-full"
-                    disabled={loadingProfiles || mode === "edit"}
+                    options={CAMPAIGN_TYPES}
+                    value={formData.type}
+                    onChange={(value) => handleChange("type", value)}
+                    placeholder="Select campaign type"
+                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    disabled={mode === "edit"}
                   />
                   {mode === "edit" && (
                     <p className="text-[10px] text-[#556179] mt-1 italic">
                       Read-only in edit mode
                     </p>
                   )}
-                  {errors.profileId && (
+                  {errors.type && (
                     <p className="text-[10px] text-red-500 mt-1">
-                      {errors.profileId}
+                      {errors.type}
                     </p>
                   )}
                 </div>
-              )}
 
-              {/* Campaign Type - Second Field */}
-              <div className="w-[33.333%] ml-6  ">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                  Campaign Type *
-                </label>
-                <Dropdown<string>
-                  options={CAMPAIGN_TYPES}
-                  value={formData.type}
-                  onChange={(value) => handleChange("type", value)}
-                  placeholder="Select campaign type"
-                  buttonClassName="w-full"
-                  disabled={mode === "edit"}
-                />
-                {mode === "edit" && (
-                  <p className="text-[10px] text-[#556179] mt-1 italic">
-                    Read-only in edit mode
-                  </p>
-                )}
-                {errors.type && (
-                  <p className="text-[10px] text-red-500 mt-1">{errors.type}</p>
-                )}
+                {/* State - Only shown in Row 1 for SB */}
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    State
+                  </label>
+                  <Dropdown<string>
+                    options={STATE_OPTIONS}
+                    value={
+                      formData.status === "ENABLED"
+                        ? "Enabled"
+                        : String(formData.status).toLowerCase() === "paused"
+                        ? "Paused"
+                        : formData.status
+                    }
+                    onChange={(value) => {
+                      handleChange(
+                        "status",
+                        value.toUpperCase() as "ENABLED" | "PAUSED"
+                      );
+                    }}
+                    placeholder="Select state"
+                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-6">
+                {/* Profile */}
+                {profileOptions.length > 0 && (
+                  <div>
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Profile
+                    </label>
+                    <Dropdown<string>
+                      options={profileOptions}
+                      value={formData.profileId || undefined}
+                      onChange={(value) => handleChange("profileId", value)}
+                      placeholder={
+                        loadingProfiles
+                          ? "Loading profiles..."
+                          : "Select profile"
+                      }
+                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      disabled={loadingProfiles || mode === "edit"}
+                    />
+                    {mode === "edit" && (
+                      <p className="text-[10px] text-[#556179] mt-1 italic">
+                        Read-only in edit mode
+                      </p>
+                    )}
+                    {errors.profileId && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.profileId}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Campaign Type */}
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    Campaign Type
+                  </label>
+                  <Dropdown<string>
+                    options={CAMPAIGN_TYPES}
+                    value={formData.type}
+                    onChange={(value) => handleChange("type", value)}
+                    placeholder="Select campaign type"
+                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    disabled={mode === "edit"}
+                  />
+                  {mode === "edit" && (
+                    <p className="text-[10px] text-[#556179] mt-1 italic">
+                      Read-only in edit mode
+                    </p>
+                  )}
+                  {errors.type && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.type}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* SB Goals Section - Right after Campaign Type */}
             {formData.type === "SB" && (
-              <div className="md:col-span-2">
+              <div>
                 <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-[14px] font-semibold text-[#072929]">
-                      Goals
-                    </h3>
-                    <a
-                      href="#"
-                      className="text-[12px] text-[#136D6D] hover:underline"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        // Handle learn about goals link
-                      }}
-                    >
-                      Learn about goals
-                    </a>
-                  </div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    Goals
+                  </label>
                   <p className="text-[12px] text-[#556179] mb-4">
                     Choose a campaign outcome that aligns with your business
                     goals. We'll make bidding and targeting recommendations to
                     help achieve this outcome.
                   </p>
-                </div>
-
-                {/* Goal Options - Horizontal Layout */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* Drive page visits */}
-                  <label className={`flex flex-col p-4 border border-gray-200 rounded-lg transition-colors ${
-                    mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-[#136D6D]"
-                  }`}>
-                    <div className="flex items-start mb-2">
-                      <input
-                        type="radio"
-                        name="goal"
-                        value="DRIVE_PAGE_VISITS"
-                        checked={formData.goal === "DRIVE_PAGE_VISITS"}
-                        onChange={(e) =>
-                          handleChange("goal", e.target.value as any)
-                        }
-                        disabled={mode === "edit"}
-                        className="mt-1 mr-2 w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
-                      />
-                      <div className="flex-1">
-                        <span className="text-[14px] font-medium text-[#072929] block">
-                          Drive page visits
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-[12px] text-[#556179] mb-2 ml-6">
-                      Drive traffic to your landing page and detail page.
-                    </p>
-                    <div className="flex flex-col gap-1 text-[11px] text-[#556179] ml-6">
-                      <span>
-                        Success metric: <strong>Clicks</strong>
-                      </span>
-                      <span>
-                        Cost type: <strong>Cost per click (CPC)</strong>
-                      </span>
-                    </div>
-                  </label>
-
-                  {/* Grow brand impression share */}
-                  <label className={`flex flex-col p-4 border-2 border-[#136D6D] rounded-lg bg-[#f0f9f9] ${
-                    mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                  }`}>
-                    <div className="flex items-start mb-2">
-                      <input
-                        type="radio"
-                        name="goal"
-                        value="GROW_BRAND_IMPRESSION_SHARE"
-                        checked={
-                          formData.goal === "GROW_BRAND_IMPRESSION_SHARE"
-                        }
-                        onChange={(e) =>
-                          handleChange("goal", e.target.value as any)
-                        }
-                        disabled={mode === "edit"}
-                        className="mt-1 mr-2 w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
-                      />
-                      <div className="flex-1">
-                        <span className="text-[14px] font-medium text-[#072929] block">
-                          Grow brand impression share
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-[12px] text-[#556179] mb-2 ml-6">
-                      Show your ads in the top-of-search placement to shoppers
-                      who search for your brand or within your brand categories.
-                    </p>
-                    <div className="flex flex-col gap-1 text-[11px] text-[#556179] ml-6">
-                      <span>
-                        Success metric:{" "}
-                        <strong>Top-of-search impression share (IS)</strong>
-                      </span>
-                      <span>
-                        Cost type:{" "}
-                        <strong>
-                          Cost per 1,000 viewable impressions (VCPM)
-                        </strong>
-                      </span>
-                    </div>
-                  </label>
-
-                  {/* Reserve share of voice */}
-                  <label className={`flex flex-col p-4 border border-gray-200 rounded-lg transition-colors relative ${
-                    mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-[#136D6D]"
-                  }`}>
-                    <div className="flex items-start mb-2">
-                      <input
-                        type="radio"
-                        name="goal"
-                        value="RESERVE_SHARE_OF_VOICE"
-                        checked={formData.goal === "RESERVE_SHARE_OF_VOICE"}
-                        onChange={(e) =>
-                          handleChange("goal", e.target.value as any)
-                        }
-                        disabled={mode === "edit"}
-                        className="mt-1 mr-2 w-4 h-4 text-[#136D6D] focus:ring-[#136D6D]"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-medium text-[#072929] block">
-                            Reserve share of voice
-                          </span>
-                          <span className="px-2 py-0.5 bg-[#136D6D] text-white text-[10px] font-semibold rounded">
-                            New
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-[12px] text-[#556179] mb-2 ml-6">
-                      Reach shoppers in the top-of-search placement to increase
-                      brand visibility and share of voice.
-                    </p>
-                    <div className="flex flex-col gap-1 text-[11px] text-[#556179] ml-6">
-                      <span>
-                        Success metric:{" "}
-                        <strong>Top-of-search impression share</strong>
-                      </span>
-                      <span>
-                        Cost type: <strong>Fixed price</strong>
-                      </span>
-                    </div>
-                  </label>
+                  <Dropdown
+                    options={[
+                      {
+                        value: "DRIVE_PAGE_VISITS",
+                        label: "Drive page visits",
+                      },
+                      {
+                        value: "GROW_BRAND_IMPRESSION_SHARE",
+                        label: "Grow brand impression share",
+                      },
+                      {
+                        value: "RESERVE_SHARE_OF_VOICE",
+                        label: "Reserve share of voice",
+                      },
+                    ]}
+                    value={formData.goal}
+                    onChange={(value) => handleChange("goal", value as any)}
+                    disabled={mode === "edit"}
+                    placeholder="Select a goal"
+                    className="w-full"
+                  />
                 </div>
               </div>
             )}
@@ -761,39 +782,39 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             {/* Show fields only when campaign type is selected */}
             {formData.type && (
               <>
-                {/* Campaign Name and Budget - On same line */}
-                <div className="md:col-span-2 flex gap-0">
-                  {/* Campaign Name */}
-                  <div className="w-[16.666%]">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                      Campaign name *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.campaign_name}
-                      onChange={(e) =>
-                        handleChange("campaign_name", e.target.value)
-                      }
-                      placeholder="Enter campaign name"
-                      className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                        errors.campaign_name
-                          ? "border-red-500"
-                          : "border-gray-200"
-                      }`}
-                    />
-                    {errors.campaign_name && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.campaign_name}
-                      </p>
-                    )}
-                  </div>
+                {/* Row 2: Campaign Name | Budget | Budget Type | State (for SB: 4 columns, for others: 3 columns) */}
+                {formData.type === "SB" ? (
+                  <div className="grid grid-cols-12 gap-6">
+                    {/* Campaign Name - spans 4 columns */}
+                    <div className="col-span-4">
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Campaign Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.campaign_name}
+                        onChange={(e) =>
+                          handleChange("campaign_name", e.target.value)
+                        }
+                        placeholder="Enter campaign name"
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          errors.campaign_name
+                            ? "border-red-500"
+                            : "border-gray-200"
+                        }`}
+                      />
+                      {errors.campaign_name && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.campaign_name}
+                        </p>
+                      )}
+                    </div>
 
-                  {/* Budget */}
-                  <div className="w-[160px] ml-6">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase ">
-                      Budget *
-                    </label>
-                    <div className="flex gap-2">
+                    {/* Budget - spans 2 columns */}
+                    <div className="col-span-2">
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Budget
+                      </label>
                       <input
                         type="number"
                         value={formData.budget || ""}
@@ -806,92 +827,176 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         placeholder="Enter budget"
                         min="0"
                         step="0.01"
-                        className={`bg-white flex-1 px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                           errors.budget ? "border-red-500" : "border-gray-200"
                         }`}
                       />
-                      {formData.type === "SB" && (
-                        <Dropdown<string>
-                          options={BUDGET_TYPES}
-                          value={formData.budgetType}
-                          onChange={(value) =>
-                            handleChange("budgetType", value)
-                          }
-                          placeholder="Select"
-                          buttonClassName="min-w-[100px]"
-                        />
+                      {errors.budget && (
+                        <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
+                          <span>!</span>
+                          <span>{errors.budget}</span>
+                        </p>
                       )}
                     </div>
-                    {errors.budget && (
-                      <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
-                        <span>!</span>
-                        <span>{errors.budget}</span>
-                      </p>
-                    )}
+
+                    {/* Budget Type - spans 2 columns */}
+                    <div className="col-span-2">
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Budget Type
+                      </label>
+                      <Dropdown<string>
+                        options={BUDGET_TYPES}
+                        value={formData.budgetType}
+                        onChange={(value) => handleChange("budgetType", value)}
+                        placeholder="Select"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      />
+                    </div>
+
+                    {/* State - spans 4 columns */}
+                    <div className="col-span-4">
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        State
+                      </label>
+                      <Dropdown<string>
+                        options={STATE_OPTIONS}
+                        value={
+                          formData.status === "ENABLED"
+                            ? "Enabled"
+                            : String(formData.status).toLowerCase() === "paused"
+                            ? "Paused"
+                            : formData.status
+                        }
+                        onChange={(value) => {
+                          handleChange(
+                            "status",
+                            value.toUpperCase() as "ENABLED" | "PAUSED"
+                          );
+                        }}
+                        placeholder="Select state"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-6">
+                    {/* Campaign Name */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Campaign Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.campaign_name}
+                        onChange={(e) =>
+                          handleChange("campaign_name", e.target.value)
+                        }
+                        placeholder="Enter campaign name"
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          errors.campaign_name
+                            ? "border-red-500"
+                            : "border-gray-200"
+                        }`}
+                      />
+                      {errors.campaign_name && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.campaign_name}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Budget */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Budget
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.budget || ""}
+                        onChange={(e) =>
+                          handleChange(
+                            "budget",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                        placeholder="Enter budget"
+                        min="0"
+                        step="0.01"
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          errors.budget ? "border-red-500" : "border-gray-200"
+                        }`}
+                      />
+                      {errors.budget && (
+                        <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
+                          <span>!</span>
+                          <span>{errors.budget}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* State */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        State
+                      </label>
+                      <Dropdown<string>
+                        options={STATE_OPTIONS}
+                        value={
+                          formData.type === "SD"
+                            ? formData.status === "enabled"
+                              ? "Enabled"
+                              : String(formData.status).toLowerCase() ===
+                                "paused"
+                              ? "Paused"
+                              : formData.status
+                            : formData.status
+                        }
+                        onChange={(value) => {
+                          if (formData.type === "SD") {
+                            handleChange(
+                              "status",
+                              value.toLowerCase() as "enabled" | "paused"
+                            );
+                          } else {
+                            handleChange("status", value);
+                          }
+                        }}
+                        placeholder="Select state"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      />
+                      {errors.status && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.status}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Budget Type - Hidden for SP and SB campaigns (SB has it integrated in Budget field) */}
                 {/* Note: Budget Type is editable in edit mode for SD campaigns */}
                 {formData.type === "SD" && (
                   <div>
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                      Budget Type *
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Budget Type
                     </label>
                     <Dropdown<string>
                       options={BUDGET_TYPES}
                       value={formData.budgetType}
                       onChange={(value) => handleChange("budgetType", value)}
                       placeholder="Select budget type"
-                      buttonClassName="w-full"
+                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                       disabled={false} // Budget Type is editable in edit mode
                     />
                   </div>
                 )}
 
-                {/* State and Targeting Type - No gap between them */}
-                <div className="flex gap-0">
-                  {/* State */}
-                  <div className="w-[33.333%]">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                      State *
-                    </label>
-                    <Dropdown<string>
-                      options={STATE_OPTIONS}
-                      value={
-                        formData.type === "SD"
-                          ? formData.status === "enabled"
-                            ? "Enabled"
-                            : String(formData.status).toLowerCase() === "paused"
-                            ? "Paused"
-                            : formData.status
-                          : formData.status
-                      }
-                      onChange={(value) => {
-                        // Convert to appropriate case based on campaign type
-                        if (formData.type === "SD") {
-                          handleChange(
-                            "status",
-                            value.toLowerCase() as "enabled" | "paused"
-                          );
-                        } else if (formData.type === "SB") {
-                          handleChange(
-                            "status",
-                            value.toUpperCase() as "ENABLED" | "PAUSED"
-                          );
-                        } else {
-                          handleChange("status", value);
-                        }
-                      }}
-                      placeholder="Select state"
-                      buttonClassName="w-full"
-                    />
-                  </div>
-
-                  {/* Targeting Type - Only for SP campaigns */}
-                  {formData.type === "SP" && (
-                    <div className="w-[33.333%] ml-6">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                {/* Row 3: Targeting Type | Start Date | End Date (for SP campaigns) */}
+                {formData.type === "SP" && (
+                  <div className="grid grid-cols-3 gap-6">
+                    {/* Targeting Type */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Targeting Type
                       </label>
                       <Dropdown<string>
@@ -904,19 +1009,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           )
                         }
                         placeholder="Select targeting type"
-                        buttonClassName="w-full"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                       />
                     </div>
-                  )}
-                </div>
 
-                {/* Start Date and End Date - On next line, only for SP campaigns */}
-                {formData.type === "SP" && (
-                  <div className="flex gap-0">
                     {/* Start Date */}
-                    <div className="w-[33.333%]">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                        Start Date <span className="text-red-500">*</span>
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Start Date
                       </label>
                       <div className="relative">
                         <input
@@ -926,11 +1026,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("startDate", e.target.value)
                           }
                           disabled={mode === "edit"}
-                          className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.startDate
                               ? "border-red-500"
                               : "border-gray-200"
-                          } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
+                          } ${
+                            mode === "edit"
+                              ? "bg-gray-50 cursor-not-allowed"
+                              : ""
+                          }`}
                         />
                       </div>
                       {mode === "edit" && (
@@ -945,9 +1049,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       )}
                     </div>
 
-                    {/* End Date - Editable for SP campaigns */}
-                    <div className="w-[33.333%] ml-6">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    {/* End Date */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         End Date
                       </label>
                       <div className="relative">
@@ -958,7 +1062,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("endDate", e.target.value)
                           }
                           min={new Date().toISOString().split("T")[0]} // Minimum date is today
-                          className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
@@ -988,14 +1092,17 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </div>
                 )}
 
-                {/* Start Date and End Date - For SB and SD campaigns (keep existing layout) */}
+                {/* Start Date and End Date - For SB and SD campaigns */}
                 {(formData.type === "SB" || formData.type === "SD") && (
-                  <div className="flex gap-0">
+                  <div
+                    className={`grid gap-6 ${
+                      formData.type === "SB" ? "grid-cols-2" : "grid-cols-3"
+                    }`}
+                  >
                     {/* Start Date */}
-                    <div className="w-[33.333%]">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                        {formData.type === "SB" ? "Start" : "Start Date"}{" "}
-                        <span className="text-red-500">*</span>
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        {formData.type === "SB" ? "Start" : "Start Date"}
                       </label>
                       <div className="relative">
                         <input
@@ -1005,27 +1112,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("startDate", e.target.value)
                           }
                           disabled={mode === "edit"}
-                          className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.startDate
                               ? "border-red-500"
                               : "border-gray-200"
-                          } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
+                          } ${
+                            mode === "edit"
+                              ? "bg-gray-50 cursor-not-allowed"
+                              : ""
+                          }`}
                         />
-                        {formData.type === "SB" && (
-                          <svg
-                            className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#556179] pointer-events-none"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                        )}
                       </div>
                       {mode === "edit" && (
                         <p className="text-[10px] text-[#556179] mt-1 italic">
@@ -1040,8 +1136,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     </div>
 
                     {/* End Date */}
-                    <div className="w-[33.333%] ml-6">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         {formData.type === "SB" ? "End" : "End Date"}
                       </label>
                       <div className="relative">
@@ -1053,27 +1149,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           }
                           min={formData.startDate || undefined}
                           disabled={mode === "edit"}
-                          className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
-                          } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
+                          } ${
+                            mode === "edit"
+                              ? "bg-gray-50 cursor-not-allowed"
+                              : ""
+                          }`}
                         />
-                        {formData.type === "SB" && (
-                          <svg
-                            className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#556179] pointer-events-none"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                        )}
                       </div>
                       {mode === "edit" && (
                         <p className="text-[10px] text-[#556179] mt-1 italic">
@@ -1089,35 +1174,653 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </div>
                 )}
 
-                {/* SP (Sponsored Products) Additional Fields */}
+                {/* Row 4: Portfolio ID - Full Width Dropdown */}
                 {formData.type === "SP" && (
-                  <div className="md:col-span-2 mt-4 space-y-4">
-                    {/* Portfolio ID */}
-                    <div className="w-[50%]">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                        Portfolio ID
-                      </label>
-                      <Dropdown<string>
-                        options={portfolioOptions}
-                        value={formData.portfolioId || undefined}
-                        onChange={(value) => handleChange("portfolioId", value)}
-                        placeholder={
-                          loadingPortfolios
-                            ? "Loading portfolios..."
-                            : "Select portfolio (optional)"
-                        }
-                        buttonClassName="w-full"
-                        disabled={
-                          loadingPortfolios || portfolioOptions.length === 0
-                        }
-                      />
-                      {errors.portfolioId && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.portfolioId}
+                  <div>
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Portfolio ID
+                    </label>
+                    <Dropdown<string>
+                      options={portfolioOptions}
+                      value={formData.portfolioId || undefined}
+                      onChange={(value) => handleChange("portfolioId", value)}
+                      placeholder={
+                        loadingPortfolios
+                          ? "Loading portfolios..."
+                          : "Select portfolio (optional)"
+                      }
+                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      disabled={
+                        loadingPortfolios || portfolioOptions.length === 0
+                      }
+                    />
+                    {errors.portfolioId && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.portfolioId}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* SP Dynamic Bidding Section */}
+                {formData.type === "SP" && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[14px] font-semibold text-[#072929]">
+                        Dynamic Bidding
+                      </h3>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] italic">
+                          Read-only in edit mode
                         </p>
                       )}
                     </div>
+
+                    {/* Bid Optimization Field */}
+                    <div className="mb-6">
+                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                        Bid Optimization
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label
+                          className={`flex items-center gap-2 ${
+                            mode === "edit"
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.bidding?.bidOptimization ?? true}
+                            onChange={(e) => {
+                              const newBidOptimization = e.target.checked;
+                              setFormData((prev) => {
+                                const updated = { ...prev };
+                                if (!updated.bidding) {
+                                  updated.bidding = {
+                                    bidOptimization: newBidOptimization,
+                                    shopperCohortBidAdjustments: [],
+                                    bidAdjustmentsByPlacement: [],
+                                  };
+                                } else {
+                                  updated.bidding = {
+                                    ...updated.bidding,
+                                    bidOptimization: newBidOptimization,
+                                    // Keep bidAdjustmentsByPlacement regardless of bidOptimization
+                                    bidAdjustmentsByPlacement:
+                                      updated.bidding
+                                        .bidAdjustmentsByPlacement || [],
+                                  };
+                                }
+                                return updated;
+                              });
+                            }}
+                            disabled={mode === "edit"}
+                            className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
+                          />
+                          <span className="text-[13.3px] font-medium text-[#072929]">
+                            Automatic placement optimization
+                          </span>
+                        </label>
+                      </div>
+                      <p className="text-[12px] text-[#556179] mt-1">
+                        When enabled, placement adjustments are ignored
+                      </p>
+                    </div>
+
+                    {/* Placement Bid Adjustments - Always visible and enabled */}
+                    <div className="mb-6">
+                      {/* Tabs */}
+                      <div className="flex border-b border-gray-200 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => setActiveBiddingTab("strategy")}
+                          className={`px-4 py-2 text-[14px] transition-colors ${
+                            activeBiddingTab === "strategy"
+                              ? "text-[#072929] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929]"
+                          }`}
+                        >
+                          Strategy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveBiddingTab("placements")}
+                          className={`px-4 py-2 text-[14px] transition-colors ${
+                            activeBiddingTab === "placements"
+                              ? "text-[#072929] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929]"
+                          }`}
+                        >
+                          Placements
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveBiddingTab("audiences")}
+                          className={`px-4 py-2 text-[14px] transition-colors ${
+                            activeBiddingTab === "audiences"
+                              ? "text-[#072929] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929]"
+                          }`}
+                        >
+                          Audiences
+                        </button>
+                      </div>
+
+                      {/* Strategy Tab Content */}
+                      {activeBiddingTab === "strategy" && (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                              Strategy
+                            </label>
+                            <Dropdown<string>
+                              options={[
+                                {
+                                  value: "LEGACY_FOR_SALES",
+                                  label: "LEGACY_FOR_SALES",
+                                },
+                                {
+                                  value: "AUTO_FOR_SALES",
+                                  label: "AUTO_FOR_SALES",
+                                },
+                                { value: "MANUAL", label: "MANUAL" },
+                              ]}
+                              value={formData.bidding?.strategy || undefined}
+                              onChange={(value) => {
+                                setFormData((prev) => {
+                                  const updated = { ...prev };
+                                  if (!updated.bidding) {
+                                    updated.bidding = {
+                                      strategy: value as
+                                        | "LEGACY_FOR_SALES"
+                                        | "AUTO_FOR_SALES"
+                                        | "MANUAL",
+                                      bidOptimization: true,
+                                      shopperCohortBidAdjustments: [],
+                                      bidAdjustmentsByPlacement: [],
+                                    };
+                                  } else {
+                                    updated.bidding = {
+                                      ...updated.bidding,
+                                      strategy: value as
+                                        | "LEGACY_FOR_SALES"
+                                        | "AUTO_FOR_SALES"
+                                        | "MANUAL",
+                                    };
+                                  }
+                                  return updated;
+                                });
+                              }}
+                              placeholder="Select strategy"
+                              buttonClassName="w-full bg-[#FEFEFB] text-[14px] text-[#072929]"
+                              disabled={mode === "edit"}
+                            />
+                            {mode === "create" &&
+                              formData.bidding &&
+                              !formData.bidding.strategy && (
+                                <p className="text-[10px] text-red-500 mt-1">
+                                  Strategy is required when Dynamic Bidding is
+                                  provided
+                                </p>
+                              )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Placements Tab Content */}
+                      {activeBiddingTab === "placements" && (
+                        <>
+                          {/* Instructions */}
+                          <div className="flex items-center gap-2 mb-4">
+                            <p className="text-[13px] text-[#072929]">
+                              Increase your bid for specific Amazon placements.
+                            </p>
+                            <svg
+                              className="w-4 h-4 text-[#556179] cursor-help"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                          </div>
+
+                          {/* Placement Inputs */}
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                            {/* Top of search */}
+                            <div>
+                              <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                Top of search
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <div className="relative flex-1 max-w-[120px]">
+                                  <input
+                                    type="number"
+                                    value={
+                                      formData.bidding?.bidAdjustmentsByPlacement?.find(
+                                        (adj) =>
+                                          adj.placement === "TOP_OF_SEARCH"
+                                      )?.percentage || 0
+                                    }
+                                    onChange={(e) => {
+                                      const value =
+                                        parseFloat(e.target.value) || 0;
+                                      if (value >= -99 && value <= 900) {
+                                        setFormData((prev) => {
+                                          const updated = { ...prev };
+                                          if (!updated.bidding) {
+                                            updated.bidding = {
+                                              bidOptimization: true,
+                                              shopperCohortBidAdjustments: [],
+                                              bidAdjustmentsByPlacement: [],
+                                            };
+                                          }
+                                          const adjustments = [
+                                            ...(updated.bidding
+                                              .bidAdjustmentsByPlacement || []),
+                                          ];
+                                          const existingIndex =
+                                            adjustments.findIndex(
+                                              (adj) =>
+                                                adj.placement ===
+                                                "TOP_OF_SEARCH"
+                                            );
+                                          if (existingIndex >= 0) {
+                                            adjustments[
+                                              existingIndex
+                                            ].percentage = value;
+                                          } else {
+                                            adjustments.push({
+                                              percentage: value,
+                                              placement: "TOP_OF_SEARCH",
+                                            });
+                                          }
+                                          updated.bidding.bidAdjustmentsByPlacement =
+                                            adjustments;
+                                          return updated;
+                                        });
+                                      }
+                                    }}
+                                    min="-99"
+                                    max="900"
+                                    step="1"
+                                    disabled={mode === "edit"}
+                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                      mode === "edit"
+                                        ? "bg-gray-50 cursor-not-allowed"
+                                        : ""
+                                    }`}
+                                  />
+                                </div>
+                                <span className="text-[13px] text-[#072929]">
+                                  %
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Rest of search */}
+                            <div>
+                              <label className="block text-[13px] font-medium text-[#072929] mb-2">
+                                Rest of search
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <div className="relative flex-1 max-w-[120px]">
+                                  <input
+                                    type="number"
+                                    value={
+                                      formData.bidding?.bidAdjustmentsByPlacement?.find(
+                                        (adj) => adj.placement === "OTHER"
+                                      )?.percentage || 0
+                                    }
+                                    onChange={(e) => {
+                                      const value =
+                                        parseFloat(e.target.value) || 0;
+                                      if (value >= -99 && value <= 900) {
+                                        setFormData((prev) => {
+                                          const updated = { ...prev };
+                                          if (!updated.bidding) {
+                                            updated.bidding = {
+                                              bidOptimization: true,
+                                              shopperCohortBidAdjustments: [],
+                                              bidAdjustmentsByPlacement: [],
+                                            };
+                                          }
+                                          const adjustments = [
+                                            ...(updated.bidding
+                                              .bidAdjustmentsByPlacement || []),
+                                          ];
+                                          const existingIndex =
+                                            adjustments.findIndex(
+                                              (adj) => adj.placement === "OTHER"
+                                            );
+                                          if (existingIndex >= 0) {
+                                            adjustments[
+                                              existingIndex
+                                            ].percentage = value;
+                                          } else {
+                                            adjustments.push({
+                                              percentage: value,
+                                              placement: "OTHER",
+                                            });
+                                          }
+                                          updated.bidding.bidAdjustmentsByPlacement =
+                                            adjustments;
+                                          return updated;
+                                        });
+                                      }
+                                    }}
+                                    min="-99"
+                                    max="900"
+                                    step="1"
+                                    disabled={mode === "edit"}
+                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                      mode === "edit"
+                                        ? "bg-gray-50 cursor-not-allowed"
+                                        : ""
+                                    }`}
+                                  />
+                                </div>
+                                <span className="text-[13px] text-[#072929]">
+                                  %
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Audiences Tab Content */}
+                      {activeBiddingTab === "audiences" && (
+                        <div className="space-y-4">
+                          {/* Radio Buttons */}
+                          <div className="space-y-3">
+                            <label
+                              className={`flex items-center gap-3 ${
+                                mode === "edit"
+                                  ? "cursor-not-allowed opacity-60"
+                                  : "cursor-pointer"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="audienceBidOption"
+                                checked={increaseBidsForAudiences}
+                                onChange={() =>
+                                  setIncreaseBidsForAudiences(true)
+                                }
+                                disabled={mode === "edit"}
+                                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
+                              />
+                              <span className="text-[13px] font-medium text-[#072929]">
+                                Increase bids for audiences built by Amazon
+                              </span>
+                            </label>
+                            <label
+                              className={`flex items-center gap-3 ${
+                                mode === "edit"
+                                  ? "cursor-not-allowed opacity-60"
+                                  : "cursor-pointer"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="audienceBidOption"
+                                checked={!increaseBidsForAudiences}
+                                onChange={() =>
+                                  setIncreaseBidsForAudiences(false)
+                                }
+                                disabled={mode === "edit"}
+                                className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
+                              />
+                              <span className="text-[13px] font-medium text-[#072929]">
+                                Don't increase bids for an audience
+                              </span>
+                            </label>
+                          </div>
+
+                          {/* Audience Selection and Percentage - Only show when "Increase bids" is selected */}
+                          {increaseBidsForAudiences && (
+                            <div className="space-y-4">
+                              <div className="flex gap-4 items-end">
+                                {/* Audience Dropdown */}
+                                <div className="flex-1">
+                                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                    Audience
+                                  </label>
+                                  <div className="relative">
+                                    <Dropdown<string>
+                                      options={[
+                                        {
+                                          value: "40836",
+                                          label:
+                                            "Clicked or Added brand's product to cart - 40836...",
+                                        },
+                                        {
+                                          value: "40837",
+                                          label:
+                                            "Viewed brand's product detail page - 40837...",
+                                        },
+                                        {
+                                          value: "40838",
+                                          label:
+                                            "Purchased brand's product - 40838...",
+                                        },
+                                      ]}
+                                      value={selectedAudience}
+                                      onChange={(value) =>
+                                        setSelectedAudience(value)
+                                      }
+                                      placeholder="Select audience"
+                                      buttonClassName="w-full bg-[#FEFEFB] text-[14px] text-[#072929]"
+                                      disabled={mode === "edit"}
+                                    />
+                                    <svg
+                                      className="w-4 h-4 text-[#556179] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                  </div>
+                                </div>
+
+                                {/* Percentage Input */}
+                                <div className="flex-shrink-0">
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                      <input
+                                        type="number"
+                                        value={audiencePercentage}
+                                        onChange={(e) => {
+                                          const value =
+                                            parseFloat(e.target.value) || 0;
+                                          if (value >= 0 && value <= 900) {
+                                            setAudiencePercentage(value);
+                                          }
+                                        }}
+                                        min="0"
+                                        max="900"
+                                        step="1"
+                                        disabled={mode === "edit"}
+                                        className={`bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                          mode === "edit"
+                                            ? "bg-gray-50 cursor-not-allowed"
+                                            : ""
+                                        }`}
+                                      />
+                                    </div>
+                                    <span className="text-[13px] text-[#072929]">
+                                      %
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Helper Text */}
+                              {selectedAudience && audiencePercentage > 0 && (
+                                <p className="text-[12px] text-[#556179]">
+                                  A A$0.80 cost-per-click can increase up to A$
+                                  {(
+                                    0.8 *
+                                    (1 + audiencePercentage / 100)
+                                  ).toFixed(2)}{" "}
+                                  for this audience.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                )}
+
+                {/* SP Site Restrictions and Tags Section */}
+                {formData.type === "SP" && (
+                  <>
+                    {/* Site Restrictions */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Site Restrictions
+                      </label>
+                      <Dropdown<string>
+                        options={[
+                          {
+                            value: "AMAZON_BUSINESS",
+                            label: "AMAZON_BUSINESS",
+                          },
+                        ]}
+                        value={formData.siteRestrictions || undefined}
+                        onChange={(value) =>
+                          handleChange("siteRestrictions", value)
+                        }
+                        placeholder="Select site restrictions (optional)"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        disabled={mode === "edit"}
+                      />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Tags */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Tags (Key-Value Pairs) - Max 50
+                      </label>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mb-2 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
+                      <div className="space-y-2">
+                        {Object.entries(formData.tags || {}).map(
+                          ([key, value], index) => (
+                            <div
+                              key={index}
+                              className="flex gap-2 items-center"
+                            >
+                              <input
+                                type="text"
+                                value={key}
+                                onChange={(e) => {
+                                  const newTags = { ...formData.tags };
+                                  const oldKey = key;
+                                  delete newTags[oldKey];
+                                  if (e.target.value) {
+                                    newTags[e.target.value] = value;
+                                  }
+                                  handleChange("tags", newTags);
+                                }}
+                                placeholder="Key"
+                                disabled={mode === "edit"}
+                                className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                  mode === "edit"
+                                    ? "bg-gray-50 cursor-not-allowed"
+                                    : ""
+                                }`}
+                              />
+                              <input
+                                type="text"
+                                value={value}
+                                onChange={(e) => {
+                                  const newTags = { ...formData.tags };
+                                  newTags[key] = e.target.value;
+                                  handleChange("tags", newTags);
+                                }}
+                                placeholder="Value"
+                                disabled={mode === "edit"}
+                                className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                  mode === "edit"
+                                    ? "bg-gray-50 cursor-not-allowed"
+                                    : ""
+                                }`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newTags = { ...formData.tags };
+                                  delete newTags[key];
+                                  handleChange("tags", newTags);
+                                }}
+                                disabled={mode === "edit"}
+                                className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
+                                  mode === "edit"
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
+                                }`}
+                                title="Remove"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )
+                        )}
+                        {(!formData.tags ||
+                          Object.keys(formData.tags).length < 50) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newTags = { ...(formData.tags || {}) };
+                              const newKey = `key${
+                                Object.keys(newTags).length + 1
+                              }`;
+                              newTags[newKey] = "";
+                              handleChange("tags", newTags);
+                            }}
+                            disabled={mode === "edit"}
+                            className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px] ${
+                              mode === "edit"
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          >
+                            + Add Tag
+                          </button>
+                        )}
+                        {formData.tags &&
+                          Object.keys(formData.tags).length >= 50 && (
+                            <p className="text-[11px] text-[#556179]">
+                              Maximum of 50 tags reached
+                            </p>
+                          )}
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* SD (Sponsored Display) Specific Fields */}
@@ -1134,9 +1837,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         onChange={(e) => handleChange("tactic", e.target.value)}
                         placeholder="Enter tactic (e.g., T00030)"
                         disabled={mode === "edit"}
-                        className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                           errors.tactic ? "border-red-500" : "border-gray-200"
-                        } ${mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""}`}
+                        } ${
+                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                        }`}
                       />
                       {mode === "edit" && (
                         <p className="text-[10px] text-[#556179] mt-1 italic">
@@ -1163,7 +1868,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         placeholder="Enter cost type (e.g., cpc)"
                         disabled={mode === "edit"}
-                        className={`bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                           mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
                         }`}
                       />
@@ -1188,7 +1893,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             ? "Loading portfolios..."
                             : "Select portfolio (optional)"
                         }
-                        buttonClassName="w-full"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                         disabled={
                           loadingPortfolios || portfolioOptions.length === 0
                         }
@@ -1202,11 +1907,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </>
                 )}
 
-                {/* SB Brand Entity ID - After dates */}
+                {/* Row 4: Brand Entity ID | Targeted PG Deal ID (for SB campaigns) */}
                 {formData.type === "SB" && (
-                  <>
-                    <div className="w-[50%]">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Brand Entity ID */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Brand Entity ID
                       </label>
                       <input
@@ -1217,7 +1923,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         placeholder="Enter brand entity ID"
                         disabled={mode === "edit"}
-                        className={`bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                           mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
                         }`}
                       />
@@ -1228,15 +1934,40 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       )}
                     </div>
 
-                    {/* SB Additional Fields - Product Location, Cost Type, etc. */}
-                    <div className="md:col-span-2 mt-4 space-y-4">
-                      {/* Product Location, Cost Type, Smart Default - In one line */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Product Location */}
-                        <div>
-                          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Product Location
-                          </label>
+                    {/* Targeted PG Deal ID */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Targeted PG Deal ID
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.targetedPGDealId || ""}
+                        onChange={(e) =>
+                          handleChange("targetedPGDealId", e.target.value)
+                        }
+                        placeholder="Enter DealId"
+                        disabled={mode === "edit"}
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                        }`}
+                      />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Row 5: Product Location | Cost Type | Portfolio ID (for SB campaigns) */}
+                {formData.type === "SB" && (
+                  <div className="grid grid-cols-3 gap-6">
+                    {/* Product Location */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Product Location
+                      </label>
                           <Dropdown<string>
                             options={[
                               {
@@ -1259,329 +1990,314 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             onChange={(value) =>
                               handleChange("productLocation", value as any)
                             }
-                            placeholder="Select product location"
-                            buttonClassName="w-full"
-                            disabled={mode === "edit"}
-                          />
-                          {mode === "edit" && (
-                            <p className="text-[10px] text-[#556179] mt-1 italic">
-                              Read-only in edit mode
-                            </p>
-                          )}
-                        </div>
+                      placeholder="Select product location"
+                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      disabled={mode === "edit"}
+                    />
+                    {mode === "edit" && (
+                      <p className="text-[10px] text-[#556179] mt-1 italic">
+                        Read-only in edit mode
+                      </p>
+                    )}
+                  </div>
 
-                        {/* Cost Type */}
-                        <div>
-                          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Cost Type
-                          </label>
-                          <Dropdown<string>
-                            options={[
-                              {
-                                value: "CPC",
-                                label: "CPC - Cost per click (Default)",
-                              },
-                              {
-                                value: "VCPM",
-                                label:
-                                  "VCPM - Cost per 1000 viewable impressions",
-                              },
-                              {
-                                value: "FIXED_PRICE",
-                                label:
-                                  "FIXED_PRICE - Sale price for a specific ad placement (requires targetedPGDealId)",
-                              },
-                            ]}
-                            value={formData.costType || "CPC"}
-                            onChange={(value) =>
-                              handleChange("costType", value)
-                            }
-                            placeholder="Select cost type"
-                            buttonClassName="w-full"
-                            disabled={mode === "edit"}
-                          />
-                          {mode === "edit" && (
-                            <p className="text-[10px] text-[#556179] mt-1 italic">
-                              Read-only in edit mode
-                            </p>
-                          )}
-                        </div>
+                  {/* Cost Type */}
+                  <div>
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Cost Type
+                    </label>
+                    <Dropdown<string>
+                      options={[
+                        {
+                          value: "CPC",
+                          label: "CPC - Cost per click (Default)",
+                        },
+                        {
+                          value: "VCPM",
+                          label:
+                            "VCPM - Cost per 1000 viewable impressions",
+                        },
+                        {
+                          value: "FIXED_PRICE",
+                          label:
+                            "FIXED_PRICE - Sale price for a specific ad placement (requires targetedPGDealId)",
+                        },
+                      ]}
+                      value={formData.costType || "CPC"}
+                      onChange={(value) => handleChange("costType", value)}
+                      placeholder="Select cost type"
+                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      disabled={mode === "edit"}
+                    />
+                    {mode === "edit" && (
+                      <p className="text-[10px] text-[#556179] mt-1 italic">
+                        Read-only in edit mode
+                      </p>
+                    )}
+                  </div>
 
-                        {/* Smart Default */}
-                        <div>
-                          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Smart Default
-                          </label>
-                          <Dropdown<string>
-                            options={[
-                              { value: "MANUAL", label: "MANUAL" },
-                              { value: "TARGETING", label: "TARGETING" },
-                            ]}
-                            value={formData.smartDefault || ""}
-                            onChange={(value) =>
-                              handleChange("smartDefault", value as any)
-                            }
-                            placeholder="Select smart default (optional)"
-                            buttonClassName="w-full"
-                            disabled={mode === "edit"}
-                          />
-                          {mode === "edit" && (
-                            <p className="text-[10px] text-[#556179] mt-1 italic">
-                              Read-only in edit mode
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                  {/* Portfolio ID */}
+                  <div>
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Portfolio ID
+                    </label>
+                    <Dropdown<string>
+                      options={portfolioOptions}
+                      value={formData.portfolioId || undefined}
+                      onChange={(value) => handleChange("portfolioId", value)}
+                      placeholder={
+                        loadingPortfolios
+                          ? "Loading portfolios..."
+                          : "Select portfolio (optional)"
+                      }
+                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      disabled={
+                        loadingPortfolios || portfolioOptions.length === 0
+                      }
+                    />
+                    {errors.portfolioId && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.portfolioId}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                )}
 
-                      {/* Portfolio ID */}
-                      <div className="w-[50%]">
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                          Portfolio ID
-                        </label>
-                        <Dropdown<string>
-                          options={portfolioOptions}
-                          value={formData.portfolioId || undefined}
-                          onChange={(value) => handleChange("portfolioId", value)}
-                          placeholder={
-                            loadingPortfolios
-                              ? "Loading portfolios..."
-                              : "Select portfolio (optional)"
-                          }
-                          buttonClassName="w-full"
-                          disabled={
-                            loadingPortfolios || portfolioOptions.length === 0
-                          }
-                        />
-                        {errors.portfolioId && (
-                          <p className="text-[10px] text-red-500 mt-1">
-                            {errors.portfolioId}
-                          </p>
-                        )}
-                      </div>
+                {/* Row 6: Smart Default (for SB campaigns) */}
+                {formData.type === "SB" && (
+                  <div className="grid grid-cols-3 gap-6">
+                    {/* Smart Default */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Smart Default
+                      </label>
+                      <Dropdown<string>
+                        options={[
+                          { value: "MANUAL", label: "MANUAL" },
+                          { value: "TARGETING", label: "TARGETING" },
+                        ]}
+                        value={formData.smartDefault || ""}
+                        onChange={(value) =>
+                          handleChange("smartDefault", value as any)
+                        }
+                        placeholder="Select smart default (optional)"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        disabled={mode === "edit"}
+                      />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
+                    </div>
+                    {/* Empty columns for spacing */}
+                    <div></div>
+                    <div></div>
+                  </div>
+                )}
 
-                      {/* Targeted PG Deal ID */}
-                      <div className="w-[50%]">
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                          Targeted PG Deal ID
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.targetedPGDealId || ""}
-                          onChange={(e) =>
-                            handleChange("targetedPGDealId", e.target.value)
-                          }
-                          placeholder="Enter DealId (required for FIXED_PRICE cost type)"
-                          disabled={mode === "edit"}
-                          className={`bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                            mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                          }`}
-                        />
-                        {mode === "edit" && (
-                          <p className="text-[10px] text-[#556179] mt-1 italic">
-                            Read-only in edit mode
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Tags */}
-                      <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                          Tags (Key-Value Pairs) - Max 50
-                        </label>
-                        {mode === "edit" && (
-                          <p className="text-[10px] text-[#556179] mb-2 italic">
-                            Read-only in edit mode
-                          </p>
-                        )}
-                        <div className="space-y-2">
-                          {Object.entries(formData.tags || {}).map(
-                            ([key, value], index) => (
-                              <div
-                                key={index}
-                                className="flex gap-2 items-center"
-                              >
-                                <input
-                                  type="text"
-                                  value={key}
-                                  onChange={(e) => {
-                                    const newTags = { ...formData.tags };
-                                    const oldKey = key;
-                                    delete newTags[oldKey];
-                                    if (e.target.value) {
-                                      newTags[e.target.value] = value;
-                                    }
-                                    handleChange("tags", newTags);
-                                  }}
-                                  placeholder="Key"
-                                  disabled={mode === "edit"}
-                                  className={`bg-white flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                    mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                                  }`}
-                                />
-                                <input
-                                  type="text"
-                                  value={value}
-                                  onChange={(e) => {
-                                    const newTags = { ...formData.tags };
-                                    newTags[key] = e.target.value;
-                                    handleChange("tags", newTags);
-                                  }}
-                                  placeholder="Value"
-                                  disabled={mode === "edit"}
-                                  className={`bg-white flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                    mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                                  }`}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newTags = { ...formData.tags };
-                                    delete newTags[key];
-                                    handleChange("tags", newTags);
-                                  }}
-                                  disabled={mode === "edit"}
-                                  className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
-                                    mode === "edit" ? "opacity-50 cursor-not-allowed" : ""
-                                  }`}
-                                  title="Remove"
-                                >
-                                  <svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            )
-                          )}
-                          {(!formData.tags ||
-                            Object.keys(formData.tags).length < 50) && (
+                {/* Tags Section - For SB campaigns */}
+                {formData.type === "SB" && (
+                  <div>
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Tags (Key-Value Pairs) - Max 50
+                    </label>
+                    {mode === "edit" && (
+                      <p className="text-[10px] text-[#556179] mb-2 italic">
+                        Read-only in edit mode
+                      </p>
+                    )}
+                    <div className="space-y-2">
+                      {Object.entries(formData.tags || {}).map(
+                        ([key, value], index) => (
+                          <div
+                            key={index}
+                            className="flex gap-2 items-center"
+                          >
+                            <input
+                              type="text"
+                              value={key}
+                              onChange={(e) => {
+                                const newTags = { ...formData.tags };
+                                const oldKey = key;
+                                delete newTags[oldKey];
+                                if (e.target.value) {
+                                  newTags[e.target.value] = value;
+                                }
+                                handleChange("tags", newTags);
+                              }}
+                              placeholder="Key"
+                              disabled={mode === "edit"}
+                              className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                mode === "edit"
+                                  ? "bg-gray-50 cursor-not-allowed"
+                                  : ""
+                              }`}
+                            />
+                            <input
+                              type="text"
+                              value={value}
+                              onChange={(e) => {
+                                const newTags = { ...formData.tags };
+                                newTags[key] = e.target.value;
+                                handleChange("tags", newTags);
+                              }}
+                              placeholder="Value"
+                              disabled={mode === "edit"}
+                              className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                mode === "edit"
+                                  ? "bg-gray-50 cursor-not-allowed"
+                                  : ""
+                              }`}
+                            />
                             <button
                               type="button"
                               onClick={() => {
-                                const newTags = { ...(formData.tags || {}) };
-                                const newKey = `key${
-                                  Object.keys(newTags).length + 1
-                                }`;
-                                newTags[newKey] = "";
+                                const newTags = { ...formData.tags };
+                                delete newTags[key];
                                 handleChange("tags", newTags);
                               }}
                               disabled={mode === "edit"}
-                              className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[11.2px] ${
-                                mode === "edit" ? "opacity-50 cursor-not-allowed" : ""
+                              className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
+                                mode === "edit"
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : ""
                               }`}
+                              title="Remove"
                             >
-                              + Add Tag
+                              ×
                             </button>
-                          )}
-                          {formData.tags &&
-                            Object.keys(formData.tags).length >= 50 && (
-                              <p className="text-[11px] text-[#556179]">
-                                Maximum of 50 tags reached
-                              </p>
-                            )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SB Bidding Section */}
-                    <div className="md:col-span-2 mt-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-[14px] font-semibold text-[#072929]">
-                          Bidding
-                        </h3>
-                        {mode === "edit" && (
-                          <p className="text-[10px] text-[#556179] italic">
-                            Read-only in edit mode
+                          </div>
+                        )
+                      )}
+                      {(!formData.tags ||
+                        Object.keys(formData.tags).length < 50) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTags = { ...(formData.tags || {}) };
+                            const newKey = `key${
+                              Object.keys(newTags).length + 1
+                            }`;
+                            newTags[newKey] = "";
+                            handleChange("tags", newTags);
+                          }}
+                          disabled={mode === "edit"}
+                          className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px] ${
+                            mode === "edit"
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          + Add Tag
+                        </button>
+                      )}
+                      {formData.tags &&
+                        Object.keys(formData.tags).length >= 50 && (
+                          <p className="text-[11px] text-[#556179]">
+                            Maximum of 50 tags reached
                           </p>
                         )}
-                      </div>
+                    </div>
+                  </div>
+                )}
 
-                      {/* Bid Optimization Field */}
-                      <div className="mb-6">
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                          Bid Optimization
-                        </label>
-                        <div className="flex items-center gap-3">
-                          <label className={`flex items-center gap-2 ${
-                            mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                          }`}>
-                            <input
-                              type="checkbox"
-                              checked={
-                                formData.bidding?.bidOptimization ?? true
-                              }
-                              onChange={(e) => {
-                                const newBidOptimization = e.target.checked;
-                                setFormData((prev) => {
-                                  const updated = { ...prev };
-                                  if (!updated.bidding) {
-                                    updated.bidding = {
-                                      bidOptimization: newBidOptimization,
-                                      shopperCohortBidAdjustments: [],
-                                      bidAdjustmentsByPlacement: [],
-                                    };
-                                  } else {
-                                    updated.bidding = {
-                                      ...updated.bidding,
-                                      bidOptimization: newBidOptimization,
-                                      // Keep bidAdjustmentsByPlacement regardless of bidOptimization
-                                      bidAdjustmentsByPlacement:
-                                        updated.bidding
-                                          .bidAdjustmentsByPlacement || [],
-                                    };
-                                  }
-                                  return updated;
-                                });
-                              }}
-                              disabled={mode === "edit"}
-                              className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
-                            />
-                            <span className="text-[13.3px] font-medium text-[#072929]">
-                              Automatic placement optimization
-                            </span>
-                          </label>
-                        </div>
-                        <p className="text-[12px] text-[#556179] mt-1">
-                          When enabled, placement adjustments are ignored
+                {/* SB Dynamic Bidding Section */}
+                {formData.type === "SB" && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[14px] font-semibold text-[#072929]">
+                        Dynamic Bidding
+                      </h3>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] italic">
+                          Read-only in edit mode
                         </p>
-                      </div>
+                      )}
+                    </div>
 
-                      {/* Placement Bid Adjustments - Always visible and enabled */}
-                      <div className="mb-6">
-                        {/* Tabs */}
-                        <div className="flex border-b border-gray-200 mb-4">
-                          <button
-                            type="button"
-                            onClick={() => setActiveBiddingTab("placements")}
-                            className={`px-4 py-2 text-[14px] transition-colors ${
-                              activeBiddingTab === "placements"
-                                ? "text-[#072929] border-b-2 border-[#136D6D]"
-                                : "text-[#556179] hover:text-[#072929]"
-                            }`}
-                          >
-                            Placements
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveBiddingTab("audiences")}
-                            className={`px-4 py-2 text-[14px] transition-colors ${
-                              activeBiddingTab === "audiences"
-                                ? "text-[#072929] border-b-2 border-[#136D6D]"
-                                : "text-[#556179] hover:text-[#072929]"
-                            }`}
-                          >
-                            Audiences
-                          </button>
-                        </div>
+                    {/* Bid Optimization Field */}
+                    <div className="mb-6">
+                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                        Bid Optimization
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label
+                          className={`flex items-center gap-2 ${
+                            mode === "edit"
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              formData.bidding?.bidOptimization ?? true
+                            }
+                            onChange={(e) => {
+                              const newBidOptimization = e.target.checked;
+                              setFormData((prev) => {
+                                const updated = { ...prev };
+                                if (!updated.bidding) {
+                                  updated.bidding = {
+                                    bidOptimization: newBidOptimization,
+                                    shopperCohortBidAdjustments: [],
+                                    bidAdjustmentsByPlacement: [],
+                                  };
+                                } else {
+                                  updated.bidding = {
+                                    ...updated.bidding,
+                                    bidOptimization: newBidOptimization,
+                                    // Keep bidAdjustmentsByPlacement regardless of bidOptimization
+                                    bidAdjustmentsByPlacement:
+                                      updated.bidding
+                                        .bidAdjustmentsByPlacement || [],
+                                  };
+                                }
+                                return updated;
+                              });
+                            }}
+                            disabled={mode === "edit"}
+                            className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
+                          />
+                          <span className="text-[13.3px] font-medium text-[#072929]">
+                            Automatic placement optimization
+                          </span>
+                        </label>
+                      </div>
+                      <p className="text-[12px] text-[#556179] mt-1">
+                        When enabled, placement adjustments are ignored
+                      </p>
+                    </div>
+
+                    {/* Placement Bid Adjustments - Always visible and enabled */}
+                    <div className="mb-6">
+                      {/* Tabs */}
+                      <div className="flex border-b border-gray-200 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => setActiveBiddingTab("placements")}
+                          className={`px-4 py-2 text-[14px] transition-colors ${
+                            activeBiddingTab === "placements"
+                              ? "text-[#072929] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929]"
+                          }`}
+                        >
+                          Placements
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveBiddingTab("audiences")}
+                          className={`px-4 py-2 text-[14px] transition-colors ${
+                            activeBiddingTab === "audiences"
+                              ? "text-[#072929] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929]"
+                          }`}
+                        >
+                          Audiences
+                        </button>
+                      </div>
 
                         {/* Placements Tab Content */}
                         {activeBiddingTab === "placements" && (
@@ -1668,8 +2384,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                       max="900"
                                       step="1"
                                       disabled={mode === "edit"}
-                                      className={`bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                        mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                      className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                        mode === "edit"
+                                          ? "bg-gray-50 cursor-not-allowed"
+                                          : ""
                                       }`}
                                     />
                                   </div>
@@ -1736,8 +2454,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                       max="900"
                                       step="1"
                                       disabled={mode === "edit"}
-                                      className={`bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                        mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                      className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                        mode === "edit"
+                                          ? "bg-gray-50 cursor-not-allowed"
+                                          : ""
                                       }`}
                                     />
                                   </div>
@@ -1755,9 +2475,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           <div className="space-y-4">
                             {/* Radio Buttons */}
                             <div className="space-y-3">
-                              <label className={`flex items-center gap-3 ${
-                                mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                              }`}>
+                              <label
+                                className={`flex items-center gap-3 ${
+                                  mode === "edit"
+                                    ? "cursor-not-allowed opacity-60"
+                                    : "cursor-pointer"
+                                }`}
+                              >
                                 <input
                                   type="radio"
                                   name="audienceBidOption"
@@ -1772,9 +2496,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                   Increase bids for audiences built by Amazon
                                 </span>
                               </label>
-                              <label className={`flex items-center gap-3 ${
-                                mode === "edit" ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                              }`}>
+                              <label
+                                className={`flex items-center gap-3 ${
+                                  mode === "edit"
+                                    ? "cursor-not-allowed opacity-60"
+                                    : "cursor-pointer"
+                                }`}
+                              >
                                 <input
                                   type="radio"
                                   name="audienceBidOption"
@@ -1824,7 +2552,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           setSelectedAudience(value)
                                         }
                                         placeholder="Select audience"
-                                        buttonClassName="w-full"
+                                        buttonClassName="w-full bg-[#FEFEFB] text-[14px] text-[#072929]"
                                         disabled={mode === "edit"}
                                       />
                                       <svg
@@ -1861,8 +2589,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           max="900"
                                           step="1"
                                           disabled={mode === "edit"}
-                                          className={`bg-white w-24 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                            mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                          className={`bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                            mode === "edit"
+                                              ? "bg-gray-50 cursor-not-allowed"
+                                              : ""
                                           }`}
                                         />
                                       </div>
@@ -1891,7 +2621,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         )}
                       </div>
                     </div>
-                  </>
                 )}
               </>
             )}
@@ -1904,7 +2633,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             type="button"
             onClick={handleCancel}
             disabled={loading}
-            className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>

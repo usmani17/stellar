@@ -18,11 +18,12 @@ const AccountChannelsList: React.FC<{
   navigate: ReturnType<typeof useNavigate>;
   onClose: () => void;
 }> = ({ accountId, navigate, onClose }) => {
-  const { data: accountChannels = [], isLoading: channelsLoading } = useChannels(accountId);
-  
+  const { data: accountChannels = [], isLoading: channelsLoading } =
+    useChannels(accountId);
+
   return (
     <div
-      className="absolute top-0 left-full w-64 bg-white border border-[#e8e8e3] rounded-[10px] shadow-lg z-50"
+      className="absolute top-0 left-full w-64 bg-[#FEFEFB] border border-[#e8e8e3] rounded-[10px] shadow-lg z-50"
       onMouseEnter={(e) => {
         e.stopPropagation();
       }}
@@ -127,13 +128,15 @@ export const DashboardHeader: React.FC = () => {
 
   // Get current marketplace/channel from URL
   const currentMarketplace = getMarketplaceFromUrl(location.pathname);
-  
+
   // Use React Query hook for selected account's channels
   const { data: selectedAccountChannels = [] } = useChannels(
     selectedAccount?.id
   );
   const selectedChannel = selectedAccount
-    ? selectedAccountChannels.find((ch) => ch.channel_type === currentMarketplace)
+    ? selectedAccountChannels.find(
+        (ch) => ch.channel_type === currentMarketplace
+      )
     : null;
 
   return (
@@ -153,7 +156,7 @@ export const DashboardHeader: React.FC = () => {
               setExpandedAccountId(null);
             }
           }}
-          className="flex items-center gap-2 h-10 px-4 bg-background-field border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+          className="flex items-center gap-2 h-10 px-4 bg-[#FEFEFB] border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
         >
           <div className="w-5 h-5 rounded bg-[#072929] text-white text-[10px] flex items-center justify-center font-semibold">
             {selectedAccount?.name?.[0]?.toUpperCase() || "A"}
@@ -189,7 +192,7 @@ export const DashboardHeader: React.FC = () => {
         </button>
 
         {isAccountDropdownOpen && (
-          <div className="absolute top-[60px] left-0 z-40 bg-white border border-[#e8e8e3] rounded-[10px] shadow-lg w-72">
+          <div className="absolute top-[60px] left-0 z-40 bg-[#FEFEFB] border border-[#e8e8e3] rounded-[10px] shadow-lg w-72">
             <ul className="py-1">
               {accounts.map((account) => (
                 <li key={account.id} className="relative">
@@ -260,7 +263,7 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={datePickerRef}>
           <button
             onClick={() => setIsDatePickerOpen((p) => !p)}
-            className="flex items-center gap-2 h-10 px-4 bg-background-field border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+            className="flex items-center gap-2 h-10 px-4 bg-[#FEFEFB] border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -324,13 +327,13 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={profileDropdownRef}>
           <button
             onClick={() => setIsProfileDropdownOpen((p) => !p)}
-            className="w-8 h-8 rounded-full bg-background-field border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+            className="w-8 h-8 rounded-full bg-[#FEFEFB] border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
           >
             {user?.first_name?.[0] || "U"}
           </button>
 
           {isProfileDropdownOpen && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+            <div className="absolute top-full right-0 mt-2 w-48 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-50">
               <div className="p-2">
                 <div className="px-3 py-2 text-[12.32px] text-[#313850] border-b border-gray-100">
                   <div className="font-medium">
@@ -357,4 +360,3 @@ export const DashboardHeader: React.FC = () => {
     </div>
   );
 };
-

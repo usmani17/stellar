@@ -5,11 +5,13 @@ This guide shows how to use the CSS custom properties (CSS variables) defined in
 ## Available Semantic Variables
 
 ### Border Colors
+
 - `--color-semantic-border-default: #E8E8E3`
 - `--color-semantic-border-light: #E4E4D7`
 - `--color-semantic-border-medium: #D1D1C7`
 
 ### Status Colors
+
 - `--color-semantic-status-primary: #136D6D`
 - `--color-semantic-status-danger: #CE1313`
 - `--color-semantic-status-warning: #FF991F`
@@ -119,19 +121,19 @@ Since these variables are defined in `@theme`, Tailwind automatically generates 
 <div className="bg-background-primary">
 <div className="bg-background-secondary">
 <div className="bg-background-tertiary">
-<div className="bg-background-field">
+<div className="bg-[#FEFEFB]">
 ```
 
 ### 4. In Styled Components (if using CSS-in-JS)
 
 ```tsx
-import styled from 'styled-components';
+import styled from "styled-components";
 
 const StyledButton = styled.button`
   border: 1px solid var(--color-semantic-border-default);
   background-color: var(--color-semantic-status-primary);
   color: var(--color-semantic-text-inverse);
-  
+
   &:hover {
     border-color: var(--color-semantic-border-medium);
   }
@@ -142,19 +144,21 @@ const StyledButton = styled.button`
 
 ```tsx
 // Get computed value
-const borderColor = getComputedStyle(document.documentElement)
-  .getPropertyValue('--color-semantic-border-default');
+const borderColor = getComputedStyle(document.documentElement).getPropertyValue(
+  "--color-semantic-border-default"
+);
 
 // Set value dynamically
 document.documentElement.style.setProperty(
-  '--color-semantic-border-default',
-  '#NEW_COLOR'
+  "--color-semantic-border-default",
+  "#NEW_COLOR"
 );
 ```
 
 ### 6. Common Patterns
 
 #### Secondary Button
+
 ```css
 .btn-secondary {
   background-color: var(--color-common-white);
@@ -168,6 +172,7 @@ document.documentElement.style.setProperty(
 ```
 
 #### Input Field
+
 ```css
 .input-field {
   background-color: var(--color-semantic-background-field);
@@ -181,6 +186,7 @@ document.documentElement.style.setProperty(
 ```
 
 #### Alert/Notification
+
 ```css
 .alert-success {
   background-color: var(--color-semantic-background-tertiary);
@@ -209,29 +215,30 @@ document.documentElement.style.setProperty(
 // React component using CSS variables
 const ExampleComponent = () => {
   return (
-    <div style={{
-      backgroundColor: 'var(--color-semantic-background-primary)',
-      border: '1px solid var(--color-semantic-border-default)',
-      padding: '16px',
-      borderRadius: '8px'
-    }}>
-      <h2 style={{ color: 'var(--color-semantic-text-primary)' }}>
-        Title
-      </h2>
-      <p style={{ color: 'var(--color-semantic-text-secondary)' }}>
+    <div
+      style={{
+        backgroundColor: "var(--color-semantic-background-primary)",
+        border: "1px solid var(--color-semantic-border-default)",
+        padding: "16px",
+        borderRadius: "8px",
+      }}
+    >
+      <h2 style={{ color: "var(--color-semantic-text-primary)" }}>Title</h2>
+      <p style={{ color: "var(--color-semantic-text-secondary)" }}>
         Description text
       </p>
-      <button style={{
-        backgroundColor: 'var(--color-semantic-status-primary)',
-        color: 'var(--color-semantic-text-inverse)',
-        border: 'none',
-        padding: '8px 16px',
-        borderRadius: '4px'
-      }}>
+      <button
+        style={{
+          backgroundColor: "var(--color-semantic-status-primary)",
+          color: "var(--color-semantic-text-inverse)",
+          border: "none",
+          padding: "8px 16px",
+          borderRadius: "4px",
+        }}
+      >
         Action
       </button>
     </div>
   );
 };
 ```
-

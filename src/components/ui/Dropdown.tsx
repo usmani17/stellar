@@ -14,6 +14,7 @@ export interface DropdownProps<T = string> {
   value?: T;
   placeholder?: string;
   onChange?: (value: T, option: DropdownOption<T>) => void;
+  onClose?: () => void;
   disabled?: boolean;
   className?: string;
   buttonClassName?: string;
@@ -45,6 +46,7 @@ export const Dropdown = <T extends string | number = string>({
   value,
   placeholder = "Select an option",
   onChange,
+  onClose,
   disabled = false,
   className,
   buttonClassName,
@@ -93,6 +95,7 @@ export const Dropdown = <T extends string | number = string>({
       ) {
         setIsOpen(false);
         setSearchQuery("");
+        onClose?.();
       }
     };
 
@@ -109,7 +112,7 @@ export const Dropdown = <T extends string | number = string>({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isOpen, searchable]);
+  }, [isOpen, searchable, onClose]);
 
   const handleSelect = (option: DropdownOption<T>) => {
     if (option.disabled) return;
@@ -125,6 +128,9 @@ export const Dropdown = <T extends string | number = string>({
       setIsOpen(!isOpen);
       if (!isOpen) {
         setSearchQuery("");
+      } else if (isOpen) {
+        // When closing via toggle, call onClose
+        onClose?.();
       }
     }
   };
@@ -212,7 +218,7 @@ export const Dropdown = <T extends string | number = string>({
       {isOpen && (
         <div
           className={cn(
-            "absolute z-[100000] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+            "absolute z-[100000] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
             width,
             maxHeight,
             alignClasses[align],
@@ -251,7 +257,7 @@ export const Dropdown = <T extends string | number = string>({
                     onClick={() => handleSelect(option)}
                     disabled={option.disabled}
                     className={cn(
-                      "w-full text-left px-3 py-2 text-[10px] text-text-primary bg-background-field hover:bg-gray-50 transition-colors",
+                      "w-full text-left px-3 py-2 text-[10px] text-text-primary bg-[#FEFEFB] hover:bg-gray-50 transition-colors",
                       isSelected && "bg-[#F0F0ED] text-[#072929] font-medium",
                       !isSelected && "text-[#313850]",
                       option.disabled && "opacity-50 cursor-not-allowed",

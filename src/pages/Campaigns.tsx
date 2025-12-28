@@ -205,6 +205,13 @@ export const Campaigns: React.FC = () => {
     };
   }, []);
 
+  // Close budget panel when no campaigns are selected
+  useEffect(() => {
+    if (selectedCampaigns.size === 0) {
+      setShowBudgetPanel(false);
+    }
+  }, [selectedCampaigns.size]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -549,7 +556,15 @@ export const Campaigns: React.FC = () => {
     } else if (field === "budgetType") {
       setEditedValue(campaign.budgetType || "");
     } else if (field === "status") {
-      setEditedValue(campaign.status || "Enabled");
+      // Normalize status to match dropdown options
+      const statusLower = (campaign.status || "Enabled").toLowerCase();
+      const normalizedStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "Enabled"
+          : statusLower === "paused"
+          ? "Paused"
+          : "Enabled";
+      setEditedValue(normalizedStatus);
     }
   };
 
@@ -1590,1391 +1605,1401 @@ export const Campaigns: React.FC = () => {
               )}
             </div>
 
-            {/* Campaigns Table Card with overlay when panel is open */}
-            <div className="relative">
-              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
-                {/* Table Header */}
-                <div className="flex items-center justify-end gap-2">
-                  <div
-                    className="relative inline-flex justify-end"
-                    ref={dropdownRef}
+            {/* Edit and Export Buttons - Above Table */}
+            <div className="flex items-center justify-end gap-2">
+              <div
+                className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowBulkActions((prev) => !prev);
+                    setShowBudgetPanel(false);
+                    setShowExportDropdown(false);
+                  }}
+                >
+                  <svg
+                    className="w-5 h-5 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
                   >
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowBulkActions((prev) => !prev);
-                        setShowBudgetPanel(false);
-                        setShowExportDropdown(false);
-                      }}
-                    >
-                      <svg
-                        className="w-4 h-4 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Edit
-                      </span>
-                    </Button>
-                    {showBulkActions && (
-                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                        <div className="overflow-y-auto">
-                          {[
-                            { value: "enable", label: "Enabled" },
-                            { value: "pause", label: "Pause" },
-                            { value: "edit_budget", label: "Edit Budget" },
-                            { value: "delete", label: "Delete" },
-                          ].map((opt) => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                              disabled={selectedCampaigns.size === 0}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (selectedCampaigns.size === 0) return;
-                                if (opt.value === "edit_budget") {
-                                  setShowBudgetPanel(true);
-                                } else if (opt.value === "delete") {
-                                  setShowBudgetPanel(false);
-                                  setShowDeleteModal(true);
-                                } else {
-                                  setShowBudgetPanel(false);
-                                  setPendingStatusAction(
-                                    opt.value as "enable" | "pause"
-                                  );
-                                  setIsBudgetChange(false);
-                                  setShowConfirmationModal(true);
-                                }
-                                setShowBulkActions(false);
-                              }}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    className="relative inline-flex justify-end"
-                    ref={exportDropdownRef}
-                  >
-                    <div className="relative">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={(e) => {
-                          if (exportLoading) return;
-                          e.stopPropagation();
-                          setShowExportDropdown((prev) => !prev);
-                          setShowBulkActions(false);
-                          setShowBudgetPanel(false);
-                        }}
-                        disabled={exportLoading}
-                      >
-                        {exportLoading ? (
-                          <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                          </div>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4 text-[#072929]"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            <span className="text-[10.64px] text-[#072929] font-normal">
-                              Export
-                            </span>
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    {(showExportDropdown || exportLoading) && (
-                      <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                        {exportLoading ? (
-                          <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                            <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
-                            <p className="text-[13px] text-[#072929] font-medium">
-                              Exporting...
-                            </p>
-                            <p className="text-[11px] text-[#556179] text-center px-2">
-                              Please wait while we prepare your file
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="overflow-y-auto">
-                            {[
-                              { value: "bulk_export", label: "Export All" },
-                              {
-                                value: "current_view",
-                                label: "Export Current View",
-                              },
-                            ].map((opt) => (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  const exportType =
-                                    opt.value === "bulk_export"
-                                      ? "all_data"
-                                      : "current_view";
-                                  // Keep dropdown open during export
-                                  await handleExport(exportType);
-                                }}
-                                disabled={exportLoading}
-                              >
-                                <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                                  <svg
-                                    width="20"
-                                    height="20"
-                                    viewBox="0 0 20 20"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                  >
-                                    <rect
-                                      width="20"
-                                      height="20"
-                                      rx="3.2"
-                                      fill="#072929"
-                                    />
-                                    <path
-                                      d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
-                                      stroke="#F9F9F6"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
-                                </div>
-                                <span className="font-normal">{opt.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Budget editor panel */}
-                {selectedCampaigns.size > 0 && showBudgetPanel && (
-                  <div className="px-6 mb-4">
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="flex flex-wrap items-end gap-3 justify-between">
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Action
-                          </label>
-                          <Dropdown
-                            options={[
-                              { value: "increase", label: "Increase By" },
-                              { value: "decrease", label: "Decrease By" },
-                              { value: "set", label: "Set To" },
-                            ]}
-                            value={budgetAction}
-                            onChange={(val) => {
-                              const action = val as typeof budgetAction;
-                              setBudgetAction(action);
-                              // When "Set To" is selected, automatically use $ (amount)
-                              if (action === "set") {
-                                setBudgetUnit("amount");
-                              }
-                            }}
-                            buttonClassName="w-full"
-                            width="w-full"
-                          />
-                        </div>
-                        {(budgetAction === "increase" ||
-                          budgetAction === "decrease") && (
-                          <div className="w-[140px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Unit
-                            </label>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                  budgetUnit === "percent"
-                                    ? "bg-forest-f40  border-forest-f40"
-                                    : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setBudgetUnit("percent")}
-                              >
-                                %
-                              </button>
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                  budgetUnit === "amount"
-                                    ? "bg-forest-f40  border-forest-f40"
-                                    : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setBudgetUnit("amount")}
-                              >
-                                $
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Value
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={budgetValue}
-                              onChange={(e) => setBudgetValue(e.target.value)}
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
-                              {budgetUnit === "percent" ? "%" : "$"}
-                            </span>
-                          </div>
-                        </div>
-                        {budgetAction === "increase" && (
-                          <div className="w-[160px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Upper Limit (optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={upperLimit}
-                              onChange={(e) => setUpperLimit(e.target.value)}
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                          </div>
-                        )}
-                        {budgetAction === "decrease" && (
-                          <div className="w-[160px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Lower Limit (optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={lowerLimit}
-                              onChange={(e) => setLowerLimit(e.target.value)}
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 ml-auto">
-                          <button
-                            type="button"
-                            onClick={() => {
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                  <span className="text-[10.64px] text-[#072929] font-normal">
+                    Edit
+                  </span>
+                </Button>
+                {showBulkActions && (
+                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="overflow-y-auto">
+                      {[
+                        { value: "enable", label: "Enabled" },
+                        { value: "pause", label: "Pause" },
+                        { value: "edit_budget", label: "Edit Budget" },
+                        { value: "delete", label: "Delete" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          disabled={selectedCampaigns.size === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedCampaigns.size === 0) return;
+                            if (opt.value === "edit_budget") {
+                              setShowBudgetPanel(true);
+                            } else if (opt.value === "delete") {
                               setShowBudgetPanel(false);
-                              setShowBulkActions(false);
-                            }}
-                            className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!budgetValue) return;
-                              setIsBudgetChange(true);
-                              setPendingStatusAction(null);
+                              setShowDeleteModal(true);
+                            } else {
+                              setShowBudgetPanel(false);
+                              setPendingStatusAction(
+                                opt.value as "enable" | "pause"
+                              );
+                              setIsBudgetChange(false);
                               setShowConfirmationModal(true);
-                            }}
-                            disabled={bulkLoading || !budgetValue}
-                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Confirmation Modal */}
-                {showConfirmationModal && (
-                  <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                    onClick={(e) => {
-                      if (e.target === e.currentTarget) {
-                        setShowConfirmationModal(false);
-                      }
-                    }}
-                  >
-                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                        {isBudgetChange
-                          ? "Confirm Budget Changes"
-                          : "Confirm Status Changes"}
-                      </h3>
-
-                      {/* Summary */}
-                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12.16px] text-[#556179]">
-                            {selectedCampaigns.size} campaign
-                            {selectedCampaigns.size !== 1 ? "s" : ""} will be
-                            updated:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {isBudgetChange ? "Budget" : "Status"} change
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Campaign Preview Table */}
-                      {(() => {
-                        const selectedCampaignsData =
-                          getSelectedCampaignsData();
-                        const previewCount = Math.min(
-                          10,
-                          selectedCampaignsData.length
-                        );
-                        const hasMore = selectedCampaignsData.length > 10;
-
-                        return (
-                          <div className="mb-6">
-                            <div className="mb-2">
-                              <span className="text-[10.64px] text-[#556179]">
-                                {hasMore
-                                  ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                  : `${selectedCampaignsData.length} campaign${
-                                      selectedCampaignsData.length !== 1
-                                        ? "s"
-                                        : ""
-                                    } selected`}
-                              </span>
-                            </div>
-                            <div className="border border-gray-200 rounded-lg overflow-hidden">
-                              <table className="w-full">
-                                <thead className="bg-sandstorm-s20">
-                                  <tr>
-                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                      Campaign Name
-                                    </th>
-                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                      Old Value
-                                    </th>
-                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                      New Value
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {selectedCampaignsData
-                                    .slice(0, 10)
-                                    .map((campaign) => {
-                                      const oldBudget =
-                                        campaign.daily_budget || 0;
-                                      const oldStatus =
-                                        campaign.status || "Enabled";
-                                      const newBudget = isBudgetChange
-                                        ? calculateNewBudget(oldBudget)
-                                        : oldBudget;
-                                      const newStatus = pendingStatusAction
-                                        ? pendingStatusAction
-                                            .charAt(0)
-                                            .toUpperCase() +
-                                          pendingStatusAction.slice(1)
-                                        : oldStatus;
-
-                                      return (
-                                        <tr
-                                          key={campaign.campaignId}
-                                          className="border-b border-gray-200 last:border-b-0"
-                                        >
-                                          <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                            {campaign.campaign_name ||
-                                              "Unnamed Campaign"}
-                                          </td>
-                                          <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                            {isBudgetChange
-                                              ? `$${oldBudget.toFixed(2)}`
-                                              : oldStatus}
-                                          </td>
-                                          <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                            {isBudgetChange
-                                              ? `$${newBudget.toFixed(2)}`
-                                              : newStatus}
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      <div className="space-y-3 mb-6">
-                        {isBudgetChange ? (
-                          <>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Action:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetAction === "increase"
-                                  ? "Increase By"
-                                  : budgetAction === "decrease"
-                                  ? "Decrease By"
-                                  : "Set To"}
-                              </span>
-                            </div>
-
-                            {(budgetAction === "increase" ||
-                              budgetAction === "decrease") && (
-                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                                <span className="text-[12.16px] text-[#556179]">
-                                  Unit:
-                                </span>
-                                <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  {budgetUnit === "percent"
-                                    ? "Percentage (%)"
-                                    : "Amount ($)"}
-                                </span>
-                              </div>
-                            )}
-
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Value:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetValue}{" "}
-                                {budgetUnit === "percent" ? "%" : "$"}
-                              </span>
-                            </div>
-
-                            {budgetAction === "increase" && upperLimit && (
-                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                                <span className="text-[12.16px] text-[#556179]">
-                                  Upper Limit:
-                                </span>
-                                <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  ${upperLimit}
-                                </span>
-                              </div>
-                            )}
-
-                            {budgetAction === "decrease" && lowerLimit && (
-                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                                <span className="text-[12.16px] text-[#556179]">
-                                  Lower Limit:
-                                </span>
-                                <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  ${lowerLimit}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              New Status:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {pendingStatusAction
-                                ? pendingStatusAction.charAt(0).toUpperCase() +
-                                  pendingStatusAction.slice(1)
-                                : ""}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowConfirmationModal(false);
-                            setPendingStatusAction(null);
-                          }}
-                          className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            setShowConfirmationModal(false);
-                            if (isBudgetChange) {
-                              await runBulkBudget();
-                              setShowBudgetPanel(false);
-                              setShowBulkActions(false);
-                            } else if (pendingStatusAction) {
-                              await runBulkStatus(pendingStatusAction);
-                              setShowBulkActions(false);
                             }
-                            setPendingStatusAction(null);
+                            setShowBulkActions(false);
                           }}
-                          disabled={bulkLoading}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {bulkLoading ? "Applying..." : "Confirm"}
+                          {opt.label}
                         </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Delete Confirmation Modal */}
-                {showDeleteModal && (
-                  <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                    onClick={(e) => {
-                      if (e.target === e.currentTarget && !bulkLoading) {
-                        setShowDeleteModal(false);
-                      }
-                    }}
-                  >
-                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                      <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                        Delete Campaigns?
-                      </h3>
-
-                      <p className="text-[12.16px] text-[#556179] mb-4">
-                        You are about to permanently delete{" "}
-                        {selectedCampaigns.size} selected campaign
-                        {selectedCampaigns.size !== 1 ? "s" : ""}. This will
-                        stop all ad serving immediately and cannot be undone.
-                        Deleted campaigns can still be viewed in reports but not
-                        edited or re-enabled.
-                      </p>
-
-                      <div className="flex justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!bulkLoading) {
-                              setShowDeleteModal(false);
-                            }
-                          }}
-                          disabled={bulkLoading}
-                          className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={runBulkDelete}
-                          disabled={bulkLoading}
-                          className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {bulkLoading ? "Deleting..." : "Confirm"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Inline Edit Confirmation Modal */}
-                {showInlineEditModal &&
-                  inlineEditCampaign &&
-                  inlineEditField && (
-                    <div
-                      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                      onClick={(e) => {
-                        if (e.target === e.currentTarget) {
-                          setShowInlineEditModal(false);
-                        }
-                      }}
-                    >
-                      <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                          Confirm{" "}
-                          {inlineEditField === "budget"
-                            ? "Budget"
-                            : inlineEditField === "budgetType"
-                            ? "Budget Type"
-                            : "Status"}{" "}
-                          Change
-                        </h3>
-
-                        <div className="mb-4">
-                          <p className="text-[12.16px] text-[#556179] mb-2">
-                            Campaign:{" "}
-                            <span className="font-semibold text-[#072929]">
-                              {inlineEditCampaign.campaign_name ||
-                                "Unnamed Campaign"}
-                            </span>
-                          </p>
-                          <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[12.16px] text-[#556179]">
-                                {inlineEditField === "budget"
-                                  ? "Budget"
-                                  : inlineEditField === "budgetType"
-                                  ? "Budget Type"
-                                  : "Status"}
-                                :
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[12.16px] text-[#556179]">
-                                  {inlineEditOldValue}
-                                </span>
-                                <span className="text-[12.16px] text-[#556179]">
-                                  →
-                                </span>
-                                <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  {inlineEditNewValue}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end gap-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowInlineEditModal(false);
-                              setInlineEditCampaign(null);
-                              setInlineEditField(null);
-                              setInlineEditOldValue("");
-                              setInlineEditNewValue("");
-                            }}
-                            className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={runInlineEdit}
-                            disabled={inlineEditLoading}
-                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {inlineEditLoading ? "Updating..." : "Confirm"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                {/* Table */}
-                <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
-                  <div className="overflow-x-auto w-full">
-                    {loading ? (
-                      <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                        Loading campaigns...
-                      </div>
-                    ) : campaigns.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-[13.3px] text-[#556179] mb-4">
-                          No campaigns found
-                        </p>
-                      </div>
-                    ) : (
-                      <table className="min-w-[1200px] w-full">
-                        <thead>
-                          <tr className="border-b border-[#e8e8e3]">
-                            {/* Checkbox Header */}
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
-                              <div className="flex items-center justify-center">
-                                <Checkbox
-                                  checked={
-                                    selectedCampaigns.size ===
-                                      campaigns.length && campaigns.length > 0
-                                  }
-                                  indeterminate={
-                                    selectedCampaigns.size > 0 &&
-                                    selectedCampaigns.size < campaigns.length
-                                  }
-                                  onChange={(checked) => {
-                                    if (checked) {
-                                      setSelectedCampaigns(
-                                        new Set(
-                                          campaigns.map((c) => c.campaignId)
-                                        )
-                                      );
-                                    } else {
-                                      setSelectedCampaigns(new Set());
-                                    }
-                                  }}
-                                  size="small"
-                                />
-                              </div>
-                            </th>
-
-                            {/* Campaign Name Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px]"
-                              onClick={() => handleSort("campaign_name")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Campaign Name
-                                {getSortIcon("campaign_name")}
-                              </div>
-                            </th>
-
-                            {/* Profile Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
-                              onClick={() => handleSort("profile_name")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Profile
-                                {getSortIcon("profile_name")}
-                              </div>
-                            </th>
-
-                            {/* Campaign Type Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("type")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Type
-                                {getSortIcon("type")}
-                              </div>
-                            </th>
-
-                            {/* State Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("status")}
-                            >
-                              <div className="flex items-center gap-1">
-                                State
-                                {getSortIcon("status")}
-                              </div>
-                            </th>
-
-                            {/* Budget Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("budget")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Budget
-                                {getSortIcon("budget")}
-                              </div>
-                            </th>
-
-                            {/* Budget Type Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("budgetType")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Budget Type
-                                {getSortIcon("budgetType")}
-                              </div>
-                            </th>
-
-                            {/* Start Date Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 whitespace-nowrap"
-                              onClick={() => handleSort("startDate")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Start Date
-                                {getSortIcon("startDate")}
-                              </div>
-                            </th>
-
-                            {/* Date Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 whitespace-nowrap"
-                              onClick={() => handleSort("report_date")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Date
-                                {getSortIcon("report_date")}
-                              </div>
-                            </th>
-
-                            {/* Spends Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("spends")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Spends
-                                {getSortIcon("spends")}
-                              </div>
-                            </th>
-
-                            {/* Sales Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("sales")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Sales
-                                {getSortIcon("sales")}
-                              </div>
-                            </th>
-
-                            {/* Impressions Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("impressions")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Impressions
-                                {getSortIcon("impressions")}
-                              </div>
-                            </th>
-
-                            {/* Clicks Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("clicks")}
-                            >
-                              <div className="flex items-center gap-1">
-                                Clicks
-                                {getSortIcon("clicks")}
-                              </div>
-                            </th>
-
-                            {/* ACOS Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("acos")}
-                            >
-                              <div className="flex items-center gap-1">
-                                ACOS
-                                {getSortIcon("acos")}
-                              </div>
-                            </th>
-
-                            {/* ROAS Header */}
-                            <th
-                              className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
-                              onClick={() => handleSort("roas")}
-                            >
-                              <div className="flex items-center gap-1">
-                                ROAS
-                                {getSortIcon("roas")}
-                              </div>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {/* Summary Row */}
-                          {summary && (
-                            <tr className="bg-[#f5f5f0] font-semibold">
-                              <td className="py-[10px] px-[10px]"></td>
-                              <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                Total ({summary.total_campaigns})
-                              </td>
-                              <td className="py-[10px] px-[10px]"></td>
-                              <td className="py-[10px] px-[10px]"></td>
-                              <td className="py-[10px] px-[10px]"></td>
-                              <td className="py-[10px] px-[10px]"></td>
-                              <td className="py-[10px] px-[10px]"></td>
-                              <td className="py-[10px] px-[10px]"></td>
-                              <td className="py-[10px] px-[10px]"></td>
-                              <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                {formatCurrency(summary.total_spends)}
-                              </td>
-                              <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                {formatCurrency(summary.total_sales)}
-                              </td>
-                              <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                {summary.total_impressions.toLocaleString()}
-                              </td>
-                              <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                {summary.total_clicks.toLocaleString()}
-                              </td>
-                              <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                {summary.avg_acos.toFixed(2)}%
-                              </td>
-                              <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                {summary.avg_roas.toFixed(2)}x
-                              </td>
-                            </tr>
-                          )}
-                          {campaigns.map((campaign, index) => {
-                            const isLastRow = index === campaigns.length - 1;
-                            return (
-                              <tr
-                                key={campaign.campaignId}
-                                className={`group ${
-                                  !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                                } hover:bg-gray-50 transition-colors`}
-                              >
-                                {/* Checkbox */}
-                                <td className="py-[10px] px-[10px]">
-                                  <div className="flex items-center justify-center">
-                                    <Checkbox
-                                      checked={selectedCampaigns.has(
-                                        campaign.campaignId
-                                      )}
-                                      onChange={(checked) => {
-                                        if (checked) {
-                                          setSelectedCampaigns((prev) => {
-                                            const newSet = new Set(prev);
-                                            newSet.add(campaign.campaignId);
-                                            return newSet;
-                                          });
-                                        } else {
-                                          setSelectedCampaigns((prev) => {
-                                            const newSet = new Set(prev);
-                                            newSet.delete(campaign.campaignId);
-                                            return newSet;
-                                          });
-                                        }
-                                      }}
-                                      size="small"
-                                    />
-                                  </div>
-                                </td>
-
-                                {/* Campaign Name (with edit icon) */}
-                                <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenEditCampaign(campaign);
-                                      }}
-                                      className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60"
-                                      title="Edit campaign"
-                                      disabled={
-                                        editLoadingCampaignId ===
-                                        campaign.campaignId
-                                      }
-                                    >
-                                      {editLoadingCampaignId ===
-                                      campaign.campaignId ? (
-                                        // Small spinner while campaign details load
-                                        <svg
-                                          className="w-4 h-4 text-[#136D6D] animate-spin"
-                                          viewBox="0 0 24 24"
-                                          fill="none"
-                                          stroke="currentColor"
-                                        >
-                                          <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            strokeWidth="4"
-                                          />
-                                          <path
-                                            className="opacity-75"
-                                            d="M4 12a8 8 0 018-8"
-                                            strokeWidth="4"
-                                            strokeLinecap="round"
-                                          />
-                                        </svg>
-                                      ) : (
-                                        <svg
-                                          className="w-4 h-4 text-[#556179]"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                          />
-                                        </svg>
-                                      )}
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        if (accountId) {
-                                          navigate(
-                                            buildMarketplaceRoute(
-                                              parseInt(accountId),
-                                              "amazon",
-                                              "campaigns",
-                                              `${campaign.type.toLowerCase()}_${
-                                                campaign.campaignId
-                                              }`
-                                            )
-                                          );
-                                        }
-                                      }}
-                                      className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
-                                    >
-                                      {campaign.campaign_name ||
-                                        "Unnamed Campaign"}
-                                    </button>
-                                  </div>
-                                </td>
-
-                                {/* Profile */}
-                                <td className="py-[10px] px-[10px] min-w-[200px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                    {campaign.profile_name &&
-                                    campaign.profile_name.trim() !== ""
-                                      ? campaign.profile_name
-                                      : "—"}
-                                  </span>
-                                </td>
-
-                                {/* Type */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
-                                    {campaign.type || "SP"}
-                                  </span>
-                                </td>
-
-                                {/* Status */}
-                                <td className="py-[10px] px-[10px]">
-                                  {editingCell?.campaignId ===
-                                    campaign.campaignId &&
-                                  editingCell?.field === "status" ? (
-                                    <Dropdown
-                                      options={[
-                                        { value: "Enabled", label: "Enabled" },
-                                        { value: "Paused", label: "Paused" },
-                                        // Note: "Archived" is not included as it's read-only and cannot be set via API
-                                      ]}
-                                      value={editedValue}
-                                      onChange={(val) => {
-                                        const newValue = val as string;
-                                        handleInlineEditChange(newValue);
-                                        setTimeout(() => {
-                                          confirmInlineEdit(newValue);
-                                        }, 100);
-                                      }}
-                                      defaultOpen={true}
-                                      closeOnSelect={true}
-                                      buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                      width="w-full"
-                                      align="center"
-                                    />
-                                  ) : (
-                                    <div
-                                      onClick={() => {
-                                        // Prevent editing if campaign is archived
-                                        const currentStatus = (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase();
-                                        if (currentStatus === "ARCHIVED") {
-                                          return; // Archived campaigns are read-only
-                                        }
-                                        startInlineEdit(campaign, "status");
-                                      }}
-                                      className={`${
-                                        (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase() === "ARCHIVED"
-                                          ? "cursor-not-allowed opacity-60"
-                                          : "cursor-pointer hover:bg-gray-50"
-                                      } rounded px-2 py-1`}
-                                      title={
-                                        (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase() === "ARCHIVED"
-                                          ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                          : undefined
-                                      }
-                                    >
-                                      <StatusBadge
-                                        status={campaign.status || "Enabled"}
-                                      />
-                                    </div>
-                                  )}
-                                </td>
-
-                                {/* Daily Budget */}
-                                <td className="py-[10px] px-[10px]">
-                                  {editingCell?.campaignId ===
-                                    campaign.campaignId &&
-                                  editingCell?.field === "budget" ? (
-                                    <div className="flex items-center justify-center">
-                                      <input
-                                        type="number"
-                                        value={editedValue}
-                                        onChange={(e) =>
-                                          handleInlineEditChange(e.target.value)
-                                        }
-                                        onBlur={(e) => {
-                                          const inputValue = e.target.value;
-                                          confirmInlineEdit(inputValue);
-                                        }}
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter") {
-                                            e.currentTarget.blur();
-                                          } else if (e.key === "Escape") {
-                                            cancelInlineEdit();
-                                          }
-                                        }}
-                                        autoFocus
-                                        className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <p
-                                      onClick={() => {
-                                        // Prevent editing if campaign is archived
-                                        const currentStatus = (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase();
-                                        if (currentStatus === "ARCHIVED") {
-                                          return; // Archived campaigns are read-only
-                                        }
-                                        startInlineEdit(campaign, "budget");
-                                      }}
-                                      className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
-                                        (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase() === "ARCHIVED"
-                                          ? "cursor-not-allowed opacity-60"
-                                          : "cursor-pointer hover:bg-gray-50"
-                                      }`}
-                                      title={
-                                        (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase() === "ARCHIVED"
-                                          ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                          : undefined
-                                      }
-                                    >
-                                      {formatCurrency(
-                                        campaign.daily_budget || 0
-                                      )}
-                                    </p>
-                                  )}
-                                </td>
-
-                                {/* Budget Type */}
-                                <td className="py-[10px] px-[10px]">
-                                  {editingCell?.campaignId ===
-                                    campaign.campaignId &&
-                                  editingCell?.field === "budgetType" ? (
-                                    <Dropdown
-                                      options={[
-                                        { value: "DAILY", label: "DAILY" },
-                                        {
-                                          value: "LIFETIME",
-                                          label: "LIFETIME",
-                                        },
-                                      ]}
-                                      value={editedValue}
-                                      onChange={(val) => {
-                                        const newValue = val as string;
-                                        handleInlineEditChange(newValue);
-                                        setTimeout(() => {
-                                          confirmInlineEdit(newValue);
-                                        }, 100);
-                                      }}
-                                      defaultOpen={true}
-                                      closeOnSelect={true}
-                                      buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                      width="w-full"
-                                      align="center"
-                                    />
-                                  ) : (
-                                    <p
-                                      onClick={() => {
-                                        // Prevent editing if campaign is archived
-                                        const currentStatus = (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase();
-                                        if (currentStatus === "ARCHIVED") {
-                                          return; // Archived campaigns are read-only
-                                        }
-                                        startInlineEdit(campaign, "budgetType");
-                                      }}
-                                      className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
-                                        (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase() === "ARCHIVED"
-                                          ? "cursor-not-allowed opacity-60"
-                                          : "cursor-pointer hover:bg-gray-50"
-                                      }`}
-                                      title={
-                                        (
-                                          campaign.status || "Enabled"
-                                        ).toUpperCase() === "ARCHIVED"
-                                          ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                          : undefined
-                                      }
-                                    >
-                                      {campaign.budgetType || "—"}
-                                    </p>
-                                  )}
-                                </td>
-
-                                {/* Start Date */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                    {campaign.startDate
-                                      ? new Date(
-                                          campaign.startDate
-                                        ).toLocaleDateString("en-US", {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                        })
-                                      : "—"}
-                                  </span>
-                                </td>
-
-                                {/* Date */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                    {campaign.report_date
-                                      ? new Date(
-                                          campaign.report_date
-                                        ).toLocaleDateString("en-US", {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                        })
-                                      : "—"}
-                                  </span>
-                                </td>
-
-                                {/* Spends */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                    {formatCurrency(campaign.spends || 0)}
-                                  </span>
-                                </td>
-
-                                {/* Sales */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                    {formatCurrency(campaign.sales || 0)}
-                                  </span>
-                                </td>
-
-                                {/* Impressions */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                    {(
-                                      campaign.impressions || 0
-                                    ).toLocaleString()}
-                                  </span>
-                                </td>
-
-                                {/* Clicks */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                    {(campaign.clicks || 0).toLocaleString()}
-                                  </span>
-                                </td>
-
-                                {/* ACOS */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                    {formatPercentage(campaign.acos || 0)}
-                                  </span>
-                                </td>
-
-                                {/* ROAS */}
-                                <td className="py-[10px] px-[10px]">
-                                  <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                    {campaign.roas
-                                      ? `${campaign.roas.toFixed(2)} x`
-                                      : "0.00 x"}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-
-                {/* Pagination */}
-                {!loading && campaigns.length > 0 && (
-                  <div className="flex items-center justify-end mt-4">
-                    <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
-                      <button
-                        onClick={() =>
-                          handlePageChange(Math.max(1, currentPage - 1))
-                        }
-                        disabled={currentPage === 1}
-                        className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                      >
-                        Previous
-                      </button>
-                      {Array.from(
-                        { length: Math.min(5, totalPages) },
-                        (_, i) => {
-                          let pageNum;
-                          if (totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
-                          } else {
-                            pageNum = currentPage - 2 + i;
-                          }
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => handlePageChange(pageNum)}
-                              className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                currentPage === pageNum
-                                  ? "bg-white text-[#136D6D] font-semibold"
-                                  : "text-black hover:bg-gray-50"
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        }
-                      )}
-                      {totalPages > 5 && currentPage < totalPages - 2 && (
-                        <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
-                          ...
-                        </span>
-                      )}
-                      {totalPages > 5 && (
-                        <button
-                          onClick={() => handlePageChange(totalPages)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                            currentPage === totalPages
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
-                          }`}
-                        >
-                          {totalPages}
-                        </button>
-                      )}
-                      <button
-                        onClick={() =>
-                          handlePageChange(
-                            Math.min(totalPages, currentPage + 1)
-                          )
-                        }
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                      >
-                        Next
-                      </button>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
+              <div
+                className="relative inline-flex justify-end"
+                ref={exportDropdownRef}
+              >
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={(e) => {
+                      if (exportLoading) return;
+                      e.stopPropagation();
+                      setShowExportDropdown((prev) => !prev);
+                      setShowBulkActions(false);
+                      setShowBudgetPanel(false);
+                    }}
+                    disabled={exportLoading}
+                  >
+                    {exportLoading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                      </div>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5 text-[#072929]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">
+                          Export
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {(showExportDropdown || exportLoading) && (
+                  <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    {exportLoading ? (
+                      <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                        <p className="text-[13px] text-[#072929] font-medium">
+                          Exporting...
+                        </p>
+                        <p className="text-[11px] text-[#556179] text-center px-2">
+                          Please wait while we prepare your file
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-y-auto">
+                        {[
+                          { value: "bulk_export", label: "Export All" },
+                          {
+                            value: "current_view",
+                            label: "Export Current View",
+                          },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              const exportType =
+                                opt.value === "bulk_export"
+                                  ? "all_data"
+                                  : "current_view";
+                              // Keep dropdown open during export
+                              await handleExport(exportType);
+                            }}
+                            disabled={exportLoading}
+                          >
+                            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <rect
+                                  width="20"
+                                  height="20"
+                                  rx="3.2"
+                                  fill="#072929"
+                                />
+                                <path
+                                  d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                  stroke="#F9F9F6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <span className="font-normal">{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Campaigns Table Card with overlay when panel is open */}
+            <div className="relative">
+              {/* Budget editor panel */}
+              {selectedCampaigns.size > 0 && showBudgetPanel && (
+                <div className="mb-4">
+                  <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
+                    <div className="flex flex-wrap items-end gap-3 justify-between">
+                      <div className="w-[160px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Action
+                        </label>
+                        <Dropdown
+                          options={[
+                            { value: "increase", label: "Increase By" },
+                            { value: "decrease", label: "Decrease By" },
+                            { value: "set", label: "Set To" },
+                          ]}
+                          value={budgetAction}
+                          onChange={(val) => {
+                            const action = val as typeof budgetAction;
+                            setBudgetAction(action);
+                            // When "Set To" is selected, automatically use $ (amount)
+                            if (action === "set") {
+                              setBudgetUnit("amount");
+                            }
+                          }}
+                          buttonClassName="w-full bg-[#FEFEFB]"
+                          width="w-full"
+                        />
+                      </div>
+                      {(budgetAction === "increase" ||
+                        budgetAction === "decrease") && (
+                        <div className="w-[140px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Unit
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                budgetUnit === "percent"
+                                  ? "bg-forest-f40  border-forest-f40"
+                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                              }`}
+                              onClick={() => setBudgetUnit("percent")}
+                            >
+                              %
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                budgetUnit === "amount"
+                                  ? "bg-forest-f40  border-forest-f40"
+                                  : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                              }`}
+                              onClick={() => setBudgetUnit("amount")}
+                            >
+                              $
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <div className="w-[160px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Value
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={budgetValue}
+                            onChange={(e) => setBudgetValue(e.target.value)}
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                            {budgetUnit === "percent" ? "%" : "$"}
+                          </span>
+                        </div>
+                      </div>
+                      {budgetAction === "increase" && (
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Upper Limit (optional)
+                          </label>
+                          <input
+                            type="number"
+                            value={upperLimit}
+                            onChange={(e) => setUpperLimit(e.target.value)}
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          />
+                        </div>
+                      )}
+                      {budgetAction === "decrease" && (
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Lower Limit (optional)
+                          </label>
+                          <input
+                            type="number"
+                            value={lowerLimit}
+                            onChange={(e) => setLowerLimit(e.target.value)}
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowBudgetPanel(false);
+                            setShowBulkActions(false);
+                          }}
+                          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!budgetValue) return;
+                            setIsBudgetChange(true);
+                            setPendingStatusAction(null);
+                            setShowConfirmationModal(true);
+                          }}
+                          disabled={bulkLoading || !budgetValue}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmation Modal */}
+              {showConfirmationModal && (
+                <div
+                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      setShowConfirmationModal(false);
+                    }
+                  }}
+                >
+                  <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                      {isBudgetChange
+                        ? "Confirm Budget Changes"
+                        : "Confirm Status Changes"}
+                    </h3>
+
+                    {/* Summary */}
+                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {selectedCampaigns.size} campaign
+                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                          updated:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {isBudgetChange ? "Budget" : "Status"} change
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Campaign Preview Table */}
+                    {(() => {
+                      const selectedCampaignsData = getSelectedCampaignsData();
+                      const previewCount = Math.min(
+                        10,
+                        selectedCampaignsData.length
+                      );
+                      const hasMore = selectedCampaignsData.length > 10;
+
+                      return (
+                        <div className="mb-6">
+                          <div className="mb-2">
+                            <span className="text-[10.64px] text-[#556179]">
+                              {hasMore
+                                ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
+                                : `${selectedCampaignsData.length} campaign${
+                                    selectedCampaignsData.length !== 1
+                                      ? "s"
+                                      : ""
+                                  } selected`}
+                            </span>
+                          </div>
+                          <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <table className="w-full">
+                              <thead className="bg-sandstorm-s20">
+                                <tr>
+                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                    Campaign Name
+                                  </th>
+                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                    Old Value
+                                  </th>
+                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                    New Value
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedCampaignsData
+                                  .slice(0, 10)
+                                  .map((campaign) => {
+                                    const oldBudget =
+                                      campaign.daily_budget || 0;
+                                    const oldStatus =
+                                      campaign.status || "Enabled";
+                                    const newBudget = isBudgetChange
+                                      ? calculateNewBudget(oldBudget)
+                                      : oldBudget;
+                                    const newStatus = pendingStatusAction
+                                      ? pendingStatusAction
+                                          .charAt(0)
+                                          .toUpperCase() +
+                                        pendingStatusAction.slice(1)
+                                      : oldStatus;
+
+                                    return (
+                                      <tr
+                                        key={campaign.campaignId}
+                                        className="border-b border-gray-200 last:border-b-0"
+                                      >
+                                        <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                          {campaign.campaign_name ||
+                                            "Unnamed Campaign"}
+                                        </td>
+                                        <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                          {isBudgetChange
+                                            ? `$${oldBudget.toFixed(2)}`
+                                            : oldStatus}
+                                        </td>
+                                        <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                          {isBudgetChange
+                                            ? `$${newBudget.toFixed(2)}`
+                                            : newStatus}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="space-y-3 mb-6">
+                      {isBudgetChange ? (
+                        <>
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Action:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {budgetAction === "increase"
+                                ? "Increase By"
+                                : budgetAction === "decrease"
+                                ? "Decrease By"
+                                : "Set To"}
+                            </span>
+                          </div>
+
+                          {(budgetAction === "increase" ||
+                            budgetAction === "decrease") && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Unit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {budgetUnit === "percent"
+                                  ? "Percentage (%)"
+                                  : "Amount ($)"}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Value:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {budgetValue}{" "}
+                              {budgetUnit === "percent" ? "%" : "$"}
+                            </span>
+                          </div>
+
+                          {budgetAction === "increase" && upperLimit && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Upper Limit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                ${upperLimit}
+                              </span>
+                            </div>
+                          )}
+
+                          {budgetAction === "decrease" && lowerLimit && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Lower Limit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                ${lowerLimit}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            New Status:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {pendingStatusAction
+                              ? pendingStatusAction.charAt(0).toUpperCase() +
+                                pendingStatusAction.slice(1)
+                              : ""}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowConfirmationModal(false);
+                          setPendingStatusAction(null);
+                        }}
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setShowConfirmationModal(false);
+                          if (isBudgetChange) {
+                            await runBulkBudget();
+                            setShowBudgetPanel(false);
+                            setShowBulkActions(false);
+                          } else if (pendingStatusAction) {
+                            await runBulkStatus(pendingStatusAction);
+                            setShowBulkActions(false);
+                          }
+                          setPendingStatusAction(null);
+                        }}
+                        disabled={bulkLoading}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {bulkLoading ? "Applying..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete Confirmation Modal */}
+              {showDeleteModal && (
+                <div
+                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !bulkLoading) {
+                      setShowDeleteModal(false);
+                    }
+                  }}
+                >
+                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                      Delete Campaigns?
+                    </h3>
+
+                    <p className="text-[12.16px] text-[#556179] mb-4">
+                      You are about to permanently delete{" "}
+                      {selectedCampaigns.size} selected campaign
+                      {selectedCampaigns.size !== 1 ? "s" : ""}. This will stop
+                      all ad serving immediately and cannot be undone. Deleted
+                      campaigns can still be viewed in reports but not edited or
+                      re-enabled.
+                    </p>
+
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!bulkLoading) {
+                            setShowDeleteModal(false);
+                          }
+                        }}
+                        disabled={bulkLoading}
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={runBulkDelete}
+                        disabled={bulkLoading}
+                        className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {bulkLoading ? "Deleting..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Inline Edit Confirmation Modal */}
+              {showInlineEditModal && inlineEditCampaign && inlineEditField && (
+                <div
+                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      setShowInlineEditModal(false);
+                    }
+                  }}
+                >
+                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                      Confirm{" "}
+                      {inlineEditField === "budget"
+                        ? "Budget"
+                        : inlineEditField === "budgetType"
+                        ? "Budget Type"
+                        : "Status"}{" "}
+                      Change
+                    </h3>
+
+                    <div className="mb-4">
+                      <p className="text-[12.16px] text-[#556179] mb-2">
+                        Campaign:{" "}
+                        <span className="font-semibold text-[#072929]">
+                          {inlineEditCampaign.campaign_name ||
+                            "Unnamed Campaign"}
+                        </span>
+                      </p>
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {inlineEditField === "budget"
+                              ? "Budget"
+                              : inlineEditField === "budgetType"
+                              ? "Budget Type"
+                              : "Status"}
+                            :
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[12.16px] text-[#556179]">
+                              {inlineEditOldValue}
+                            </span>
+                            <span className="text-[12.16px] text-[#556179]">
+                              →
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {inlineEditNewValue}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowInlineEditModal(false);
+                          setInlineEditCampaign(null);
+                          setInlineEditField(null);
+                          setInlineEditOldValue("");
+                          setInlineEditNewValue("");
+                        }}
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={runInlineEdit}
+                        disabled={inlineEditLoading}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {inlineEditLoading ? "Updating..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Table */}
+              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+                <div className="overflow-x-auto w-full">
+                  {loading ? (
+                    <div className="text-center py-8 text-[#556179] text-[13.3px]">
+                      Loading campaigns...
+                    </div>
+                  ) : campaigns.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-[13.3px] text-[#556179] mb-4">
+                        No campaigns found
+                      </p>
+                    </div>
+                  ) : (
+                    <table className="min-w-[1200px] w-full">
+                      <thead>
+                        <tr className="border-b border-[#e8e8e3]">
+                          {/* Checkbox Header */}
+                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                            <div className="flex items-center justify-center">
+                              <Checkbox
+                                checked={
+                                  selectedCampaigns.size === campaigns.length &&
+                                  campaigns.length > 0
+                                }
+                                indeterminate={
+                                  selectedCampaigns.size > 0 &&
+                                  selectedCampaigns.size < campaigns.length
+                                }
+                                onChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedCampaigns(
+                                      new Set(
+                                        campaigns.map((c) => c.campaignId)
+                                      )
+                                    );
+                                  } else {
+                                    setSelectedCampaigns(new Set());
+                                    setShowBudgetPanel(false);
+                                  }
+                                }}
+                                size="small"
+                              />
+                            </div>
+                          </th>
+
+                          {/* Campaign Name Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px]"
+                            onClick={() => handleSort("campaign_name")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Campaign Name
+                              {getSortIcon("campaign_name")}
+                            </div>
+                          </th>
+
+                          {/* Profile Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
+                            onClick={() => handleSort("profile_name")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Profile
+                              {getSortIcon("profile_name")}
+                            </div>
+                          </th>
+
+                          {/* Campaign Type Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("type")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Type
+                              {getSortIcon("type")}
+                            </div>
+                          </th>
+
+                          {/* State Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[115px]"
+                            onClick={() => handleSort("status")}
+                          >
+                            <div className="flex items-center gap-1">
+                              State
+                              {getSortIcon("status")}
+                            </div>
+                          </th>
+
+                          {/* Budget Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("budget")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Budget
+                              {getSortIcon("budget")}
+                            </div>
+                          </th>
+
+                          {/* Budget Type Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("budgetType")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Budget Type
+                              {getSortIcon("budgetType")}
+                            </div>
+                          </th>
+
+                          {/* Start Date Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 whitespace-nowrap"
+                            onClick={() => handleSort("startDate")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Start Date
+                              {getSortIcon("startDate")}
+                            </div>
+                          </th>
+
+                          {/* Date Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 whitespace-nowrap"
+                            onClick={() => handleSort("report_date")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Date
+                              {getSortIcon("report_date")}
+                            </div>
+                          </th>
+
+                          {/* Spends Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("spends")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Spends
+                              {getSortIcon("spends")}
+                            </div>
+                          </th>
+
+                          {/* Sales Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("sales")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Sales
+                              {getSortIcon("sales")}
+                            </div>
+                          </th>
+
+                          {/* Impressions Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("impressions")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Impressions
+                              {getSortIcon("impressions")}
+                            </div>
+                          </th>
+
+                          {/* Clicks Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("clicks")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Clicks
+                              {getSortIcon("clicks")}
+                            </div>
+                          </th>
+
+                          {/* ACOS Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("acos")}
+                          >
+                            <div className="flex items-center gap-1">
+                              ACOS
+                              {getSortIcon("acos")}
+                            </div>
+                          </th>
+
+                          {/* ROAS Header */}
+                          <th
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            onClick={() => handleSort("roas")}
+                          >
+                            <div className="flex items-center gap-1">
+                              ROAS
+                              {getSortIcon("roas")}
+                            </div>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Summary Row */}
+                        {summary && (
+                          <tr className="bg-[#f5f5f0] font-semibold">
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              Total ({summary.total_campaigns})
+                            </td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {formatCurrency(summary.total_spends)}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {formatCurrency(summary.total_sales)}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {summary.total_impressions.toLocaleString()}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {summary.total_clicks.toLocaleString()}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {summary.avg_acos.toFixed(2)}%
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {summary.avg_roas.toFixed(2)}x
+                            </td>
+                          </tr>
+                        )}
+                        {campaigns.map((campaign, index) => {
+                          const isLastRow = index === campaigns.length - 1;
+                          return (
+                            <tr
+                              key={campaign.campaignId}
+                              className={`group ${
+                                !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                              } hover:bg-gray-100 transition-colors`}
+                            >
+                              {/* Checkbox */}
+                              <td className="py-[10px] px-[10px]">
+                                <div className="flex items-center justify-center">
+                                  <Checkbox
+                                    checked={selectedCampaigns.has(
+                                      campaign.campaignId
+                                    )}
+                                    onChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedCampaigns((prev) => {
+                                          const newSet = new Set(prev);
+                                          newSet.add(campaign.campaignId);
+                                          return newSet;
+                                        });
+                                      } else {
+                                        setSelectedCampaigns((prev) => {
+                                          const newSet = new Set(prev);
+                                          newSet.delete(campaign.campaignId);
+                                          // Close budget panel when no campaigns are selected
+                                          if (newSet.size === 0) {
+                                            setShowBudgetPanel(false);
+                                          }
+                                          return newSet;
+                                        });
+                                      }
+                                    }}
+                                    size="small"
+                                  />
+                                </div>
+                              </td>
+
+                              {/* Campaign Name (with edit icon) */}
+                              <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditCampaign(campaign);
+                                    }}
+                                    className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60"
+                                    title="Edit campaign"
+                                    disabled={
+                                      editLoadingCampaignId ===
+                                      campaign.campaignId
+                                    }
+                                  >
+                                    {editLoadingCampaignId ===
+                                    campaign.campaignId ? (
+                                      // Small spinner while campaign details load
+                                      <svg
+                                        className="w-4 h-4 text-[#136D6D] animate-spin"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                      >
+                                        <circle
+                                          className="opacity-25"
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          strokeWidth="4"
+                                        />
+                                        <path
+                                          className="opacity-75"
+                                          d="M4 12a8 8 0 018-8"
+                                          strokeWidth="4"
+                                          strokeLinecap="round"
+                                        />
+                                      </svg>
+                                    ) : (
+                                      <svg
+                                        className="w-4 h-4 text-[#556179]"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                      </svg>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (accountId) {
+                                        navigate(
+                                          buildMarketplaceRoute(
+                                            parseInt(accountId),
+                                            "amazon",
+                                            "campaigns",
+                                            `${campaign.type.toLowerCase()}_${
+                                              campaign.campaignId
+                                            }`
+                                          )
+                                        );
+                                      }
+                                    }}
+                                    className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
+                                  >
+                                    {campaign.campaign_name ||
+                                      "Unnamed Campaign"}
+                                  </button>
+                                </div>
+                              </td>
+
+                              {/* Profile */}
+                              <td className="py-[10px] px-[10px] min-w-[200px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                  {campaign.profile_name &&
+                                  campaign.profile_name.trim() !== ""
+                                    ? campaign.profile_name
+                                    : "—"}
+                                </span>
+                              </td>
+
+                              {/* Type */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {campaign.type || "SP"}
+                                </span>
+                              </td>
+
+                              {/* Status */}
+                              <td className="py-[10px] px-[10px] min-w-[115px]">
+                                {editingCell?.campaignId ===
+                                  campaign.campaignId &&
+                                editingCell?.field === "status" ? (
+                                  <Dropdown
+                                    options={[
+                                      { value: "Enabled", label: "Enabled" },
+                                      { value: "Paused", label: "Paused" },
+                                      // Note: "Archived" is not included as it's read-only and cannot be set via API
+                                    ]}
+                                    value={
+                                      editedValue ||
+                                      (() => {
+                                        const statusLower = (
+                                          campaign.status || "Enabled"
+                                        ).toLowerCase();
+                                        return statusLower === "enable" ||
+                                          statusLower === "enabled"
+                                          ? "Enabled"
+                                          : statusLower === "paused"
+                                          ? "Paused"
+                                          : "Enabled";
+                                      })()
+                                    }
+                                    onChange={(val) => {
+                                      const newValue = val as string;
+                                      handleInlineEditChange(newValue);
+                                      setTimeout(() => {
+                                        confirmInlineEdit(newValue);
+                                      }, 100);
+                                    }}
+                                    onClose={() => {
+                                      cancelInlineEdit();
+                                    }}
+                                    defaultOpen={true}
+                                    closeOnSelect={true}
+                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                    width="w-full"
+                                    align="center"
+                                  />
+                                ) : (
+                                  <div
+                                    onClick={() => {
+                                      // Prevent editing if campaign is archived
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      if (currentStatus === "ARCHIVED") {
+                                        return; // Archived campaigns are read-only
+                                      }
+                                      startInlineEdit(campaign, "status");
+                                    }}
+                                    className={`${
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer hover:bg-gray-50"
+                                    } rounded px-2 py-1`}
+                                    title={
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                        : undefined
+                                    }
+                                  >
+                                    <StatusBadge
+                                      status={campaign.status || "Enabled"}
+                                    />
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Daily Budget */}
+                              <td className="py-[10px] px-[10px]">
+                                {editingCell?.campaignId ===
+                                  campaign.campaignId &&
+                                editingCell?.field === "budget" ? (
+                                  <div className="flex items-center justify-center">
+                                    <input
+                                      type="number"
+                                      value={editedValue}
+                                      onChange={(e) =>
+                                        handleInlineEditChange(e.target.value)
+                                      }
+                                      onBlur={(e) => {
+                                        const inputValue = e.target.value;
+                                        confirmInlineEdit(inputValue);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.currentTarget.blur();
+                                        } else if (e.key === "Escape") {
+                                          cancelInlineEdit();
+                                        }
+                                      }}
+                                      autoFocus
+                                      className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                    />
+                                  </div>
+                                ) : (
+                                  <p
+                                    onClick={() => {
+                                      // Prevent editing if campaign is archived
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      if (currentStatus === "ARCHIVED") {
+                                        return; // Archived campaigns are read-only
+                                      }
+                                      startInlineEdit(campaign, "budget");
+                                    }}
+                                    className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer hover:bg-gray-50"
+                                    }`}
+                                    title={
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                        : undefined
+                                    }
+                                  >
+                                    {formatCurrency(campaign.daily_budget || 0)}
+                                  </p>
+                                )}
+                              </td>
+
+                              {/* Budget Type */}
+                              <td className="py-[10px] px-[10px]">
+                                {editingCell?.campaignId ===
+                                  campaign.campaignId &&
+                                editingCell?.field === "budgetType" ? (
+                                  <Dropdown
+                                    options={[
+                                      { value: "DAILY", label: "DAILY" },
+                                      {
+                                        value: "LIFETIME",
+                                        label: "LIFETIME",
+                                      },
+                                    ]}
+                                    value={editedValue}
+                                    onChange={(val) => {
+                                      const newValue = val as string;
+                                      handleInlineEditChange(newValue);
+                                      setTimeout(() => {
+                                        confirmInlineEdit(newValue);
+                                      }, 100);
+                                    }}
+                                    onClose={() => {
+                                      cancelInlineEdit();
+                                    }}
+                                    defaultOpen={true}
+                                    closeOnSelect={true}
+                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                    width="w-full"
+                                    align="center"
+                                  />
+                                ) : (
+                                  <p
+                                    onClick={() => {
+                                      // Prevent editing if campaign is archived
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      if (currentStatus === "ARCHIVED") {
+                                        return; // Archived campaigns are read-only
+                                      }
+                                      startInlineEdit(campaign, "budgetType");
+                                    }}
+                                    className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "cursor-not-allowed opacity-60"
+                                        : "cursor-pointer hover:bg-gray-50"
+                                    }`}
+                                    title={
+                                      (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase() === "ARCHIVED"
+                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                        : undefined
+                                    }
+                                  >
+                                    {campaign.budgetType || "—"}
+                                  </p>
+                                )}
+                              </td>
+
+                              {/* Start Date */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                  {campaign.startDate
+                                    ? new Date(
+                                        campaign.startDate
+                                      ).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })
+                                    : "—"}
+                                </span>
+                              </td>
+
+                              {/* Date */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                  {campaign.report_date
+                                    ? new Date(
+                                        campaign.report_date
+                                      ).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })
+                                    : "—"}
+                                </span>
+                              </td>
+
+                              {/* Spends */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {formatCurrency(campaign.spends || 0)}
+                                </span>
+                              </td>
+
+                              {/* Sales */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {formatCurrency(campaign.sales || 0)}
+                                </span>
+                              </td>
+
+                              {/* Impressions */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {(campaign.impressions || 0).toLocaleString()}
+                                </span>
+                              </td>
+
+                              {/* Clicks */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {(campaign.clicks || 0).toLocaleString()}
+                                </span>
+                              </td>
+
+                              {/* ACOS */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {formatPercentage(campaign.acos || 0)}
+                                </span>
+                              </td>
+
+                              {/* ROAS */}
+                              <td className="py-[10px] px-[10px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                  {campaign.roas
+                                    ? `${campaign.roas.toFixed(2)} x`
+                                    : "0.00 x"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {!loading && campaigns.length > 0 && (
+                <div className="flex items-center justify-end mt-4">
+                  <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
+                    <button
+                      onClick={() =>
+                        handlePageChange(Math.max(1, currentPage - 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                            currentPage === pageNum
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                        ...
+                      </span>
+                    )}
+                    {totalPages > 5 && (
+                      <button
+                        onClick={() => handlePageChange(totalPages)}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                          currentPage === totalPages
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        {totalPages}
+                      </button>
+                    )}
+                    <button
+                      onClick={() =>
+                        handlePageChange(Math.min(totalPages, currentPage + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-20 rounded-[12px] cursor-not-allowed" />
               )}

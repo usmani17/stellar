@@ -3,7 +3,10 @@ import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
-import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import {
+  FilterPanel,
+  type FilterValues,
+} from "../../../../components/filters/FilterPanel";
 import type { GoogleAd } from "./types";
 
 interface GoogleCampaignDetailAdsTabProps {
@@ -27,11 +30,17 @@ interface GoogleCampaignDetailAdsTabProps {
   syncingAnalytics?: boolean;
   onSyncAnalytics?: () => void;
   syncMessage: string | null;
-  getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
+  getSortIcon: (
+    column: string,
+    currentSortBy: string,
+    currentSortOrder: "asc" | "desc"
+  ) => React.ReactNode;
   onUpdateAdStatus?: (adId: number, status: string) => Promise<void>;
 }
 
-export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProps> = ({
+export const GoogleCampaignDetailAdsTab: React.FC<
+  GoogleCampaignDetailAdsTabProps
+> = ({
   ads,
   loading,
   selectedAdIds,
@@ -115,14 +124,18 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
       {syncMessage && (
         <div className="mb-4">
           <Banner
-            type={syncMessage.includes("error") || syncMessage.includes("Failed") ? "error" : "success"}
+            type={
+              syncMessage.includes("error") || syncMessage.includes("Failed")
+                ? "error"
+                : "success"
+            }
             message={syncMessage}
             dismissable={true}
             onDismiss={() => {}}
           />
         </div>
       )}
-      
+
       {/* Header with Filter Button and Sync Button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
@@ -131,7 +144,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleFilterPanel}
-            className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -226,9 +239,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
             </div>
           ) : ads.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-[13.3px] text-[#556179] mb-4">
-                No ads found
-              </p>
+              <p className="text-[13.3px] text-[#556179] mb-4">No ads found</p>
             </div>
           ) : (
             <table className="min-w-[1000px] w-full">
@@ -237,7 +248,10 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
-                        checked={ads.length > 0 && ads.every((ad) => selectedAdIds.has(ad.id))}
+                        checked={
+                          ads.length > 0 &&
+                          ads.every((ad) => selectedAdIds.has(ad.id))
+                        }
                         onChange={onSelectAll}
                         size="small"
                       />
@@ -359,7 +373,9 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                               { value: "REMOVED", label: "Removed" },
                             ]}
                             value={editingStatus}
-                            onChange={(val) => handleStatusChange(ad.id, val as string)}
+                            onChange={(val) =>
+                              handleStatusChange(ad.id, val as string)
+                            }
                             defaultOpen={true}
                             closeOnSelect={true}
                             buttonClassName="text-[13.3px] px-2 py-1"
@@ -367,8 +383,14 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                           />
                         ) : (
                           <div
-                            className={onUpdateAdStatus ? "cursor-pointer hover:underline" : ""}
-                            onClick={() => onUpdateAdStatus && handleStatusClick(ad)}
+                            className={
+                              onUpdateAdStatus
+                                ? "cursor-pointer hover:underline"
+                                : ""
+                            }
+                            onClick={() =>
+                              onUpdateAdStatus && handleStatusClick(ad)
+                            }
                           >
                             {ad.status && <StatusBadge status={ad.status} />}
                           </div>
@@ -376,8 +398,12 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                       </td>
                       <td className="py-[10px] px-[10px]">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {ad.headlines && Array.isArray(ad.headlines) && ad.headlines.length > 0
-                            ? ad.headlines.map((h: any) => h.text || h).join(", ")
+                          {ad.headlines &&
+                          Array.isArray(ad.headlines) &&
+                          ad.headlines.length > 0
+                            ? ad.headlines
+                                .map((h: any) => h.text || h)
+                                .join(", ")
                             : "—"}
                         </span>
                       </td>
@@ -451,7 +477,9 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
               </button>
             )}
             <button
-              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                onPageChange(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
               className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
             >
@@ -463,4 +491,3 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     </>
   );
 };
-

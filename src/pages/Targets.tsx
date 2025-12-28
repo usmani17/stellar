@@ -553,7 +553,17 @@ export const Targets: React.FC = () => {
       );
       setEditedValue(bidValue.toString());
     } else if (field === "status") {
-      setEditedValue(target.status || "Enabled");
+      // Normalize status to match dropdown options
+      const statusLower = (target.status || "Enabled").toLowerCase();
+      const normalizedStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "Enabled"
+          : statusLower === "paused"
+          ? "Paused"
+          : statusLower === "archived"
+          ? "Archived"
+          : "Enabled";
+      setEditedValue(normalizedStatus);
     }
   };
 
@@ -1000,942 +1010,955 @@ export const Targets: React.FC = () => {
             />
 
             {/* Targets Table Card */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
-              {/* Table Header */}
-              <div className="flex items-center justify-end gap-2">
-                <div
-                  className="relative inline-flex justify-end"
-                  ref={dropdownRef}
+            {/* Table Header */}
+            <div className="flex items-center justify-end gap-2">
+              <div
+                className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowBulkActions((prev) => !prev);
+                    setShowBidPanel(false);
+                    setShowExportDropdown(false);
+                  }}
                 >
+                  <svg
+                    className="w-5 h-5 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                  <span className="text-[10.64px] text-[#072929] font-normal">
+                    Edit
+                  </span>
+                </Button>
+                {showBulkActions && (
+                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="overflow-y-auto">
+                      {[
+                        { value: "enable", label: "Enabled" },
+                        { value: "pause", label: "Paused" },
+                        { value: "archive", label: "Archived" },
+                        { value: "edit_bid", label: "Edit Bid" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          disabled={selectedTargets.size === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedTargets.size === 0) return;
+                            if (opt.value === "edit_bid") {
+                              setShowBidPanel(true);
+                            } else {
+                              setShowBidPanel(false);
+                              setPendingStatusAction(
+                                opt.value as "enable" | "pause" | "archive"
+                              );
+                              setIsBidChange(false);
+                              setShowConfirmationModal(true);
+                            }
+                            setShowBulkActions(false);
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div
+                className="relative inline-flex justify-end"
+                ref={exportDropdownRef}
+              >
+                <div className="relative">
                   <Button
                     type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                    variant="ghost"
+                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={(e) => {
+                      if (exportLoading) return;
                       e.stopPropagation();
-                      setShowBulkActions((prev) => !prev);
+                      setShowExportDropdown((prev) => !prev);
+                      setShowBulkActions(false);
                       setShowBidPanel(false);
-                      setShowExportDropdown(false);
                     }}
+                    disabled={exportLoading}
                   >
-                    <svg
-                      className="w-4 h-4 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
-                    </span>
+                    {exportLoading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                      </div>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5 text-[#072929]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">
+                          Export
+                        </span>
+                      </>
+                    )}
                   </Button>
-                  {showBulkActions && (
-                    <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                </div>
+                {(showExportDropdown || exportLoading) && (
+                  <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    {exportLoading ? (
+                      <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                        <p className="text-[13px] text-[#072929] font-medium">
+                          Exporting...
+                        </p>
+                        <p className="text-[11px] text-[#556179] text-center px-2">
+                          Please wait while we prepare your file
+                        </p>
+                      </div>
+                    ) : (
                       <div className="overflow-y-auto">
                         {[
-                          { value: "enable", label: "Enabled" },
-                          { value: "pause", label: "Paused" },
-                          { value: "archive", label: "Archived" },
-                          { value: "edit_bid", label: "Edit Bid" },
+                          { value: "bulk_export", label: "Export All" },
+                          {
+                            value: "current_view",
+                            label: "Export Current View",
+                          },
                         ].map((opt) => (
                           <button
                             key={opt.value}
                             type="button"
-                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            disabled={selectedTargets.size === 0}
-                            onClick={(e) => {
+                            className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              if (selectedTargets.size === 0) return;
-                              if (opt.value === "edit_bid") {
-                                setShowBidPanel(true);
-                              } else {
-                                setShowBidPanel(false);
-                                setPendingStatusAction(
-                                  opt.value as "enable" | "pause" | "archive"
-                                );
-                                setIsBidChange(false);
-                                setShowConfirmationModal(true);
-                              }
-                              setShowBulkActions(false);
+                              e.preventDefault();
+                              const exportType =
+                                opt.value === "bulk_export"
+                                  ? "all_data"
+                                  : "current_view";
+                              // Keep dropdown open during export
+                              await handleExport(exportType);
                             }}
+                            disabled={exportLoading}
                           >
-                            {opt.label}
+                            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <rect
+                                  width="20"
+                                  height="20"
+                                  rx="3.2"
+                                  fill="#072929"
+                                />
+                                <path
+                                  d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                  stroke="#F9F9F6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <span className="font-normal">{opt.label}</span>
                           </button>
                         ))}
                       </div>
-                    </div>
-                  )}
-                </div>
-                <div
-                  className="relative inline-flex justify-end"
-                  ref={exportDropdownRef}
-                >
-                  <div className="relative">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={(e) => {
-                        if (exportLoading) return;
-                        e.stopPropagation();
-                        setShowExportDropdown((prev) => !prev);
-                        setShowBulkActions(false);
-                        setShowBidPanel(false);
-                      }}
-                      disabled={exportLoading}
-                    >
-                      {exportLoading ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                        </div>
-                      ) : (
-                        <>
-                          <svg
-                            className="w-4 h-4 text-[#072929]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                          <span className="text-[10.64px] text-[#072929] font-normal">
-                            Export
-                          </span>
-                        </>
-                      )}
-                    </Button>
+                    )}
                   </div>
-                  {(showExportDropdown || exportLoading) && (
-                    <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                      {exportLoading ? (
-                        <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
-                          <p className="text-[13px] text-[#072929] font-medium">
-                            Exporting...
-                          </p>
-                          <p className="text-[11px] text-[#556179] text-center px-2">
-                            Please wait while we prepare your file
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="overflow-y-auto">
-                          {[
-                            { value: "bulk_export", label: "Export All" },
-                            {
-                              value: "current_view",
-                              label: "Export Current View",
-                            },
-                          ].map((opt) => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                const exportType =
-                                  opt.value === "bulk_export"
-                                    ? "all_data"
-                                    : "current_view";
-                                // Keep dropdown open during export
-                                await handleExport(exportType);
-                              }}
-                              disabled={exportLoading}
-                            >
-                              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                                <svg
-                                  width="20"
-                                  height="20"
-                                  viewBox="0 0 20 20"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                >
-                                  <rect
-                                    width="20"
-                                    height="20"
-                                    rx="3.2"
-                                    fill="#072929"
-                                  />
-                                  <path
-                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
-                                    stroke="#F9F9F6"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              </div>
-                              <span className="font-normal">{opt.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
+            </div>
 
-              {/* Bid editor panel */}
-              {selectedTargets.size > 0 && showBidPanel && (
-                <div className="px-6 mb-4">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="flex flex-wrap items-end gap-3 justify-between">
+            {/* Bid editor panel */}
+            {selectedTargets.size > 0 && showBidPanel && (
+              <div className="mb-4">
+                <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
+                  <div className="flex flex-wrap items-end gap-3 justify-between">
+                    <div className="w-[160px]">
+                      <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                        Action
+                      </label>
+                      <Dropdown
+                        options={[
+                          { value: "increase", label: "Increase By" },
+                          { value: "decrease", label: "Decrease By" },
+                          { value: "set", label: "Set To" },
+                        ]}
+                        value={bidAction}
+                        onChange={(val) => {
+                          const action = val as typeof bidAction;
+                          setBidAction(action);
+                          // When "Set To" is selected, automatically use $ (amount)
+                          if (action === "set") {
+                            setBidUnit("amount");
+                          }
+                        }}
+                        buttonClassName="w-full bg-[#FEFEFB]"
+                        width="w-full"
+                      />
+                    </div>
+                    {(bidAction === "increase" || bidAction === "decrease") && (
+                      <div className="w-[140px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Unit
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                              bidUnit === "percent"
+                                ? "bg-forest-f40  border-forest-f40"
+                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-100"
+                            }`}
+                            onClick={() => setBidUnit("percent")}
+                          >
+                            %
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                              bidUnit === "amount"
+                                ? "bg-forest-f40  border-forest-f40"
+                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-100"
+                            }`}
+                            onClick={() => setBidUnit("amount")}
+                          >
+                            $
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="w-[160px]">
+                      <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                        Value
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={bidValue}
+                          onChange={(e) => setBidValue(e.target.value)}
+                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                          {bidUnit === "percent" ? "%" : "$"}
+                        </span>
+                      </div>
+                    </div>
+                    {bidAction === "increase" && (
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Action
+                          Upper Limit (optional)
                         </label>
-                        <Dropdown
-                          options={[
-                            { value: "increase", label: "Increase By" },
-                            { value: "decrease", label: "Decrease By" },
-                            { value: "set", label: "Set To" },
-                          ]}
-                          value={bidAction}
-                          onChange={(val) => {
-                            const action = val as typeof bidAction;
-                            setBidAction(action);
-                            // When "Set To" is selected, automatically use $ (amount)
-                            if (action === "set") {
-                              setBidUnit("amount");
-                            }
-                          }}
-                          buttonClassName="w-full"
-                          width="w-full"
+                        <input
+                          type="number"
+                          value={upperLimit}
+                          onChange={(e) => setUpperLimit(e.target.value)}
+                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                         />
                       </div>
-                      {(bidAction === "increase" ||
-                        bidAction === "decrease") && (
-                        <div className="w-[140px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Unit
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                bidUnit === "percent"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBidUnit("percent")}
-                            >
-                              %
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                bidUnit === "amount"
-                                  ? "bg-forest-f40  border-forest-f40"
-                                  : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBidUnit("amount")}
-                            >
-                              $
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                    )}
+                    {bidAction === "decrease" && (
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Value
+                          Lower Limit (optional)
                         </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={bidValue}
-                            onChange={(e) => setBidValue(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
-                            {bidUnit === "percent" ? "%" : "$"}
-                          </span>
-                        </div>
+                        <input
+                          type="number"
+                          value={lowerLimit}
+                          onChange={(e) => setLowerLimit(e.target.value)}
+                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
                       </div>
-                      {bidAction === "increase" && (
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Upper Limit (optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={upperLimit}
-                            onChange={(e) => setUpperLimit(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                        </div>
-                      )}
-                      {bidAction === "decrease" && (
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Lower Limit (optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={lowerLimit}
-                            onChange={(e) => setLowerLimit(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 ml-auto">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowBidPanel(false);
-                            setShowBulkActions(false);
-                          }}
-                          className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!bidValue) return;
-                            setIsBidChange(true);
-                            setPendingStatusAction(null);
-                            setShowConfirmationModal(true);
-                          }}
-                          disabled={bulkLoading || !bidValue}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Confirmation Modal */}
-              {showConfirmationModal && (
-                <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowConfirmationModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBidChange
-                        ? "Confirm Bid Changes"
-                        : "Confirm Status Changes"}
-                    </h3>
-
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedTargets.size} target
-                          {selectedTargets.size !== 1 ? "s" : ""} will be
-                          updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBidChange ? "Bid" : "Status"} change
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Target Preview Table */}
-                    {(() => {
-                      const selectedTargetsData = getSelectedTargetsData();
-                      const previewCount = Math.min(
-                        10,
-                        selectedTargetsData.length
-                      );
-                      const hasMore = selectedTargetsData.length > 10;
-
-                      return (
-                        <div className="mb-6">
-                          <div className="mb-2">
-                            <span className="text-[10.64px] text-[#556179]">
-                              {hasMore
-                                ? `Showing ${previewCount} of ${selectedTargetsData.length} selected targets`
-                                : `${selectedTargetsData.length} target${
-                                    selectedTargetsData.length !== 1 ? "s" : ""
-                                  } selected`}
-                            </span>
-                          </div>
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <table className="w-full">
-                              <thead className="bg-sandstorm-s20">
-                                <tr>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Target Name
-                                  </th>
-                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                    Current {isBidChange ? "Bid" : "Status"}
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {selectedTargetsData
-                                  .slice(0, previewCount)
-                                  .map((target) => (
-                                    <tr
-                                      key={target.id}
-                                      className="border-b border-gray-200"
-                                    >
-                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                        {target.name || "Unnamed Target"}
-                                      </td>
-                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                        {isBidChange
-                                          ? target.bid || "$0.00"
-                                          : target.status || "Enabled"}
-                                      </td>
-                                    </tr>
-                                  ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Action Buttons */}
-                    <div className="flex justify-end gap-3">
+                    )}
+                    <div className="flex items-center gap-2 ml-auto">
                       <button
+                        type="button"
                         onClick={() => {
-                          setShowConfirmationModal(false);
-                          setPendingStatusAction(null);
-                          setIsBidChange(false);
+                          setShowBidPanel(false);
+                          setShowBulkActions(false);
                         }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
                       >
                         Cancel
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
-                          if (isBidChange) {
-                            runBulkBid();
-                          } else if (pendingStatusAction) {
-                            runBulkStatus(pendingStatusAction);
-                          }
+                          if (!bidValue) return;
+                          setIsBidChange(true);
+                          setPendingStatusAction(null);
+                          setShowConfirmationModal(true);
                         }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
+                        disabled={bulkLoading || !bidValue}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {bulkLoading ? "Updating..." : "Confirm"}
+                        Apply
                       </button>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Table */}
-              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
-                <div className="overflow-x-auto w-full">
-                  {loading ? (
-                    <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                      Loading targets...
-                    </div>
-                  ) : targets.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-[13.3px] text-[#556179] mb-4">
-                        No targets found
-                      </p>
-                    </div>
-                  ) : (
-                    <table className="min-w-[1200px] w-full">
-                      <thead>
-                        <tr className="border-b border-[#e8e8e3]">
-                          {/* Checkbox Header */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
-                            <div className="flex items-center justify-center">
-                              <Checkbox
-                                checked={allSelected}
-                                indeterminate={someSelected && !allSelected}
-                                onChange={handleSelectAll}
-                                size="small"
-                              />
-                            </div>
-                          </th>
-
-                          {/* Target Name */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[150px] max-w-[200px]`}
-                            onClick={() => handleSort("name")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Target Name
-                              {getSortIcon("name")}
-                            </div>
-                          </th>
-
-                          {/* State */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("status")}
-                          >
-                            <div className="flex items-center gap-1">
-                              State
-                              {getSortIcon("status")}
-                            </div>
-                          </th>
-
-                          {/* Bid */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("bid")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Bid
-                              {getSortIcon("bid")}
-                            </div>
-                          </th>
-
-                          {/* Ad Group Name */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[150px] max-w-[200px]`}
-                            onClick={() => handleSort("adgroup_name")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Ad Group Name
-                              {getSortIcon("adgroup_name")}
-                            </div>
-                          </th>
-
-                          {/* Campaign Name */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[150px] max-w-[200px]">
-                            Campaign Name
-                          </th>
-
-                          {/* Profile */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                            Profile
-                          </th>
-
-                          {/* Type */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("type")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Type
-                              {getSortIcon("type")}
-                            </div>
-                          </th>
-
-                          {/* Spends */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("spends")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Spends
-                              {getSortIcon("spends")}
-                            </div>
-                          </th>
-
-                          {/* Sales */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("sales")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Sales
-                              {getSortIcon("sales")}
-                            </div>
-                          </th>
-
-                          {/* Impressions */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("impressions")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Impressions
-                              {getSortIcon("impressions")}
-                            </div>
-                          </th>
-
-                          {/* Clicks */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("clicks")}
-                          >
-                            <div className="flex items-center gap-1">
-                              Clicks
-                              {getSortIcon("clicks")}
-                            </div>
-                          </th>
-
-                          {/* CTR */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("ctr")}
-                          >
-                            <div className="flex items-center gap-1">
-                              CTR
-                              {getSortIcon("ctr")}
-                            </div>
-                          </th>
-
-                          {/* ACOS */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("acos")}
-                          >
-                            <div className="flex items-center gap-1">
-                              ACOS
-                              {getSortIcon("acos")}
-                            </div>
-                          </th>
-
-                          {/* ROAS */}
-                          <th
-                            className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
-                            onClick={() => handleSort("roas")}
-                          >
-                            <div className="flex items-center gap-1">
-                              ROAS
-                              {getSortIcon("roas")}
-                            </div>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Summary Row */}
-                        {summary && (
-                          <tr className="bg-[#f5f5f0] font-semibold">
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              Total ({summary.total_targets})
-                            </td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {formatCurrency(summary.total_spends)}
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {formatCurrency(summary.total_sales)}
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {summary.total_impressions.toLocaleString()}
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {summary.total_clicks.toLocaleString()}
-                            </td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {summary.avg_acos.toFixed(2)}%
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {summary.avg_roas.toFixed(2)}x
-                            </td>
-                          </tr>
-                        )}
-                        {targets.map((target, index) => {
-                          const isLastRow = index === targets.length - 1;
-                          return (
-                            <tr
-                              key={target.id}
-                              className={`${
-                                !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                              } hover:bg-gray-50 transition-colors`}
-                            >
-                              {/* Checkbox */}
-                              <td className="py-[10px] px-[10px]">
-                                <div className="flex items-center justify-center">
-                                  <Checkbox
-                                    checked={selectedTargets.has(target.id)}
-                                    onChange={(checked) => {
-                                      if (checked) {
-                                        setSelectedTargets((prev) => {
-                                          const newSet = new Set(prev);
-                                          newSet.add(target.id);
-                                          return newSet;
-                                        });
-                                      } else {
-                                        setSelectedTargets((prev) => {
-                                          const newSet = new Set(prev);
-                                          newSet.delete(target.id);
-                                          return newSet;
-                                        });
-                                      }
-                                    }}
-                                    size="small"
-                                  />
-                                </div>
-                              </td>
-
-                              {/* Target Name */}
-                              <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
-                                  {target.name || "Unnamed Target"}
-                                </span>
-                              </td>
-
-                              {/* State */}
-                              <td className="py-[10px] px-[10px]">
-                                {editingCell?.targetId === target.targetId &&
-                                editingCell?.field === "status" ? (
-                                  <Dropdown
-                                    options={[
-                                      { value: "Enabled", label: "Enabled" },
-                                      { value: "Paused", label: "Paused" },
-                                      { value: "Archived", label: "Archived" },
-                                    ]}
-                                    value={editedValue}
-                                    onChange={(val) => {
-                                      const newValue = val as string;
-                                      handleInlineEditChange(newValue);
-                                      setTimeout(() => {
-                                        confirmInlineEdit(newValue);
-                                      }, 100);
-                                    }}
-                                    defaultOpen={true}
-                                    closeOnSelect={true}
-                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                    width="w-full"
-                                    align="center"
-                                  />
-                                ) : (
-                                  <div
-                                    onClick={() =>
-                                      startInlineEdit(target, "status")
-                                    }
-                                    className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  >
-                                    <StatusBadge
-                                      status={target.status || "Enabled"}
-                                    />
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* Bid */}
-                              <td className="py-[10px] px-[10px]">
-                                {editingCell?.targetId ===
-                                  (target.targetId || target.id) &&
-                                editingCell?.field === "bid" ? (
-                                  <div className="flex items-center justify-center">
-                                    <input
-                                      type="number"
-                                      value={editedValue}
-                                      onChange={(e) =>
-                                        handleInlineEditChange(e.target.value)
-                                      }
-                                      onBlur={(e) => {
-                                        const inputValue = e.target.value;
-                                        confirmInlineEdit(inputValue);
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          e.currentTarget.blur();
-                                        } else if (e.key === "Escape") {
-                                          cancelInlineEdit();
-                                        }
-                                      }}
-                                      autoFocus
-                                      className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                                    />
-                                  </div>
-                                ) : (
-                                  <p
-                                    onClick={() =>
-                                      startInlineEdit(target, "bid")
-                                    }
-                                    className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  >
-                                    {target.bid || "$0.00"}
-                                  </p>
-                                )}
-                              </td>
-
-                              {/* Ad Group Name */}
-                              <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
-                                  {target.adgroup_name || "—"}
-                                </span>
-                              </td>
-
-                              {/* Campaign Name */}
-                              <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                                <button
-                                  onClick={() => {
-                                    if (accountId && target.campaignId) {
-                                      navigate(
-                                        buildMarketplaceRoute(
-                                          parseInt(accountId),
-                                          "amazon",
-                                          "campaigns",
-                                          `${
-                                            target.type?.toLowerCase() || "sp"
-                                          }_${target.campaignId}`
-                                        )
-                                      );
-                                    }
-                                  }}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
-                                >
-                                  {target.campaign_name || "—"}
-                                </button>
-                              </td>
-
-                              {/* Profile */}
-                              <td className="py-[10px] px-[10px] min-w-[150px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                  {target.profile_name &&
-                                  target.profile_name.trim() !== ""
-                                    ? target.profile_name
-                                    : "—"}
-                                </span>
-                              </td>
-
-                              {/* Type */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
-                                  {target.type || "SP"}
-                                </span>
-                              </td>
-
-                              {/* Spends */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {target.spends || "$0.00"}
-                                </span>
-                              </td>
-
-                              {/* Sales */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {target.sales || "$0.00"}
-                                </span>
-                              </td>
-
-                              {/* Impressions */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {(target.impressions || 0).toLocaleString()}
-                                </span>
-                              </td>
-
-                              {/* Clicks */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {(target.clicks || 0).toLocaleString()}
-                                </span>
-                              </td>
-
-                              {/* CTR */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {target.ctr || "0.00%"}
-                                </span>
-                              </td>
-
-                              {/* ACOS */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {target.acos
-                                    ? `${parseFloat(target.acos).toFixed(2)}%`
-                                    : "0.00%"}
-                                </span>
-                              </td>
-
-                              {/* ROAS */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                  {target.roas
-                                    ? `${parseFloat(target.roas).toFixed(2)} x`
-                                    : "0.00 x"}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
                 </div>
               </div>
+            )}
 
-              {/* Pagination */}
-              {!loading && targets.length > 0 && (
-                <div className="flex items-center justify-end mt-4">
-                  <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
-                    <button
-                      onClick={() =>
-                        handlePageChange(Math.max(1, currentPage - 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                    >
-                      Previous
-                    </button>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                            currentPage === pageNum
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                    {totalPages > 5 && currentPage < totalPages - 2 && (
-                      <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
-                        ...
+            {/* Confirmation Modal */}
+            {showConfirmationModal && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setShowConfirmationModal(false);
+                  }
+                }}
+              >
+                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                  <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                    {isBidChange
+                      ? "Confirm Bid Changes"
+                      : "Confirm Status Changes"}
+                  </h3>
+
+                  {/* Summary */}
+                  <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {selectedTargets.size} target
+                        {selectedTargets.size !== 1 ? "s" : ""} will be updated:
                       </span>
-                    )}
-                    {totalPages > 5 && (
-                      <button
-                        onClick={() => handlePageChange(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                          currentPage === totalPages
-                            ? "bg-white text-[#136D6D] font-semibold"
-                            : "text-black hover:bg-gray-50"
-                        }`}
-                      >
-                        {totalPages}
-                      </button>
-                    )}
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {isBidChange ? "Bid" : "Status"} change
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Target Preview Table */}
+                  {(() => {
+                    const selectedTargetsData = getSelectedTargetsData();
+                    const previewCount = Math.min(
+                      10,
+                      selectedTargetsData.length
+                    );
+                    const hasMore = selectedTargetsData.length > 10;
+
+                    return (
+                      <div className="mb-6">
+                        <div className="mb-2">
+                          <span className="text-[10.64px] text-[#556179]">
+                            {hasMore
+                              ? `Showing ${previewCount} of ${selectedTargetsData.length} selected targets`
+                              : `${selectedTargetsData.length} target${
+                                  selectedTargetsData.length !== 1 ? "s" : ""
+                                } selected`}
+                          </span>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                          <table className="w-full">
+                            <thead className="bg-sandstorm-s20">
+                              <tr>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                  Target Name
+                                </th>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                  Current {isBidChange ? "Bid" : "Status"}
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedTargetsData
+                                .slice(0, previewCount)
+                                .map((target) => (
+                                  <tr
+                                    key={target.id}
+                                    className="border-b border-gray-200"
+                                  >
+                                    <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                      {target.name || "Unnamed Target"}
+                                    </td>
+                                    <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                      {isBidChange
+                                        ? target.bid || "$0.00"
+                                        : target.status || "Enabled"}
+                                    </td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-3">
                     <button
-                      onClick={() =>
-                        handlePageChange(Math.min(totalPages, currentPage + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        setShowConfirmationModal(false);
+                        setPendingStatusAction(null);
+                        setIsBidChange(false);
+                      }}
+                      disabled={bulkLoading}
+                      className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                     >
-                      Next
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (isBidChange) {
+                          runBulkBid();
+                        } else if (pendingStatusAction) {
+                          runBulkStatus(pendingStatusAction);
+                        }
+                      }}
+                      disabled={bulkLoading}
+                      className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
+                    >
+                      {bulkLoading ? "Updating..." : "Confirm"}
                     </button>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* Table */}
+            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+              <div className="overflow-x-auto w-full">
+                {loading ? (
+                  <div className="text-center py-8 text-[#556179] text-[13.3px]">
+                    Loading targets...
+                  </div>
+                ) : targets.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-[13.3px] text-[#556179] mb-4">
+                      No targets found
+                    </p>
+                  </div>
+                ) : (
+                  <table className="min-w-[1200px] w-full">
+                    <thead>
+                      <tr className="border-b border-[#e8e8e3]">
+                        {/* Checkbox Header */}
+                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                          <div className="flex items-center justify-center">
+                            <Checkbox
+                              checked={allSelected}
+                              indeterminate={someSelected && !allSelected}
+                              onChange={handleSelectAll}
+                              size="small"
+                            />
+                          </div>
+                        </th>
+
+                        {/* Target Name */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100 min-w-[150px] max-w-[200px]`}
+                          onClick={() => handleSort("name")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Target Name
+                            {getSortIcon("name")}
+                          </div>
+                        </th>
+
+                        {/* State */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100 min-w-[115px]`}
+                          onClick={() => handleSort("status")}
+                        >
+                          <div className="flex items-center gap-1">
+                            State
+                            {getSortIcon("status")}
+                          </div>
+                        </th>
+
+                        {/* Bid */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("bid")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Bid
+                            {getSortIcon("bid")}
+                          </div>
+                        </th>
+
+                        {/* Ad Group Name */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100 min-w-[150px] max-w-[200px]`}
+                          onClick={() => handleSort("adgroup_name")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Ad Group Name
+                            {getSortIcon("adgroup_name")}
+                          </div>
+                        </th>
+
+                        {/* Campaign Name */}
+                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[150px] max-w-[200px]">
+                          Campaign Name
+                        </th>
+
+                        {/* Profile */}
+                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                          Profile
+                        </th>
+
+                        {/* Type */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("type")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Type
+                            {getSortIcon("type")}
+                          </div>
+                        </th>
+
+                        {/* Spends */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("spends")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Spends
+                            {getSortIcon("spends")}
+                          </div>
+                        </th>
+
+                        {/* Sales */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("sales")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Sales
+                            {getSortIcon("sales")}
+                          </div>
+                        </th>
+
+                        {/* Impressions */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("impressions")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Impressions
+                            {getSortIcon("impressions")}
+                          </div>
+                        </th>
+
+                        {/* Clicks */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("clicks")}
+                        >
+                          <div className="flex items-center gap-1">
+                            Clicks
+                            {getSortIcon("clicks")}
+                          </div>
+                        </th>
+
+                        {/* CTR */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("ctr")}
+                        >
+                          <div className="flex items-center gap-1">
+                            CTR
+                            {getSortIcon("ctr")}
+                          </div>
+                        </th>
+
+                        {/* ACOS */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("acos")}
+                        >
+                          <div className="flex items-center gap-1">
+                            ACOS
+                            {getSortIcon("acos")}
+                          </div>
+                        </th>
+
+                        {/* ROAS */}
+                        <th
+                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
+                          onClick={() => handleSort("roas")}
+                        >
+                          <div className="flex items-center gap-1">
+                            ROAS
+                            {getSortIcon("roas")}
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Summary Row */}
+                      {summary && (
+                        <tr className="bg-[#f5f5f0] font-semibold">
+                          <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            Total ({summary.total_targets})
+                          </td>
+                          <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {formatCurrency(summary.total_spends)}
+                          </td>
+                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {formatCurrency(summary.total_sales)}
+                          </td>
+                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {summary.total_impressions.toLocaleString()}
+                          </td>
+                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {summary.total_clicks.toLocaleString()}
+                          </td>
+                          <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {summary.avg_acos.toFixed(2)}%
+                          </td>
+                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            {summary.avg_roas.toFixed(2)}x
+                          </td>
+                        </tr>
+                      )}
+                      {targets.map((target, index) => {
+                        const isLastRow = index === targets.length - 1;
+                        return (
+                          <tr
+                            key={target.id}
+                            className={`${
+                              !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                            } hover:bg-gray-100 transition-colors`}
+                          >
+                            {/* Checkbox */}
+                            <td className="py-[10px] px-[10px]">
+                              <div className="flex items-center justify-center">
+                                <Checkbox
+                                  checked={selectedTargets.has(target.id)}
+                                  onChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedTargets((prev) => {
+                                        const newSet = new Set(prev);
+                                        newSet.add(target.id);
+                                        return newSet;
+                                      });
+                                    } else {
+                                      setSelectedTargets((prev) => {
+                                        const newSet = new Set(prev);
+                                        newSet.delete(target.id);
+                                        return newSet;
+                                      });
+                                    }
+                                  }}
+                                  size="small"
+                                />
+                              </div>
+                            </td>
+
+                            {/* Target Name */}
+                            <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
+                                {target.name || "Unnamed Target"}
+                              </span>
+                            </td>
+
+                            {/* State */}
+                            <td className="py-[10px] px-[10px] min-w-[115px]">
+                              {editingCell?.targetId === target.targetId &&
+                              editingCell?.field === "status" ? (
+                                <Dropdown
+                                  options={[
+                                    { value: "Enabled", label: "Enabled" },
+                                    { value: "Paused", label: "Paused" },
+                                    { value: "Archived", label: "Archived" },
+                                  ]}
+                                  value={
+                                    editedValue ||
+                                    (() => {
+                                      const statusLower = (
+                                        target.status || "Enabled"
+                                      ).toLowerCase();
+                                      return statusLower === "enable" ||
+                                        statusLower === "enabled"
+                                        ? "Enabled"
+                                        : statusLower === "paused"
+                                        ? "Paused"
+                                        : statusLower === "archived"
+                                        ? "Archived"
+                                        : "Enabled";
+                                    })()
+                                  }
+                                  onChange={(val) => {
+                                    const newValue = val as string;
+                                    handleInlineEditChange(newValue);
+                                    setTimeout(() => {
+                                      confirmInlineEdit(newValue);
+                                    }, 100);
+                                  }}
+                                  onClose={() => {
+                                    cancelInlineEdit();
+                                  }}
+                                  defaultOpen={true}
+                                  closeOnSelect={true}
+                                  buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                  width="w-full"
+                                  align="center"
+                                />
+                              ) : (
+                                <div
+                                  onClick={() =>
+                                    startInlineEdit(target, "status")
+                                  }
+                                  className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
+                                >
+                                  <StatusBadge
+                                    status={target.status || "Enabled"}
+                                  />
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Bid */}
+                            <td className="py-[10px] px-[10px]">
+                              {editingCell?.targetId ===
+                                (target.targetId || target.id) &&
+                              editingCell?.field === "bid" ? (
+                                <div className="flex items-center justify-center">
+                                  <input
+                                    type="number"
+                                    value={editedValue}
+                                    onChange={(e) =>
+                                      handleInlineEditChange(e.target.value)
+                                    }
+                                    onBlur={(e) => {
+                                      const inputValue = e.target.value;
+                                      confirmInlineEdit(inputValue);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                      } else if (e.key === "Escape") {
+                                        cancelInlineEdit();
+                                      }
+                                    }}
+                                    autoFocus
+                                    className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                  />
+                                </div>
+                              ) : (
+                                <p
+                                  onClick={() => startInlineEdit(target, "bid")}
+                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
+                                >
+                                  {target.bid || "$0.00"}
+                                </p>
+                              )}
+                            </td>
+
+                            {/* Ad Group Name */}
+                            <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
+                                {target.adgroup_name || "—"}
+                              </span>
+                            </td>
+
+                            {/* Campaign Name */}
+                            <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
+                              <button
+                                onClick={() => {
+                                  if (accountId && target.campaignId) {
+                                    navigate(
+                                      buildMarketplaceRoute(
+                                        parseInt(accountId),
+                                        "amazon",
+                                        "campaigns",
+                                        `${
+                                          target.type?.toLowerCase() || "sp"
+                                        }_${target.campaignId}`
+                                      )
+                                    );
+                                  }
+                                }}
+                                className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
+                              >
+                                {target.campaign_name || "—"}
+                              </button>
+                            </td>
+
+                            {/* Profile */}
+                            <td className="py-[10px] px-[10px] min-w-[150px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                {target.profile_name &&
+                                target.profile_name.trim() !== ""
+                                  ? target.profile_name
+                                  : "—"}
+                              </span>
+                            </td>
+
+                            {/* Type */}
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
+                                {target.type || "SP"}
+                              </span>
+                            </td>
+
+                            {/* Spends */}
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {target.spends || "$0.00"}
+                              </span>
+                            </td>
+
+                            {/* Sales */}
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {target.sales || "$0.00"}
+                              </span>
+                            </td>
+
+                            {/* Impressions */}
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {(target.impressions || 0).toLocaleString()}
+                              </span>
+                            </td>
+
+                            {/* Clicks */}
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {(target.clicks || 0).toLocaleString()}
+                              </span>
+                            </td>
+
+                            {/* CTR */}
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {target.ctr || "0.00%"}
+                              </span>
+                            </td>
+
+                            {/* ACOS */}
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {target.acos
+                                  ? `${parseFloat(target.acos).toFixed(2)}%`
+                                  : "0.00%"}
+                              </span>
+                            </td>
+
+                            {/* ROAS */}
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {target.roas
+                                  ? `${parseFloat(target.roas).toFixed(2)} x`
+                                  : "0.00 x"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
+
+            {/* Pagination */}
+            {!loading && targets.length > 0 && (
+              <div className="flex items-center justify-end mt-4">
+                <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
+                  <button
+                    onClick={() =>
+                      handlePageChange(Math.max(1, currentPage - 1))
+                    }
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 cursor-pointer"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                          currentPage === pageNum
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-100"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                      ...
+                    </span>
+                  )}
+                  {totalPages > 5 && (
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                        currentPage === totalPages
+                          ? "bg-white text-[#136D6D] font-semibold"
+                          : "text-black hover:bg-gray-100"
+                      }`}
+                    >
+                      {totalPages}
+                    </button>
+                  )}
+                  <button
+                    onClick={() =>
+                      handlePageChange(Math.min(totalPages, currentPage + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1991,7 +2014,7 @@ export const Targets: React.FC = () => {
                   setInlineEditNewValue("");
                 }}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
               >
                 Cancel
               </button>

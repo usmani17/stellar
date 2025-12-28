@@ -293,11 +293,11 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
   } = datePickerProps;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden select-none shadow-lg min-w-[240px]">
+    <div className="bg-[#FEFEFB] rounded-lg border border-gray-200 overflow-hidden select-none shadow-lg min-w-[240px]">
       {/* Quick Date Range Options - Vertical List like Accounts Dropdown */}
       {/* Hide options when "Select Dates" is active */}
       {!isCustomSelection && (
-        <div className="py-1 bg-white">
+        <div className="py-1 bg-[#FEFEFB]">
           {[
             { value: "last7days", label: "Last 7 Days" },
             { value: "last14days", label: "Last 14 Days" },
@@ -316,7 +316,7 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
                 className={`w-full text-left px-2 py-1.5 text-[13.2px] transition-colors flex items-center justify-between ${
                   isSelected
                     ? "bg-gray-50 text-[#072929] font-medium"
-                    : "text-[#313850] bg-white hover:bg-gray-50"
+                    : "text-[#313850] bg-[#FEFEFB] hover:bg-gray-50"
                 }`}
               >
                 <span>{option.label}</span>
@@ -361,14 +361,14 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
 
       {/* Only show Apply/Cancel buttons for custom date selection */}
       {isCustomSelection && (
-        <div className="flex justify-between items-center px-4 py-3 border-t border-gray-200 bg-[#f9f9f6]">
+        <div className="flex justify-between items-center px-4 py-3 border-t border-gray-200 bg-[#FEFEFB]">
           <button
             type="button"
             onClick={() => {
               handleCancel();
               setIsCustomSelection(false);
             }}
-            className="bg-[#f9f9f6] border border-[#072929] h-[24px] px-2 py-1 rounded-[6px] flex items-center justify-center transition"
+            className="bg-[#FEFEFB] border border-[#072929] h-[24px] px-2 py-1 rounded-[6px] flex items-center justify-center transition"
           >
             <span className="text-[10px] font-semibold text-[#072929]">
               Cancel

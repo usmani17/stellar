@@ -39,14 +39,14 @@ export const AccountsHeader: React.FC = () => {
         <div className="relative" ref={profileDropdownRef}>
           <button
             onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-            className="w-8 h-8 rounded-full bg-background-field border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:bg-gray-50 transition-colors"
+            className="w-8 h-8 rounded-full bg-[#FEFEFB] border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:bg-gray-50 transition-colors"
           >
             {user?.first_name?.[0] || "U"}
           </button>
 
           {isProfileDropdownOpen && (
-            <div 
-              className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-[99999]"
+            <div
+              className="absolute top-full right-0 mt-2 w-48 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[99999]"
               style={{ zIndex: 99999 }}
             >
               <div className="p-2">
@@ -72,5 +72,3 @@ export const AccountsHeader: React.FC = () => {
     </div>
   );
 };
-
-

@@ -102,168 +102,168 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
             <table className="min-w-full">
               <thead className="sticky top-0 bg-[#fefefb] z-10">
                 <tr className="border-b border-[#e8e8e3]">
-                {/* Checkbox Header */}
-                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
-                  <div className="flex items-center justify-center">
-                    <Checkbox
-                      checked={allSelected}
-                      indeterminate={someSelected && !allSelected}
-                      onChange={handleSelectAll}
-                      size="small"
-                    />
-                  </div>
-                </th>
+                  {/* Checkbox Header */}
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        checked={allSelected}
+                        indeterminate={someSelected && !allSelected}
+                        onChange={handleSelectAll}
+                        size="small"
+                      />
+                    </div>
+                  </th>
 
-                {/* Keyword Header */}
-                <th
-                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                  onClick={() => onSort?.("name")}
-                >
-                  <div className="flex items-center gap-1">
-                    Keyword
-                    {getSortIcon("name")}
-                  </div>
-                </th>
-
-                {/* Ad Group Header */}
-                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                  Ad Group
-                </th>
-
-                {/* State Header */}
-                <th
-                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                  onClick={() => onSort?.("status")}
-                >
-                  <div className="flex items-center gap-1">
-                    State
-                    {getSortIcon("status")}
-                  </div>
-                </th>
-
-                {/* Bid Header */}
-                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                  Bid
-                </th>
-
-                {/* CTR Header */}
-                <th
-                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                  onClick={() => onSort?.("ctr")}
-                >
-                  <div className="flex items-center gap-1">
-                    CTR
-                    {getSortIcon("ctr")}
-                  </div>
-                </th>
-
-                {/* Spends Header */}
-                <th
-                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                  onClick={() => onSort?.("spends")}
-                >
-                  <div className="flex items-center gap-1">
-                    Spends
-                    {getSortIcon("spends")}
-                  </div>
-                </th>
-
-                {/* Sales Header */}
-                <th
-                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                  onClick={() => onSort?.("sales")}
-                >
-                  <div className="flex items-center gap-1">
-                    Sales
-                    {getSortIcon("sales")}
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {keywords.map((keyword, index) => {
-                const isLastRow = index === keywords.length - 1;
-                return (
-                  <tr
-                    key={keyword.id}
-                    className={`${
-                      !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                    } hover:bg-gray-50 transition-colors`}
+                  {/* Keyword Header */}
+                  <th
+                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                    onClick={() => onSort?.("name")}
                   >
-                    {/* Checkbox */}
-                    <td className="py-[10px] px-[10px]">
-                      <div className="flex items-center justify-center">
-                        <Checkbox
-                          checked={selectedIds.has(keyword.id)}
-                          onChange={(checked) =>
-                            handleSelect(keyword.id, checked)
-                          }
-                          size="small"
-                        />
-                      </div>
-                    </td>
+                    <div className="flex items-center gap-1">
+                      Keyword
+                      {getSortIcon("name")}
+                    </div>
+                  </th>
 
-                    {/* Keyword Name */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {keyword.name}
-                      </span>
-                    </td>
+                  {/* Ad Group Header */}
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    Ad Group
+                  </th>
 
-                    {/* Ad Group */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {keyword.adgroup_name || "—"}
-                      </span>
-                    </td>
+                  {/* State Header */}
+                  <th
+                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[115px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                    onClick={() => onSort?.("status")}
+                  >
+                    <div className="flex items-center gap-1">
+                      State
+                      {getSortIcon("status")}
+                    </div>
+                  </th>
 
-                    {/* State */}
-                    <td className="py-[10px] px-[10px]">
-                      <StatusBadge status={keyword.status} />
-                    </td>
+                  {/* Bid Header */}
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    Bid
+                  </th>
 
-                    {/* Bid */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {keyword.bid || "$0.00"}
-                      </span>
-                    </td>
+                  {/* CTR Header */}
+                  <th
+                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                    onClick={() => onSort?.("ctr")}
+                  >
+                    <div className="flex items-center gap-1">
+                      CTR
+                      {getSortIcon("ctr")}
+                    </div>
+                  </th>
 
-                    {/* CTR */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {keyword.ctr}
-                      </span>
-                    </td>
+                  {/* Spends Header */}
+                  <th
+                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                    onClick={() => onSort?.("spends")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Spends
+                      {getSortIcon("spends")}
+                    </div>
+                  </th>
 
-                    {/* Spends */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {keyword.spends}
-                      </span>
-                    </td>
+                  {/* Sales Header */}
+                  <th
+                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                    onClick={() => onSort?.("sales")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Sales
+                      {getSortIcon("sales")}
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {keywords.map((keyword, index) => {
+                  const isLastRow = index === keywords.length - 1;
+                  return (
+                    <tr
+                      key={keyword.id}
+                      className={`${
+                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                      } hover:bg-gray-50 transition-colors`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-[10px] px-[10px]">
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            checked={selectedIds.has(keyword.id)}
+                            onChange={(checked) =>
+                              handleSelect(keyword.id, checked)
+                            }
+                            size="small"
+                          />
+                        </div>
+                      </td>
 
-                    {/* Sales */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {keyword.sales}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      {/* Keyword Name */}
+                      <td className="py-[10px] px-[10px]">
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {keyword.name}
+                        </span>
+                      </td>
+
+                      {/* Ad Group */}
+                      <td className="py-[10px] px-[10px]">
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {keyword.adgroup_name || "—"}
+                        </span>
+                      </td>
+
+                      {/* State */}
+                      <td className="py-[10px] px-[10px] min-w-[115px]">
+                        <StatusBadge status={keyword.status} />
+                      </td>
+
+                      {/* Bid */}
+                      <td className="py-[10px] px-[10px]">
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {keyword.bid || "$0.00"}
+                        </span>
+                      </td>
+
+                      {/* CTR */}
+                      <td className="py-[10px] px-[10px]">
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {keyword.ctr}
+                        </span>
+                      </td>
+
+                      {/* Spends */}
+                      <td className="py-[10px] px-[10px]">
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {keyword.spends}
+                        </span>
+                      </td>
+
+                      {/* Sales */}
+                      <td className="py-[10px] px-[10px]">
+                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          {keyword.sales}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -23,7 +23,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
       {/* Add Filter Button */}
       <button
         onClick={onToggle}
-        className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
       >
         <svg
           className="w-5 h-5 text-[#072929]"

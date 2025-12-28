@@ -22,12 +22,14 @@
 ### 2. Updating Your Existing StatusBadge Component
 
 **Before (using hardcoded colors):**
+
 ```tsx
 bg-[rgba(30,199,122,0.1)]
 text-[#1ec77a]
 ```
 
 **After (using Token Studio colors):**
+
 ```tsx
 // Option 1: Using green scale
 bg-green-100 text-green-700
@@ -40,6 +42,7 @@ bg-[rgba(34,197,94,0.1)] text-green-600
 ```
 
 **Updated StatusBadge example:**
+
 ```tsx
 const statusMap = {
   Enable: {
@@ -89,13 +92,13 @@ const statusMap = {
 ```tsx
 // Standard input
 <input
-  className="border border-gray-300 rounded-lg px-4 py-2 
+  className="border border-gray-300 rounded-lg px-4 py-2
              focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
 />
 
 // Input with custom background
 <input
-  className="bg-background-field border border-sandstorm-s40 
+  className="bg-[#FEFEFB] border border-sandstorm-s40
              focus:border-forest-f40 focus:ring-2 focus:ring-forest-f0"
 />
 ```
@@ -222,6 +225,7 @@ All Token Studio colors follow this scale:
 ## Available Color Palettes
 
 ### Token Studio Colors (Standard)
+
 - `red-*`, `blue-*`, `green-*`, `yellow-*`, `orange-*`
 - `purple-*`, `pink-*`, `teal-*`, `cyan-*`, `sky-*`
 - `gray-*`, `slate-*`, `zinc-*`, `stone-*`, `neutral-*`
@@ -230,6 +234,7 @@ All Token Studio colors follow this scale:
 - `black`, `white`
 
 ### Custom Colors (Your Brand)
+
 - `sandstorm-*` (s0, s5, s10, s20, s30, s40, s50, s60, s70)
 - `forest-*` (f0, f10, f20, f30, f40, f50, f60)
 - `blue-*` (b0, b10, b10Alt, b20, b30, b100, b400)
@@ -241,6 +246,7 @@ All Token Studio colors follow this scale:
 - `purple-*` (p500)
 
 ### Semantic Colors
+
 - `text-primary`, `text-secondary`, `text-disabled`, `text-inverse`
 - `background-primary`, `background-secondary`, `background-tertiary`, `background-field`
 - `border-default`, `border-light`, `border-medium`
@@ -249,26 +255,28 @@ All Token Studio colors follow this scale:
 ## Real-World Component Examples
 
 ### Campaign Status Badge (for your Campaigns page)
+
 ```tsx
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'Enable':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'Paused':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'Archived':
-      return 'bg-gray-100 text-gray-800 border-gray-200';
+    case "Enable":
+      return "bg-green-100 text-green-800 border-green-200";
+    case "Paused":
+      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    case "Archived":
+      return "bg-gray-100 text-gray-800 border-gray-200";
     default:
-      return 'bg-gray-100 text-gray-800';
+      return "bg-gray-100 text-gray-800";
   }
 };
 
 <span className={`px-2 py-1 rounded text-xs border ${getStatusColor(status)}`}>
   {status}
-</span>
+</span>;
 ```
 
 ### Filter Chip (for your FilterPanel)
+
 ```tsx
 <span className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-sm">
   Filter: {filterName}
@@ -277,13 +285,18 @@ const getStatusColor = (status: string) => {
 ```
 
 ### KPI Card (for your dashboard)
+
 ```tsx
 <div className="bg-white border border-gray-200 rounded-lg p-4">
   <p className="text-gray-600 text-sm mb-1">{label}</p>
   <p className="text-gray-900 text-2xl font-semibold">{value}</p>
   {trend && (
-    <span className={`text-xs ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-      {trend === 'up' ? '↑' : '↓'} {percentage}%
+    <span
+      className={`text-xs ${
+        trend === "up" ? "text-green-600" : "text-red-600"
+      }`}
+    >
+      {trend === "up" ? "↑" : "↓"} {percentage}%
     </span>
   )}
 </div>
@@ -333,11 +346,11 @@ When updating existing components:
 4. Update both light and dark variants if you have dark mode
 
 Example migration:
+
 ```tsx
 // Before
-className="bg-[#136d6d]"
+className = "bg-[#136d6d]";
 
 // After
-className="bg-forest-f40" // or bg-green-600 if using Token Studio
+className = "bg-forest-f40"; // or bg-green-600 if using Token Studio
 ```
-

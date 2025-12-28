@@ -5,6 +5,7 @@ This guide shows how to use the Token Studio colors (from `global.json`) and exi
 ## Available Color Palettes
 
 ### Token Studio Colors (Standard Scales)
+
 - `red-50` through `red-950`
 - `blue-50` through `blue-950`
 - `green-50` through `green-950`
@@ -19,6 +20,7 @@ This guide shows how to use the Token Studio colors (from `global.json`) and exi
 - And many more...
 
 ### Custom Colors (Preserved)
+
 - `sandstorm-s0` through `sandstorm-s70`
 - `forest-f0` through `forest-f60`
 - `blue-b0`, `blue-b10`, `blue-b20`, etc.
@@ -145,7 +147,7 @@ This guide shows how to use the Token Studio colors (from `global.json`) and exi
 // Input with custom colors
 <input
   type="text"
-  className="bg-background-field border border-sandstorm-s40 focus:border-forest-f40 focus:ring-2 focus:ring-forest-f0 rounded-lg px-4 py-2"
+  className="bg-[#FEFEFB] border border-sandstorm-s40 focus:border-forest-f40 focus:ring-2 focus:ring-forest-f0 rounded-lg px-4 py-2"
   placeholder="Enter text"
 />
 ```
@@ -220,10 +222,7 @@ export const AlertCard: React.FC<{ type: 'success' | 'error' | 'warning' | 'info
 <table>
   <tbody>
     {items.map((item, index) => (
-      <tr
-        key={item.id}
-        className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-      >
+      <tr key={item.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
         <td className="text-gray-900">{item.name}</td>
         <td className="text-gray-600">{item.value}</td>
       </tr>
@@ -265,6 +264,7 @@ export const AlertCard: React.FC<{ type: 'success' | 'error' | 'warning' | 'info
 ## Color Scale Reference
 
 Token Studio colors follow a standard scale:
+
 - `50` - Lightest shade
 - `100` - Very light
 - `200` - Light
@@ -299,4 +299,3 @@ bg-red-500 text-white border-red-600
 bg-blue-100 text-blue-800 border-blue-200
 bg-gray-50 text-gray-900 border-gray-200
 ```
-
