@@ -2,22 +2,9 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
-import {
-  formatDateString,
-  parseDateToYYYYMMDD,
-} from "../../../utils/dateHelpers";
+import { formatDateString, parseDateToYYYYMMDD } from "../../../utils/dateHelpers";
 
-export type FieldType =
-  | "status"
-  | "budget"
-  | "bid"
-  | "start_date"
-  | "end_date"
-  | "text"
-  | "currency"
-  | "number"
-  | "percentage"
-  | "roas";
+export type FieldType = "status" | "budget" | "bid" | "start_date" | "end_date" | "text" | "currency" | "number" | "percentage" | "roas";
 
 export interface ColumnDefinition {
   key: string;
@@ -88,11 +75,7 @@ export interface GoogleAdsTableProps<T = any> {
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
   onConfirmInlineEdit: (value: string, field: string) => void;
-  onConfirmChange: (
-    itemId: string | number,
-    field: string,
-    newValue: any
-  ) => void;
+  onConfirmChange: (itemId: string | number, field: string, newValue: any) => void;
   onCancelChange: (field: string) => void;
   formatCurrency: (value: number) => string;
   formatPercentage: (value: number) => string;
@@ -139,10 +122,8 @@ export function GoogleAdsTable<T = any>({
 
   const renderCell = (column: ColumnDefinition, row: T, index: number) => {
     const itemId = getId(row);
-    const isEditing =
-      editingCell?.itemId === itemId && editingCell?.field === column.key;
-    const isUpdating =
-      updatingField?.itemId === itemId && updatingField?.field === column.key;
+    const isEditing = editingCell?.itemId === itemId && editingCell?.field === column.key;
+    const isUpdating = updatingField?.itemId === itemId && updatingField?.field === column.key;
     const pendingChange = pendingChanges[column.key];
     const hasPendingChange = pendingChange?.itemId === itemId;
     const value = column.getValue(row);
@@ -169,24 +150,12 @@ export function GoogleAdsTable<T = any>({
           {renderValue(column, pendingChange.newValue)}
           <div className="flex items-center gap-1">
             <button
-              onClick={() =>
-                onConfirmChange(itemId, column.key, pendingChange.newValue)
-              }
+              onClick={() => onConfirmChange(itemId, column.key, pendingChange.newValue)}
               className="p-1 hover:bg-green-50 rounded transition-colors"
               title="Confirm"
             >
-              <svg
-                className="w-4 h-4 text-green-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
+              <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </button>
             <button
@@ -194,18 +163,8 @@ export function GoogleAdsTable<T = any>({
               className="p-1 hover:bg-red-50 rounded transition-colors"
               title="Cancel"
             >
-              <svg
-                className="w-4 h-4 text-red-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
+              <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -241,7 +200,7 @@ export function GoogleAdsTable<T = any>({
         <div
           onClick={() => onStartInlineEdit(row, column.key)}
           className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1 w-full"
-          style={{ pointerEvents: "auto" }}
+          style={{ pointerEvents: 'auto' }}
         >
           {cellContent}
         </div>
@@ -251,36 +210,18 @@ export function GoogleAdsTable<T = any>({
     return <div>{cellContent}</div>;
   };
 
-  const renderValue = (
-    column: ColumnDefinition,
-    value: any
-  ): React.ReactNode => {
+  const renderValue = (column: ColumnDefinition, value: any): React.ReactNode => {
     switch (column.type) {
       case "status":
         return getStatusBadge(value || "ENABLED");
       case "currency":
       case "budget":
       case "bid":
-        return (
-          <span
-            className="text-[13.3px] text-[#0b0f16] leading-[1.26]"
-            style={{ pointerEvents: "none" }}
-          >
-            {formatCurrency(value || 0)}
-          </span>
-        );
+        return <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]" style={{ pointerEvents: 'none' }}>{formatCurrency(value || 0)}</span>;
       case "percentage":
-        return (
-          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-            {formatPercentage(value || 0)}
-          </span>
-        );
+        return <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">{formatPercentage(value || 0)}</span>;
       case "number":
-        return (
-          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-            {((value || 0) as number).toLocaleString()}
-          </span>
-        );
+        return <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">{((value || 0) as number).toLocaleString()}</span>;
       case "roas":
         return (
           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -296,31 +237,20 @@ export function GoogleAdsTable<T = any>({
         );
       case "text":
       default:
-        return (
-          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-            {value || "—"}
-          </span>
-        );
+        return <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">{value || "—"}</span>;
     }
   };
 
-  const renderEditableCell = (
-    column: ColumnDefinition,
-    value: any,
-    row: T,
-    itemId: string | number
-  ): React.ReactNode => {
+  const renderEditableCell = (column: ColumnDefinition, value: any, row: T, itemId: string | number): React.ReactNode => {
     switch (column.type) {
       case "status":
         return (
           <div className="relative w-full z-[100000]">
             <Dropdown
-              options={
-                column.statusOptions || [
-                  { value: "ENABLED", label: "Enabled" },
-                  { value: "PAUSED", label: "Paused" },
-                ]
-              }
+              options={column.statusOptions || [
+                { value: "ENABLED", label: "Enabled" },
+                { value: "PAUSED", label: "Paused" },
+              ]}
               value={editedValue}
               onChange={(val) => {
                 const newValue = val as string;
@@ -374,14 +304,28 @@ export function GoogleAdsTable<T = any>({
       case "start_date":
       case "end_date":
         const isStartDate = column.type === "start_date";
+        // For end_date, set min to the campaign's start_date if it exists
+        let minDate: string | undefined;
+        if (isStartDate) {
+          // Use local date calculation to avoid timezone issues
+          const today = new Date();
+          minDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        } else {
+          // For end_date, get the start_date from the row
+          const startDate = (row as any).start_date;
+          if (startDate) {
+            const parsedStartDate = parseDateToYYYYMMDD(startDate);
+            if (parsedStartDate) {
+              minDate = parsedStartDate;
+            }
+          }
+        }
         return (
           <div className="flex items-center">
             <input
               type="date"
               value={editedValue}
-              min={
-                isStartDate ? new Date().toISOString().split("T")[0] : undefined
-              }
+              min={minDate}
               onChange={(e) => onInlineEditChange(e.target.value)}
               onBlur={(e) => {
                 if (isCancelling) return;
@@ -411,27 +355,20 @@ export function GoogleAdsTable<T = any>({
     }
   };
 
-  const getStickyClasses = (
-    column: ColumnDefinition,
-    index: number
-  ): string => {
+  const getStickyClasses = (column: ColumnDefinition, index: number): string => {
     if (!column.sticky) return "";
-
+    
     // Calculate left offset based on previous sticky columns
     let leftOffset = 35; // Checkbox width
     for (let i = 0; i < index; i++) {
       if (columns[i]?.sticky) {
         // Estimate width - use minWidth or default
         const minWidth = columns[i]?.minWidth;
-        const width = minWidth
-          ? parseInt(
-              minWidth.replace("px", "").replace("min-w-[", "").replace("]", "")
-            )
-          : 300;
+        const width = minWidth ? parseInt(minWidth.replace('px', '').replace('min-w-[', '').replace(']', '')) : 300;
         leftOffset += width;
       }
     }
-
+    
     // Use Tailwind classes directly - first sticky column is at 35px (after checkbox)
     if (index === 0) {
       return "sticky left-[35px] bg-white z-10";
@@ -441,7 +378,7 @@ export function GoogleAdsTable<T = any>({
   };
 
   return (
-    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
       <div className="overflow-x-auto overflow-y-visible w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -472,21 +409,15 @@ export function GoogleAdsTable<T = any>({
                   {columns.map((column, index) => {
                     const stickyClasses = getStickyClasses(column, index);
                     const widthClasses = column.width || column.minWidth || "";
-                    const borderClass = column.sticky
-                      ? "border-r border-[#e8e8e3]"
-                      : "";
-
+                    const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                    
                     return (
                       <th
                         key={column.key}
                         className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                          column.sortable !== false
-                            ? "cursor-pointer hover:bg-gray-50"
-                            : ""
+                          column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
                         } ${stickyClasses} ${widthClasses} ${borderClass}`}
-                        onClick={() =>
-                          column.sortable !== false && onSort(column.key)
-                        }
+                        onClick={() => column.sortable !== false && onSort(column.key)}
                       >
                         <div className="flex items-center gap-1">
                           {column.label}
@@ -503,71 +434,41 @@ export function GoogleAdsTable<T = any>({
                   <tr className="bg-[#f5f5f0] font-semibold">
                     <td className="py-[10px] px-[10px] sticky left-0 bg-[#f5f5f0] z-10"></td>
                     {columns.map((column, index) => {
-                      const stickyClasses = getStickyClasses(
-                        column,
-                        index
-                      ).replace("bg-white", "bg-[#f5f5f0]");
-                      const borderClass = column.sticky
-                        ? "border-r border-[#e8e8e3]"
-                        : "";
-
+                      const stickyClasses = getStickyClasses(column, index).replace("bg-white", "bg-[#f5f5f0]");
+                      const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                      
                       let summaryValue: React.ReactNode = "";
                       // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id
-                      if (
-                        index === 0 &&
-                        (column.key === "name" ||
-                          column.key === "adgroup_name" ||
-                          column.key === "campaign_name" ||
-                          column.key === "ad_id")
-                      ) {
+                      if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id")) {
                         summaryValue = `Total (${summary?.total_count || 0})`;
                       } else if (column.key === "spends") {
-                        summaryValue = formatCurrency(
-                          summary?.total_spends || 0
-                        );
+                        summaryValue = formatCurrency(summary?.total_spends || 0);
                       } else if (column.key === "sales") {
-                        summaryValue = formatCurrency(
-                          summary?.total_sales || 0
-                        );
+                        summaryValue = formatCurrency(summary?.total_sales || 0);
                       } else if (column.key === "impressions") {
-                        summaryValue = (
-                          summary?.total_impressions || 0
-                        ).toLocaleString();
+                        summaryValue = (summary?.total_impressions || 0).toLocaleString();
                       } else if (column.key === "clicks") {
-                        summaryValue = (
-                          summary?.total_clicks || 0
-                        ).toLocaleString();
+                        summaryValue = (summary?.total_clicks || 0).toLocaleString();
                       } else if (column.key === "acos") {
-                        summaryValue = `${(summary?.avg_acos || 0).toFixed(
-                          2
-                        )}%`;
+                        summaryValue = `${(summary?.avg_acos || 0).toFixed(2)}%`;
                       } else if (column.key === "roas") {
-                        summaryValue = `${(summary?.avg_roas || 0).toFixed(
-                          2
-                        )}x`;
+                        summaryValue = `${(summary?.avg_roas || 0).toFixed(2)}x`;
                       } else if (column.key === "ctr") {
                         // Calculate average CTR from summary
-                        const avgCtr =
-                          summary?.total_impressions > 0
-                            ? (summary?.total_clicks /
-                                summary?.total_impressions) *
-                              100
-                            : 0;
+                        const avgCtr = summary?.total_impressions > 0 
+                          ? (summary?.total_clicks / summary?.total_impressions) * 100 
+                          : 0;
                         summaryValue = `${avgCtr.toFixed(2)}%`;
                       } else if (column.key === "cpc") {
                         // Calculate average CPC from summary
-                        const avgCpc =
-                          summary?.total_clicks > 0
-                            ? summary?.total_spends / summary?.total_clicks
-                            : 0;
+                        const avgCpc = summary?.total_clicks > 0 
+                          ? summary?.total_spends / summary?.total_clicks 
+                          : 0;
                         summaryValue = formatCurrency(avgCpc);
                       }
-
+                      
                       return (
-                        <td
-                          key={column.key}
-                          className={`py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] ${stickyClasses} ${borderClass}`}
-                        >
+                        <td key={column.key} className={`py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] ${stickyClasses} ${borderClass}`}>
                           {summaryValue}
                         </td>
                       );
@@ -584,9 +485,7 @@ export function GoogleAdsTable<T = any>({
                           <div className="relative">
                             <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
                           </div>
-                          <span className="text-[12.8px] font-medium text-[#136D6D]">
-                            {loadingMessage}
-                          </span>
+                          <span className="text-[12.8px] font-medium text-[#136D6D]">{loadingMessage}</span>
                         </div>
                       </div>
                     </td>
@@ -597,22 +496,18 @@ export function GoogleAdsTable<T = any>({
                 {data.map((row, index) => {
                   const isLastRow = index === data.length - 1;
                   const itemId = getId(row);
-
+                  
                   return (
                     <tr
                       key={itemId}
-                      className={`${
-                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""} hover:bg-gray-50 transition-colors`}
                     >
                       {/* Checkbox */}
                       <td className="py-[10px] px-[10px] sticky left-0 bg-white z-10">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedItems.has(itemId)}
-                            onChange={(checked) =>
-                              onSelectItem(itemId, checked)
-                            }
+                            onChange={(checked) => onSelectItem(itemId, checked)}
                             size="small"
                           />
                         </div>
@@ -620,16 +515,10 @@ export function GoogleAdsTable<T = any>({
 
                       {/* Data Cells */}
                       {columns.map((column, colIndex) => {
-                        const stickyClasses = getStickyClasses(
-                          column,
-                          colIndex
-                        );
-                        const borderClass = column.sticky
-                          ? "border-r border-[#e8e8e3]"
-                          : "";
-                        const widthClasses =
-                          column.width || column.minWidth || "";
-
+                        const stickyClasses = getStickyClasses(column, colIndex);
+                        const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                        const widthClasses = column.width || column.minWidth || "";
+                        
                         return (
                           <td
                             key={column.key}
@@ -650,3 +539,4 @@ export function GoogleAdsTable<T = any>({
     </div>
   );
 }
+

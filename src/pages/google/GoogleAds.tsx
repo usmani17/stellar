@@ -7,7 +7,6 @@ import { useSidebar } from "../../contexts/SidebarContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button } from "../../components/ui";
 import { StatusBadge } from "../../components/ui/StatusBadge";
-import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
   FilterPanel,
@@ -93,16 +92,15 @@ export const GoogleAds: React.FC = () => {
     adId: string | number;
     field: "status";
   } | null>(null);
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    adId: string | number;
-    newStatus: string;
-    oldStatus: string;
-  } | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportType, setExportType] = useState<"current_view" | "all_data">(
-    "current_view"
-  );
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
+  const [inlineEditAd, setInlineEditAd] = useState<GoogleAd | null>(null);
+  const [inlineEditField, setInlineEditField] = useState<"status" | null>(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -113,21 +111,27 @@ export const GoogleAds: React.FC = () => {
       ) {
         setShowBulkActions(false);
       }
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    if (showBulkActions) {
+    if (showBulkActions || showExportDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showBulkActions]);
+  }, [showBulkActions, showExportDropdown]);
 
   // Cancel inline edit when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (editingCell) {
+      if (editingCell && !showInlineEditModal) {
         const target = event.target as HTMLElement;
         const isDropdownMenu =
           target.closest('[class*="z-50"]') ||
@@ -138,7 +142,7 @@ export const GoogleAds: React.FC = () => {
 
         if (!isInput && !isDropdownMenu && !isModal) {
           setTimeout(() => {
-            if (editingCell) {
+            if (editingCell && !showInlineEditModal) {
               cancelInlineEdit();
             }
           }, 150);
@@ -146,7 +150,7 @@ export const GoogleAds: React.FC = () => {
       }
     };
 
-    if (editingCell) {
+    if (editingCell && !showInlineEditModal) {
       const timeout = setTimeout(() => {
         document.addEventListener("mousedown", handleClickOutside);
       }, 200);
@@ -156,7 +160,7 @@ export const GoogleAds: React.FC = () => {
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [editingCell]);
+  }, [editingCell, showInlineEditModal]);
 
   // Set page title
   useEffect(() => {
@@ -185,15 +189,16 @@ export const GoogleAds: React.FC = () => {
     const params: any = {};
 
     filterList.forEach((filter) => {
-      if (filter.field === "ad_type") {
+      const field = filter.field as string;
+      if (field === "ad_type") {
         params.ad_type = filter.value;
-      } else if (filter.field === "status") {
+      } else if (field === "status") {
         params.status = filter.value;
-      } else if (filter.field === "campaign_id") {
+      } else if (field === "campaign_id") {
         params.campaign_id = filter.value;
-      } else if (filter.field === "adgroup_id") {
+      } else if (field === "adgroup_id") {
         params.adgroup_id = filter.value;
-      } else if (filter.field === "account_name") {
+      } else if (field === "account_name") {
         if (filter.operator === "contains") {
           params.account_name__icontains = filter.value;
         } else if (filter.operator === "not_contains") {
@@ -244,12 +249,12 @@ export const GoogleAds: React.FC = () => {
       } else {
         setChartDataFromApi([]);
       }
-      if (responseWithChart.summary) {
-        setSummary(responseWithChart.summary);
-      } else {
-        setSummary(null);
-      }
-      setSelectedAds(new Set());
+          if (responseWithChart.summary) {
+            setSummary(responseWithChart.summary);
+          } else {
+            setSummary(null);
+          }
+          setSelectedAds(new Set());
     } catch (error) {
       console.error("Failed to load Google ads:", error);
       setAds([]);
@@ -286,7 +291,7 @@ export const GoogleAds: React.FC = () => {
       setAds(adsArray);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
-
+      
       // Store chart data from API if available
       const responseWithChart = response as any;
       console.log("🔍 [CHART DEBUG] Checking for chart_data in response:", {
@@ -297,9 +302,7 @@ export const GoogleAds: React.FC = () => {
         chartDataPreview: responseWithChart.chart_data?.slice(0, 3),
         fullResponseKeys: Object.keys(responseWithChart),
         hasSummary: !!responseWithChart.summary,
-        summaryKeys: responseWithChart.summary
-          ? Object.keys(responseWithChart.summary)
-          : [],
+        summaryKeys: responseWithChart.summary ? Object.keys(responseWithChart.summary) : [],
       });
       if (
         responseWithChart.chart_data &&
@@ -317,10 +320,7 @@ export const GoogleAds: React.FC = () => {
         setChartDataFromApi([]);
       }
       if (responseWithChart.summary) {
-        console.log(
-          "✅ [SUMMARY DEBUG] Setting summary:",
-          responseWithChart.summary
-        );
+        console.log("✅ [SUMMARY DEBUG] Setting summary:", responseWithChart.summary);
         setSummary(responseWithChart.summary);
       } else {
         console.log("❌ [SUMMARY DEBUG] No summary found in response");
@@ -596,14 +596,19 @@ export const GoogleAds: React.FC = () => {
     setEditedValue(value);
   };
 
-  const confirmInlineEdit = (value: string) => {
+  const confirmInlineEdit = (
+    newValueOverride?: string,
+    skipModal: boolean = false
+  ) => {
     if (!editingCell || !accountId || isCancelling) return;
 
     const ad = ads.find((a) => (a.ad_id || a.id) === editingCell.adId);
     if (!ad) return;
 
+    const valueToCheck =
+      newValueOverride !== undefined ? newValueOverride : editedValue;
     const oldValue = (ad.status || "ENABLED").trim();
-    const newValue = value.trim();
+    const newValue = valueToCheck.trim();
     const hasChanged = newValue !== oldValue;
 
     if (!hasChanged) {
@@ -611,79 +616,80 @@ export const GoogleAds: React.FC = () => {
       return;
     }
 
-    // For status changes, show inline confirmation
-    setPendingStatusChange({
-      adId: editingCell.adId,
-      newStatus: newValue,
-      oldStatus: oldValue,
-    });
+    // If skipModal is true (e.g., when canceling), just cancel without showing modal
+    if (skipModal) {
+      cancelInlineEdit();
+      return;
+    }
+
+    // For status changes, show modal
+    const oldStatusRaw = ad.status || "ENABLED";
+    const newStatusRaw = newValue.trim();
+    
+    // Format status values for display
+    const statusDisplayMap: Record<string, string> = {
+      ENABLED: "Enabled",
+      PAUSED: "Paused",
+      REMOVED: "Removed",
+      Enabled: "Enabled",
+      Paused: "Paused",
+      Removed: "Removed",
+    };
+    const oldValueDisplay = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
+    const newValueDisplay = statusDisplayMap[newStatusRaw] || newStatusRaw;
+    
+    setInlineEditAd(ad);
+    setInlineEditField(editingCell.field);
+    setInlineEditOldValue(oldValueDisplay);
+    setInlineEditNewValue(newValueDisplay);
+    setShowInlineEditModal(true);
     setEditingCell(null);
-    setEditedValue("");
   };
 
-  const runInlineStatusUpdate = async (
-    adId: string | number,
-    newStatus: string
-  ) => {
-    if (!accountId) return;
+  const runInlineEdit = async () => {
+    if (!inlineEditAd || !inlineEditField || !accountId) return;
 
-    setUpdatingField({ adId, field: "status" });
-
-    // Optimistically update the local state
-    setAds((prevAds) =>
-      prevAds.map((ad) =>
-        (ad.ad_id || ad.id) === adId ? { ...ad, status: newStatus } : ad
-      )
-    );
-
+    setInlineEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
 
-      const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
-        ENABLED: "ENABLED",
-        PAUSED: "PAUSED",
-        REMOVED: "REMOVED",
-        Enabled: "ENABLED",
-        Paused: "PAUSED",
-        Removed: "REMOVED",
-      };
-      const statusValue = statusMap[newStatus] || "ENABLED";
+      if (inlineEditField === "status") {
+        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
+        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          REMOVED: "REMOVED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+          Removed: "REMOVED",
+        };
+        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-      const response = await campaignsService.bulkUpdateGoogleAds(
-        accountIdNum,
-        {
-          adIds: [adId],
+        const response = await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+          adIds: [inlineEditAd.ad_id || inlineEditAd.id],
           action: "status",
           status: statusValue,
+        });
+
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
         }
-      );
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
       }
 
-      setPendingStatusChange(null);
-      setEditingCell(null);
-      setEditedValue("");
+      await loadAds(accountIdNum);
+      setShowInlineEditModal(false);
+      setInlineEditAd(null);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
     } catch (error) {
-      console.error("Error updating ad status:", error);
-      // Revert optimistic update on error
-      const ad = ads.find((a) => (a.ad_id || a.id) === adId);
-      if (ad) {
-        setAds((prevAds) =>
-          prevAds.map((a) =>
-            (a.ad_id || a.id) === adId
-              ? { ...a, status: pendingStatusChange?.oldStatus || ad.status }
-              : a
-          )
-        );
-      }
-      alert("Failed to update ad status. Please try again.");
+      console.error("Error updating ad:", error);
+      alert("Failed to update ad. Please try again.");
     } finally {
-      setUpdatingField(null);
+      setInlineEditLoading(false);
     }
   };
 
@@ -720,13 +726,15 @@ export const GoogleAds: React.FC = () => {
     return ads.filter((ad) => selectedAds.has(ad.ad_id || ad.id));
   };
 
-  const handleExport = async () => {
+  const handleExport = async (exportType: "all_data" | "current_view") => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    // Keep dropdown open and show loading
+    setShowExportDropdown(true);
+    setExportLoading(true);
     try {
-      setExporting(true);
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
@@ -737,18 +745,24 @@ export const GoogleAds: React.FC = () => {
         ...buildFilterParams(filters),
       };
 
+      // Add pagination for current view export
       if (exportType === "current_view") {
         params.page = currentPage;
         params.page_size = itemsPerPage;
       }
 
       await campaignsService.exportGoogleAds(accountIdNum, params, exportType);
-      setShowExportModal(false);
+      
+      // Close dropdown after a short delay to show success
+      setTimeout(() => {
+        setShowExportDropdown(false);
+      }, 500);
     } catch (error: any) {
       console.error("Failed to export ads:", error);
       alert("Failed to export ads. Please try again.");
+      setShowExportDropdown(false);
     } finally {
-      setExporting(false);
+      setExportLoading(false);
     }
   };
 
@@ -776,14 +790,13 @@ export const GoogleAds: React.FC = () => {
   };
 
   const allSelected = ads.length > 0 && selectedAds.size === ads.length;
-  const someSelected = selectedAds.size > 0 && selectedAds.size < ads.length;
+  const someSelected =
+    selectedAds.size > 0 && selectedAds.size < ads.length;
 
-  const toggleChartMetric = (
-    metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
-  ) => {
+  const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
       ...prev,
-      [metric]: !prev[metric],
+      [metric]: !prev[metric as keyof typeof prev],
     }));
   };
 
@@ -845,7 +858,7 @@ export const GoogleAds: React.FC = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -986,72 +999,149 @@ export const GoogleAds: React.FC = () => {
                     ({total} total)
                   </span>
                 </h2>
-                <div
-                  className="relative inline-flex justify-end gap-2"
-                  ref={dropdownRef}
-                >
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => setShowExportModal(true)}
-                    disabled={exporting || loading || ads.length === 0}
+                <div className="flex items-center justify-end gap-2">
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={exportDropdownRef}
                   >
-                    {exporting ? (
-                      <>
-                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-[#072929] border-t-transparent"></span>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Exporting...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-4 h-4 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Export
-                        </span>
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowBulkActions((prev) => !prev);
-                    }}
-                  >
-                    <svg
-                      className="w-4 h-4 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={(e) => {
+                        if (exportLoading) return;
+                        e.stopPropagation();
+                        setShowExportDropdown((prev) => !prev);
+                        setShowBulkActions(false);
+                      }}
+                      disabled={exportLoading || loading || ads.length === 0}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
-                    </span>
-                  </Button>
-                  {showBulkActions && (
-                    <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                      <div className="overflow-y-auto">
+                      {exportLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        </div>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Export
+                          </span>
+                        </>
+                      )}
+                    </Button>
+                    {(showExportDropdown || exportLoading) && (
+                      <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        {exportLoading ? (
+                          <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                            <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <p className="text-[13px] text-[#072929] font-medium">
+                              Exporting...
+                            </p>
+                            <p className="text-[11px] text-[#556179] text-center px-2">
+                              Please wait while we prepare your file
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="overflow-y-auto">
+                            {[
+                              { value: "bulk_export", label: "Export All" },
+                              {
+                                value: "current_view",
+                                label: "Export Current View",
+                              },
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  const exportType =
+                                    opt.value === "bulk_export"
+                                      ? "all_data"
+                                      : "current_view";
+                                  // Keep dropdown open during export
+                                  await handleExport(exportType);
+                                }}
+                                disabled={exportLoading}
+                              >
+                                <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                  <svg
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <rect
+                                      width="20"
+                                      height="20"
+                                      rx="3.2"
+                                      fill="#072929"
+                                    />
+                                    <path
+                                      d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                      stroke="#F9F9F6"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </div>
+                                <span className="font-normal">{opt.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={dropdownRef}
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowBulkActions((prev) => !prev);
+                        setShowExportDropdown(false);
+                      }}
+                    >
+                      <svg
+                        className="w-4 h-4 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Edit
+                      </span>
+                    </Button>
+                    {showBulkActions && (
+                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        <div className="overflow-y-auto">
                         {[
                           { value: "ENABLED", label: "Enable" },
                           { value: "PAUSED", label: "Pause" },
@@ -1075,9 +1165,10 @@ export const GoogleAds: React.FC = () => {
                             {opt.label}
                           </button>
                         ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1110,8 +1201,8 @@ export const GoogleAds: React.FC = () => {
                     <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
                       <div className="flex items-center gap-2">
                         <span className="text-[12.16px] text-[#556179]">
-                          {selectedAds.size} ad
-                          {selectedAds.size !== 1 ? "s" : ""} will be updated:
+                          {selectedAds.size} ad{selectedAds.size !== 1 ? "s" : ""}{" "}
+                          will be updated:
                         </span>
                         <span className="text-[12.16px] font-semibold text-[#072929]">
                           Status change
@@ -1204,7 +1295,7 @@ export const GoogleAds: React.FC = () => {
                           }
                         }}
                         disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
@@ -1228,87 +1319,72 @@ export const GoogleAds: React.FC = () => {
                 </div>
               )}
 
-              {/* Export Modal */}
-              {showExportModal && (
+
+              {/* Inline Edit Confirmation Modal */}
+              {showInlineEditModal && inlineEditAd && inlineEditField && (
                 <div
                   className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
-                      setShowExportModal(false);
+                      setShowInlineEditModal(false);
+                      setInlineEditAd(null);
+                      setInlineEditField(null);
+                      setInlineEditOldValue("");
+                      setInlineEditNewValue("");
                     }
                   }}
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
                     <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Export Ads
+                      Confirm Status Change
                     </h3>
-                    <div className="mb-6">
-                      <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
-                        Export Type
-                      </label>
-                      <Dropdown
-                        options={[
-                          { value: "current_view", label: "Current View" },
-                          { value: "all_data", label: "All Data" },
-                        ]}
-                        value={exportType}
-                        onChange={(val) => {
-                          setExportType(val as "current_view" | "all_data");
-                        }}
-                        buttonClassName="w-full"
-                        width="w-full"
-                      />
-                      <p className="text-[10.64px] text-[#727272] mt-2">
-                        {exportType === "current_view"
-                          ? `Exporting ${ads.length} ad${
-                              ads.length !== 1 ? "s" : ""
-                            } from the current page (${total} total available)`
-                          : `Exporting all ${total} ad${
-                              total !== 1 ? "s" : ""
-                            } matching your filters`}
+                    <div className="mb-4">
+                      <p className="text-[12.8px] text-[#556179] mb-2">
+                        Ad ID:{" "}
+                        <span className="font-semibold text-[#072929]">
+                          {inlineEditAd.ad_id || inlineEditAd.id}
+                        </span>
                       </p>
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[12.8px] text-[#556179]">
+                            Status:
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[12.8px] text-[#556179]">
+                              {inlineEditOldValue}
+                            </span>
+                            <span className="text-[12.8px] text-[#556179]">
+                              →
+                            </span>
+                            <span className="text-[12.8px] font-semibold text-[#072929]">
+                              {inlineEditNewValue}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex justify-end gap-3">
                       <button
                         type="button"
                         onClick={() => {
-                          setShowExportModal(false);
-                          setExportType("current_view");
+                          setShowInlineEditModal(false);
+                          setInlineEditAd(null);
+                          setInlineEditField(null);
+                          setInlineEditOldValue("");
+                          setInlineEditNewValue("");
                         }}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={handleExport}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        onClick={runInlineEdit}
+                        disabled={inlineEditLoading}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {exporting ? (
-                          <>
-                            <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            Download
-                          </>
-                        )}
+                        {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>
                     </div>
                   </div>
@@ -1330,7 +1406,7 @@ export const GoogleAds: React.FC = () => {
                 editedValue={editedValue}
                 isCancelling={isCancelling}
                 updatingField={updatingField}
-                pendingStatusChange={pendingStatusChange}
+                pendingStatusChange={null}
                 summary={summary}
                 onSelectAll={handleSelectAll}
                 onSelectAd={handleSelectAd}
@@ -1339,11 +1415,8 @@ export const GoogleAds: React.FC = () => {
                 onCancelInlineEdit={cancelInlineEdit}
                 onInlineEditChange={handleInlineEditChange}
                 onConfirmInlineEdit={confirmInlineEdit}
-                onConfirmStatusChange={runInlineStatusUpdate}
-                onCancelStatusChange={() => {
-                  setPendingStatusChange(null);
-                  cancelInlineEdit();
-                }}
+                onConfirmStatusChange={() => {}}
+                onCancelStatusChange={() => {}}
                 formatCurrency={formatCurrency}
                 formatPercentage={formatPercentage}
                 getStatusBadge={getStatusBadge}

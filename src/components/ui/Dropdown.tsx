@@ -32,6 +32,7 @@ export interface DropdownProps<T = string> {
   searchable?: boolean;
   searchPlaceholder?: string;
   emptyMessage?: string;
+  onSearchChange?: (query: string) => void; // Callback for external search
   align?: "left" | "right" | "center";
   position?: "bottom" | "top";
   maxHeight?: string;
@@ -57,6 +58,7 @@ export const Dropdown = <T extends string | number = string>({
   searchable = false,
   searchPlaceholder = "Search...",
   emptyMessage = "No options available",
+  onSearchChange,
   align = "left",
   position = "bottom",
   maxHeight = "max-h-96",
@@ -80,6 +82,8 @@ export const Dropdown = <T extends string | number = string>({
   }, [defaultOpen, disabled]);
 
   // Filter options based on search query
+  // If onSearchChange is provided, still filter locally for immediate UI feedback
+  // while the parent handles external search and updates options prop
   const filteredOptions = searchable
     ? options.filter((opt) =>
         opt.label.toLowerCase().includes(searchQuery.toLowerCase())
@@ -234,7 +238,14 @@ export const Dropdown = <T extends string | number = string>({
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  const query = e.target.value;
+                  setSearchQuery(query);
+                  // Call external search callback if provided
+                  if (onSearchChange) {
+                    onSearchChange(query);
+                  }
+                }}
                 placeholder={searchPlaceholder}
                 className="w-full px-3 py-2 text-[10px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
               />

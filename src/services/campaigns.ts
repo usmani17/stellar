@@ -1571,6 +1571,166 @@ export const campaignsService = {
     return response.data;
   },
 
+  createGoogleCampaign: async (
+    accountId: number,
+    payload: {
+      campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH";
+      customer_id?: string; // Optional - for selecting specific profile
+      name: string;
+      budget_amount: number; // In dollars, backend converts to micros
+      budget_name?: string;
+      start_date?: string; // YYYY-MM-DD format
+      end_date?: string; // YYYY-MM-DD format
+      status?: "ENABLED" | "PAUSED";
+      // Performance Max fields
+      final_url?: string;
+      asset_group_name?: string;
+      headlines?: string[]; // Min 3, max 15
+      descriptions?: string[]; // Min 2, max 4
+      business_name?: string;
+      logo_url?: string;
+      marketing_image_url?: string;
+      square_marketing_image_url?: string;
+      long_headline?: string;
+      // Shopping fields
+      merchant_id?: string;
+      sales_country?: string; // Default "US"
+      campaign_priority?: number; // 0-2, default 0
+      enable_local?: boolean;
+      // Search fields
+      adgroup_name?: string; // Default "Ad Group 1"
+      keywords?: string[] | string; // Can be array or comma-separated string
+      match_type?: "BROAD" | "PHRASE" | "EXACT"; // Default "BROAD"
+    }
+  ): Promise<{
+    success: boolean;
+    message: string;
+    campaign_resource_name: string;
+    customer_id: string;
+    campaign_id?: string;
+  }> => {
+    const url = `/accounts/${accountId}/google-campaigns/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createGoogleSearchEntities: async (
+    accountId: number,
+    campaignId: number,
+    payload: {
+      adgroup_id?: number; // Optional: use existing adgroup
+      adgroup?: {
+        name: string;
+        cpc_bid?: number; // Optional, in dollars
+      };
+      ad?: {
+        headlines: string[]; // Min 3, max 15
+        descriptions: string[]; // Min 2, max 4
+        final_url?: string; // Optional
+      };
+      keywords?: Array<{
+        text: string;
+        match_type: "EXACT" | "PHRASE" | "BROAD";
+        cpc_bid?: number; // Optional, in dollars
+      }>;
+    }
+  ): Promise<{
+    adgroup?: {
+      id: string;
+      resource_name: string;
+      name: string;
+    };
+    ad?: {
+      id: string;
+      resource_name: string;
+      headlines: string[];
+      descriptions: string[];
+    };
+    keywords?: Array<{
+      id: string;
+      resource_name: string;
+      text: string;
+      match_type: string;
+    }>;
+    errors?: string[];
+    error_details?: Array<{
+      entity?: string;
+      type?: string;
+      policy_name?: string;
+      policy_description?: string;
+      violating_text?: string;
+      error_code?: string;
+      message?: string;
+      is_exemptible?: boolean;
+      user_message?: string;
+    }>;
+  }> => {
+    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/search-entities/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createGooglePmaxAssetGroup: async (
+    accountId: number,
+    campaignId: number,
+    payload: {
+      asset_group: {
+        name: string;
+        final_url?: string; // Optional
+      };
+      assets: {
+        headlines: string[]; // Min 3, max 15
+        descriptions: string[]; // Min 2, max 4
+        long_headline: string; // Required
+      };
+    }
+  ): Promise<{
+    asset_group: {
+      id: string;
+      resource_name: string;
+      name: string;
+    };
+    assets: {
+      headlines: number;
+      descriptions: number;
+      long_headline: string;
+    };
+    error?: string;
+  }> => {
+    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/pmax-asset-group/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createGoogleShoppingEntities: async (
+    accountId: number,
+    campaignId: number,
+    payload: {
+      adgroup_id?: number; // Optional: use existing adgroup
+      adgroup?: {
+        name: string;
+      };
+      product_group: {
+        cpc_bid?: number; // Optional, in dollars, default 0.01
+      };
+    }
+  ): Promise<{
+    adgroup?: {
+      id: string;
+      resource_name: string;
+      name: string;
+    };
+    product_group?: {
+      id: string;
+      resource_name: string;
+    };
+    error?: string;
+  }> => {
+    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/shopping-entities/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
   getTargetsList: async (
     accountId: number,
     params?: TargetsQueryParams
@@ -2453,6 +2613,59 @@ export const campaignsService = {
     return response.data;
   },
 
+  // Google Asset Groups
+  getGoogleAssetGroups: async (
+    accountId: number,
+    campaignId?: string | number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      campaign_id?: string | number;
+      asset_group_name?: string;
+      asset_group_name__icontains?: string;
+      name?: string;
+      name__icontains?: string;
+      status?: string;
+      account_name?: string;
+      account_name__icontains?: string;
+    }
+  ): Promise<{
+    asset_groups: any[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const filters: any = {};
+
+    if (params?.page) filters.page = params.page;
+    if (params?.page_size) filters.page_size = params.page_size;
+    if (params?.sort_by) filters.sort_by = params.sort_by;
+    if (params?.order) filters.order = params.order;
+    if (params?.start_date) filters.start_date = params.start_date;
+    if (params?.end_date) filters.end_date = params.end_date;
+    if (campaignId) filters.campaign_id = campaignId;
+    if (params?.campaign_id) filters.campaign_id = params.campaign_id;
+    if (params?.asset_group_name) filters.asset_group_name = params.asset_group_name;
+    if (params?.asset_group_name__icontains)
+      filters.asset_group_name__icontains = params.asset_group_name__icontains;
+    if (params?.name) filters.name = params.name;
+    if (params?.name__icontains) filters.name__icontains = params.name__icontains;
+    if (params?.status) filters.status = params.status;
+    if (params?.account_name) filters.account_name = params.account_name;
+    if (params?.account_name__icontains)
+      filters.account_name__icontains = params.account_name__icontains;
+
+    const response = await api.post(`/accounts/${accountId}/google-asset-groups/`, {
+      filters,
+    });
+    return response.data;
+  },
+
   // Google Ads
   getGoogleAds: async (
     accountId: number,
@@ -2644,6 +2857,15 @@ export const campaignsService = {
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
       `/accounts/${accountId}/google-keywords/sync/`
+    );
+    return response.data;
+  },
+
+  syncGoogleAssetGroups: async (
+    accountId: number
+  ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
+    const response = await api.post(
+      `/accounts/${accountId}/google-asset-groups/sync/`
     );
     return response.data;
   },

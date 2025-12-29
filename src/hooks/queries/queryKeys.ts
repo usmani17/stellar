@@ -19,4 +19,33 @@ export const queryKeys = {
     detail: (accountId: number, channelId: number) =>
       [...queryKeys.channels.all, "detail", accountId, channelId] as const,
   },
+  campaigns: {
+    all: ["campaigns"] as const,
+    lists: (accountId: number, params?: Record<string, any>) => {
+      // Create a stable key from params by sorting keys
+      const paramsKey = params
+        ? JSON.stringify(
+            Object.keys(params)
+              .sort()
+              .reduce((acc, key) => {
+                acc[key] = params[key];
+                return acc;
+              }, {} as Record<string, any>)
+          )
+        : "default";
+      return [
+        ...queryKeys.campaigns.all,
+        "list",
+        accountId,
+        paramsKey,
+      ] as const;
+    },
+    detail: (accountId: number, campaignId: string | number) =>
+      [
+        ...queryKeys.campaigns.all,
+        "detail",
+        accountId,
+        campaignId,
+      ] as const,
+  },
 } as const;

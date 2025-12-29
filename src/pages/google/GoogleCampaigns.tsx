@@ -21,10 +21,17 @@ import {
   GoogleCampaignsTable,
   type GoogleCampaign,
 } from "./components/GoogleCampaignsTable";
+import { CreateGoogleCampaignSection } from "../../components/campaigns/CreateGoogleCampaignSection";
+import {
+  CreateGoogleCampaignPanel,
+  type CreateGoogleCampaignData,
+} from "../../components/campaigns/CreateGoogleCampaignPanel";
+import { ErrorModal } from "../../components/ui/ErrorModal";
 
 // GoogleCampaign interface is now imported from GoogleCampaignsTable
 
 export const GoogleCampaigns: React.FC = () => {
+  const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
@@ -65,6 +72,22 @@ export const GoogleCampaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
+    useState(false);
+  const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
+  const [createCampaignError, setCreateCampaignError] = useState<string | null>(
+    null
+  );
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    message: string;
+    title?: string;
+    isSuccess?: boolean;
+    actionButton?: {
+      text: string;
+      onClick: () => void;
+    };
+  }>({ isOpen: false, message: "" });
 
   // Chart toggles (visual parity with Amazon Campaigns)
   const [chartToggles, setChartToggles] = useState({
@@ -117,27 +140,9 @@ export const GoogleCampaigns: React.FC = () => {
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    campaignId: string | number;
-    newStatus: string;
-    oldStatus: string;
-  } | null>(null);
-  const [pendingBudgetChange, setPendingBudgetChange] = useState<{
-    campaignId: string | number;
-    newBudget: number;
-    oldBudget: number;
-  } | null>(null);
-  const [pendingDateChange, setPendingDateChange] = useState<{
-    campaignId: string | number;
-    field: "start_date" | "end_date";
-    newDate: string;
-    oldDate: string;
-  } | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportType, setExportType] = useState<"current_view" | "all_data">(
-    "current_view"
-  );
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -148,23 +153,22 @@ export const GoogleCampaigns: React.FC = () => {
       ) {
         setShowBulkActions(false);
       }
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    if (showBulkActions) {
+    if (showBulkActions || showExportDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showBulkActions]);
-
-  // Close budget panel when no campaigns are selected
-  useEffect(() => {
-    if (selectedCampaigns.size === 0) {
-      setShowBudgetPanel(false);
-    }
-  }, [selectedCampaigns.size]);
+  }, [showBulkActions, showExportDropdown]);
 
   // Cancel inline edit when clicking outside
   useEffect(() => {
@@ -393,6 +397,126 @@ export const GoogleCampaigns: React.FC = () => {
       setTotal(0);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
+    if (!accountId) return;
+
+    setCreateCampaignLoading(true);
+    setCreateCampaignError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.createGoogleCampaign(
+        accountIdNum,
+        data
+      );
+
+      console.log("Create Google campaign response:", response);
+
+      // Extract campaign ID from response
+      let campaignId: string | number | null = null;
+      if (response?.campaign_id) {
+        campaignId = response.campaign_id;
+      }
+
+      // Close the panel and stop loading
+      setIsCreateCampaignPanelOpen(false);
+      setCreateCampaignLoading(false);
+      setCreateCampaignError(null);
+
+      // Show success modal with navigation button if we have campaign ID
+      if (campaignId) {
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `Campaign "${data.name}" created successfully!`,
+          isSuccess: true,
+          actionButton: {
+            text: "View Campaign",
+            onClick: () => {
+              setErrorModal({ isOpen: false, message: "" });
+              navigate(`/accounts/${accountIdNum}/google-campaigns/${campaignId}`);
+            },
+          },
+        });
+        await loadCampaigns(accountIdNum);
+      } else {
+        // If no campaign ID, show success and reload campaigns
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `Campaign "${data.name}" created successfully!`,
+          isSuccess: true,
+        });
+
+        // Refresh campaigns to get updated data
+        await loadCampaigns(accountIdNum);
+      }
+    } catch (error: any) {
+      console.error("Failed to create Google campaign:", error);
+      setCreateCampaignLoading(false);
+
+      // Extract error message from backend response
+      let errorMessage = "Failed to create campaign. Please try again.";
+      let errorDetails = null;
+      let fieldErrors: Record<string, string> = {};
+
+      if (error?.response?.data) {
+        // Check for validation errors (400 status)
+        if (error.response.status === 400) {
+          // Check for field-specific validation errors
+          if (error.response.data.field_errors) {
+            fieldErrors = error.response.data.field_errors;
+          }
+
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        } else {
+          // Check for error message
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+
+          // Check for detailed error information
+          if (error.response.data.details) {
+            errorDetails = error.response.data.details;
+            // If details is an object with errors, format it
+            if (
+              typeof errorDetails === "object" &&
+              !Array.isArray(errorDetails)
+            ) {
+              if (errorDetails.errors) {
+                errorMessage = `Google Ads API errors: ${JSON.stringify(
+                  errorDetails.errors
+                )}`;
+              } else if (errorDetails.message) {
+                errorMessage = `Google Ads API error: ${errorDetails.message}`;
+              }
+            }
+          }
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      // Store error message as plain string for display
+      // Note: Field errors are handled separately by the panel if needed
+      setCreateCampaignError(errorMessage);
+
+      // Don't close panel on error - let user fix and resubmit
+      // Re-throw error so the form knows submission failed
+      throw error;
     }
   };
 
@@ -643,10 +767,6 @@ export const GoogleCampaigns: React.FC = () => {
       newSelected.delete(campaignId);
     }
     setSelectedCampaigns(newSelected);
-    // Close budget panel when selection changes
-    if (newSelected.size === 0) {
-      setShowBudgetPanel(false);
-    }
   };
 
   // Inline edit handlers
@@ -654,6 +774,18 @@ export const GoogleCampaigns: React.FC = () => {
     campaign: GoogleCampaign,
     field: "budget" | "status" | "start_date" | "end_date"
   ) => {
+    // Prevent editing start_date if it's in the past - silently do nothing
+    if (field === "start_date") {
+      const startDateStr = parseDateToYYYYMMDD(campaign.start_date);
+      if (startDateStr) {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        if (startDateStr < todayStr) {
+          return; // Silently prevent editing past start dates
+        }
+      }
+    }
+    
     setEditingCell({ campaignId: campaign.campaign_id, field });
     if (field === "budget") {
       setEditedValue((campaign.daily_budget || 0).toString());
@@ -716,22 +848,20 @@ export const GoogleCampaigns: React.FC = () => {
       const oldValue = parseDateToYYYYMMDD(campaign.start_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-
+      
       console.log("[start_date] Date comparison:", {
         campaignId: editingCell.campaignId,
         oldValue,
         newValue,
         hasChanged,
-        rawStartDate: campaign.start_date,
+        rawStartDate: campaign.start_date
       });
 
       // Validate: start date cannot be in the past
       // Compare YYYY-MM-DD strings directly to avoid timezone issues
       if (newValue) {
         const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(
-          today.getMonth() + 1
-        ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
         if (newValue < todayStr) {
           validationError = "Start date cannot be in the past";
           alert(validationError);
@@ -744,13 +874,13 @@ export const GoogleCampaigns: React.FC = () => {
       const oldValue = parseDateToYYYYMMDD(campaign.end_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-
+      
       console.log("[end_date] Date comparison:", {
         campaignId: editingCell.campaignId,
         oldValue,
         newValue,
         hasChanged,
-        rawEndDate: campaign.end_date,
+        rawEndDate: campaign.end_date
       });
 
       // Validate: end date cannot be before start date
@@ -777,73 +907,77 @@ export const GoogleCampaigns: React.FC = () => {
       return;
     }
 
-    // For status changes, show inline confirmation instead of modal
+    // For status changes, show modal
     if (editingCell.field === "status") {
-      setPendingStatusChange({
-        campaignId: editingCell.campaignId,
-        newStatus: valueToCheck,
-        oldStatus: campaign.status || "ENABLED",
-      });
-      // Keep editing cell open to show confirmation buttons
+      const oldStatusRaw = campaign.status || "ENABLED";
+      const newStatusRaw = valueToCheck.trim();
+      
+      // Format status values for display (convert ENABLED -> Enabled, PAUSED -> Paused, REMOVED -> Removed)
+      const statusDisplayMap: Record<string, string> = {
+        ENABLED: "Enabled",
+        PAUSED: "Paused",
+        REMOVED: "Removed",
+        Enabled: "Enabled",
+        Paused: "Paused",
+        Removed: "Removed",
+      };
+      const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
+      const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
+      
+      setInlineEditCampaign(campaign);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(oldValue);
+      setInlineEditNewValue(newValue);
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
-    // For budget, show inline confirmation buttons
+    // For budget, show modal
     if (editingCell.field === "budget") {
       const newBudget = parseFloat(valueToCheck) || 0;
       const oldBudget = campaign.daily_budget || 0;
-
-      setPendingBudgetChange({
-        campaignId: editingCell.campaignId,
-        newBudget: newBudget,
-        oldBudget: oldBudget,
-      });
-      // Keep editing cell open to show confirmation buttons
+      
+      setInlineEditCampaign(campaign);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(formatCurrency(oldBudget));
+      setInlineEditNewValue(formatCurrency(newBudget));
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
-    // For start_date and end_date, show inline confirmation buttons
-    if (
-      editingCell.field === "start_date" ||
-      editingCell.field === "end_date"
-    ) {
-      // Normalize old date to YYYY-MM-DD format
-      let oldDateFormatted = "";
-      const oldDate = campaign[editingCell.field];
-      if (oldDate) {
+    // For start_date and end_date, show modal
+    if (editingCell.field === "start_date" || editingCell.field === "end_date") {
+      // Format dates for display
+      const oldDateStr = parseDateToYYYYMMDD(campaign[editingCell.field]);
+      const newDateStr = valueToCheck.trim();
+      
+      // Format dates for display (MM/DD/YYYY format)
+      const formatDateForDisplay = (dateStr: string) => {
+        if (!dateStr) return "—";
         try {
-          const date = new Date(oldDate);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            oldDateFormatted = `${year}-${month}-${day}`;
+          const parts = dateStr.split("-");
+          if (parts.length !== 3) {
+            return dateStr;
           }
+          const [year, month, day] = parts;
+          return `${month}/${day}/${year}`;
         } catch (e) {
-          console.error(`Error parsing ${editingCell.field}:`, e, oldDate);
+          return dateStr;
         }
-      }
-
-      const pendingChange = {
-        campaignId: editingCell.campaignId,
-        field: editingCell.field,
-        newDate: valueToCheck.trim(),
-        oldDate: oldDateFormatted,
       };
-
-      console.log(
-        `[${editingCell.field}] Setting pendingDateChange:`,
-        pendingChange
-      );
-      console.log(`[${editingCell.field}] Current editingCell:`, editingCell);
-      console.log(`[${editingCell.field}] Campaign:`, campaign);
-
-      // Clear editing cell so the input disappears and confirmation buttons show
+      
+      // Store formatted values for display in modal
+      const oldValue = oldDateStr ? formatDateForDisplay(oldDateStr) : "—";
+      
+      setInlineEditCampaign(campaign);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(oldValue);
+      // Store the raw YYYY-MM-DD value for API call (we'll format it for display in modal)
+      setInlineEditNewValue(newDateStr);
+      setShowInlineEditModal(true);
       setEditingCell(null);
-      setEditedValue("");
-      setPendingDateChange(pendingChange);
-      // Keep editing cell open to show confirmation buttons
-      console.log(`[${editingCell.field}] Pending date change set, returning`);
       return;
     }
 
@@ -859,222 +993,6 @@ export const GoogleCampaigns: React.FC = () => {
     setEditingCell(null);
   };
 
-  const runInlineBudgetUpdate = async (
-    campaignId: string | number,
-    newBudget: number
-  ) => {
-    if (!accountId) return;
-
-    const campaign = campaigns.find((c) => c.campaign_id === campaignId);
-    if (!campaign) return;
-
-    setUpdatingField({ campaignId, field: "budget" });
-
-    // Optimistically update the local state
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((c) =>
-        c.campaign_id === campaignId ? { ...c, daily_budget: newBudget } : c
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      if (isNaN(newBudget) || newBudget <= 0) {
-        throw new Error("Invalid budget value");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(
-        accountIdNum,
-        {
-          campaignIds: [campaignId],
-          action: "budget",
-          budgetAction: "set",
-          unit: "amount",
-          value: newBudget,
-        }
-      );
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - keep the optimistic update
-      setPendingBudgetChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error("Error updating campaign budget:", error);
-      // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((c) => (c.campaign_id === campaignId ? campaign : c))
-      );
-      alert("Failed to update campaign budget. Please try again.");
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  const runInlineDateUpdate = async (
-    campaignId: string | number,
-    field: "start_date" | "end_date",
-    newDate: string
-  ) => {
-    if (!accountId) return;
-
-    const campaign = campaigns.find((c) => c.campaign_id === campaignId);
-    if (!campaign) return;
-
-    setUpdatingField({ campaignId, field });
-
-    // Parse the date value first to ensure consistency
-    const dateValue = parseDateToYYYYMMDD(newDate);
-    console.log(`[${field}] Date value for API:`, {
-      original: newDate,
-      parsed: dateValue,
-    });
-
-    // Optimistically update the local state with the parsed date value
-    let optimisticValue: any = {};
-    if (field === "start_date") {
-      optimisticValue = { start_date: dateValue || null };
-    } else if (field === "end_date") {
-      optimisticValue = { end_date: dateValue || null };
-    }
-
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((c) =>
-        c.campaign_id === campaignId ? { ...c, ...optimisticValue } : c
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(
-        accountIdNum,
-        {
-          campaignIds: [campaignId],
-          action: field,
-          [field]: dateValue || undefined,
-        }
-      );
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - ensure the state has the correct value from API response
-      // The response might contain the updated value, use it if available
-      const updatedCampaign = response.updated_campaigns?.find(
-        (c: any) => c.campaign_id === campaignId
-      );
-
-      if (updatedCampaign?.value) {
-        // Use the value from API response to ensure consistency
-        const apiDateValue = updatedCampaign.value;
-        setCampaigns((prevCampaigns) =>
-          prevCampaigns.map((c) =>
-            c.campaign_id === campaignId ? { ...c, [field]: apiDateValue } : c
-          )
-        );
-        console.log(
-          `[${field}] Updated state with API response value:`,
-          apiDateValue
-        );
-      }
-
-      setPendingDateChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error(`Error updating campaign ${field}:`, error);
-      // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((c) => (c.campaign_id === campaignId ? campaign : c))
-      );
-      alert(`Failed to update campaign ${field}. Please try again.`);
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  const runInlineStatusUpdate = async (
-    campaignId: string | number,
-    newStatus: string
-  ) => {
-    if (!accountId) return;
-
-    setUpdatingField({ campaignId, field: "status" });
-
-    // Optimistically update the local state
-    setCampaigns((prevCampaigns) =>
-      prevCampaigns.map((campaign) =>
-        campaign.campaign_id === campaignId
-          ? { ...campaign, status: newStatus }
-          : campaign
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
-        ENABLED: "ENABLED",
-        PAUSED: "PAUSED",
-        REMOVED: "REMOVED",
-        Enabled: "ENABLED",
-        Paused: "PAUSED",
-        Removed: "REMOVED",
-      };
-      const statusValue = statusMap[newStatus] || "ENABLED";
-
-      const response = await campaignsService.bulkUpdateGoogleCampaigns(
-        accountIdNum,
-        {
-          campaignIds: [campaignId],
-          action: "status",
-          status: statusValue,
-        }
-      );
-
-      // Check for errors in response
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - keep the optimistic update
-      setPendingStatusChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error("Error updating campaign status:", error);
-      // Revert optimistic update on error
-      setCampaigns((prevCampaigns) =>
-        prevCampaigns.map((campaign) =>
-          campaign.campaign_id === campaignId
-            ? {
-                ...campaign,
-                status: pendingStatusChange?.oldStatus || campaign.status,
-              }
-            : campaign
-        )
-      );
-      alert("Failed to update campaign status. Please try again.");
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
   const runInlineEdit = async () => {
     if (!inlineEditCampaign || !inlineEditField || !accountId) return;
 
@@ -1085,7 +1003,32 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "budget") {
+      if (inlineEditField === "status") {
+        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
+        // Handle both formatted display values (from modal) and raw values
+        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          REMOVED: "REMOVED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+          Removed: "REMOVED",
+          enable: "ENABLED",
+          pause: "PAUSED",
+          removed: "REMOVED",
+        };
+        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+          campaignIds: [inlineEditCampaign.campaign_id],
+          action: "status",
+          status: statusValue,
+        });
+
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
+      } else if (inlineEditField === "budget") {
         const budgetValue = parseFloat(
           inlineEditNewValue.replace(/[^0-9.]/g, "")
         );
@@ -1093,64 +1036,30 @@ export const GoogleCampaigns: React.FC = () => {
           throw new Error("Invalid budget value");
         }
 
-        await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
           campaignIds: [inlineEditCampaign.campaign_id],
           action: "budget",
           budgetAction: "set",
           unit: "amount",
           value: budgetValue,
         });
-      } else if (inlineEditField === "start_date") {
-        // Extract date from formatted string or use raw value
-        let dateValue = inlineEditNewValue;
-        if (dateValue === "—" || !dateValue) {
-          dateValue = "";
-        } else {
-          // Try to parse the formatted date back to YYYY-MM-DD
-          const date = new Date(inlineEditNewValue);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            dateValue = `${year}-${month}-${day}`;
-          }
-        }
-
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
-          accountIdNum,
-          {
-            campaignIds: [inlineEditCampaign.campaign_id],
-            action: "start_date",
-            start_date: dateValue || undefined,
-          }
-        );
 
         if (response.errors && response.errors.length > 0) {
           throw new Error(response.errors[0]);
         }
-      } else if (inlineEditField === "end_date") {
-        let dateValue = inlineEditNewValue;
-        if (dateValue === "—" || !dateValue) {
+      } else if (inlineEditField === "start_date" || inlineEditField === "end_date") {
+        // inlineEditNewValue should already be in YYYY-MM-DD format from the date input
+        let dateValue = inlineEditNewValue.trim();
+        if (!dateValue || dateValue === "—") {
           dateValue = "";
-        } else {
-          const date = new Date(inlineEditNewValue);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            dateValue = `${year}-${month}-${day}`;
-          }
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
-          accountIdNum,
-          {
-            campaignIds: [inlineEditCampaign.campaign_id],
-            action: "end_date",
-            end_date: dateValue || undefined,
-          }
-        );
-
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+          campaignIds: [inlineEditCampaign.campaign_id],
+          action: inlineEditField,
+          [inlineEditField]: dateValue || undefined,
+        });
+        
         if (response.errors && response.errors.length > 0) {
           throw new Error(response.errors[0]);
         }
@@ -1252,7 +1161,7 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
-
+      
       await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
@@ -1262,7 +1171,7 @@ export const GoogleCampaigns: React.FC = () => {
         upperLimit: upper,
         lowerLimit: lower,
       });
-
+      
       // Close modal and reload campaigns with loading state
       setShowConfirmationModal(false);
       setShowBudgetPanel(false);
@@ -1281,13 +1190,15 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (exportType: "all_data" | "current_view") => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    // Keep dropdown open and show loading
+    setShowExportDropdown(true);
+    setExportLoading(true);
     try {
-      setExporting(true);
       const params: any = {
         sort_by: sortBy,
         order: sortOrder,
@@ -1304,17 +1215,18 @@ export const GoogleCampaigns: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleCampaigns(
-        accountIdNum,
-        params,
-        exportType
-      );
-      setShowExportModal(false);
+      await campaignsService.exportGoogleCampaigns(accountIdNum, params, exportType);
+      
+      // Close dropdown after a short delay to show success
+      setTimeout(() => {
+        setShowExportDropdown(false);
+      }, 500);
     } catch (error: any) {
       console.error("Failed to export campaigns:", error);
       alert("Failed to export campaigns. Please try again.");
+      setShowExportDropdown(false);
     } finally {
-      setExporting(false);
+      setExportLoading(false);
     }
   };
 
@@ -1399,12 +1311,10 @@ export const GoogleCampaigns: React.FC = () => {
   const someSelected =
     selectedCampaigns.size > 0 && selectedCampaigns.size < campaigns.length;
 
-  const toggleChartMetric = (
-    metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
-  ) => {
+  const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
       ...prev,
-      [metric]: !prev[metric],
+      [metric]: !prev[metric as keyof typeof prev],
     }));
   };
 
@@ -1462,6 +1372,16 @@ export const GoogleCampaigns: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white flex">
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: "" })}
+        title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
+        message={errorModal.message}
+        isSuccess={errorModal.isSuccess}
+        actionButton={errorModal.actionButton}
+      />
+
       {/* Sidebar */}
       <Sidebar />
 
@@ -1482,9 +1402,21 @@ export const GoogleCampaigns: React.FC = () => {
                 Google Campaign Manager
               </h1>
               <div className="flex items-center gap-3">
+                <CreateGoogleCampaignSection
+                  isOpen={
+                    isCreateCampaignPanelOpen
+                  }
+                  onToggle={() => {
+                    setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
+                    setIsFilterPanelOpen(false); // Close filter panel when opening create panel
+                  }}
+                />
                 <button
-                  onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  onClick={() => {
+                    setIsFilterPanelOpen(!isFilterPanelOpen);
+                    setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
+                  }}
+                  className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -1548,6 +1480,21 @@ export const GoogleCampaigns: React.FC = () => {
                 </Button>
               </div>
             </div>
+
+            {/* Create / Edit Campaign Panel */}
+            {isCreateCampaignPanelOpen && (
+              <CreateGoogleCampaignPanel
+                isOpen={isCreateCampaignPanelOpen}
+                onClose={() => {
+                  setIsCreateCampaignPanelOpen(false);
+                  setCreateCampaignError(null);
+                }}
+                onSubmit={handleCreateGoogleCampaign}
+                accountId={accountId}
+                loading={createCampaignLoading}
+                submitError={createCampaignError}
+              />
+            )}
 
             {/* Sync Messages */}
             {syncMessage && (
@@ -1615,29 +1562,34 @@ export const GoogleCampaigns: React.FC = () => {
               title="Performance Trends"
             />
 
-            {/* Edit and Export Buttons - Above Table */}
-            <div className="flex items-center justify-end gap-2">
-              <div
-                className="relative inline-flex justify-end"
-                ref={dropdownRef}
-              >
-                <Button
-                  type="button"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => setShowExportModal(true)}
-                  disabled={exporting || loading || campaigns.length === 0}
-                >
-                  {exporting ? (
-                    <>
-                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-[#072929] border-t-transparent"></span>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Exporting...
-                      </span>
-                    </>
-                  ) : (
-                    <>
+            {/* Google Campaigns Table Card */}
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
+              {/* Card Header */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
+                  Campaigns{" "}
+                  <span className="text-[12.8px] font-normal text-[#727272]">
+                    ({total} total)
+                  </span>
+                </h2>
+                <div className="flex items-center justify-end gap-2">
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={dropdownRef}
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowBulkActions((prev) => !prev);
+                        setShowBudgetPanel(false);
+                        setShowExportDropdown(false);
+                      }}
+                    >
                       <svg
-                        className="w-5 h-5 text-[#072929]"
+                        className="w-4 h-4 text-[#072929]"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -1646,517 +1598,75 @@ export const GoogleCampaigns: React.FC = () => {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
                         />
                       </svg>
                       <span className="text-[10.64px] text-[#072929] font-normal">
-                        Export
+                        Edit
                       </span>
-                    </>
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowBulkActions((prev) => !prev);
-                    setShowBudgetPanel(false);
-                  }}
-                >
-                  <svg
-                    className="w-5 h-5 text-[#072929]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                  <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
-                  </span>
-                </Button>
-                {showBulkActions && (
-                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    <div className="overflow-y-auto">
-                      {[
-                        { value: "ENABLED", label: "Enable" },
-                        { value: "PAUSED", label: "Pause" },
-                        { value: "REMOVED", label: "Remove" },
-                        { value: "edit_budget", label: "Edit Budget" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          disabled={selectedCampaigns.size === 0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedCampaigns.size === 0) return;
-                            if (opt.value === "edit_budget") {
-                              setShowBudgetPanel(true);
-                            } else {
-                              setShowBudgetPanel(false);
-                              setPendingStatusAction(
-                                opt.value as "ENABLED" | "PAUSED" | "REMOVED"
-                              );
-                              setIsBudgetChange(false);
-                              setShowConfirmationModal(true);
-                            }
-                            setShowBulkActions(false);
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Google Campaigns Table Card */}
-            {/* Card Header */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Campaigns{" "}
-                <span className="text-[12.8px] font-normal text-[#727272]">
-                  ({total} total)
-                </span>
-              </h2>
-            </div>
-
-            {/* Budget editor panel */}
-            {selectedCampaigns.size > 0 && showBudgetPanel && (
-              <div className="mb-4">
-                <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
-                  <div className="flex flex-wrap items-end gap-3 justify-between">
-                    <div className="w-[160px]">
-                      <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                        Action
-                      </label>
-                      <Dropdown
-                        options={[
-                          { value: "increase", label: "Increase By" },
-                          { value: "decrease", label: "Decrease By" },
-                          { value: "set", label: "Set To" },
-                        ]}
-                        value={budgetAction}
-                        onChange={(val) => {
-                          const action = val as typeof budgetAction;
-                          setBudgetAction(action);
-                          if (action === "set") {
-                            setBudgetUnit("amount");
-                          }
-                        }}
-                        buttonClassName="w-full bg-[#FEFEFB]"
-                        width="w-full"
-                      />
-                    </div>
-                    {(budgetAction === "increase" ||
-                      budgetAction === "decrease") && (
-                      <div className="w-[140px]">
-                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Unit
-                        </label>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                              budgetUnit === "percent"
-                                ? "bg-forest-f40  border-forest-f40"
-                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                            }`}
-                            onClick={() => setBudgetUnit("percent")}
-                          >
-                            %
-                          </button>
-                          <button
-                            type="button"
-                            className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                              budgetUnit === "amount"
-                                ? "bg-forest-f40  border-forest-f40"
-                                : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                            }`}
-                            onClick={() => setBudgetUnit("amount")}
-                          >
-                            $
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <div className="w-[160px]">
-                      <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                        Value
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={budgetValue}
-                          onChange={(e) => setBudgetValue(e.target.value)}
-                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
-                          {budgetUnit === "percent" ? "%" : "$"}
-                        </span>
-                      </div>
-                    </div>
-                    {budgetAction === "increase" && (
-                      <div className="w-[160px]">
-                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Upper Limit (optional)
-                        </label>
-                        <input
-                          type="number"
-                          value={upperLimit}
-                          onChange={(e) => setUpperLimit(e.target.value)}
-                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        />
-                      </div>
-                    )}
-                    {budgetAction === "decrease" && (
-                      <div className="w-[160px]">
-                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                          Lower Limit (optional)
-                        </label>
-                        <input
-                          type="number"
-                          value={lowerLimit}
-                          onChange={(e) => setLowerLimit(e.target.value)}
-                          className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        />
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 ml-auto">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowBudgetPanel(false);
-                          setShowBulkActions(false);
-                        }}
-                        className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!budgetValue) return;
-                          setIsBudgetChange(true);
-                          setPendingStatusAction(null);
-                          setShowConfirmationModal(true);
-                        }}
-                        disabled={bulkLoading || !budgetValue}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Confirmation Modal */}
-            {showConfirmationModal && (
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) {
-                    setShowConfirmationModal(false);
-                  }
-                }}
-              >
-                <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
-                  {bulkLoading && (
-                    <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-xl">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
-                        <span className="text-[12.8px] font-medium text-[#136D6D]">
-                          Updating campaigns...
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                    {isBudgetChange
-                      ? "Confirm Budget Changes"
-                      : "Confirm Status Changes"}
-                  </h3>
-
-                  {/* Summary */}
-                  <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12.16px] text-[#556179]">
-                        {selectedCampaigns.size} campaign
-                        {selectedCampaigns.size !== 1 ? "s" : ""} will be
-                        updated:
-                      </span>
-                      <span className="text-[12.16px] font-semibold text-[#072929]">
-                        {isBudgetChange ? "Budget" : "Status"} change
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Campaign Preview Table */}
-                  {(() => {
-                    const selectedCampaignsData = getSelectedCampaignsData();
-                    const previewCount = Math.min(
-                      10,
-                      selectedCampaignsData.length
-                    );
-                    const hasMore = selectedCampaignsData.length > 10;
-
-                    return (
-                      <div className="mb-6">
-                        <div className="mb-2">
-                          <span className="text-[10.64px] text-[#556179]">
-                            {hasMore
-                              ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                              : `${selectedCampaignsData.length} campaign${
-                                  selectedCampaignsData.length !== 1 ? "s" : ""
-                                } selected`}
-                          </span>
-                        </div>
-                        <div className="border border-gray-200 rounded-lg overflow-hidden">
-                          <table className="w-full">
-                            <thead className="bg-sandstorm-s20">
-                              <tr>
-                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                  Campaign Name
-                                </th>
-                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                  Old Value
-                                </th>
-                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                  New Value
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {selectedCampaignsData
-                                .slice(0, 10)
-                                .map((campaign) => {
-                                  const oldBudget = campaign.daily_budget || 0;
-                                  const oldStatus =
-                                    campaign.status || "ENABLED";
-                                  const newBudget = isBudgetChange
-                                    ? calculateNewBudget(oldBudget)
-                                    : oldBudget;
-                                  const newStatus = pendingStatusAction
-                                    ? pendingStatusAction
-                                    : oldStatus;
-
-                                  return (
-                                    <tr
-                                      key={campaign.campaign_id}
-                                      className="border-b border-gray-200 last:border-b-0"
-                                    >
-                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                        {campaign.campaign_name ||
-                                          "Unnamed Campaign"}
-                                      </td>
-                                      <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                        {isBudgetChange
-                                          ? `$${oldBudget.toFixed(2)}`
-                                          : oldStatus}
-                                      </td>
-                                      <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
-                                        {isBudgetChange
-                                          ? `$${newBudget.toFixed(2)}`
-                                          : newStatus}
-                                      </td>
-                                    </tr>
+                    </Button>
+                    {showBulkActions && (
+                      <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        <div className="overflow-y-auto">
+                          {[
+                            { value: "ENABLED", label: "Enable" },
+                            { value: "PAUSED", label: "Pause" },
+                            { value: "REMOVED", label: "Remove" },
+                            { value: "edit_budget", label: "Edit Budget" },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              disabled={selectedCampaigns.size === 0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedCampaigns.size === 0) return;
+                                if (opt.value === "edit_budget") {
+                                  setShowBudgetPanel(true);
+                                } else {
+                                  setShowBudgetPanel(false);
+                                  setPendingStatusAction(
+                                    opt.value as "ENABLED" | "PAUSED" | "REMOVED"
                                   );
-                                })}
-                            </tbody>
-                          </table>
+                                  setIsBudgetChange(false);
+                                  setShowConfirmationModal(true);
+                                }
+                                setShowBulkActions(false);
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
                         </div>
-                      </div>
-                    );
-                  })()}
-
-                  <div className="space-y-3 mb-6">
-                    {isBudgetChange ? (
-                      <>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            Action:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {budgetAction === "increase"
-                              ? "Increase By"
-                              : budgetAction === "decrease"
-                              ? "Decrease By"
-                              : "Set To"}
-                          </span>
-                        </div>
-
-                        {(budgetAction === "increase" ||
-                          budgetAction === "decrease") && (
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Unit:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetUnit === "percent"
-                                ? "Percentage (%)"
-                                : "Amount ($)"}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            Value:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {budgetValue} {budgetUnit === "percent" ? "%" : "$"}
-                          </span>
-                        </div>
-
-                        {budgetAction === "increase" && upperLimit && (
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Upper Limit:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              ${upperLimit}
-                            </span>
-                          </div>
-                        )}
-
-                        {budgetAction === "decrease" && lowerLimit && (
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Lower Limit:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              ${lowerLimit}
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                        <span className="text-[12.16px] text-[#556179]">
-                          New Status:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {pendingStatusAction
-                            ? pendingStatusAction.charAt(0) +
-                              pendingStatusAction.slice(1).toLowerCase()
-                            : ""}
-                        </span>
                       </div>
                     )}
                   </div>
-
-                  <div className="flex justify-end gap-3">
-                    <button
+                  <div
+                    className="relative inline-flex justify-end"
+                    ref={exportDropdownRef}
+                  >
+                    <Button
                       type="button"
-                      onClick={() => {
-                        setShowConfirmationModal(false);
-                        setPendingStatusAction(null);
+                      variant="ghost"
+                      className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={(e) => {
+                        if (exportLoading) return;
+                        e.stopPropagation();
+                        setShowExportDropdown((prev) => !prev);
+                        setShowBulkActions(false);
+                        setShowBudgetPanel(false);
                       }}
-                      className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-100 transition-colors"
+                      disabled={exportLoading || loading || campaigns.length === 0}
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (isBudgetChange) {
-                          await runBulkBudget();
-                        } else if (pendingStatusAction) {
-                          setShowConfirmationModal(false);
-                          await runBulkStatus(pendingStatusAction);
-                          setShowBulkActions(false);
-                        }
-                        setPendingStatusAction(null);
-                      }}
-                      disabled={bulkLoading}
-                      className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {bulkLoading ? "Updating..." : "Confirm"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Export Modal */}
-            {showExportModal && (
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) {
-                    setShowExportModal(false);
-                  }
-                }}
-              >
-                <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                  <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                    Export Campaigns
-                  </h3>
-                  <div className="mb-6">
-                    <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
-                      Export Type
-                    </label>
-                    <Dropdown
-                      options={[
-                        { value: "current_view", label: "Current View" },
-                        { value: "all_data", label: "All Data" },
-                      ]}
-                      value={exportType}
-                      onChange={(val) => {
-                        setExportType(val as "current_view" | "all_data");
-                      }}
-                      buttonClassName="w-full"
-                      width="w-full"
-                    />
-                    <p className="text-[10.64px] text-[#727272] mt-2">
-                      {exportType === "current_view"
-                        ? `Exporting ${campaigns.length} campaign${
-                            campaigns.length !== 1 ? "s" : ""
-                          } from the current page (${total} total available)`
-                        : `Exporting all ${total} campaign${
-                            total !== 1 ? "s" : ""
-                          } matching your filters`}
-                    </p>
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowExportModal(false);
-                        setExportType("current_view");
-                      }}
-                      disabled={exporting}
-                      className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExport}
-                      disabled={exporting}
-                      className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {exporting ? (
-                        <>
-                          <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                          Exporting...
-                        </>
+                      {exportLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        </div>
                       ) : (
                         <>
                           <svg
-                            className="w-4 h-4"
+                            className="w-4 h-4 text-[#072929]"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -2168,175 +1678,642 @@ export const GoogleCampaigns: React.FC = () => {
                               d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             />
                           </svg>
-                          Download
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Export
+                          </span>
                         </>
                       )}
-                    </button>
+                    </Button>
+                    {(showExportDropdown || exportLoading) && (
+                      <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                        {exportLoading ? (
+                          <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                            <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <p className="text-[13px] text-[#072929] font-medium">
+                              Exporting...
+                            </p>
+                            <p className="text-[11px] text-[#556179] text-center px-2">
+                              Please wait while we prepare your file
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="overflow-y-auto">
+                            {[
+                              { value: "bulk_export", label: "Export All" },
+                              {
+                                value: "current_view",
+                                label: "Export Current View",
+                              },
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  const exportType =
+                                    opt.value === "bulk_export"
+                                      ? "all_data"
+                                      : "current_view";
+                                  // Keep dropdown open during export
+                                  await handleExport(exportType);
+                                }}
+                                disabled={exportLoading}
+                              >
+                                <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                  <svg
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <rect
+                                      width="20"
+                                      height="20"
+                                      rx="3.2"
+                                      fill="#072929"
+                                    />
+                                    <path
+                                      d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                      stroke="#F9F9F6"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </div>
+                                <span className="font-normal">{opt.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* Inline Edit Confirmation Modal */}
-            {showInlineEditModal && inlineEditCampaign && inlineEditField && (
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) {
-                    setShowInlineEditModal(false);
-                  }
-                }}
-              >
-                <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                  <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                    Confirm{" "}
-                    {inlineEditField === "budget"
-                      ? "Budget"
-                      : inlineEditField === "status"
-                      ? "Status"
-                      : inlineEditField === "start_date"
-                      ? "Start Date"
-                      : "End Date"}{" "}
-                    Change
-                  </h3>
-                  <div className="mb-4">
-                    <p className="text-[12.8px] text-[#556179] mb-2">
-                      Campaign:{" "}
-                      <span className="font-semibold text-[#072929]">
-                        {inlineEditCampaign.campaign_name || "Unnamed Campaign"}
-                      </span>
-                    </p>
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[12.8px] text-[#556179]">
-                          {inlineEditField === "budget"
-                            ? "Budget"
-                            : inlineEditField === "status"
-                            ? "Status"
-                            : inlineEditField === "start_date"
-                            ? "Start Date"
-                            : "End Date"}
-                          :
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12.8px] text-[#556179]">
-                            {inlineEditOldValue}
-                          </span>
-                          <span className="text-[12.8px] text-[#556179]">
-                            →
-                          </span>
-                          <span className="text-[12.8px] font-semibold text-[#072929]">
-                            {inlineEditNewValue}
+              {/* Budget editor panel */}
+              {selectedCampaigns.size > 0 && showBudgetPanel && (
+                <div className="px-6 mb-4">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex flex-wrap items-end gap-3 justify-between">
+                      <div className="w-[160px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Action
+                        </label>
+                        <Dropdown
+                          options={[
+                            { value: "increase", label: "Increase By" },
+                            { value: "decrease", label: "Decrease By" },
+                            { value: "set", label: "Set To" },
+                          ]}
+                          value={budgetAction}
+                          onChange={(val) => {
+                            const action = val as typeof budgetAction;
+                            setBudgetAction(action);
+                            if (action === "set") {
+                              setBudgetUnit("amount");
+                            }
+                          }}
+                          buttonClassName="w-full"
+                          width="w-full"
+                        />
+                      </div>
+                      {(budgetAction === "increase" ||
+                        budgetAction === "decrease") && (
+                        <div className="w-[140px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Unit
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                budgetUnit === "percent"
+                                  ? "bg-forest-f40  border-forest-f40"
+                                  : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
+                              }`}
+                              onClick={() => setBudgetUnit("percent")}
+                            >
+                              %
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                budgetUnit === "amount"
+                                  ? "bg-forest-f40  border-forest-f40"
+                                  : "bg-background-field text-forest-f60 border-gray-200 hover:bg-gray-50"
+                              }`}
+                              onClick={() => setBudgetUnit("amount")}
+                            >
+                              $
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <div className="w-[160px]">
+                        <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                          Value
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={budgetValue}
+                            onChange={(e) => setBudgetValue(e.target.value)}
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                            {budgetUnit === "percent" ? "%" : "$"}
                           </span>
                         </div>
                       </div>
+                      {budgetAction === "increase" && (
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Upper Limit (optional)
+                          </label>
+                          <input
+                            type="number"
+                            value={upperLimit}
+                            onChange={(e) => setUpperLimit(e.target.value)}
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          />
+                        </div>
+                      )}
+                      {budgetAction === "decrease" && (
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Lower Limit (optional)
+                          </label>
+                          <input
+                            type="number"
+                            value={lowerLimit}
+                            onChange={(e) => setLowerLimit(e.target.value)}
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowBudgetPanel(false);
+                            setShowBulkActions(false);
+                          }}
+                          className="px-4 py-2.5 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!budgetValue) return;
+                            setIsBudgetChange(true);
+                            setPendingStatusAction(null);
+                            setShowConfirmationModal(true);
+                          }}
+                          disabled={bulkLoading || !budgetValue}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Apply
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-3">
+                </div>
+              )}
+
+              {/* Confirmation Modal */}
+              {showConfirmationModal && (
+                <div
+                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      setShowConfirmationModal(false);
+                    }
+                  }}
+                >
+                  <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
+                    {bulkLoading && (
+                      <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-xl">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
+                          <span className="text-[12.8px] font-medium text-[#136D6D]">
+                            Updating campaigns...
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                      {isBudgetChange
+                        ? "Confirm Budget Changes"
+                        : "Confirm Status Changes"}
+                    </h3>
+
+                    {/* Summary */}
+                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                        {selectedCampaigns.size} campaign
+                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                          updated:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {isBudgetChange ? "Budget" : "Status"} change
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Campaign Preview Table */}
+                    {(() => {
+                      const selectedCampaignsData = getSelectedCampaignsData();
+                      const previewCount = Math.min(
+                        10,
+                        selectedCampaignsData.length
+                      );
+                      const hasMore = selectedCampaignsData.length > 10;
+
+                      return (
+                        <div className="mb-6">
+                          <div className="mb-2">
+                            <span className="text-[10.64px] text-[#556179]">
+                              {hasMore
+                                ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
+                                : `${selectedCampaignsData.length} campaign${
+                                    selectedCampaignsData.length !== 1
+                                      ? "s"
+                                      : ""
+                                  } selected`}
+                            </span>
+                          </div>
+                          <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <table className="w-full">
+                              <thead className="bg-sandstorm-s20">
+                                <tr>
+                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                    Campaign Name
+                                  </th>
+                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                    Old Value
+                                  </th>
+                                  <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                    New Value
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedCampaignsData
+                                  .slice(0, 10)
+                                  .map((campaign) => {
+                                    const oldBudget =
+                                      campaign.daily_budget || 0;
+                                    const oldStatus =
+                                      campaign.status || "ENABLED";
+                                    const newBudget = isBudgetChange
+                                      ? calculateNewBudget(oldBudget)
+                                      : oldBudget;
+                                    const newStatus = pendingStatusAction
+                                      ? pendingStatusAction
+                                      : oldStatus;
+
+                                    return (
+                                      <tr
+                                        key={campaign.campaign_id}
+                                        className="border-b border-gray-200 last:border-b-0"
+                                      >
+                                        <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                          {campaign.campaign_name ||
+                                            "Unnamed Campaign"}
+                                        </td>
+                                        <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                          {isBudgetChange
+                                            ? `$${oldBudget.toFixed(2)}`
+                                            : oldStatus}
+                                        </td>
+                                        <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                          {isBudgetChange
+                                            ? `$${newBudget.toFixed(2)}`
+                                            : newStatus}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="space-y-3 mb-6">
+                        {isBudgetChange ? (
+                          <>
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                                Action:
+                              </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {budgetAction === "increase"
+                                  ? "Increase By"
+                                  : budgetAction === "decrease"
+                                  ? "Decrease By"
+                                  : "Set To"}
+                              </span>
+                            </div>
+
+                            {(budgetAction === "increase" ||
+                              budgetAction === "decrease") && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                  Unit:
+                                </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  {budgetUnit === "percent"
+                                    ? "Percentage (%)"
+                                    : "Amount ($)"}
+                                </span>
+                              </div>
+                            )}
+
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                                Value:
+                              </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {budgetValue}{" "}
+                                {budgetUnit === "percent" ? "%" : "$"}
+                              </span>
+                            </div>
+
+                            {budgetAction === "increase" && upperLimit && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                  Upper Limit:
+                                </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${upperLimit}
+                                </span>
+                              </div>
+                            )}
+
+                            {budgetAction === "decrease" && lowerLimit && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                  Lower Limit:
+                                </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${lowerLimit}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                              New Status:
+                            </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {pendingStatusAction
+                                ? pendingStatusAction.charAt(0) +
+                                  pendingStatusAction.slice(1).toLowerCase()
+                                : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowConfirmationModal(false);
+                          setPendingStatusAction(null);
+                        }}
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (isBudgetChange) {
+                            await runBulkBudget();
+                          } else if (pendingStatusAction) {
+                            setShowConfirmationModal(false);
+                            await runBulkStatus(pendingStatusAction);
+                            setShowBulkActions(false);
+                          }
+                          setPendingStatusAction(null);
+                        }}
+                        disabled={bulkLoading}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {bulkLoading ? "Updating..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Inline Edit Confirmation Modal */}
+              {showInlineEditModal && inlineEditCampaign && inlineEditField && (
+                <div
+                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      setShowInlineEditModal(false);
+                      setInlineEditCampaign(null);
+                      setInlineEditField(null);
+                      setInlineEditOldValue("");
+                      setInlineEditNewValue("");
+                    }
+                  }}
+                >
+                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                      Confirm{" "}
+                      {inlineEditField === "budget"
+                        ? "Budget"
+                        : inlineEditField === "status"
+                        ? "Status"
+                        : inlineEditField === "start_date"
+                        ? "Start Date"
+                        : "End Date"}{" "}
+                      Change
+                    </h3>
+                    <div className="mb-4">
+                      <p className="text-[12.8px] text-[#556179] mb-2">
+                        Campaign:{" "}
+                        <span className="font-semibold text-[#072929]">
+                          {inlineEditCampaign.campaign_name ||
+                            "Unnamed Campaign"}
+                        </span>
+                      </p>
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[12.8px] text-[#556179]">
+                            {inlineEditField === "budget"
+                              ? "Budget"
+                              : inlineEditField === "status"
+                              ? "Status"
+                              : inlineEditField === "start_date"
+                              ? "Start Date"
+                              : "End Date"}
+                            :
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[12.8px] text-[#556179]">
+                              {inlineEditOldValue}
+                            </span>
+                            <span className="text-[12.8px] text-[#556179]">
+                              →
+                            </span>
+                            <span className="text-[12.8px] font-semibold text-[#072929]">
+                              {inlineEditField === "start_date" || inlineEditField === "end_date"
+                                ? (() => {
+                                    // Format YYYY-MM-DD to MM/DD/YYYY for display
+                                    if (!inlineEditNewValue || inlineEditNewValue === "—") return "—";
+                                    const parts = inlineEditNewValue.split("-");
+                                    if (parts.length === 3) {
+                                      return `${parts[1]}/${parts[2]}/${parts[0]}`;
+                                    }
+                                    return inlineEditNewValue;
+                                  })()
+                                : inlineEditNewValue}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowInlineEditModal(false);
+                          setInlineEditCampaign(null);
+                          setInlineEditField(null);
+                          setInlineEditOldValue("");
+                          setInlineEditNewValue("");
+                        }}
+                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={runInlineEdit}
+                        disabled={inlineEditLoading}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {inlineEditLoading ? "Updating..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Table */}
+              <GoogleCampaignsTable
+                campaigns={campaigns}
+                loading={loading}
+                sorting={sorting}
+                accountId={accountId || ""}
+                selectedCampaigns={selectedCampaigns}
+                allSelected={allSelected}
+                someSelected={someSelected}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                editingCell={editingCell}
+                editedValue={editedValue}
+                isCancelling={isCancelling}
+                summary={summary}
+                updatingField={updatingField}
+                onSelectAll={handleSelectAll}
+                onSelectCampaign={handleSelectCampaign}
+                onSort={handleSort}
+                onStartInlineEdit={startInlineEdit}
+                onCancelInlineEdit={cancelInlineEdit}
+                onInlineEditChange={handleInlineEditChange}
+                onConfirmInlineEdit={confirmInlineEdit}
+                formatCurrency={formatCurrency}
+                formatPercentage={formatPercentage}
+                getStatusBadge={getStatusBadge}
+                getChannelTypeLabel={getChannelTypeLabel}
+                getSortIcon={getSortIcon}
+              />
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-end mt-4">
+                  <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                     <button
-                      type="button"
-                      onClick={() => {
-                        setShowInlineEditModal(false);
-                        setInlineEditCampaign(null);
-                        setInlineEditField(null);
-                        setInlineEditOldValue("");
-                        setInlineEditNewValue("");
-                      }}
-                      className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                     >
-                      Cancel
+                      Previous
                     </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      // Ensure pageNum is within valid range [1, totalPages]
+                      pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                            currentPage === pageNum
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                        ...
+                      </span>
+                    )}
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                          currentPage === totalPages
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        {totalPages}
+                      </button>
+                    )}
                     <button
-                      type="button"
-                      onClick={runInlineEdit}
-                      disabled={inlineEditLoading}
-                      className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                     >
-                      {inlineEditLoading ? "Updating..." : "Confirm"}
+                      Next
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Table */}
-            <GoogleCampaignsTable
-              campaigns={campaigns}
-              loading={loading}
-              sorting={sorting}
-              accountId={accountId || ""}
-              selectedCampaigns={selectedCampaigns}
-              allSelected={allSelected}
-              someSelected={someSelected}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              editingCell={editingCell}
-              editedValue={editedValue}
-              isCancelling={isCancelling}
-              summary={summary}
-              updatingField={updatingField}
-              pendingBudgetChange={pendingBudgetChange}
-              pendingStatusChange={pendingStatusChange}
-              onSelectAll={handleSelectAll}
-              onSelectCampaign={handleSelectCampaign}
-              onSort={handleSort}
-              onStartInlineEdit={startInlineEdit}
-              onCancelInlineEdit={cancelInlineEdit}
-              onInlineEditChange={handleInlineEditChange}
-              onConfirmInlineEdit={confirmInlineEdit}
-              onConfirmBudgetChange={runInlineBudgetUpdate}
-              onCancelBudgetChange={() => {
-                setPendingBudgetChange(null);
-                cancelInlineEdit();
-              }}
-              onConfirmStatusChange={runInlineStatusUpdate}
-              onCancelStatusChange={() => {
-                setPendingStatusChange(null);
-                cancelInlineEdit();
-              }}
-              pendingDateChange={pendingDateChange}
-              onConfirmDateChange={runInlineDateUpdate}
-              onCancelDateChange={() => {
-                setPendingDateChange(null);
-                cancelInlineEdit();
-              }}
-              formatCurrency={formatCurrency}
-              formatPercentage={formatPercentage}
-              getStatusBadge={getStatusBadge}
-              getChannelTypeLabel={getChannelTypeLabel}
-              getSortIcon={getSortIcon}
-            />
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-end mt-4">
-                <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
-                  <button
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.max(1, prev - 1))
-                    }
-                    disabled={currentPage === 1}
-                    className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-4 py-2 text-[10.64px] text-[#556179] flex items-center">
-                    Page {currentPage} of {totalPages} • Showing{" "}
-                    {(currentPage - 1) * itemsPerPage + 1}–{" "}
-                    {Math.min(currentPage * itemsPerPage, total)} of {total}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Sync Message */}
             {syncMessage && (

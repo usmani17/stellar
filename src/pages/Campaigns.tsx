@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
@@ -6,7 +6,18 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { useDateRange } from "../contexts/DateRangeContext";
 import { useSidebar } from "../contexts/SidebarContext";
-import { campaignsService, type Campaign } from "../services/campaigns";
+import { useCampaigns } from "../contexts/GlobalStateContext";
+import {
+  campaignsService,
+  type Campaign,
+  type CampaignsQueryParams,
+} from "../services/campaigns";
+import {
+  useBulkUpdateCampaigns,
+  useBulkDeleteCampaigns,
+  useCreateCampaign,
+  useUpdateCampaign,
+} from "../hooks/mutations/useCampaignMutations";
 import { Checkbox } from "../components/ui/Checkbox";
 import { Dropdown } from "../components/ui/Dropdown";
 import { Button } from "../components/ui";
@@ -33,31 +44,111 @@ export const Campaigns: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const { startDate, endDate } = useDateRange();
   const { sidebarWidth } = useSidebar();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [summary, setSummary] = useState<{
-    total_campaigns: number;
-    total_spends: number;
-    total_sales: number;
-    total_impressions: number;
-    total_clicks: number;
-    avg_acos: number;
-    avg_roas: number;
-  } | null>(null);
-  const [chartDataFromApi, setChartDataFromApi] = useState<
-    Array<{
-      date: string;
-      spend: number;
-      sales: number;
-      sales1d?: number;
-      sales7d?: number;
-      sales14d?: number;
-      impressions?: number;
-      clicks?: number;
-      acos?: number;
-      roas?: number;
-    }>
-  >([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Get account ID as number
+  const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
+  
+  // State for pagination, sorting, and filters
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, _setItemsPerPage] = useState(10);
+  const [sortBy, setSortBy] = useState<string>("sales");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [filters, setFilters] = useState<FilterValues>([]);
+  
+  // Build filter params helper
+  const buildFilterParams = useCallback((filterList: FilterValues): CampaignsQueryParams => {
+    const params: CampaignsQueryParams = {};
+
+    filterList.forEach((filter) => {
+      if (filter.field === "campaign_name") {
+        if (filter.operator === "contains") {
+          params.campaign_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.campaign_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.campaign_name = filter.value;
+        }
+      } else if (filter.field === "budget") {
+        if (filter.operator === "lt") {
+          params.budget__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.budget__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.budget = filter.value;
+        } else if (filter.operator === "lte") {
+          params.budget__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.budget__gte = filter.value;
+        }
+      } else if (filter.field === "state") {
+        params.state = filter.value;
+      } else if (filter.field === "type") {
+        params.type = filter.value;
+      } else if (filter.field === "targeting_type") {
+        params.targeting_type = filter.value;
+      } else if (filter.field === "profile_name") {
+        if (filter.operator === "contains") {
+          params.profile_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.profile_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.profile_name = filter.value;
+        }
+      }
+    });
+
+    return params;
+  }, []);
+  
+  // Build query params for React Query
+  const queryParams = useMemo<CampaignsQueryParams>(() => {
+    const params: CampaignsQueryParams = {
+      sort_by: sortBy,
+      order: sortOrder,
+      page: currentPage,
+      page_size: itemsPerPage,
+      start_date: startDate.toISOString().split("T")[0],
+      end_date: endDate.toISOString().split("T")[0],
+      ...buildFilterParams(filters),
+    };
+    return params;
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, buildFilterParams]);
+
+  // Use React Query hook for campaigns data
+  const {
+    data: campaignsResponse,
+    isLoading: loading,
+    error: campaignsError,
+    refetch: refetchCampaigns,
+  } = useCampaigns(accountIdNum, queryParams);
+
+  // Extract data from response
+  const campaigns = useMemo(() => {
+    return campaignsResponse?.campaigns || [];
+  }, [campaignsResponse]);
+
+  const summary = useMemo(() => {
+    return campaignsResponse?.summary || null;
+  }, [campaignsResponse]);
+
+  const chartDataFromApi = useMemo(() => {
+    return campaignsResponse?.chart_data || [];
+  }, [campaignsResponse]);
+
+  const totalPages = useMemo(() => {
+    return campaignsResponse?.total_pages || 0;
+  }, [campaignsResponse]);
+
+  // Mutation hooks (only initialize if accountIdNum is valid)
+  const bulkUpdateMutation = useBulkUpdateCampaigns(accountIdNum || 0);
+  const bulkDeleteMutation = useBulkDeleteCampaigns(accountIdNum || 0);
+  const createCampaignMutation = useCreateCampaign(accountIdNum || 0);
+  const updateCampaignMutation = useUpdateCampaign(accountIdNum || 0);
+  
+  // Use mutation loading states
+  const bulkLoading = bulkUpdateMutation.isPending || bulkDeleteMutation.isPending;
+  const createCampaignLoading = createCampaignMutation.isPending;
+  const inlineEditLoading = bulkUpdateMutation.isPending;
   const [selectedCampaigns, setSelectedCampaigns] = useState<
     Set<string | number>
   >(new Set());
@@ -112,13 +203,7 @@ export const Campaigns: React.FC = () => {
       tooltipFormatter: (v) => `${v.toFixed(2)} x`,
     },
   ];
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, _setItemsPerPage] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
-  const [sortBy, setSortBy] = useState<string>("sales");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterValues>([]);
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
     useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -130,7 +215,6 @@ export const Campaigns: React.FC = () => {
   const [budgetValue, setBudgetValue] = useState<string>("");
   const [upperLimit, setUpperLimit] = useState<string>("");
   const [lowerLimit, setLowerLimit] = useState<string>("");
-  const [bulkLoading, setBulkLoading] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<
     "enable" | "pause" | null
@@ -151,10 +235,9 @@ export const Campaigns: React.FC = () => {
       onClick: () => void;
     };
   }>({ isOpen: false, message: "" });
-  const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
-  const [createCampaignError, setCreateCampaignError] = useState<string | null>(
-    null
-  );
+  const createCampaignError = createCampaignMutation.error
+    ? createCampaignMutation.error.message
+    : null;
   const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">(
     "create"
   );
@@ -174,7 +257,6 @@ export const Campaigns: React.FC = () => {
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
-  const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [inlineEditCampaign, setInlineEditCampaign] = useState<Campaign | null>(
     null
   );
@@ -183,9 +265,6 @@ export const Campaigns: React.FC = () => {
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
-  const loadingRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const requestIdRef = useRef<string>("");
 
   // Define filter fields for Campaigns
   const CAMPAIGN_FILTER_FIELDS = [
@@ -279,108 +358,9 @@ export const Campaigns: React.FC = () => {
     }
   }, [editingCell, showInlineEditModal]);
 
-  useEffect(() => {
-    // Cancel any pending request when dependencies change
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+  // React Query handles data fetching automatically based on queryParams changes
+  // No need for manual useEffect to trigger fetches
 
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-    const currentController = abortControllerRef.current;
-
-    // Generate a unique request ID based on all dependencies to prevent duplicate requests
-    const requestId = JSON.stringify({
-      accountId,
-      currentPage,
-      itemsPerPage,
-      sortBy,
-      sortOrder,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      filters,
-    });
-
-    // Skip if this is the same request as the last one (prevents React StrictMode double calls)
-    if (requestIdRef.current === requestId) {
-      return;
-    }
-
-    requestIdRef.current = requestId;
-
-    if (accountId) {
-      const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
-        loadCampaigns(accountIdNum);
-      } else {
-        setLoading(false);
-      }
-    } else {
-      setLoading(false);
-    }
-
-    // Cleanup function to cancel request if component unmounts or dependencies change
-    return () => {
-      if (currentController) {
-        currentController.abort();
-      }
-      loadingRef.current = false;
-    };
-  }, [
-    accountId,
-    currentPage,
-    itemsPerPage,
-    sortBy,
-    sortOrder,
-    startDate,
-    endDate,
-    filters,
-  ]);
-
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    // Add filters to params
-    filterList.forEach((filter) => {
-      if (filter.field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
-        }
-      } else if (filter.field === "budget") {
-        if (filter.operator === "lt") {
-          params.budget__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.budget__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.budget = filter.value;
-        } else if (filter.operator === "lte") {
-          params.budget__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.budget__gte = filter.value;
-        }
-      } else if (filter.field === "state") {
-        params.state = filter.value;
-      } else if (filter.field === "type") {
-        params.type = filter.value;
-      } else if (filter.field === "targeting_type") {
-        params.targeting_type = filter.value;
-      } else if (filter.field === "profile_name") {
-        if (filter.operator === "contains") {
-          params.profile_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.profile_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.profile_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
 
   const handleExport = async (exportType: "all_data" | "current_view") => {
     if (!accountId) return;
@@ -454,84 +434,8 @@ export const Campaigns: React.FC = () => {
     }
   };
 
-  const loadCampaigns = async (accountId: number) => {
-    // Prevent duplicate simultaneous requests
-    if (loadingRef.current) {
-      return;
-    }
-
-    try {
-      loadingRef.current = true;
-      setLoading(true);
-      const params: any = {
-        sort_by: sortBy,
-        order: sortOrder,
-        page: currentPage,
-        page_size: itemsPerPage,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
-        ...buildFilterParams(filters),
-      };
-
-      const response = await campaignsService.getCampaigns(accountId, params);
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalPages(response.total_pages || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      if (response.chart_data) {
-        setChartDataFromApi(response.chart_data);
-      }
-    } catch (error) {
-      console.error("Failed to load campaigns:", error);
-      setCampaigns([]);
-      setTotalPages(0);
-    } finally {
-      setLoading(false);
-      loadingRef.current = false;
-    }
-  };
-
-  const loadCampaignsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    // Prevent duplicate simultaneous requests
-    if (loadingRef.current) {
-      return;
-    }
-
-    try {
-      loadingRef.current = true;
-      setLoading(true);
-      const params: any = {
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1, // Always reset to first page when applying filters
-        page_size: itemsPerPage,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
-        ...buildFilterParams(filterList),
-      };
-
-      const response = await campaignsService.getCampaigns(accountId, params);
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalPages(response.total_pages || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      if (response.chart_data) {
-        setChartDataFromApi(response.chart_data);
-      }
-    } catch (error) {
-      console.error("Failed to load campaigns:", error);
-      setCampaigns([]);
-      setTotalPages(0);
-    } finally {
-      setLoading(false);
-      loadingRef.current = false;
-    }
-  };
+  // React Query handles data loading automatically
+  // No need for manual loadCampaigns functions
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -643,15 +547,9 @@ export const Campaigns: React.FC = () => {
   };
 
   const runInlineEdit = async () => {
-    if (!inlineEditCampaign || !inlineEditField || !accountId) return;
+    if (!inlineEditCampaign || !inlineEditField || !accountIdNum) return;
 
-    setInlineEditLoading(true);
     try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
       if (inlineEditField === "status") {
         // Map status values - Note: "archive" is not allowed via API
         const statusMap: Record<string, "enable" | "pause"> = {
@@ -661,7 +559,7 @@ export const Campaigns: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "enable";
 
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+        await bulkUpdateMutation.mutateAsync({
           campaignIds: [inlineEditCampaign.campaignId],
           action: "status",
           status: statusValue,
@@ -675,7 +573,7 @@ export const Campaigns: React.FC = () => {
           throw new Error("Invalid budget value");
         }
 
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+        await bulkUpdateMutation.mutateAsync({
           campaignIds: [inlineEditCampaign.campaignId],
           action: "budget",
           budgetAction: "set",
@@ -692,19 +590,12 @@ export const Campaigns: React.FC = () => {
         };
         const budgetTypeValue = budgetTypeMap[inlineEditNewValue] || "DAILY";
 
-        await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+        await bulkUpdateMutation.mutateAsync({
           campaignIds: [inlineEditCampaign.campaignId],
           action: "budgetType",
           budgetType: budgetTypeValue,
         });
       }
-
-      // Reset refs to force reload
-      requestIdRef.current = "";
-      loadingRef.current = false;
-
-      // Reload campaigns to get updated data
-      await loadCampaigns(accountIdNum);
 
       setShowInlineEditModal(false);
       setInlineEditCampaign(null);
@@ -721,30 +612,18 @@ export const Campaigns: React.FC = () => {
         isOpen: true,
         message: errorMessage,
       });
-    } finally {
-      setInlineEditLoading(false);
     }
   };
 
   const runBulkStatus = async (statusValue: "enable" | "pause") => {
-    if (!accountId || selectedCampaigns.size === 0) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
+    if (!accountIdNum || selectedCampaigns.size === 0) return;
 
     try {
-      setBulkLoading(true);
-      await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+      await bulkUpdateMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
         action: "status",
         status: statusValue,
       });
-
-      // Reset refs to force reload
-      requestIdRef.current = "";
-      loadingRef.current = false;
-
-      // Refresh campaigns to get updated data
-      await loadCampaigns(accountIdNum);
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
       const errorMessage =
@@ -755,28 +634,16 @@ export const Campaigns: React.FC = () => {
         isOpen: true,
         message: errorMessage,
       });
-    } finally {
-      setBulkLoading(false);
     }
   };
 
   const runBulkDelete = async () => {
-    if (!accountId || selectedCampaigns.size === 0) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
+    if (!accountIdNum || selectedCampaigns.size === 0) return;
 
     try {
-      setBulkLoading(true);
-      await campaignsService.bulkDeleteCampaigns(accountIdNum, {
+      await bulkDeleteMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
       });
-
-      // Reset refs to force reload
-      requestIdRef.current = "";
-      loadingRef.current = false;
-
-      // Refresh campaigns to get updated data (deleted campaigns will be filtered out)
-      await loadCampaigns(accountIdNum);
 
       // Clear selection after successful delete
       setSelectedCampaigns(new Set());
@@ -792,15 +659,11 @@ export const Campaigns: React.FC = () => {
         message: errorMessage,
       });
       setShowDeleteModal(false);
-    } finally {
-      setBulkLoading(false);
     }
   };
 
   const runBulkBudget = async () => {
-    if (!accountId || selectedCampaigns.size === 0) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
+    if (!accountIdNum || selectedCampaigns.size === 0) return;
 
     const valueNum = parseFloat(budgetValue);
     if (isNaN(valueNum)) {
@@ -810,8 +673,7 @@ export const Campaigns: React.FC = () => {
     const lower = lowerLimit ? parseFloat(lowerLimit) : undefined;
 
     try {
-      setBulkLoading(true);
-      await campaignsService.bulkUpdateCampaigns(accountIdNum, {
+      await bulkUpdateMutation.mutateAsync({
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
         budgetAction,
@@ -820,17 +682,16 @@ export const Campaigns: React.FC = () => {
         upperLimit: upper,
         lowerLimit: lower,
       });
-
-      // Reset refs to force reload
-      requestIdRef.current = "";
-      loadingRef.current = false;
-
-      // Refresh campaigns to get updated data
-      await loadCampaigns(accountIdNum);
     } catch (error: any) {
       console.error("Failed to update budgets", error);
-    } finally {
-      setBulkLoading(false);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update budgets. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     }
   };
 
@@ -842,18 +703,10 @@ export const Campaigns: React.FC = () => {
   };
 
   const handleCreateCampaign = async (data: CreateCampaignData) => {
-    if (!accountId) return;
-
-    setCreateCampaignLoading(true);
-    setCreateCampaignError(null);
+    if (!accountIdNum) return;
 
     try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await campaignsService.createCampaign(accountIdNum, {
+      const response = await createCampaignMutation.mutateAsync({
         ...data,
         // Ensure type matches the service payload (no empty string)
         type: (data.type || "SP") as "SP" | "SB" | "SD",
@@ -880,10 +733,8 @@ export const Campaigns: React.FC = () => {
         }
       }
 
-      // Close the panel and stop loading
+      // Close the panel
       setIsCreateCampaignPanelOpen(false);
-      setCreateCampaignLoading(false);
-      setCreateCampaignError(null);
 
       // Show success modal with navigation button if we have campaign ID
       if (campaignId) {
@@ -900,26 +751,17 @@ export const Campaigns: React.FC = () => {
             },
           },
         });
-        await loadCampaigns(accountIdNum);
       } else {
-        // If no campaign ID, show success and reload campaigns
+        // If no campaign ID, show success
         setErrorModal({
           isOpen: true,
           title: "Success",
           message: `Campaign "${data.campaign_name}" created successfully!`,
           isSuccess: true,
         });
-
-        // Reset refs to force reload
-        requestIdRef.current = "";
-        loadingRef.current = false;
-
-        // Refresh campaigns to get updated data
-        await loadCampaigns(accountIdNum);
       }
     } catch (error: any) {
       console.error("Failed to create campaign:", error);
-      setCreateCampaignLoading(false);
 
       // Extract error message from backend response
       let errorMessage = "Failed to create campaign. Please try again.";
@@ -976,13 +818,10 @@ export const Campaigns: React.FC = () => {
         fieldErrors: fieldErrors,
       };
 
-      // Store error with field errors as JSON string
-      // The panel will parse this and extract both message and field errors
-      setCreateCampaignError(JSON.stringify(errorWithFields));
-
       // Don't close panel on error - let user fix and resubmit
       // Re-throw error so the form knows submission failed
-      throw error;
+      // Note: createCampaignError is derived from mutation error state
+      throw new Error(JSON.stringify(errorWithFields));
     }
   };
 
@@ -1064,7 +903,7 @@ export const Campaigns: React.FC = () => {
       ) {
         const statusValue = statusMap[newStatus] || "enable";
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          bulkUpdateMutation.mutateAsync({
             campaignIds: [campaignId],
             action: "status",
             status: statusValue,
@@ -1077,7 +916,7 @@ export const Campaigns: React.FC = () => {
       const newBudget = data.budget || 0;
       if (Math.abs(newBudget - originalBudget) > 0.01) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          bulkUpdateMutation.mutateAsync({
             campaignIds: [campaignId],
             action: "budget",
             budgetAction: "set",
@@ -1098,7 +937,7 @@ export const Campaigns: React.FC = () => {
         (newBudgetType === "DAILY" || newBudgetType === "LIFETIME")
       ) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          bulkUpdateMutation.mutateAsync({
             campaignIds: [campaignId],
             action: "budgetType",
             budgetType: newBudgetType.toUpperCase() as "DAILY" | "LIFETIME",
@@ -1197,16 +1036,10 @@ export const Campaigns: React.FC = () => {
 
       await Promise.all(updates);
 
-      // Reset refs to force reload
-      requestIdRef.current = "";
-      loadingRef.current = false;
-
-      // Reload campaigns to get updated data
-      await loadCampaigns(accountIdNum);
+      // React Query will automatically refetch campaigns after mutation
 
       // Close the panel
       setIsCreateCampaignPanelOpen(false);
-      setCreateCampaignError(null);
       setInitialCampaignData(null);
       setCampaignFormMode("create");
     } catch (error: any) {
@@ -1215,9 +1048,8 @@ export const Campaigns: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to update campaign. Please try again.";
-      setCreateCampaignError(errorMessage);
-    } finally {
-      setCreateCampaignLoading(false);
+      // Note: createCampaignError is derived from mutation error state
+      throw error;
     }
   };
 
@@ -1228,8 +1060,6 @@ export const Campaigns: React.FC = () => {
     try {
       setEditLoadingCampaignId(row.campaignId);
       setCampaignFormMode("edit");
-      setCreateCampaignError(null);
-      setCreateCampaignLoading(true);
       setIsCreateCampaignPanelOpen(true);
 
       const accountIdNum = parseInt(accountId);

@@ -3,10 +3,7 @@ import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
-import {
-  FilterPanel,
-  type FilterValues,
-} from "../../../../components/filters/FilterPanel";
+import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 import type { GoogleAdGroup } from "./types";
 
 interface GoogleCampaignDetailAdGroupsTabProps {
@@ -32,18 +29,13 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   syncMessage: string | null;
   formatPercentage: (value: number | string | undefined) => string;
   formatCurrency2Decimals: (value: number | string | undefined) => string;
-  getSortIcon: (
-    column: string,
-    currentSortBy: string,
-    currentSortOrder: "asc" | "desc"
-  ) => React.ReactNode;
+  getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   onUpdateAdGroupStatus?: (adgroupId: number, status: string) => Promise<void>;
   onUpdateAdGroupBid?: (adgroupId: number, bid: number) => Promise<void>;
+  campaignType?: string;
 }
 
-export const GoogleCampaignDetailAdGroupsTab: React.FC<
-  GoogleCampaignDetailAdGroupsTabProps
-> = ({
+export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGroupsTabProps> = ({
   adgroups,
   loading,
   selectedAdGroupIds,
@@ -69,11 +61,10 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
   getSortIcon,
   onUpdateAdGroupStatus,
   onUpdateAdGroupBid,
+  campaignType,
 }) => {
   const [editingAdGroupId, setEditingAdGroupId] = useState<number | null>(null);
-  const [editingField, setEditingField] = useState<"status" | "bid" | null>(
-    null
-  );
+  const [editingField, setEditingField] = useState<"status" | "bid" | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
   const [pendingChange, setPendingChange] = useState<{
     id: number;
@@ -81,9 +72,10 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     newValue: string;
     oldValue: string;
   } | null>(null);
-  const [updatingAdGroupId, setUpdatingAdGroupId] = useState<number | null>(
-    null
-  );
+  const [updatingAdGroupId, setUpdatingAdGroupId] = useState<number | null>(null);
+
+  // Check if this is a shopping campaign - ad groups don't have headlines/final URLs
+  const isShoppingCampaign = campaignType?.toUpperCase() === "SHOPPING";
 
   const handleStatusClick = (adgroup: GoogleAdGroup) => {
     if (onUpdateAdGroupStatus) {
@@ -92,12 +84,11 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
       // Normalize status to uppercase to match dropdown options
       const currentStatus = (adgroup.status || "ENABLED").toUpperCase();
       // Map common variations to standard values
-      const normalizedStatus =
-        currentStatus === "ENABLE" || currentStatus === "ENABLED"
-          ? "ENABLED"
-          : currentStatus === "PAUSE" || currentStatus === "PAUSED"
-          ? "PAUSED"
-          : currentStatus;
+      const normalizedStatus = currentStatus === "ENABLE" || currentStatus === "ENABLED" 
+        ? "ENABLED" 
+        : currentStatus === "PAUSE" || currentStatus === "PAUSED"
+        ? "PAUSED"
+        : currentStatus;
       setEditingValue(normalizedStatus);
     }
   };
@@ -127,12 +118,11 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     if (editingField === "status") {
       // Normalize both values for comparison
       const currentStatus = (adgroup.status || "ENABLED").toUpperCase();
-      const normalizedCurrent =
-        currentStatus === "ENABLE" || currentStatus === "ENABLED"
-          ? "ENABLED"
-          : currentStatus === "PAUSE" || currentStatus === "PAUSED"
-          ? "PAUSED"
-          : currentStatus;
+      const normalizedCurrent = currentStatus === "ENABLE" || currentStatus === "ENABLED" 
+        ? "ENABLED" 
+        : currentStatus === "PAUSE" || currentStatus === "PAUSED"
+        ? "PAUSED"
+        : currentStatus;
       oldValue = normalizedCurrent;
       hasChanged = editingValue.toUpperCase() !== normalizedCurrent;
     } else if (editingField === "bid") {
@@ -191,18 +181,14 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
       {syncMessage && (
         <div className="mb-4">
           <Banner
-            type={
-              syncMessage.includes("error") || syncMessage.includes("Failed")
-                ? "error"
-                : "success"
-            }
+            type={syncMessage.includes("error") || syncMessage.includes("Failed") ? "error" : "success"}
             message={syncMessage}
             dismissable={true}
             onDismiss={() => {}}
           />
         </div>
       )}
-
+      
       {/* Header with Filter Button and Sync Button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
@@ -211,7 +197,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleFilterPanel}
-            className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -310,7 +296,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
               </p>
             </div>
           ) : (
-            <table className="min-w-[800px] w-full">
+            <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
@@ -343,16 +329,26 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  {!isShoppingCampaign && (
+                    <>
+                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                        Headlines
+                      </th>
+                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                        Final URLs
+                      </th>
+                    </>
+                  )}
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     Bid
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     CTR
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     Spends
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     Sales
                   </th>
                 </tr>
@@ -371,9 +367,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedAdGroupIds.has(adgroup.id)}
-                            onChange={(checked) =>
-                              onSelectAdGroup(adgroup.id, checked)
-                            }
+                            onChange={(checked) => onSelectAdGroup(adgroup.id, checked)}
                             size="small"
                           />
                         </div>
@@ -383,16 +377,14 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           {adgroup.adgroup_name || adgroup.name || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <div className="relative w-full">
-                          {updatingAdGroupId === adgroup.id &&
-                          pendingChange?.field === "status" ? (
+                          {updatingAdGroupId === adgroup.id && pendingChange?.field === "status" ? (
                             <div className="flex items-center gap-2">
                               <StatusBadge status={pendingChange.newValue} />
                               <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
                             </div>
-                          ) : pendingChange?.id === adgroup.id &&
-                            pendingChange?.field === "status" ? (
+                          ) : pendingChange?.id === adgroup.id && pendingChange?.field === "status" ? (
                             <div className="flex items-center gap-2">
                               <StatusBadge status={pendingChange.newValue} />
                               <div className="flex items-center gap-1">
@@ -436,9 +428,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                 </button>
                               </div>
                             </div>
-                          ) : editingAdGroupId === adgroup.id &&
-                            editingField === "status" &&
-                            onUpdateAdGroupStatus ? (
+                          ) : editingAdGroupId === adgroup.id && editingField === "status" && onUpdateAdGroupStatus ? (
                             <div className="relative z-[100000]">
                               <Dropdown
                                 options={[
@@ -450,24 +440,16 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                   const newValue = val as string;
                                   setEditingValue(newValue);
                                   // Immediately trigger confirmation flow
-                                  const adgroupForEdit = adgroups.find(
-                                    (ag) => ag.id === editingAdGroupId
-                                  );
+                                  const adgroupForEdit = adgroups.find((ag) => ag.id === editingAdGroupId);
                                   if (adgroupForEdit) {
-                                    const currentStatus = (
-                                      adgroupForEdit.status || "ENABLED"
-                                    ).toUpperCase();
-                                    const normalizedCurrent =
-                                      currentStatus === "ENABLE" ||
-                                      currentStatus === "ENABLED"
-                                        ? "ENABLED"
-                                        : currentStatus === "PAUSE" ||
-                                          currentStatus === "PAUSED"
-                                        ? "PAUSED"
-                                        : currentStatus;
-                                    const normalizedNew =
-                                      newValue.toUpperCase();
-
+                                    const currentStatus = (adgroupForEdit.status || "ENABLED").toUpperCase();
+                                    const normalizedCurrent = currentStatus === "ENABLE" || currentStatus === "ENABLED" 
+                                      ? "ENABLED" 
+                                      : currentStatus === "PAUSE" || currentStatus === "PAUSED"
+                                      ? "PAUSED"
+                                      : currentStatus;
+                                    const normalizedNew = newValue.toUpperCase();
+                                    
                                     if (normalizedNew !== normalizedCurrent) {
                                       setPendingChange({
                                         id: editingAdGroupId,
@@ -490,39 +472,44 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                             </div>
                           ) : (
                             <div
-                              className={
-                                onUpdateAdGroupStatus
-                                  ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                  : ""
-                              }
-                              onClick={() =>
-                                onUpdateAdGroupStatus &&
-                                handleStatusClick(adgroup)
-                              }
+                              className={onUpdateAdGroupStatus ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1" : ""}
+                              onClick={() => onUpdateAdGroupStatus && handleStatusClick(adgroup)}
                             >
                               <StatusBadge status={adgroup.status} />
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="py-[10px] px-[10px]">
-                        {updatingAdGroupId === adgroup.id &&
-                        pendingChange?.field === "bid" ? (
+                      {!isShoppingCampaign && (
+                        <>
+                          <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {adgroup.headlines && Array.isArray(adgroup.headlines) && adgroup.headlines.length > 0
+                                ? adgroup.headlines.map((h: any) => h.text || h).join(", ")
+                                : "—"}
+                            </span>
+                          </td>
+                          <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
+                              {adgroup.final_urls && adgroup.final_urls.length > 0
+                                ? adgroup.final_urls[0]
+                                : "—"}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                        {updatingAdGroupId === adgroup.id && pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {formatCurrency2Decimals(
-                                parseFloat(pendingChange.newValue)
-                              )}
+                              {formatCurrency2Decimals(parseFloat(pendingChange.newValue))}
                             </span>
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
                           </div>
-                        ) : pendingChange?.id === adgroup.id &&
-                          pendingChange?.field === "bid" ? (
+                        ) : pendingChange?.id === adgroup.id && pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {formatCurrency2Decimals(
-                                parseFloat(pendingChange.newValue)
-                              )}
+                              {formatCurrency2Decimals(parseFloat(pendingChange.newValue))}
                             </span>
                             <div className="flex items-center gap-1">
                               <button
@@ -565,9 +552,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                               </button>
                             </div>
                           </div>
-                        ) : editingAdGroupId === adgroup.id &&
-                          editingField === "bid" &&
-                          onUpdateAdGroupBid ? (
+                        ) : editingAdGroupId === adgroup.id && editingField === "bid" && onUpdateAdGroupBid ? (
                           <div className="flex items-center">
                             <input
                               type="number"
@@ -577,13 +562,8 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                               onChange={(e) => setEditingValue(e.target.value)}
                               onBlur={(e) => {
                                 const inputValue = e.target.value;
-                                const oldValue = (
-                                  adgroup.cpc_bid_dollars || 0
-                                ).toString();
-                                if (
-                                  inputValue === oldValue ||
-                                  inputValue === ""
-                                ) {
+                                const oldValue = (adgroup.cpc_bid_dollars || 0).toString();
+                                if (inputValue === oldValue || inputValue === "") {
                                   cancelChange();
                                 } else {
                                   handleEditEnd();
@@ -602,26 +582,24 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           </div>
                         ) : (
                           <p
-                            onClick={() =>
-                              onUpdateAdGroupBid && handleBidClick(adgroup)
-                            }
+                            onClick={() => onUpdateAdGroupBid && handleBidClick(adgroup)}
                             className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                           >
                             {formatCurrency2Decimals(adgroup.cpc_bid_dollars)}
                           </p>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatPercentage(adgroup.ctr)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.spends)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.sales)}
                         </span>
@@ -689,9 +667,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
               </button>
             )}
             <button
-              onClick={() =>
-                onPageChange(Math.min(totalPages, currentPage + 1))
-              }
+              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
               className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
             >
@@ -703,3 +679,4 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
     </>
   );
 };
+
