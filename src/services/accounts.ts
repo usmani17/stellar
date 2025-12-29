@@ -168,10 +168,12 @@ export const accountsService = {
     return response.data;
   },
 
-  // Amazon Portfolios (per account, not campaign-type specific)
-  getPortfolios: async (accountId: number): Promise<Array<{ id: string; name: string }>> => {
+  // Amazon Portfolios (per account, optionally filtered by profileId)
+  getPortfolios: async (accountId: number, profileId?: string): Promise<Array<{ id: string; name: string }>> => {
+    const params = profileId ? { profileId } : {};
     const response = await api.get<{ portfolios: Array<{ id: string; name: string }> }>(
-      `/accounts/${accountId}/portfolios/`
+      `/accounts/${accountId}/portfolios/`,
+      { params }
     );
     return response.data.portfolios || [];
   },
