@@ -261,7 +261,9 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       <td className="py-[10px] px-[10px]">
                         {keyword.keywordText || keyword.name ? (
                           <Tooltip
-                            description={keyword.keywordText || keyword.name || ""}
+                            description={
+                              keyword.keywordText || keyword.name || ""
+                            }
                             position="bottomMiddle"
                           >
                             <div className="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
@@ -287,11 +289,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       {/* State */}
                       <td className="py-[10px] px-[10px] min-w-[115px]">
                         <StatusBadge
-                          status={
-                            keyword.status ||
-                            keyword.state ||
-                            "Enabled"
-                          }
+                          status={keyword.status || keyword.state || "Enabled"}
                           uppercase={true}
                         />
                       </td>

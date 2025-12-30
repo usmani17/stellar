@@ -215,7 +215,10 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                 {negativeTargets.map((target, index) => {
                   const isLastRow = index === negativeTargets.length - 1;
                   const expression =
-                    target.expression || target.expressions || target.name || "";
+                    target.expression ||
+                    target.expressions ||
+                    target.name ||
+                    "";
                   const resolvedExpression =
                     target.resolvedExpression ||
                     target.resolvedExpressions ||
@@ -265,9 +268,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       {/* State */}
                       <td className="py-[10px] px-[10px] min-w-[115px]">
                         <StatusBadge
-                          status={
-                            target.status || target.state || "Enabled"
-                          }
+                          status={target.status || target.state || "Enabled"}
                           uppercase={true}
                         />
                       </td>
