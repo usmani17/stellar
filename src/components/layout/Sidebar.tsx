@@ -21,6 +21,10 @@ import TopKeywordsIcon from "../../assets/images/cbi_walmart.svg";
 import TopProductsIcon from "../../assets/images/cib_instacart.svg";
 import PixelsLikeBoxIcon from "../../assets/images/cib_instacart.svg";
 import ProductTargetIcon from "../../assets/images/producttarget.svg";
+import KeywordsIcon from "../../assets/images/keywords.svg";
+import KeywordsWhiteIcon from "../../assets/images/keywords-white.svg";
+import TargetsIcon from "../../assets/images/targets.svg";
+import TargetsWhiteIcon from "../../assets/images/targets-white.svg";
 
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
 const GOOGLE_SECTION_STORAGE_KEY = "google-section-collapsed";
@@ -455,11 +459,13 @@ export const Sidebar: React.FC = () => {
                 title={isCollapsed ? "Keywords" : undefined}
               >
                 <img
-                  src={AdGroupIcon}
+                  src={
+                    isActive("/keywords")
+                      ? KeywordsWhiteIcon
+                      : KeywordsIcon
+                  }
                   alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/keywords") ? "brightness-0 invert" : ""
-                  }`}
+                  className="w-5 h-5"
                 />
                 {!isCollapsed && (
                   <span
@@ -494,11 +500,13 @@ export const Sidebar: React.FC = () => {
                 title={isCollapsed ? "Targets" : undefined}
               >
                 <img
-                  src={AdGroupIcon}
+                  src={
+                    isActive("/targets")
+                      ? TargetsWhiteIcon
+                      : TargetsIcon
+                  }
                   alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/targets") ? "brightness-0 invert" : ""
-                  }`}
+                  className="w-5 h-5"
                 />
                 {!isCollapsed && (
                   <span
