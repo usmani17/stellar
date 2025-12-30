@@ -1090,6 +1090,105 @@ export const campaignsService = {
     return response.data;
   },
 
+  getNegativeKeywords: async (
+    accountId: number,
+    campaignId: string | number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      type?: string; // Campaign type (SP, SB, SD) - required
+      // Filter parameters
+      [key: string]: any;
+    }
+  ): Promise<{
+    negative_keywords: Array<{
+      id: number;
+      keywordId?: number;
+      name: string;
+      matchType: string;
+      status: string;
+      adGroupId?: number;
+      campaignId?: string | number;
+      creationDateTime?: string;
+      lastUpdateDateTime?: string;
+      servingStatus?: string;
+      servingStatusDetails?: string;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    // Build filters object for POST request
+    const filters: any = {
+      ...params,
+    };
+
+    // Build URL with type query parameter (required)
+    const queryParams = new URLSearchParams();
+    if (params?.type) {
+      queryParams.append("type", params.type);
+    }
+    const queryString = queryParams.toString();
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${
+      queryString ? `?${queryString}` : ""
+    }`;
+    const response = await api.post(url, { filters });
+    return response.data;
+  },
+
+  getNegativeTargets: async (
+    accountId: number,
+    campaignId: string | number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      type?: string; // Campaign type (SP, SB, SD) - required
+      // Filter parameters
+      [key: string]: any;
+    }
+  ): Promise<{
+    negative_targets: Array<{
+      id: number;
+      targetId?: number;
+      name: string;
+      expression: string;
+      resolvedExpression?: string;
+      status: string;
+      adGroupId?: number;
+      campaignId?: string | number;
+      creationDateTime?: string;
+      lastUpdateDateTime?: string;
+      servingStatus?: string;
+      servingStatusDetails?: string;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    // Build filters object for POST request
+    const filters: any = {
+      ...params,
+    };
+
+    // Build URL with type query parameter (required)
+    const queryParams = new URLSearchParams();
+    if (params?.type) {
+      queryParams.append("type", params.type);
+    }
+    const queryString = queryParams.toString();
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${
+      queryString ? `?${queryString}` : ""
+    }`;
+    const response = await api.post(url, { filters });
+    return response.data;
+  },
+
   bulkUpdateCampaigns: async (
     accountId: number,
     payload: {
