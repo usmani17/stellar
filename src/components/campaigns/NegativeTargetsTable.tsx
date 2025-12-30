@@ -137,16 +137,8 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   </th>
 
                   {/* Expression Header */}
-                  <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                    onClick={() => onSort?.("expression")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Expression
-                      {getSortIcon("expression")}
-                    </div>
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    Expression
                   </th>
 
                   {/* Resolved Expression Header */}
