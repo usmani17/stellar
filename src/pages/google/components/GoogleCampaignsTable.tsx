@@ -11,12 +11,12 @@ export interface GoogleCampaign {
   status: string;
   advertising_channel_type: string;
   advertising_channel_sub_type?: string;
+  bidding_strategy_type?: string;
   start_date?: string;
   end_date?: string;
   daily_budget: number;
   budget_amount_micros?: number;
   budget_delivery_method?: string;
-  bidding_strategy_type?: string;
   serving_status?: string;
   last_sync?: string;
   // Performance metrics
@@ -24,6 +24,12 @@ export interface GoogleCampaign {
   sales?: number;
   impressions?: number;
   clicks?: number;
+  conversions?: number;
+  interactions?: number;
+  conversion_rate?: number;
+  interaction_rate?: number;
+  avg_cpc?: number;
+  cost_per_conversion?: number;
   acos?: number;
   roas?: number;
 }
@@ -69,6 +75,9 @@ interface GoogleCampaignsTableProps {
   getStatusBadge: (status: string) => React.ReactElement;
   getChannelTypeLabel: (type?: string) => string;
   getSortIcon: (column: string) => React.ReactElement;
+  onEditCampaign?: (campaign: GoogleCampaign) => void;
+  editLoadingCampaignId?: string | number | null;
+  isPanelOpen?: boolean; // When true, editable fields become read-only
 }
 
 export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
@@ -98,6 +107,9 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
   getStatusBadge,
   getChannelTypeLabel,
   getSortIcon,
+  onEditCampaign,
+  editLoadingCampaignId,
+  isPanelOpen = false,
 }) => {
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
@@ -138,6 +150,43 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       navigateTo: (row: GoogleCampaign, accountId: string) => 
         `/accounts/${accountId}/google-campaigns/${row.campaign_id}`,
       getValue: (row: GoogleCampaign) => row.campaign_name || "Unnamed Campaign",
+      render: (value: any, row: GoogleCampaign) => (
+        <div className="group relative flex items-center gap-2">
+          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1">
+            {value}
+          </span>
+          {onEditCampaign && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditCampaign(row);
+              }}
+              className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60 flex-shrink-0"
+              title="Edit campaign"
+              disabled={editLoadingCampaignId === row.campaign_id}
+            >
+              {editLoadingCampaignId === row.campaign_id ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+              ) : (
+                <svg
+                  className="w-4 h-4 text-[#072929]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                  />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
+      ),
     },
     {
       key: "account_name",
@@ -199,25 +248,42 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       getValue: (row: GoogleCampaign) => row.end_date,
     },
     {
+      key: "interaction_rate",
+      label: "Interaction rate",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => (row as any).interaction_rate || 0,
+    },
+    {
+      key: "avg_cost",
+      label: "Avg. cost",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => {
+        // Avg. cost = cost / interactions (for text ads, interactions = clicks)
+        const interactions = (row as any).interactions || (row as any).clicks || 0;
+        const spends = (row as any).spends || 0;
+        return interactions > 0 ? spends / interactions : 0;
+      },
+    },
+    {
       key: "spends",
-      label: "Spends",
+      label: "Cost",
       type: "currency",
       sortable: true,
       getValue: (row: GoogleCampaign) => (row as any).spends || 0,
     },
     {
-      key: "sales",
-      label: "Sales",
-      type: "currency",
+      key: "bidding_strategy_type",
+      label: "Bid strategy type",
+      type: "text",
       sortable: true,
-      getValue: (row: GoogleCampaign) => (row as any).sales || 0,
-    },
-    {
-      key: "impressions",
-      label: "Impressions",
-      type: "number",
-      sortable: true,
-      getValue: (row: GoogleCampaign) => (row as any).impressions || 0,
+      getValue: (row: GoogleCampaign) => {
+        const strategy = (row as any).bidding_strategy_type;
+        if (!strategy) return "—";
+        // Format bidding strategy type (e.g., MAXIMIZE_CONVERSIONS -> Maximize conversions)
+        return strategy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      },
     },
     {
       key: "clicks",
@@ -227,18 +293,60 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       getValue: (row: GoogleCampaign) => (row as any).clicks || 0,
     },
     {
+      key: "conversion_rate",
+      label: "Conv. rate",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => (row as any).conversion_rate || 0,
+    },
+    {
+      key: "sales",
+      label: "Conv. value",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => (row as any).sales || 0,
+    },
+    {
+      key: "roas",
+      label: "Conv. value / cost",
+      type: "roas",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => (row as any).roas || 0,
+    },
+    {
+      key: "conversions",
+      label: "Conversions",
+      type: "number",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => (row as any).conversions || 0,
+    },
+    {
+      key: "avg_cpc",
+      label: "Avg. CPC",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => (row as any).avg_cpc || 0,
+    },
+    {
+      key: "cost_per_conversion",
+      label: "Cost / conv.",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => (row as any).cost_per_conversion || 0,
+    },
+    {
+      key: "impressions",
+      label: "Impressions",
+      type: "number",
+      sortable: true,
+      getValue: (row: GoogleCampaign) => (row as any).impressions || 0,
+    },
+    {
       key: "acos",
       label: "ACOS",
       type: "percentage",
       sortable: true,
       getValue: (row: GoogleCampaign) => (row as any).acos || 0,
-    },
-    {
-      key: "roas",
-      label: "ROAS",
-      type: "roas",
-      sortable: true,
-      getValue: (row: GoogleCampaign) => (row as any).roas || 0,
     },
   ], [getChannelTypeLabel]);
 
@@ -295,6 +403,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}
       getSortIcon={getSortIcon}
+      isPanelOpen={isPanelOpen}
     />
   );
 };

@@ -8,6 +8,9 @@ interface CreateGoogleCampaignPanelProps {
   accountId?: string;
   loading?: boolean;
   submitError?: string | null;
+  mode?: "create" | "edit";
+  initialData?: Partial<CreateGoogleCampaignData> | null;
+  campaignId?: string | number;
 }
 
 export interface CreateGoogleCampaignData {
@@ -86,6 +89,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   onSubmit,
   loading = false,
   submitError = null,
+  mode = "create",
+  initialData = null,
+  campaignId,
 }) => {
   const [formData, setFormData] = useState<CreateGoogleCampaignData>({
     campaign_type: "PERFORMANCE_MAX",
@@ -122,12 +128,18 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     }
   }, [submitError]);
 
-  // Reset form when panel closes
+  // Reset form when panel closes or load initial data when in edit mode
   useEffect(() => {
     if (!isOpen) {
       resetForm();
+    } else if (mode === "edit" && initialData) {
+      // Load initial data for edit mode
+      setFormData((prev) => ({
+        ...prev,
+        ...initialData,
+      }));
     }
-  }, [isOpen]);
+  }, [isOpen, mode, initialData]);
 
   const resetForm = () => {
     setFormData({
@@ -414,7 +426,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       <form onSubmit={handleSubmit}>
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
-            Create Google Campaign
+            {mode === "edit" ? "Edit Google Campaign" : "Create Google Campaign"}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1022,7 +1034,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
             disabled={loading}
           >
-            {loading ? "Creating..." : "Create Campaign"}
+            {loading ? (mode === "edit" ? "Updating..." : "Creating...") : (mode === "edit" ? "Update Campaign" : "Create Campaign")}
           </button>
         </div>
       </form>

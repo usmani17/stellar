@@ -81,6 +81,7 @@ export interface GoogleAdsTableProps<T = any> {
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
   getSortIcon: (column: string) => React.ReactElement;
+  isPanelOpen?: boolean; // When true, editable fields become read-only
 }
 
 export function GoogleAdsTable<T = any>({
@@ -117,6 +118,7 @@ export function GoogleAdsTable<T = any>({
   formatPercentage,
   getStatusBadge,
   getSortIcon,
+  isPanelOpen = false,
 }: GoogleAdsTableProps<T>) {
   const navigate = useNavigate();
 
@@ -179,7 +181,7 @@ export function GoogleAdsTable<T = any>({
 
     // Default render
     const cellContent = renderValue(column, value);
-    const isClickable = column.editable && !isEditing;
+    const isClickable = column.editable && !isEditing && !isPanelOpen; // Disable editing when panel is open
 
     if (column.navigateTo) {
       const navPath = column.navigateTo(row, accountId);
@@ -202,6 +204,15 @@ export function GoogleAdsTable<T = any>({
           className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1 w-full"
           style={{ pointerEvents: 'auto' }}
         >
+          {cellContent}
+        </div>
+      );
+    }
+
+    // When panel is open and field is editable, show as read-only (no hover effect)
+    if (column.editable && isPanelOpen && !isEditing) {
+      return (
+        <div className="cursor-not-allowed opacity-60 rounded px-2 py-1 w-full">
           {cellContent}
         </div>
       );

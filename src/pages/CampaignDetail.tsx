@@ -20,6 +20,8 @@ import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 import { KeywordsTable } from "../components/campaigns/KeywordsTable";
 import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
 import { TargetsTable } from "../components/campaigns/TargetsTable";
+import { NegativeKeywordsTable } from "../components/campaigns/NegativeKeywordsTable";
+import { NegativeTargetsTable } from "../components/campaigns/NegativeTargetsTable";
 import { LogsTable } from "../components/campaigns/LogsTable";
 import {
   FilterPanel,
@@ -174,6 +176,22 @@ export const CampaignDetail: React.FC = () => {
   // Track if AUTO campaign has keywords or targets
   const [autoCampaignHasKeywords, setAutoCampaignHasKeywords] = useState(false);
   const [autoCampaignHasTargets, setAutoCampaignHasTargets] = useState(false);
+  
+  // Negative keywords and targets state (for auto campaigns)
+  const [negativeKeywords, setNegativeKeywords] = useState<any[]>([]);
+  const [negativeKeywordsLoading, setNegativeKeywordsLoading] = useState(false);
+  const [negativeKeywordsCurrentPage, setNegativeKeywordsCurrentPage] = useState(1);
+  const [negativeKeywordsTotalPages, setNegativeKeywordsTotalPages] = useState(0);
+  const [negativeKeywordsSortBy, setNegativeKeywordsSortBy] = useState<string>("id");
+  const [negativeKeywordsSortOrder, setNegativeKeywordsSortOrder] = useState<"asc" | "desc">("asc");
+  
+  const [negativeTargets, setNegativeTargets] = useState<any[]>([]);
+  const [negativeTargetsLoading, setNegativeTargetsLoading] = useState(false);
+  const [negativeTargetsCurrentPage, setNegativeTargetsCurrentPage] = useState(1);
+  const [negativeTargetsTotalPages, setNegativeTargetsTotalPages] = useState(0);
+  const [negativeTargetsSortBy, setNegativeTargetsSortBy] = useState<string>("id");
+  const [negativeTargetsSortOrder, setNegativeTargetsSortOrder] = useState<"asc" | "desc">("asc");
+  
   const [isTargetsFilterPanelOpen, setIsTargetsFilterPanelOpen] =
     useState(false);
   const [targetsFilters, setTargetsFilters] = useState<FilterValues>([]);
@@ -228,6 +246,8 @@ export const CampaignDetail: React.FC = () => {
     "Keywords",
     "Targets",
     "Product Ads",
+    "Negative Keywords",
+    "Negative Targets",
     "Logs",
   ];
 
@@ -257,14 +277,36 @@ export const CampaignDetail: React.FC = () => {
   }, [isAutoCampaign, targets, autoCampaignHasTargets]);
 
   const tabs = useMemo(() => {
+    let filteredTabs = [...allTabs];
+    
     if (campaignType === "SD") {
-      return allTabs.filter((tab) => tab !== "Keywords");
+      filteredTabs = filteredTabs.filter((tab) => tab !== "Keywords");
     }
+    
     // For AUTO campaigns, hide Keywords tab completely (as per user requirement)
+    // But show Negative Keywords and Negative Targets before Logs
     if (campaignType === "SP" && isAutoCampaign) {
-      return allTabs.filter((tab) => tab !== "Keywords");
+      filteredTabs = filteredTabs.filter((tab) => tab !== "Keywords");
+      // Ensure Negative Keywords and Negative Targets appear before Logs
+      // They should only show for auto campaigns
+      const logsIndex = filteredTabs.indexOf("Logs");
+      if (logsIndex !== -1) {
+        // Insert Negative Keywords and Negative Targets before Logs if not already present
+        if (!filteredTabs.includes("Negative Keywords")) {
+          filteredTabs.splice(logsIndex, 0, "Negative Keywords");
+        }
+        if (!filteredTabs.includes("Negative Targets")) {
+          filteredTabs.splice(filteredTabs.indexOf("Negative Keywords") + 1, 0, "Negative Targets");
+        }
+      }
+    } else {
+      // For non-auto campaigns, hide Negative Keywords and Negative Targets
+      filteredTabs = filteredTabs.filter(
+        (tab) => tab !== "Negative Keywords" && tab !== "Negative Targets"
+      );
     }
-    return allTabs;
+    
+    return filteredTabs;
   }, [campaignType, isAutoCampaign]);
 
   // Switch away from Keywords tab if campaign type is SD
@@ -713,6 +755,50 @@ export const CampaignDetail: React.FC = () => {
     targetsSortBy,
     targetsSortOrder,
     targetsFilters,
+  ]);
+
+  // Load negative keywords for auto campaigns
+  useEffect(() => {
+    if (
+      accountId &&
+      campaignId &&
+      activeTab === "Negative Keywords" &&
+      isAutoCampaign &&
+      campaignType
+    ) {
+      loadNegativeKeywords();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    negativeKeywordsCurrentPage,
+    negativeKeywordsSortBy,
+    negativeKeywordsSortOrder,
+    isAutoCampaign,
+    campaignType,
+  ]);
+
+  // Load negative targets for auto campaigns
+  useEffect(() => {
+    if (
+      accountId &&
+      campaignId &&
+      activeTab === "Negative Targets" &&
+      isAutoCampaign &&
+      campaignType
+    ) {
+      loadNegativeTargets();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    negativeTargetsCurrentPage,
+    negativeTargetsSortBy,
+    negativeTargetsSortOrder,
+    isAutoCampaign,
+    campaignType,
   ]);
 
   const loadCampaignDetail = async () => {
@@ -1704,6 +1790,104 @@ export const CampaignDetail: React.FC = () => {
 
   const handleTargetsPageChange = (page: number) => {
     setTargetsCurrentPage(page);
+  };
+
+  const loadNegativeKeywords = async () => {
+    try {
+      setNegativeKeywordsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId || !campaignType) {
+        setNegativeKeywordsLoading(false);
+        return;
+      }
+
+      const data = await campaignsService.getNegativeKeywords(
+        accountIdNum,
+        campaignId,
+        {
+          page: negativeKeywordsCurrentPage,
+          page_size: 10,
+          sort_by: negativeKeywordsSortBy,
+          order: negativeKeywordsSortOrder,
+          type: campaignType,
+        }
+      );
+
+      setNegativeKeywords(data.negative_keywords || []);
+      setNegativeKeywordsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load negative keywords:", error);
+      setNegativeKeywords([]);
+      setNegativeKeywordsTotalPages(0);
+    } finally {
+      setNegativeKeywordsLoading(false);
+    }
+  };
+
+  const loadNegativeTargets = async () => {
+    try {
+      setNegativeTargetsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId || !campaignType) {
+        setNegativeTargetsLoading(false);
+        return;
+      }
+
+      const data = await campaignsService.getNegativeTargets(
+        accountIdNum,
+        campaignId,
+        {
+          page: negativeTargetsCurrentPage,
+          page_size: 10,
+          sort_by: negativeTargetsSortBy,
+          order: negativeTargetsSortOrder,
+          type: campaignType,
+        }
+      );
+
+      setNegativeTargets(data.negative_targets || []);
+      setNegativeTargetsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load negative targets:", error);
+      setNegativeTargets([]);
+      setNegativeTargetsTotalPages(0);
+    } finally {
+      setNegativeTargetsLoading(false);
+    }
+  };
+
+  const handleNegativeKeywordsSort = (column: string) => {
+    if (negativeKeywordsSortBy === column) {
+      setNegativeKeywordsSortOrder(
+        negativeKeywordsSortOrder === "asc" ? "desc" : "asc"
+      );
+    } else {
+      setNegativeKeywordsSortBy(column);
+      setNegativeKeywordsSortOrder("asc");
+    }
+    setNegativeKeywordsCurrentPage(1);
+  };
+
+  const handleNegativeKeywordsPageChange = (page: number) => {
+    setNegativeKeywordsCurrentPage(page);
+  };
+
+  const handleNegativeTargetsSort = (column: string) => {
+    if (negativeTargetsSortBy === column) {
+      setNegativeTargetsSortOrder(
+        negativeTargetsSortOrder === "asc" ? "desc" : "asc"
+      );
+    } else {
+      setNegativeTargetsSortBy(column);
+      setNegativeTargetsSortOrder("asc");
+    }
+    setNegativeTargetsCurrentPage(1);
+  };
+
+  const handleNegativeTargetsPageChange = (page: number) => {
+    setNegativeTargetsCurrentPage(page);
   };
 
   const toggleChartMetric = (
@@ -3855,6 +4039,228 @@ export const CampaignDetail: React.FC = () => {
               </>
             )}
 
+            {activeTab === "Negative Keywords" && (
+              <>
+                <div className="mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
+                    Negative Keywords
+                  </h2>
+                  <NegativeKeywordsTable
+                    negativeKeywords={negativeKeywords}
+                    loading={negativeKeywordsLoading}
+                    sortBy={negativeKeywordsSortBy}
+                    sortOrder={negativeKeywordsSortOrder}
+                    onSort={handleNegativeKeywordsSort}
+                  />
+                </div>
+                {/* Pagination */}
+                {!negativeKeywordsLoading &&
+                  negativeKeywords.length > 0 &&
+                  negativeKeywordsTotalPages > 0 && (
+                    <div className="flex items-center justify-end mt-4">
+                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                        <button
+                          onClick={() =>
+                            handleNegativeKeywordsPageChange(
+                              Math.max(1, negativeKeywordsCurrentPage - 1)
+                            )
+                          }
+                          disabled={negativeKeywordsCurrentPage === 1}
+                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Previous
+                        </button>
+                        {Array.from(
+                          { length: Math.min(5, negativeKeywordsTotalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (negativeKeywordsTotalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (negativeKeywordsCurrentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              negativeKeywordsCurrentPage >=
+                              negativeKeywordsTotalPages - 2
+                            ) {
+                              pageNum = negativeKeywordsTotalPages - 4 + i;
+                            } else {
+                              pageNum = negativeKeywordsCurrentPage - 2 + i;
+                            }
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() =>
+                                  handleNegativeKeywordsPageChange(pageNum)
+                                }
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                  negativeKeywordsCurrentPage === pageNum
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          }
+                        )}
+                        {negativeKeywordsTotalPages > 5 &&
+                          negativeKeywordsCurrentPage <
+                            negativeKeywordsTotalPages - 2 && (
+                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                              ...
+                            </span>
+                          )}
+                        {negativeKeywordsTotalPages > 5 && (
+                          <button
+                            onClick={() =>
+                              handleNegativeKeywordsPageChange(
+                                negativeKeywordsTotalPages
+                              )
+                            }
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                              negativeKeywordsCurrentPage ===
+                              negativeKeywordsTotalPages
+                                ? "bg-white text-[#136D6D] font-semibold"
+                                : "text-black hover:bg-gray-50"
+                            }`}
+                          >
+                            {negativeKeywordsTotalPages}
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            handleNegativeKeywordsPageChange(
+                              Math.min(
+                                negativeKeywordsTotalPages,
+                                negativeKeywordsCurrentPage + 1
+                              )
+                            )
+                          }
+                          disabled={
+                            negativeKeywordsCurrentPage ===
+                            negativeKeywordsTotalPages
+                          }
+                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
+
+            {activeTab === "Negative Targets" && (
+              <>
+                <div className="mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
+                    Negative Targets
+                  </h2>
+                  <NegativeTargetsTable
+                    negativeTargets={negativeTargets}
+                    loading={negativeTargetsLoading}
+                    sortBy={negativeTargetsSortBy}
+                    sortOrder={negativeTargetsSortOrder}
+                    onSort={handleNegativeTargetsSort}
+                  />
+                </div>
+                {/* Pagination */}
+                {!negativeTargetsLoading &&
+                  negativeTargets.length > 0 &&
+                  negativeTargetsTotalPages > 0 && (
+                    <div className="flex items-center justify-end mt-4">
+                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                        <button
+                          onClick={() =>
+                            handleNegativeTargetsPageChange(
+                              Math.max(1, negativeTargetsCurrentPage - 1)
+                            )
+                          }
+                          disabled={negativeTargetsCurrentPage === 1}
+                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Previous
+                        </button>
+                        {Array.from(
+                          { length: Math.min(5, negativeTargetsTotalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (negativeTargetsTotalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (negativeTargetsCurrentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              negativeTargetsCurrentPage >=
+                              negativeTargetsTotalPages - 2
+                            ) {
+                              pageNum = negativeTargetsTotalPages - 4 + i;
+                            } else {
+                              pageNum = negativeTargetsCurrentPage - 2 + i;
+                            }
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() =>
+                                  handleNegativeTargetsPageChange(pageNum)
+                                }
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                  negativeTargetsCurrentPage === pageNum
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          }
+                        )}
+                        {negativeTargetsTotalPages > 5 &&
+                          negativeTargetsCurrentPage <
+                            negativeTargetsTotalPages - 2 && (
+                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                              ...
+                            </span>
+                          )}
+                        {negativeTargetsTotalPages > 5 && (
+                          <button
+                            onClick={() =>
+                              handleNegativeTargetsPageChange(
+                                negativeTargetsTotalPages
+                              )
+                            }
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                              negativeTargetsCurrentPage ===
+                              negativeTargetsTotalPages
+                                ? "bg-white text-[#136D6D] font-semibold"
+                                : "text-black hover:bg-gray-50"
+                            }`}
+                          >
+                            {negativeTargetsTotalPages}
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            handleNegativeTargetsPageChange(
+                              Math.min(
+                                negativeTargetsTotalPages,
+                                negativeTargetsCurrentPage + 1
+                              )
+                            )
+                          }
+                          disabled={
+                            negativeTargetsCurrentPage ===
+                            negativeTargetsTotalPages
+                          }
+                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
+
             {activeTab === "Logs" && (
               <div className="mt-6">
                 <LogsTable
@@ -3871,6 +4277,8 @@ export const CampaignDetail: React.FC = () => {
               activeTab !== "Keywords" &&
               activeTab !== "Product Ads" &&
               activeTab !== "Targets" &&
+              activeTab !== "Negative Keywords" &&
+              activeTab !== "Negative Targets" &&
               activeTab !== "Logs" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
