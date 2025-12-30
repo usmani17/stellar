@@ -21,80 +21,85 @@ interface BannerProps {
   className?: string;
 }
 
-// Icon components
-const WarningIcon: React.FC<{ color: string }> = ({ color }) => (
-  <div className="overflow-hidden relative shrink-0 size-[18px]">
-    <div 
-      className="absolute"
-      style={{
-        width: '16.50px',
-        height: '14.25px',
-        left: '0.75px',
-        top: '1.88px',
-        backgroundColor: color
-      }}
+// Icon components with proper SVG icons
+const WarningIcon: React.FC = () => (
+  <svg
+    className="w-5 h-5 shrink-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
     />
-  </div>
+  </svg>
 );
 
-const InfoIcon: React.FC<{ color: string }> = ({ color }) => (
-  <div className="overflow-hidden relative shrink-0 size-[18px]">
-    <div 
-      className="absolute"
-      style={{
-        width: '15px',
-        height: '15px',
-        left: '1.50px',
-        top: '1.50px',
-        backgroundColor: color
-      }}
+const InfoIcon: React.FC = () => (
+  <svg
+    className="w-5 h-5 shrink-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
     />
-  </div>
+  </svg>
 );
 
-const ErrorIcon: React.FC<{ color: string }> = ({ color }) => (
-  <div className="overflow-hidden relative shrink-0 size-[18px]">
-    <div 
-      className="absolute"
-      style={{
-        width: '15px',
-        height: '15px',
-        left: '1.50px',
-        top: '1.50px',
-        backgroundColor: color
-      }}
+const ErrorIcon: React.FC = () => (
+  <svg
+    className="w-5 h-5 shrink-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
     />
-  </div>
+  </svg>
 );
 
-const SuccessIcon: React.FC<{ color: string }> = ({ color }) => (
-  <div className="overflow-hidden relative shrink-0 size-[18px]">
-    <div 
-      className="absolute"
-      style={{
-        width: '15px',
-        height: '15px',
-        left: '1.50px',
-        top: '1.50px',
-        backgroundColor: color
-      }}
+const SuccessIcon: React.FC = () => (
+  <svg
+    className="w-5 h-5 shrink-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
     />
-  </div>
+  </svg>
 );
 
-const CloseIcon: React.FC<{ color: string }> = ({ color }) => (
-  <div className="overflow-hidden relative shrink-0 size-[18px]">
-    <div 
-      className="absolute"
-      style={{
-        width: '10.50px',
-        height: '10.50px',
-        left: '3.75px',
-        top: '3.75px',
-        backgroundColor: color
-      }}
+const CloseIcon: React.FC = () => (
+  <svg
+    className="w-4 h-4 shrink-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2.5}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M6 18L18 6M6 6l12 12"
     />
-  </div>
+  </svg>
 );
 
 const typeStyles: Record<BannerType, {
@@ -102,6 +107,7 @@ const typeStyles: Record<BannerType, {
   text: string;
   iconColor: string;
   closeIconColor: string;
+  borderColor?: string;
 }> = {
   warning: {
     bg: 'bg-yellow-y10', // #FF991F
@@ -110,22 +116,23 @@ const typeStyles: Record<BannerType, {
     closeIconColor: '#072929',
   },
   info: {
-    bg: 'bg-sandstorm-s40', // #E8E8E3 (updated from s30)
+    bg: 'bg-sandstorm-s40', // #E8E8E3
     text: 'text-forest-f60', // #072929
     iconColor: '#072929',
     closeIconColor: '#072929',
   },
   error: {
-    bg: 'bg-red-r40', // #B51111 (updated from r30)
+    bg: 'bg-red-r40', // #B51111
     text: 'text-white',
     iconColor: '#FFFFFF',
     closeIconColor: '#FFFFFF',
   },
   success: {
-    bg: 'bg-forest-f40', // #136D6D
-    text: 'text-white',
-    iconColor: '#FFFFFF',
-    closeIconColor: '#FFFFFF',
+    bg: 'bg-forest-f0', // #DCF1E8 - lighter green background
+    text: 'text-forest-f60', // #072929 - dark text
+    iconColor: '#136D6D', // forest-f40 for icon
+    closeIconColor: '#072929',
+    borderColor: '#136D6D', // forest-f40 border
   },
 };
 
@@ -153,13 +160,13 @@ export const Banner: React.FC<BannerProps> = ({
   const renderIcon = () => {
     switch (type) {
       case 'warning':
-        return <WarningIcon color={styles.iconColor} />;
+        return <WarningIcon />;
       case 'info':
-        return <InfoIcon color={styles.iconColor} />;
+        return <InfoIcon />;
       case 'error':
-        return <ErrorIcon color={styles.iconColor} />;
+        return <ErrorIcon />;
       case 'success':
-        return <SuccessIcon color={styles.iconColor} />;
+        return <SuccessIcon />;
       default:
         return null;
     }
@@ -171,101 +178,100 @@ export const Banner: React.FC<BannerProps> = ({
         relative
         ${styles.bg}
         ${styles.text}
-        h-[52px]
-        rounded-[4px]
-        overflow-hidden
+        ${type === 'success' ? 'border' : ''}
+        min-h-[52px]
+        px-4
+        py-3
+        rounded-lg
+        flex
+        items-center
+        gap-3
         ${className}
       `}
+      style={type === 'success' && styles.borderColor ? {
+        borderColor: styles.borderColor,
+        borderWidth: '1px'
+      } : {}}
     >
-      {/* Icon and Message Container - Centered */}
-      <div
-        className={`
-          absolute
-          top-[14px]
-          left-1/2
-          -translate-x-1/2
-          flex
-          items-center
-          gap-[4px]
-          overflow-hidden
-        `}
+      {/* Icon Container */}
+      <div 
+        className="flex items-center justify-center shrink-0"
+        style={{ color: styles.iconColor }}
       >
-        {/* Icon Container */}
-        <div className="flex items-center justify-center overflow-hidden p-[6px] rounded-[4px] shrink-0 size-[24px]">
-          {renderIcon()}
-        </div>
-
-        {/* Message */}
-        <div
-          className={`
-            flex
-            flex-col
-            justify-center
-            text-[14px]
-            shrink-0
-          `}
-          style={{ 
-            fontWeight: 700,
-            lineHeight: '20px',
-            color: type === 'error' || type === 'success' ? '#FFFFFF' : '#072929'
-          }}
-        >
-          {message}
-        </div>
+        {renderIcon()}
       </div>
 
-      {/* CTA Button */}
-      {cta && (
-        <button
-          onClick={onCtaClick}
-          className={`
-            absolute
-            top-[17px]
-            right-[23px]
-            flex
-            flex-col
-            justify-center
-            text-[12px]
-            text-right
-            whitespace-nowrap
-            hover:opacity-80
-            transition-opacity
-            shrink-0
-          `}
-          style={{
-            fontWeight: 500,
-            lineHeight: '18px',
-            color: type === 'error' || type === 'success' ? '#FFFFFF' : '#072929'
-          }}
-        >
-          {ctaText}
-        </button>
-      )}
+      {/* Message */}
+      <div
+        className={`
+          flex-1
+          text-[14px]
+          leading-5
+          font-medium
+        `}
+        style={{ 
+          color: styles.text === 'text-white' ? '#FFFFFF' : '#072929'
+        }}
+      >
+        {message}
+      </div>
 
-      {/* Dismiss Button */}
-      {dismissable && (
-        <button
-          onClick={handleDismiss}
-          className={`
-            absolute
-            top-[14px]
-            right-[23px]
-            flex
-            items-center
-            justify-center
-            overflow-hidden
-            p-[6px]
-            rounded-[4px]
-            size-[24px]
-            hover:opacity-80
-            transition-opacity
-            shrink-0
-          `}
-          aria-label="Dismiss"
-        >
-          <CloseIcon color={styles.closeIconColor} />
-        </button>
-      )}
+      {/* Action Buttons Container */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* CTA Button */}
+        {cta && (
+          <button
+            onClick={onCtaClick}
+            className={`
+              px-3
+              py-1.5
+              rounded-md
+              text-[12px]
+              font-medium
+              whitespace-nowrap
+              transition-all
+              shrink-0
+              ${
+                type === 'error'
+                  ? 'bg-white/20 hover:bg-white/30 text-white'
+                  : type === 'success'
+                  ? 'bg-forest-f40 hover:bg-forest-f50 text-white'
+                  : 'bg-forest-f60 hover:bg-forest-f50 text-white'
+              }
+            `}
+          >
+            {ctaText}
+          </button>
+        )}
+
+        {/* Dismiss Button */}
+        {dismissable && (
+          <button
+            onClick={handleDismiss}
+            className={`
+              flex
+              items-center
+              justify-center
+              p-1
+              rounded-md
+              hover:opacity-70
+              transition-opacity
+              shrink-0
+              ${
+                type === 'error'
+                  ? 'hover:bg-white/20'
+                  : type === 'success'
+                  ? 'hover:bg-forest-f40/10'
+                  : 'hover:bg-forest-f60/10'
+              }
+            `}
+            aria-label="Dismiss"
+            style={{ color: styles.closeIconColor }}
+          >
+            <CloseIcon />
+          </button>
+        )}
+      </div>
     </div>
   );
 };

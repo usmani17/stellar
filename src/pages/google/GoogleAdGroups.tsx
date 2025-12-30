@@ -417,11 +417,15 @@ export const GoogleAdGroups: React.FC = () => {
       setSyncingAnalytics(true);
       setAnalyticsSyncMessage(null);
 
-      // Use date range from context if available, otherwise use last 30 days
+      // Always use 1 year date range for analytics sync (365 days)
+      const today = new Date();
+      const oneYearAgo = new Date();
+      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+      
       const result = await campaignsService.syncGoogleAdGroupAnalytics(
         accountIdNum,
-        startDate ? startDate.toISOString().split("T")[0] : undefined,
-        endDate ? endDate.toISOString().split("T")[0] : undefined
+        oneYearAgo.toISOString().split("T")[0],
+        today.toISOString().split("T")[0]
       );
 
       let message =
@@ -1316,122 +1320,126 @@ export const GoogleAdGroups: React.FC = () => {
               title="Performance Trends"
             />
 
-            {/* Google AdGroups Table Card */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6 max-w-full overflow-hidden">
-              {/* Card Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                  Ad Groups{" "}
-                  <span className="text-[12.8px] font-normal text-[#727272]">
-                    ({total} total)
-                  </span>
-                </h2>
-                <div
-                  className="relative inline-flex justify-end gap-2"
-                  ref={dropdownRef}
+            {/* Edit and Export Buttons - Above Table */}
+            <div className="flex items-center justify-end gap-2">
+              <div
+                className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setShowExportModal(true)}
+                  disabled={exporting || loading || adgroups.length === 0}
                 >
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => setShowExportModal(true)}
-                    disabled={exporting || loading || adgroups.length === 0}
-                  >
-                    {exporting ? (
-                      <>
-                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-[#072929] border-t-transparent"></span>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Exporting...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-4 h-4 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Export
-                        </span>
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:bg-gray-50 hover:!text-[#072929] transition-colors text-[9.5px] text-[#072929] font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowBulkActions((prev) => !prev);
-                      setShowBidPanel(false);
-                    }}
-                  >
-                    <svg
-                      className="w-4 h-4 text-[#072929]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                      />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">
-                      Edit
-                    </span>
-                  </Button>
-                  {showBulkActions && (
-                    <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                      <div className="overflow-y-auto">
-                        {[
-                          { value: "ENABLED", label: "Enable" },
-                          { value: "PAUSED", label: "Pause" },
-                          { value: "edit_bid", label: "Edit Bid" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            disabled={selectedAdgroups.size === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (selectedAdgroups.size === 0) return;
-                              if (opt.value === "edit_bid") {
-                                setShowBidPanel(true);
-                              } else {
-                                setShowBidPanel(false);
-                                setPendingStatusAction(
-                                  opt.value as "ENABLED" | "PAUSED"
-                                );
-                                setIsBidChange(false);
-                                setShowConfirmationModal(true);
-                              }
-                              setShowBulkActions(false);
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                  {exporting ? (
+                    <>
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
                       </div>
-                    </div>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Exporting...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Export
+                      </span>
+                    </>
                   )}
-                </div>
+                </Button>
               </div>
+              <div
+                className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowBulkActions((prev) => !prev);
+                    setShowBidPanel(false);
+                  }}
+                >
+                  <svg
+                    className="w-5 h-5 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                  <span className="text-[10.64px] text-[#072929] font-normal">
+                    Edit
+                  </span>
+                </Button>
+                {showBulkActions && (
+                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="overflow-y-auto">
+                      {[
+                        { value: "ENABLED", label: "Enable" },
+                        { value: "PAUSED", label: "Pause" },
+                        { value: "edit_bid", label: "Edit Bid" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          disabled={selectedAdgroups.size === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedAdgroups.size === 0) return;
+                            if (opt.value === "edit_bid") {
+                              setShowBidPanel(true);
+                            } else {
+                              setShowBidPanel(false);
+                              setPendingStatusAction(
+                                opt.value as "ENABLED" | "PAUSED"
+                              );
+                              setIsBidChange(false);
+                              setShowConfirmationModal(true);
+                            }
+                            setShowBulkActions(false);
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Google AdGroups Table Card with overlay when panel is open */}
+            <div className="relative">
 
               {/* Bid editor panel */}
               {selectedAdgroups.size > 0 && showBidPanel && (
-                <div className="px-6 mb-4">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="mb-4">
+                  <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
                     <div className="flex flex-wrap items-end gap-3 justify-between">
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
@@ -1451,7 +1459,7 @@ export const GoogleAdGroups: React.FC = () => {
                               setBidUnit("amount");
                             }
                           }}
-                          buttonClassName="w-full"
+                          buttonClassName="w-full bg-[#FEFEFB]"
                           width="w-full"
                         />
                       </div>
@@ -1496,7 +1504,7 @@ export const GoogleAdGroups: React.FC = () => {
                             type="number"
                             value={bidValue}
                             onChange={(e) => setBidValue(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
                             {bidUnit === "percent" ? "%" : "$"}
@@ -1512,7 +1520,7 @@ export const GoogleAdGroups: React.FC = () => {
                             type="number"
                             value={upperLimit}
                             onChange={(e) => setUpperLimit(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                           />
                         </div>
                       )}
@@ -1525,7 +1533,7 @@ export const GoogleAdGroups: React.FC = () => {
                             type="number"
                             value={lowerLimit}
                             onChange={(e) => setLowerLimit(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                           />
                         </div>
                       )}
@@ -1536,7 +1544,7 @@ export const GoogleAdGroups: React.FC = () => {
                             setShowBidPanel(false);
                             setShowBulkActions(false);
                           }}
-                          className="px-4 py-2.5 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
                         >
                           Cancel
                         </button>
@@ -1549,7 +1557,7 @@ export const GoogleAdGroups: React.FC = () => {
                             setShowConfirmationModal(true);
                           }}
                           disabled={bulkLoading || !bidValue}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Apply
                         </button>
@@ -1762,7 +1770,7 @@ export const GoogleAdGroups: React.FC = () => {
                           setShowConfirmationModal(false);
                           setPendingStatusAction(null);
                         }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary font-semibold rounded-lg items-center hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1777,7 +1785,7 @@ export const GoogleAdGroups: React.FC = () => {
                           setPendingStatusAction(null);
                         }}
                         disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {bulkLoading ? "Updating..." : "Confirm"}
                       </button>
@@ -1936,7 +1944,7 @@ export const GoogleAdGroups: React.FC = () => {
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
                         }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1944,7 +1952,7 @@ export const GoogleAdGroups: React.FC = () => {
                         type="button"
                         onClick={runInlineEdit}
                         disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>
@@ -1954,45 +1962,49 @@ export const GoogleAdGroups: React.FC = () => {
               )}
 
               {/* Table */}
-              <GoogleAdGroupsTable
-                adgroups={adgroups}
-                loading={loading}
-                sorting={sorting}
-                accountId={accountId || ""}
-                selectedAdgroups={selectedAdgroups}
-                allSelected={allSelected}
-                someSelected={someSelected}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                editingCell={editingCell}
-                editedValue={editedValue}
-                isCancelling={isCancelling}
-                updatingField={updatingField}
-                pendingBidChange={pendingBidChange}
-                pendingStatusChange={pendingStatusChange}
-                summary={summary}
-                onSelectAll={handleSelectAll}
-                onSelectAdgroup={handleSelectAdgroup}
-                onSort={handleSort}
-                onStartInlineEdit={startInlineEdit}
-                onCancelInlineEdit={cancelInlineEdit}
-                onInlineEditChange={handleInlineEditChange}
-                onConfirmInlineEdit={confirmInlineEdit}
-                onConfirmBidChange={runInlineBidUpdate}
-                onCancelBidChange={() => {
-                  setPendingBidChange(null);
-                  cancelInlineEdit();
-                }}
-                onConfirmStatusChange={runInlineStatusUpdate}
-                onCancelStatusChange={() => {
-                  setPendingStatusChange(null);
-                  cancelInlineEdit();
-                }}
-                formatCurrency={formatCurrency}
-                formatPercentage={formatPercentage}
-                getStatusBadge={getStatusBadge}
-                getSortIcon={getSortIcon}
-              />
+              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+                <div className="overflow-x-auto w-full">
+                  <GoogleAdGroupsTable
+                    adgroups={adgroups}
+                    loading={loading}
+                    sorting={sorting}
+                    accountId={accountId || ""}
+                    selectedAdgroups={selectedAdgroups}
+                    allSelected={allSelected}
+                    someSelected={someSelected}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    editingCell={editingCell}
+                    editedValue={editedValue}
+                    isCancelling={isCancelling}
+                    updatingField={updatingField}
+                    pendingBidChange={pendingBidChange}
+                    pendingStatusChange={pendingStatusChange}
+                    summary={summary}
+                    onSelectAll={handleSelectAll}
+                    onSelectAdgroup={handleSelectAdgroup}
+                    onSort={handleSort}
+                    onStartInlineEdit={startInlineEdit}
+                    onCancelInlineEdit={cancelInlineEdit}
+                    onInlineEditChange={handleInlineEditChange}
+                    onConfirmInlineEdit={confirmInlineEdit}
+                    onConfirmBidChange={runInlineBidUpdate}
+                    onCancelBidChange={() => {
+                      setPendingBidChange(null);
+                      cancelInlineEdit();
+                    }}
+                    onConfirmStatusChange={runInlineStatusUpdate}
+                    onCancelStatusChange={() => {
+                      setPendingStatusChange(null);
+                      cancelInlineEdit();
+                    }}
+                    formatCurrency={formatCurrency}
+                    formatPercentage={formatPercentage}
+                    getStatusBadge={getStatusBadge}
+                    getSortIcon={getSortIcon}
+                  />
+                </div>
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
