@@ -159,12 +159,17 @@ export const Sidebar: React.FC = () => {
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
-        !location.pathname.includes("/google")
+        !location.pathname.includes("/google") &&
+        !location.pathname.includes("/tiktok")
       );
     }
     if (path === "/google/campaigns") {
       return location.pathname.includes("/google/campaigns");
     }
+    if (path === "/tiktok/campaigns") {
+      return location.pathname.includes("/tiktok/campaigns");
+    }
+
     if (path === "/google/adgroups") {
       return location.pathname.includes("/google/adgroups");
     }
@@ -257,10 +262,8 @@ export const Sidebar: React.FC = () => {
           <div className="space-y-1">
             <Link
               to="/accounts"
-              className={`flex items-center p-2 rounded-xl ${
-                isActive("/accounts") ? "" : "transition-colors"
-              } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                isActive("/accounts")
+              className={`flex items-center p-2 rounded-xl ${isActive("/accounts") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/accounts")
                   ? "w-full bg-forest-f60 !text-white hover:!text-white"
                   : "text-black hover:bg-transparent"
                 }`}
@@ -282,8 +285,7 @@ export const Sidebar: React.FC = () => {
                 </svg>
               ) : (
                 <span
-                  className={`text-[12.32px] font-normal leading-[16px] ${
-                    isActive("/accounts") ? "!text-white" : ""
+                  className={`text-[12.32px] font-normal leading-[16px] ${isActive("/accounts") ? "!text-white" : ""
                     }`}
                 >
                   Accounts
@@ -303,10 +305,8 @@ export const Sidebar: React.FC = () => {
           <div className="space-y-1">
             <Link
               to="/dashboards"
-              className={`flex items-center p-2 rounded-xl ${
-                isActive("/dashboards") ? "" : "transition-colors"
-              } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                isActive("/dashboards")
+              className={`flex items-center p-2 rounded-xl ${isActive("/dashboards") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/dashboards")
                   ? "w-full bg-forest-f60 !text-white hover:!text-white"
                   : "text-black hover:bg-transparent"
                 }`}
@@ -315,14 +315,12 @@ export const Sidebar: React.FC = () => {
               <img
                 src={InstacartIcon}
                 alt=""
-                className={`w-5 h-5 ${
-                  isActive("/dashboards") ? "brightness-0 invert" : ""
+                className={`w-5 h-5 ${isActive("/dashboards") ? "brightness-0 invert" : ""
                   }`}
               />
               {!isCollapsed && (
                 <span
-                  className={`text-[12.32px] font-normal leading-[16px] ${
-                    isActive("/dashboards") ? "!text-white" : ""
+                  className={`text-[12.32px] font-normal leading-[16px] ${isActive("/dashboards") ? "!text-white" : ""
                     }`}
                 >
                   Overview
@@ -349,8 +347,7 @@ export const Sidebar: React.FC = () => {
                 }
               >
                 <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isAmazonSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                  className={`w-4 h-4 text-gray-600 transition-transform ${isAmazonSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
                     }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -381,10 +378,8 @@ export const Sidebar: React.FC = () => {
                       : "/accounts/1/amazon/campaigns"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/campaigns") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/campaigns")
+                className={`flex items-center p-2 rounded-xl ${isActive("/campaigns") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/campaigns")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
@@ -401,8 +396,7 @@ export const Sidebar: React.FC = () => {
                 />
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/campaigns") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/campaigns") ? "!text-white" : ""
                       }`}
                   >
                     Campaigns
@@ -422,10 +416,8 @@ export const Sidebar: React.FC = () => {
                       : "/accounts/1/amazon/adgroups"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/adgroups") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/adgroups")
+                className={`flex items-center p-2 rounded-xl ${isActive("/adgroups") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/adgroups")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
@@ -434,14 +426,12 @@ export const Sidebar: React.FC = () => {
                 <img
                   src={AdGroupIcon}
                   alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/adgroups") ? "brightness-0 invert" : ""
+                  className={`w-5 h-5 ${isActive("/adgroups") ? "brightness-0 invert" : ""
                     }`}
                 />
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/adgroups") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/adgroups") ? "!text-white" : ""
                       }`}
                   >
                     Ad Groups
@@ -461,10 +451,8 @@ export const Sidebar: React.FC = () => {
                       : "/accounts/1/amazon/keywords"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/keywords") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/keywords")
+                className={`flex items-center p-2 rounded-xl ${isActive("/keywords") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/keywords")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
@@ -477,14 +465,12 @@ export const Sidebar: React.FC = () => {
                       : KeywordsIcon
                   }
                   alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/keywords") ? "brightness-0 invert" : ""
+                  className={`w-5 h-5 ${isActive("/keywords") ? "brightness-0 invert" : ""
                     }`}
                 />
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/keywords") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/keywords") ? "!text-white" : ""
                       }`}
                   >
                     Keywords
@@ -504,10 +490,8 @@ export const Sidebar: React.FC = () => {
                       : "/accounts/1/amazon/targets"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/targets") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/targets")
+                className={`flex items-center p-2 rounded-xl ${isActive("/targets") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/targets")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
@@ -520,14 +504,12 @@ export const Sidebar: React.FC = () => {
                       : TargetsIcon
                   }
                   alt=""
-                  className={`w-5 h-5 ${
-                    isActive("/targets") ? "brightness-0 invert" : ""
+                  className={`w-5 h-5 ${isActive("/targets") ? "brightness-0 invert" : ""
                     }`}
                 />
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/targets") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/targets") ? "!text-white" : ""
                       }`}
                   >
                     Targets
@@ -536,8 +518,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Blueprints" : undefined}
               >
@@ -550,8 +531,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Settings" : undefined}
               >
@@ -583,8 +563,7 @@ export const Sidebar: React.FC = () => {
                 }
               >
                 <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isGoogleSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                  className={`w-4 h-4 text-gray-600 transition-transform ${isGoogleSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
                     }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -615,10 +594,8 @@ export const Sidebar: React.FC = () => {
                       : "/accounts/1/google/campaigns"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/campaigns") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/campaigns")
+                className={`flex items-center p-2 rounded-xl ${isActive("/google/campaigns") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/google/campaigns")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
@@ -635,8 +612,7 @@ export const Sidebar: React.FC = () => {
                 />
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/campaigns") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/google/campaigns") ? "!text-white" : ""
                       }`}
                   >
                     Campaign
@@ -656,10 +632,8 @@ export const Sidebar: React.FC = () => {
                       : "/accounts/1/google/adgroups"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/adgroups") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/adgroups")
+                className={`flex items-center p-2 rounded-xl ${isActive("/google/adgroups") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/google/adgroups")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
@@ -668,8 +642,7 @@ export const Sidebar: React.FC = () => {
                 <img src={AdGroupIcon} alt="" className="w-5 h-5" />
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/adgroups") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/google/adgroups") ? "!text-white" : ""
                       }`}
                   >
                     Ad Group
@@ -689,10 +662,8 @@ export const Sidebar: React.FC = () => {
                       : "/accounts/1/google/keywords"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/keywords") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/keywords")
+                className={`flex items-center p-2 rounded-xl ${isActive("/google/keywords") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/google/keywords")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
@@ -713,8 +684,7 @@ export const Sidebar: React.FC = () => {
                 </svg>
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/keywords") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/google/keywords") ? "!text-white" : ""
                       }`}
                   >
                     Keyword
@@ -734,10 +704,8 @@ export const Sidebar: React.FC = () => {
                       : "/accounts/1/google/ads"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/google/ads") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/google/ads")
+                className={`flex items-center p-2 rounded-xl ${isActive("/google/ads") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/google/ads")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
@@ -746,8 +714,7 @@ export const Sidebar: React.FC = () => {
                 <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/google/ads") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/google/ads") ? "!text-white" : ""
                       }`}
                   >
                     Ads
@@ -855,10 +822,9 @@ export const Sidebar: React.FC = () => {
                 }
               >
                 <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isMarketingChannelsSectionCollapsed
-                    ? "rotate-[-90deg]"
-                    : "rotate-0"
+                  className={`w-4 h-4 text-gray-600 transition-transform ${isMarketingChannelsSectionCollapsed
+                      ? "rotate-[-90deg]"
+                      : "rotate-0"
                     }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -878,8 +844,7 @@ export const Sidebar: React.FC = () => {
             <div className="space-y-1">
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Meta" : undefined}
               >
@@ -892,8 +857,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Meta" : undefined}
               >
@@ -906,8 +870,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Walmart" : undefined}
               >
@@ -920,8 +883,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Instacart" : undefined}
               >
@@ -934,8 +896,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Criteo" : undefined}
               >
@@ -967,8 +928,7 @@ export const Sidebar: React.FC = () => {
                 }
               >
                 <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isOverviewSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                  className={`w-4 h-4 text-gray-600 transition-transform ${isOverviewSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
                     }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -988,8 +948,7 @@ export const Sidebar: React.FC = () => {
             <div className="space-y-1">
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Trend Chart" : undefined}
               >
@@ -1002,8 +961,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "KPI Cards" : undefined}
               >
@@ -1016,8 +974,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Top Keywords" : undefined}
               >
@@ -1030,8 +987,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Top Products" : undefined}
               >
@@ -1044,8 +1000,7 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${isCollapsed ? "justify-center" : "gap-2"
                   }`}
                 title={isCollapsed ? "Pixels-Like Box" : undefined}
               >
@@ -1077,10 +1032,9 @@ export const Sidebar: React.FC = () => {
                 }
               >
                 <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isLogHistorySectionCollapsed
-                    ? "rotate-[-90deg]"
-                    : "rotate-0"
+                  className={`w-4 h-4 text-gray-600 transition-transform ${isLogHistorySectionCollapsed
+                      ? "rotate-[-90deg]"
+                      : "rotate-0"
                     }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -1104,18 +1058,15 @@ export const Sidebar: React.FC = () => {
                     ? `/accounts/${accountId}/log-history`
                     : "/log-history"
                 }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/log-history") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/log-history")
+                className={`flex items-center p-2 rounded-xl ${isActive("/log-history") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/log-history")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
                   }`}
                 title={isCollapsed ? "Log / History" : undefined}
               >
                 <svg
-                  className={`w-5 h-5 ${
-                    isActive("/log-history") ? "brightness-0 invert" : ""
+                  className={`w-5 h-5 ${isActive("/log-history") ? "brightness-0 invert" : ""
                     }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -1130,8 +1081,7 @@ export const Sidebar: React.FC = () => {
                 </svg>
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/log-history") ? "!text-white" : ""
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/log-history") ? "!text-white" : ""
                       }`}
                   >
                     Log / History

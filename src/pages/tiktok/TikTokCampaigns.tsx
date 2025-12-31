@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -10,6 +10,7 @@ import {
     CreateTikTokCampaignPanel,
     type CreateTikTokCampaignData,
 } from "../../components/campaigns/CreateTikTokCampaignPanel";
+import { PerformanceChart } from "../../components/charts/PerformanceChart";
 
 export const TikTokCampaigns: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
@@ -29,13 +30,31 @@ export const TikTokCampaigns: React.FC = () => {
     const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
     const [createLoading, setCreateLoading] = useState(false);
 
-    // Summary stats
-    const [summary, setSummary] = useState({
-        total_campaigns: 0,
-        total_budget: 0,
-        active_campaigns: 0,
-        paused_campaigns: 0,
+    // Filter state
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [nameFilter, setNameFilter] = useState<string>("");
+    const [typeFilter, setTypeFilter] = useState<string>("all");
+
+
+
+    // Chart toggles
+    const [chartToggles, setChartToggles] = useState({
+        spend: true,
+        conversions: true,
+        impressions: false,
+        clicks: false,
+        ctr: false,
+        cpc: false,
     });
+
+    // Toggle chart metric
+    const toggleChartMetric = (metric: string) => {
+        setChartToggles(prev => ({
+            ...prev,
+            [metric]: !prev[metric as keyof typeof prev]
+        }));
+    };
 
     const fetchCampaigns = useCallback(async () => {
         if (!accountId) return;
@@ -54,24 +73,7 @@ export const TikTokCampaigns: React.FC = () => {
                 setCampaigns(response.campaigns);
                 setTotal(response.total);
 
-                // Calculate summary
-                const activeCampaigns = response.campaigns.filter(
-                    (c: TikTokCampaign) => c.operation_status?.toLowerCase() === "enable"
-                ).length;
-                const pausedCampaigns = response.campaigns.filter(
-                    (c: TikTokCampaign) => c.operation_status?.toLowerCase() === "disable"
-                ).length;
-                const totalBudget = response.campaigns.reduce(
-                    (sum: number, c: TikTokCampaign) => sum + (c.budget || 0),
-                    0
-                );
 
-                setSummary({
-                    total_campaigns: response.total,
-                    total_budget: totalBudget,
-                    active_campaigns: activeCampaigns,
-                    paused_campaigns: pausedCampaigns,
-                });
             }
         } catch (error) {
             console.error("Failed to fetch TikTok campaigns:", error);
@@ -121,14 +123,70 @@ export const TikTokCampaigns: React.FC = () => {
 
     const totalPages = Math.ceil(total / pageSize);
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(value);
-    };
+
+
+    // Generate sample chart data for visualization
+    const chartData = useMemo(() => {
+        const days = 14;
+        const data = [];
+        const today = new Date();
+
+        for (let i = days - 1; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+            // Generate realistic-looking sample data
+            const baseSpend = 3000 + Math.random() * 2000;
+            const baseConversions = 150 + Math.random() * 100;
+            const baseImpressions = 50000 + Math.random() * 30000;
+            const baseClicks = 2000 + Math.random() * 1500;
+
+            data.push({
+                date: dateStr,
+                spend: Math.round(baseSpend),
+                conversions: Math.round(baseConversions),
+                impressions: Math.round(baseImpressions),
+                clicks: Math.round(baseClicks),
+                ctr: parseFloat(((baseClicks / baseImpressions) * 100).toFixed(2)),
+                cpc: parseFloat((baseSpend / baseClicks).toFixed(2)),
+            });
+        }
+        return data;
+    }, []);
+
+    // Filter campaigns based on all active filters
+    const filteredCampaignsItems = useMemo(() => {
+        return campaigns.filter(campaign => {
+            // Status filter
+            if (statusFilter !== "all") {
+                const statusMatch = campaign.operation_status?.toLowerCase() === statusFilter.toLowerCase();
+                if (!statusMatch) return false;
+            }
+
+            // Name filter
+            if (nameFilter.trim() !== "") {
+                const nameMatch = campaign.campaign_name.toLowerCase().includes(nameFilter.toLowerCase());
+                if (!nameMatch) return false;
+            }
+
+            // Type filter
+            if (typeFilter !== "all") {
+                const typeMatch = campaign.objective_type === typeFilter;
+                if (!typeMatch) return false;
+            }
+
+            // Search query (from top search bar)
+            if (searchQuery.trim() !== "") {
+                const searchMatch =
+                    campaign.campaign_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    campaign.campaign_id?.toString().includes(searchQuery);
+                if (!searchMatch) return false;
+            }
+
+            return true;
+        });
+    }, [campaigns, statusFilter, nameFilter, typeFilter, searchQuery]);
 
     return (
         <div className="min-h-screen bg-white flex">
@@ -167,14 +225,103 @@ export const TikTokCampaigns: React.FC = () => {
                                 </svg>
                             </button>
                             {/* Add Filter Button */}
-                            <button className="px-4 py-2.5 bg-[#FEFEFB] border border-[#E3E3E3] rounded-full text-sm font-medium text-[#072929] flex items-center gap-2 hover:bg-gray-50 transition-colors">
-                                <svg className="w-4 h-4 text-[#556179]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <button
+                                onClick={() => {
+                                    setIsFilterPanelOpen(!isFilterPanelOpen);
+                                    if (!isFilterPanelOpen) setIsCreatePanelOpen(false);
+                                }}
+                                className={`px-4 py-2.5 border rounded-full text-sm font-medium flex items-center gap-2 transition-colors ${isFilterPanelOpen
+                                    ? "bg-[#136D6D] text-white border-[#136D6D]"
+                                    : "bg-[#FEFEFB] border-[#E3E3E3] text-[#072929] hover:bg-gray-50"
+                                    }`}
+                            >
+                                <svg className={`w-4 h-4 ${isFilterPanelOpen ? "text-white" : "text-[#556179]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                                 </svg>
                                 Add Filter
+                                <svg
+                                    className={`w-4 h-4 transition-transform ${isFilterPanelOpen ? "rotate-180" : ""}`}
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
                             </button>
                         </div>
                     </div>
+
+                    {/* Filter Panel */}
+                    {isFilterPanelOpen && (
+                        <div className="bg-[#FEFEFB] rounded-xl border border-[#E8E8E3] p-4 mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-[14px] font-medium text-[#072929]">Filters</h3>
+                                <button
+                                    onClick={() => setIsFilterPanelOpen(false)}
+                                    className="text-[#556179] hover:text-[#072929] transition-colors"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="flex flex-wrap items-end gap-6">
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[12px] text-[#556179]">Campaign Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Filter by name..."
+                                        value={nameFilter}
+                                        onChange={(e) => setNameFilter(e.target.value)}
+                                        className="px-3 py-2 border border-[#E8E8E3] rounded-lg bg-white text-sm text-[#072929] min-w-[200px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[12px] text-[#556179]">Type</label>
+                                    <select
+                                        value={typeFilter}
+                                        onChange={(e) => setTypeFilter(e.target.value)}
+                                        className="px-3 py-2 border border-[#E8E8E3] rounded-lg bg-white text-sm text-[#072929] min-w-[150px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                    >
+                                        <option value="all">All Types</option>
+                                        <option value="TRAFFIC">Traffic</option>
+                                        <option value="CONVERSIONS">Website Conversions</option>
+                                        <option value="APP_PROMOTION">App Promotion</option>
+                                        <option value="REACH">Reach</option>
+                                        <option value="VIDEO_VIEWS">Video Views</option>
+                                        <option value="LEAD_GENERATION">Lead Generation</option>
+                                        <option value="PRODUCT_SALES">Product Sales</option>
+                                        <option value="ENGAGEMENT">Engagement</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[12px] text-[#556179]">Status</label>
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value)}
+                                        className="px-3 py-2 border border-[#E8E8E3] rounded-lg bg-white text-sm text-[#072929] min-w-[150px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                    >
+                                        <option value="all">All Status</option>
+                                        <option value="enable">Enabled</option>
+                                        <option value="disable">Disabled</option>
+                                    </select>
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        setStatusFilter("all");
+                                        setNameFilter("");
+                                        setTypeFilter("all");
+                                    }}
+                                    className="text-sm text-[#136D6D] hover:underline pb-2"
+                                >
+                                    Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Create Campaign Panel */}
                     <CreateTikTokCampaignPanel
@@ -184,62 +331,21 @@ export const TikTokCampaigns: React.FC = () => {
                         loading={createLoading}
                     />
 
-                    {/* Performance Trends Card */}
-                    <div className="bg-[#FEFEFB] rounded-xl border border-[#E8E8E3] p-6 mb-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-[16px] font-medium text-[#072929]">Performance Trends</h2>
-                            <div className="flex items-center gap-3">
-                                {/* Conversion, Spend dropdown */}
-                                <div className="relative">
-                                    <select className="appearance-none px-4 py-2 pr-8 text-sm border border-[#E3E3E3] rounded-full bg-[#FEFEFB] text-[#556179] cursor-pointer hover:bg-gray-50">
-                                        <option>Conversions, Spend</option>
-                                        <option>Sales, Spend</option>
-                                        <option>Impressions, Clicks</option>
-                                    </select>
-                                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#556179] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Budget Summary */}
-                        <div className="mb-6">
-                            <div className="flex items-baseline gap-3">
-                                <span className="text-[32px] font-semibold text-[#072929]">{formatCurrency(summary.total_budget)}</span>
-                                <span className="px-2 py-1 bg-[#E0FAEC] text-[#1FC16B] text-sm font-medium rounded-full flex items-center gap-1">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17L17 7M17 7H7M17 7V17" />
-                                    </svg>
-                                    0.48%
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Chart Placeholder */}
-                        <div className="h-[200px] relative">
-                            {/* Chart Grid Lines */}
-                            <div className="absolute inset-0 flex flex-col justify-between">
-                                {[0, 1, 2, 3, 4].map((i) => (
-                                    <div key={i} className="border-t border-dashed border-[#E8E8E3]" />
-                                ))}
-                            </div>
-                            {/* Chart will be rendered here */}
-                            <div className="absolute inset-0 flex items-center justify-center text-[#97A0AF]">
-                                Performance chart will be displayed here
-                            </div>
-                        </div>
-
-                        {/* X-Axis Labels */}
-                        <div className="flex justify-between mt-4 text-xs text-[#97A0AF]">
-                            <span>45k</span>
-                            <span>40k</span>
-                            <span>35k</span>
-                            <span>30k</span>
-                            <span>25k</span>
-                            <span>20k</span>
-                        </div>
-                    </div>
+                    {/* Performance Trends Chart */}
+                    <PerformanceChart
+                        data={chartData}
+                        toggles={chartToggles}
+                        onToggle={toggleChartMetric}
+                        title="Performance Trends"
+                        metrics={[
+                            { key: "spend", label: "Spend", color: "#136D6D" },
+                            { key: "conversions", label: "Conversions", color: "#FF6B6B" },
+                            { key: "impressions", label: "Impressions", color: "#7C3AED" },
+                            { key: "clicks", label: "Clicks", color: "#169aa3" },
+                            { key: "ctr", label: "CTR", color: "#F59E0B" },
+                            { key: "cpc", label: "CPC", color: "#059669" },
+                        ]}
+                    />
 
                     {/* Campaigns Overview Card */}
                     <div className="bg-[#FEFEFB] rounded-xl border border-[#E8E8E3] p-6">
@@ -281,7 +387,7 @@ export const TikTokCampaigns: React.FC = () => {
                         </div>
 
                         <TikTokCampaignsTable
-                            campaigns={campaigns}
+                            campaigns={filteredCampaignsItems}
                             loading={loading}
                             onSort={handleSort}
                             sortColumn={sortColumn}
