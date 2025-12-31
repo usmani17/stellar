@@ -146,12 +146,12 @@ export const AdGroups: React.FC = () => {
   // Inline edit state - matching AdGroupsTable pattern
   const [editingAdGroupField, setEditingAdGroupField] = useState<{
     id: number;
-    field: "status" | "default_bid";
+    field: "status" | "default_bid" | "name";
   } | null>(null);
   const [editedAdGroupValue, setEditedAdGroupValue] = useState<string>("");
   const [pendingAdGroupChange, setPendingAdGroupChange] = useState<{
     id: number;
-    field: "status" | "default_bid";
+    field: "status" | "default_bid" | "name";
     newValue: string;
     oldValue: string;
   } | null>(null);
@@ -576,7 +576,7 @@ export const AdGroups: React.FC = () => {
   // Ad Group inline edit handlers - matching AdGroupsTable pattern
   const handleAdGroupEditStart = (
     id: number,
-    field: "status" | "default_bid",
+    field: "status" | "default_bid" | "name",
     currentValue: string
   ) => {
     setEditingAdGroupField({ id, field });
@@ -594,7 +594,7 @@ export const AdGroups: React.FC = () => {
     setPendingAdGroupChange(null);
   };
 
-  const handleAdGroupEditEnd = () => {
+  const handleAdGroupEditEnd = (newValue?: string) => {
     if (!editingAdGroupField) return;
 
     const adgroup = adgroups.find((ag) => ag.id === editingAdGroupField.id);
@@ -603,6 +603,12 @@ export const AdGroups: React.FC = () => {
       setEditedAdGroupValue("");
       return;
     }
+
+    // Use the passed value if provided, otherwise use the state value
+    // This handles the case where onEditEnd is called immediately after onChange
+    // before React state has updated
+    const valueToCompare =
+      newValue !== undefined ? newValue : editedAdGroupValue;
 
     let hasChanged = false;
     let oldValue = "";
@@ -616,21 +622,25 @@ export const AdGroups: React.FC = () => {
           ? "paused"
           : "archived";
       oldValue = currentStatus;
-      hasChanged = editedAdGroupValue !== currentStatus;
+      hasChanged = valueToCompare !== currentStatus;
     } else if (editingAdGroupField.field === "default_bid") {
       const currentBid = adgroup.default_bid
         ? adgroup.default_bid.replace(/[^0-9.]/g, "")
         : "0";
       oldValue = adgroup.default_bid || "$0.00";
+      hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
+    } else if (editingAdGroupField.field === "name") {
+      oldValue = adgroup.name || "";
       hasChanged =
-        editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
+        valueToCompare.trim() !== oldValue.trim() &&
+        valueToCompare.trim() !== "";
     }
 
     if (hasChanged) {
       setPendingAdGroupChange({
         id: editingAdGroupField.id,
         field: editingAdGroupField.field,
-        newValue: editedAdGroupValue,
+        newValue: valueToCompare,
         oldValue: oldValue,
       });
       setEditingAdGroupField(null);
@@ -683,6 +693,12 @@ export const AdGroups: React.FC = () => {
           adgroupIds: [adgroup.adGroupId],
           action: "default_bid",
           value: bidValue,
+        });
+      } else if (pendingAdGroupChange.field === "name") {
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: [adgroup.adGroupId],
+          action: "name",
+          name: pendingAdGroupChange.newValue.trim(),
         });
       }
 
@@ -765,6 +781,7 @@ export const AdGroups: React.FC = () => {
       setPendingStatusAction(null);
     } catch (error: any) {
       console.error("Failed to update adgroups", error);
+      setShowConfirmationModal(false);
       const errorMessage =
         error?.response?.data?.error ||
         error?.message ||
@@ -861,6 +878,7 @@ export const AdGroups: React.FC = () => {
       setLowerLimit("");
     } catch (error: any) {
       console.error("Failed to update adgroups", error);
+      setShowConfirmationModal(false);
       const errorMessage =
         error?.response?.data?.error ||
         error?.message ||
@@ -967,7 +985,11 @@ export const AdGroups: React.FC = () => {
           );
           const adgroupName = adgroup?.name || "Unnamed Ad Group";
           const fieldLabel =
-            pendingAdGroupChange.field === "status" ? "Status" : "Default Bid";
+            pendingAdGroupChange.field === "status"
+              ? "Status"
+              : pendingAdGroupChange.field === "default_bid"
+              ? "Default Bid"
+              : "Name";
 
           // Format old value
           let oldValueDisplay = "";
@@ -980,7 +1002,7 @@ export const AdGroups: React.FC = () => {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}`;
-          } else {
+          } else if (pendingAdGroupChange.field === "status") {
             oldValueDisplay =
               pendingAdGroupChange.oldValue === "enabled"
                 ? "Enabled"
@@ -989,6 +1011,9 @@ export const AdGroups: React.FC = () => {
                 : pendingAdGroupChange.oldValue === "archived"
                 ? "Archived"
                 : pendingAdGroupChange.oldValue;
+          } else {
+            // name
+            oldValueDisplay = pendingAdGroupChange.oldValue || "—";
           }
 
           // Format new value
@@ -1002,7 +1027,7 @@ export const AdGroups: React.FC = () => {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}`;
-          } else {
+          } else if (pendingAdGroupChange.field === "status") {
             newValueDisplay =
               pendingAdGroupChange.newValue === "enabled"
                 ? "Enabled"
@@ -1011,6 +1036,9 @@ export const AdGroups: React.FC = () => {
                 : pendingAdGroupChange.newValue === "archived"
                 ? "Archived"
                 : pendingAdGroupChange.newValue;
+          } else {
+            // name
+            newValueDisplay = pendingAdGroupChange.newValue || "—";
           }
 
           return (

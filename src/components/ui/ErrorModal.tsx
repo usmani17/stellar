@@ -46,7 +46,11 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       />
 
       {/* Modal */}
-      <div className={`relative bg-white rounded-xl shadow-2xl ${errorDetails && errorDetails.length > 0 ? 'max-w-2xl' : 'max-w-md'} w-full mx-4 border border-[#E8E8E3]`}>
+      <div
+        className={`relative bg-white rounded-xl shadow-2xl ${
+          errorDetails && errorDetails.length > 0 ? "max-w-2xl" : "max-w-md"
+        } w-full mx-4 border border-[#E8E8E3]`}
+      >
         <div className="p-6">
           {/* Icon */}
           <div className="flex items-center justify-center mb-4">
@@ -92,11 +96,11 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
             <h3 className="text-[20px] font-semibold text-[#072929] mb-3 text-center">
               {title}
             </h3>
-            
+
             {/* Summary Message */}
             {message && (
               <div className="mb-4">
-                <p className="text-[14px] text-[#556179] whitespace-pre-wrap break-words">
+                <p className="text-[14px] text-[#556179] whitespace-pre-wrap break-words text-center">
                   {message}
                 </p>
               </div>
@@ -121,7 +125,14 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                   </thead>
                   <tbody>
                     {errorDetails.map((error, index) => (
-                      <tr key={index} className={index !== errorDetails.length - 1 ? "border-b border-[#e8e8e3]" : ""}>
+                      <tr
+                        key={index}
+                        className={
+                          index !== errorDetails.length - 1
+                            ? "border-b border-[#e8e8e3]"
+                            : ""
+                        }
+                      >
                         <td className="py-2 px-3 text-[13px] text-[#0b0f16]">
                           {error.entity || "—"}
                         </td>
@@ -132,7 +143,10 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                           <div className="space-y-1">
                             {error.violating_text && (
                               <div>
-                                <span className="font-medium">Violating text:</span> "{error.violating_text}"
+                                <span className="font-medium">
+                                  Violating text:
+                                </span>{" "}
+                                "{error.violating_text}"
                               </div>
                             )}
                             {error.policy_description && (
@@ -190,4 +204,3 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
     </div>
   );
 };
-

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -16,20 +16,23 @@ interface AdGroupsTableProps {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
-  editingField?: { id: number; field: "status" | "default_bid" } | null;
+  editingField?: {
+    id: number;
+    field: "status" | "default_bid" | "name";
+  } | null;
   editedValue?: string;
   onEditStart?: (
     id: number,
-    field: "status" | "default_bid",
+    field: "status" | "default_bid" | "name",
     currentValue: string
   ) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: () => void;
+  onEditEnd?: (value?: string) => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
     id: number;
-    field: "status" | "default_bid";
+    field: "status" | "default_bid" | "name";
     newValue: string;
     oldValue: string;
   } | null;
@@ -71,6 +74,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 }) => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
+  const statusSelectionMadeRef = useRef<number | null>(null);
 
   // When campaignId is provided, we're in campaign detail view - hide Campaign Name column
   // When campaignId is not provided, we're in all adgroups view - show all columns
@@ -425,9 +429,54 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                       {/* Ad Group Name */}
                       <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full whitespace-nowrap">
-                          {adgroup.name}
-                        </span>
+                        {inlineEditLoading.has(adgroup.id) ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {pendingChange?.field === "name"
+                                ? pendingChange.newValue
+                                : adgroup.name}
+                            </span>
+                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        ) : pendingChange?.id === adgroup.id &&
+                          pendingChange?.field === "name" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {pendingChange.newValue}
+                            </span>
+                          </div>
+                        ) : editingField?.id === adgroup.id &&
+                          editingField?.field === "name" ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editedValue}
+                              onChange={(e) => onEditChange?.(e.target.value)}
+                              className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                              autoFocus
+                              onBlur={() => onEditEnd?.()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === "Escape") {
+                                  onEditEnd?.();
+                                }
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full whitespace-nowrap cursor-pointer hover:underline"
+                            onClick={() => {
+                              onEditStart?.(
+                                adgroup.id,
+                                "name",
+                                adgroup.name || ""
+                              );
+                            }}
+                            title={adgroup.name}
+                          >
+                            {adgroup.name}
+                          </div>
+                        )}
                       </td>
 
                       {/* Ad Group ID */}
@@ -503,46 +552,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                 ? "Paused"
                                 : "Archived"}
                             </span>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={onConfirmChange}
-                                className="p-1 hover:bg-green-50 rounded transition-colors"
-                                title="Yes"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-green-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={onCancelChange}
-                                className="p-1 hover:bg-red-50 rounded transition-colors"
-                                title="No"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-red-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
                           </div>
                         ) : editingField?.id === adgroup.id &&
                           editingField?.field === "status" ? (
@@ -565,14 +574,33 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   : "archived";
                               })()}
                               onChange={(val) => {
-                                onEditChange?.(val as string);
+                                // Mark that a selection was made for this adgroup
+                                statusSelectionMadeRef.current = adgroup.id;
+                                const newValue = val as string;
+                                onEditChange?.(newValue);
+                                // Call onEditEnd with the new value immediately when a value is selected
+                                // This will trigger the pending change confirmation
+                                onEditEnd?.(newValue);
+                                // Clear the ref after a short delay to allow onClose to check it
                                 setTimeout(() => {
-                                  onEditEnd?.();
-                                }, 100);
+                                  if (
+                                    statusSelectionMadeRef.current ===
+                                    adgroup.id
+                                  ) {
+                                    statusSelectionMadeRef.current = null;
+                                  }
+                                }, 200);
                               }}
                               onClose={() => {
-                                // Cancel edit on blur/close without selection
-                                onEditCancel?.();
+                                // Only cancel if no selection was made (clicked outside)
+                                // If a selection was made, statusSelectionMadeRef will be set
+                                if (
+                                  statusSelectionMadeRef.current !==
+                                    adgroup.id &&
+                                  editingField?.id === adgroup.id
+                                ) {
+                                  onEditCancel?.();
+                                }
                               }}
                               defaultOpen={true}
                               closeOnSelect={true}
@@ -642,7 +670,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                               onChange={(e) => onEditChange?.(e.target.value)}
                               className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
                               autoFocus
-                              onBlur={onEditEnd}
+                              onBlur={() => onEditEnd?.()}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === "Escape") {
                                   onEditEnd?.();
