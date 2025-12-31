@@ -142,22 +142,21 @@ export const Keywords: React.FC = () => {
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
 
-  // Inline edit state
-  const [editingCell, setEditingCell] = useState<{
-    keywordId: string | number;
-    field: "bid" | "status";
+  // Inline edit state (matching adgroups pattern)
+  const [editingKeywordField, setEditingKeywordField] = useState<{
+    id: number;
+    field: "status" | "bid";
   } | null>(null);
-  const [editedValue, setEditedValue] = useState<string>("");
-  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
-  const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [inlineEditKeyword, setInlineEditKeyword] = useState<Keyword | null>(
-    null
+  const [editedKeywordValue, setEditedKeywordValue] = useState<string>("");
+  const [pendingKeywordChange, setPendingKeywordChange] = useState<{
+    id: number;
+    field: "status" | "bid";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
+  const [keywordEditLoading, setKeywordEditLoading] = useState<Set<number>>(
+    new Set()
   );
-  const [inlineEditField, setInlineEditField] = useState<
-    "bid" | "status" | null
-  >(null);
-  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
-  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
 
   const toggleChartMetric = (key: string) => {
     setChartToggles((prev) => ({
@@ -1976,67 +1975,123 @@ export const Keywords: React.FC = () => {
         </div>
       </div>
 
-      {/* Inline Edit Confirmation Modal */}
-      {showInlineEditModal && inlineEditKeyword && (
+      {/* Inline Edit Confirmation Modal for Keywords */}
+      {pendingKeywordChange && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => {
-            if (!inlineEditLoading) {
-              setShowInlineEditModal(false);
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (
+              e.target === e.currentTarget &&
+              !keywordEditLoading.has(pendingKeywordChange.id)
+            ) {
+              cancelKeywordChange();
             }
           }}
         >
           <div
-            className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4"
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-              Confirm Edit
+              Confirm{" "}
+              {pendingKeywordChange.field === "status" ? "Status" : "Bid"}{" "}
+              Change
             </h3>
+
             <div className="mb-4">
-              <p className="text-[12.16px] text-[#556179] mb-2">
-                {inlineEditField === "status"
-                  ? "State"
-                  : inlineEditField === "bid"
-                  ? "Keyword Bid"
-                  : "Field"}{" "}
-                will be updated:
-              </p>
-              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[12.16px] text-[#556179]">From:</span>
-                  <span className="text-[12.16px] font-semibold text-[#072929]">
-                    {inlineEditOldValue}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-[12.16px] text-[#556179]">To:</span>
-                  <span className="text-[12.16px] font-semibold text-[#136D6D]">
-                    {inlineEditNewValue}
-                  </span>
-                </div>
-              </div>
+              {(() => {
+                const keyword = keywords.find(
+                  (kw) => kw.id === pendingKeywordChange.id
+                );
+                const keywordName = keyword?.name || "Unnamed Keyword";
+                const fieldLabel =
+                  pendingKeywordChange.field === "status" ? "Status" : "Bid";
+
+                // Format old value
+                let oldValueDisplay = "";
+                if (pendingKeywordChange.field === "bid") {
+                  oldValueDisplay = pendingKeywordChange.oldValue.startsWith("$")
+                    ? pendingKeywordChange.oldValue
+                    : `$${parseFloat(
+                        pendingKeywordChange.oldValue || "0"
+                      ).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`;
+                } else if (pendingKeywordChange.field === "status") {
+                  oldValueDisplay =
+                    pendingKeywordChange.oldValue === "enabled"
+                      ? "Enabled"
+                      : pendingKeywordChange.oldValue === "paused"
+                      ? "Paused"
+                      : "Archived";
+                }
+
+                // Format new value
+                let newValueDisplay = "";
+                if (pendingKeywordChange.field === "bid") {
+                  newValueDisplay = `$${parseFloat(
+                    pendingKeywordChange.newValue || "0"
+                  ).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`;
+                } else if (pendingKeywordChange.field === "status") {
+                  newValueDisplay =
+                    pendingKeywordChange.newValue === "enabled"
+                      ? "Enabled"
+                      : pendingKeywordChange.newValue === "paused"
+                      ? "Paused"
+                      : "Archived";
+                }
+
+                return (
+                  <>
+                    <p className="text-[12.16px] text-[#556179] mb-2">
+                      Keyword:{" "}
+                      <span className="font-semibold text-[#072929]">
+                        {keywordName}
+                      </span>
+                    </p>
+                    <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {fieldLabel}:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {oldValueDisplay}
+                          </span>
+                          <span className="text-[12.16px] text-[#556179]">
+                            →
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {newValueDisplay}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
+
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => {
-                  setShowInlineEditModal(false);
-                  setInlineEditKeyword(null);
-                  setInlineEditField(null);
-                  setInlineEditOldValue("");
-                  setInlineEditNewValue("");
-                }}
-                disabled={inlineEditLoading}
+                onClick={cancelKeywordChange}
+                disabled={keywordEditLoading.has(pendingKeywordChange.id)}
                 className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
-                onClick={runInlineEdit}
-                disabled={inlineEditLoading}
+                onClick={confirmKeywordChange}
+                disabled={keywordEditLoading.has(pendingKeywordChange.id)}
                 className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
               >
-                {inlineEditLoading ? "Updating..." : "Confirm"}
+                {keywordEditLoading.has(pendingKeywordChange.id)
+                  ? "Updating..."
+                  : "Confirm"}
               </button>
             </div>
           </div>

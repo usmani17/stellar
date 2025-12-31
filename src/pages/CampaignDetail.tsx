@@ -134,6 +134,8 @@ export const CampaignDetail: React.FC = () => {
   const [showAdGroupsConfirmationModal, setShowAdGroupsConfirmationModal] =
     useState(false);
   const [adGroupsBulkLoading, setAdGroupsBulkLoading] = useState(false);
+  const [showKeywordsConfirmationModal, setShowKeywordsConfirmationModal] =
+    useState(false);
   const [adGroupsBidAction, setAdGroupsBidAction] = useState<
     "increase" | "decrease" | "set"
   >("increase");
@@ -253,6 +255,22 @@ export const CampaignDetail: React.FC = () => {
     newValue: string;
     oldValue: string;
   } | null>(null);
+
+  // Keyword inline edit state
+  const [editingKeywordField, setEditingKeywordField] = useState<{
+    id: number;
+    field: "status" | "bid";
+  } | null>(null);
+  const [editedKeywordValue, setEditedKeywordValue] = useState<string>("");
+  const [pendingKeywordChange, setPendingKeywordChange] = useState<{
+    id: number;
+    field: "status" | "bid";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
+  const [keywordEditLoading, setKeywordEditLoading] = useState<Set<number>>(
+    new Set()
+  );
 
   // Filter tabs based on campaign type - SD campaigns don't have keywords
   const allTabs = [
@@ -2231,6 +2249,151 @@ export const CampaignDetail: React.FC = () => {
     setPendingAdGroupChange(null);
   };
 
+  // Keyword inline edit handlers
+  const handleKeywordEditStart = (
+    id: number,
+    field: "status" | "bid",
+    currentValue: string
+  ) => {
+    setEditingKeywordField({ id, field });
+    setEditedKeywordValue(currentValue);
+    setPendingKeywordChange(null);
+  };
+
+  const handleKeywordEditChange = (value: string) => {
+    setEditedKeywordValue(value);
+  };
+
+  const handleKeywordEditEnd = (newValue?: string) => {
+    if (!editingKeywordField) return;
+    const keyword = keywords.find((kw) => kw.id === editingKeywordField.id);
+    if (!keyword) {
+      setEditingKeywordField(null);
+      setEditedKeywordValue("");
+      return;
+    }
+
+    // Use the passed value if provided, otherwise use the state value
+    const valueToCompare =
+      newValue !== undefined ? newValue : editedKeywordValue;
+
+    let hasChanged = false;
+    let oldValue = "";
+
+    if (editingKeywordField.field === "status") {
+      const statusLower = keyword.status?.toLowerCase() || "enabled";
+      const currentStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "enabled"
+          : "paused";
+      oldValue = currentStatus;
+      hasChanged = valueToCompare !== currentStatus;
+    } else if (editingKeywordField.field === "bid") {
+      const currentBid = keyword.bid
+        ? keyword.bid.replace(/[^0-9.]/g, "")
+        : "0";
+      oldValue = keyword.bid || "$0.00";
+      hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
+    }
+
+    if (hasChanged) {
+      setPendingKeywordChange({
+        id: editingKeywordField.id,
+        field: editingKeywordField.field,
+        newValue: valueToCompare,
+        oldValue: oldValue,
+      });
+      setShowKeywordsConfirmationModal(true);
+      setEditingKeywordField(null);
+    } else {
+      setEditingKeywordField(null);
+      setEditedKeywordValue("");
+    }
+  };
+
+  const confirmKeywordChange = async () => {
+    if (!pendingKeywordChange || !accountId) return;
+
+    const keyword = keywords.find((kw) => kw.id === pendingKeywordChange.id);
+    if (!keyword || !keyword.keywordId) {
+      alert("Keyword ID not found");
+      setPendingKeywordChange(null);
+      return;
+    }
+
+    setKeywordEditLoading((prev) => new Set(prev).add(pendingKeywordChange.id));
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (pendingKeywordChange.field === "status") {
+        // Map status values
+        const statusMap: Record<string, "enable" | "pause"> = {
+          enabled: "enable",
+          paused: "pause",
+        };
+        const statusValue =
+          statusMap[pendingKeywordChange.newValue.toLowerCase()] || "enable";
+
+        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          keywordIds: [keyword.keywordId],
+          action: "status",
+          status: statusValue,
+        });
+      } else if (pendingKeywordChange.field === "bid") {
+        // Extract numeric value
+        const bidValue = parseFloat(pendingKeywordChange.newValue);
+        if (isNaN(bidValue)) {
+          throw new Error("Invalid bid value");
+        }
+
+        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          keywordIds: [keyword.keywordId],
+          action: "bid",
+          bid: bidValue,
+        });
+      }
+
+      // Reload keywords
+      await loadKeywords();
+      setPendingKeywordChange(null);
+      setEditingKeywordField(null);
+      setEditedKeywordValue("");
+    } catch (error: any) {
+      console.error("Error updating keyword:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update keyword. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+      setShowKeywordsConfirmationModal(false);
+    } finally {
+      setKeywordEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingKeywordChange.id);
+        return newSet;
+      });
+    }
+  };
+
+  const cancelKeywordChange = () => {
+    setPendingKeywordChange(null);
+    setEditingKeywordField(null);
+    setEditedKeywordValue("");
+    setShowKeywordsConfirmationModal(false);
+  };
+
+  const handleKeywordEditCancel = () => {
+    setEditingKeywordField(null);
+    setEditedKeywordValue("");
+    setPendingKeywordChange(null);
+  };
+
   // Bulk action handlers for Ad Groups
   const handleBulkAdGroupsStatus = async (
     statusValue: "enable" | "pause" | "archive"
@@ -3630,6 +3793,14 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={keywordsSortBy}
                     sortOrder={keywordsSortOrder}
                     onSort={handleKeywordsSort}
+                    editingField={editingKeywordField}
+                    editedValue={editedKeywordValue}
+                    onEditStart={handleKeywordEditStart}
+                    onEditChange={handleKeywordEditChange}
+                    onEditEnd={handleKeywordEditEnd}
+                    onEditCancel={handleKeywordEditCancel}
+                    inlineEditLoading={keywordEditLoading}
+                    pendingChange={pendingKeywordChange}
                   />
                 </div>
                 {/* Pagination */}
@@ -4703,6 +4874,123 @@ export const CampaignDetail: React.FC = () => {
                     className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
                   >
                     {adGroupEditLoading.has(pendingAdGroupChange.id)
+                      ? "Updating..."
+                      : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* Inline Edit Confirmation Modal for Keywords */}
+      {pendingKeywordChange &&
+        showKeywordsConfirmationModal &&
+        (() => {
+          const keyword = keywords.find(
+            (kw) => kw.id === pendingKeywordChange.id
+          );
+          const keywordName = keyword?.name || "Unnamed Keyword";
+          const fieldLabel =
+            pendingKeywordChange.field === "status" ? "Status" : "Bid";
+
+          // Format old value
+          let oldValueDisplay = "";
+          if (pendingKeywordChange.field === "bid") {
+            oldValueDisplay = pendingKeywordChange.oldValue.startsWith("$")
+              ? pendingKeywordChange.oldValue
+              : `$${parseFloat(
+                  pendingKeywordChange.oldValue || "0"
+                ).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`;
+          } else if (pendingKeywordChange.field === "status") {
+            oldValueDisplay =
+              pendingKeywordChange.oldValue === "enabled"
+                ? "Enabled"
+                : pendingKeywordChange.oldValue === "paused"
+                ? "Paused"
+                : "Archived";
+          }
+
+          // Format new value
+          let newValueDisplay = "";
+          if (pendingKeywordChange.field === "bid") {
+            newValueDisplay = `$${parseFloat(
+              pendingKeywordChange.newValue || "0"
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`;
+          } else if (pendingKeywordChange.field === "status") {
+            newValueDisplay =
+              pendingKeywordChange.newValue === "enabled"
+                ? "Enabled"
+                : pendingKeywordChange.newValue === "paused"
+                ? "Paused"
+                : "Archived";
+          }
+
+          return (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              onClick={(e) => {
+                if (
+                  e.target === e.currentTarget &&
+                  !keywordEditLoading.has(pendingKeywordChange.id)
+                ) {
+                  cancelKeywordChange();
+                }
+              }}
+            >
+              <div
+                className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                  Confirm {fieldLabel} Change
+                </h3>
+
+                <div className="mb-4">
+                  <p className="text-[12.16px] text-[#556179] mb-2">
+                    Keyword:{" "}
+                    <span className="font-semibold text-[#072929]">
+                      {keywordName}
+                    </span>
+                  </p>
+                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {fieldLabel}:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {oldValueDisplay}
+                        </span>
+                        <span className="text-[12.16px] text-[#556179]">→</span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {newValueDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={cancelKeywordChange}
+                    disabled={keywordEditLoading.has(pendingKeywordChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmKeywordChange}
+                    disabled={keywordEditLoading.has(pendingKeywordChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                  >
+                    {keywordEditLoading.has(pendingKeywordChange.id)
                       ? "Updating..."
                       : "Confirm"}
                   </button>
