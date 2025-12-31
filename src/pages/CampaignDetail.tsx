@@ -146,6 +146,10 @@ export const CampaignDetail: React.FC = () => {
   const [adGroupsBidLowerLimit, setAdGroupsBidLowerLimit] =
     useState<string>("");
   const adGroupsBulkActionsRef = useRef<HTMLDivElement>(null);
+  const adgroupsLoadingRef = useRef(false);
+  const adgroupsAbortControllerRef = useRef<AbortController | null>(null);
+  const adgroupsRequestIdRef = useRef<string>("");
+  const lastAppliedFiltersRef = useRef<string>("");
   const [isKeywordsFilterPanelOpen, setIsKeywordsFilterPanelOpen] =
     useState(false);
   const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
@@ -409,12 +413,35 @@ export const CampaignDetail: React.FC = () => {
     }
   }, [isAutoCampaign, accountId, campaignId, startDate, endDate, campaignType]);
 
-  // Reset pagination when date range, tab, or filters change
+  // Memoize filter string to prevent unnecessary re-renders
+  // Use a deep comparison by sorting and stringifying to ensure stable comparison
+  const adgroupsFiltersString = useMemo(() => {
+    const sorted = [...adgroupsFilters].sort((a, b) => {
+      if (a.field !== b.field) return a.field.localeCompare(b.field);
+      const aOp = a.operator || "";
+      const bOp = b.operator || "";
+      if (aOp !== bOp) return aOp.localeCompare(bOp);
+      return String(a.value).localeCompare(String(b.value));
+    });
+    return JSON.stringify(sorted);
+  }, [adgroupsFilters]);
+
+  // Memoize date strings to prevent unnecessary re-renders
+  const startDateStr = useMemo(
+    () => startDate.toISOString().split("T")[0],
+    [startDate]
+  );
+  const endDateStr = useMemo(
+    () => endDate.toISOString().split("T")[0],
+    [endDate]
+  );
+
+  // Reset pagination when date range or tab changes (but NOT filters - that's handled in onApply)
   useEffect(() => {
     if (activeTab === "Ad Groups") {
       setAdgroupsCurrentPage(1);
     }
-  }, [activeTab, startDate, endDate, adgroupsFilters]);
+  }, [activeTab, startDate, endDate]);
 
   useEffect(() => {
     if (activeTab === "Keywords") {
@@ -709,19 +736,63 @@ export const CampaignDetail: React.FC = () => {
   };
 
   useEffect(() => {
+    // Cancel any pending request when dependencies change
+    if (adgroupsAbortControllerRef.current) {
+      adgroupsAbortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    adgroupsAbortControllerRef.current = new AbortController();
+    const currentController = adgroupsAbortControllerRef.current;
+
+    // Generate a unique request ID based on all dependencies to prevent duplicate requests
+    const requestId = JSON.stringify({
+      accountId,
+      campaignId,
+      activeTab,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      adgroupsCurrentPage,
+      adgroupsSortBy,
+      adgroupsSortOrder,
+      adgroupsFilters: adgroupsFiltersString,
+      campaignType, // Include campaignType in request ID
+    });
+
+    // Skip if this is the same request as the last one (prevents React StrictMode double calls and infinite loops)
+    if (adgroupsRequestIdRef.current === requestId) {
+      return;
+    }
+
+    adgroupsRequestIdRef.current = requestId;
+
     if (accountId && campaignId && activeTab === "Ad Groups") {
+      // Prevent multiple simultaneous calls
+      if (adgroupsLoadingRef.current) {
+        return;
+      }
       loadAdGroups();
     }
+
+    // Cleanup function to cancel request if component unmounts or dependencies change
+    return () => {
+      if (currentController) {
+        currentController.abort();
+      }
+      // Don't reset loadingRef here - it will be reset in loadAdGroups finally block
+      // Resetting it here can cause race conditions
+    };
   }, [
     accountId,
     campaignId,
     activeTab,
-    startDate,
-    endDate,
+    startDateStr, // Use memoized date string instead of Date object
+    endDateStr, // Use memoized date string instead of Date object
     adgroupsCurrentPage,
     adgroupsSortBy,
     adgroupsSortOrder,
-    adgroupsFilters,
+    adgroupsFiltersString, // Use memoized string to ensure stable reference comparison
+    campaignType, // Add campaignType since it's used in loadAdGroups
   ]);
 
   useEffect(() => {
@@ -845,12 +916,24 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const loadAdGroups = async () => {
+    // Prevent multiple simultaneous calls
+    if (adgroupsLoadingRef.current) {
+      return;
+    }
+
     try {
+      adgroupsLoadingRef.current = true;
       setAdgroupsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
 
       if (isNaN(accountIdNum) || !campaignId) {
         setAdgroupsLoading(false);
+        adgroupsLoadingRef.current = false;
+        return;
+      }
+
+      // Check if request was aborted
+      if (adgroupsAbortControllerRef.current?.signal.aborted) {
         return;
       }
 
@@ -858,8 +941,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getAdGroups(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: adgroupsCurrentPage,
           page_size: 10,
@@ -870,14 +953,27 @@ export const CampaignDetail: React.FC = () => {
         }
       );
 
+      // Check if request was aborted before updating state
+      if (adgroupsAbortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
       setAdgroups(data.adgroups);
       setAdgroupsTotalPages(data.total_pages || 0);
     } catch (error) {
+      // Don't log aborted requests as errors
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
       console.error("Failed to load ad groups:", error);
-      setAdgroups([]);
-      setAdgroupsTotalPages(0);
+      // Only update state if request wasn't aborted
+      if (!adgroupsAbortControllerRef.current?.signal.aborted) {
+        setAdgroups([]);
+        setAdgroupsTotalPages(0);
+      }
     } finally {
       setAdgroupsLoading(false);
+      adgroupsLoadingRef.current = false;
     }
   };
 
@@ -3220,6 +3316,7 @@ export const CampaignDetail: React.FC = () => {
                 {isAdGroupsFilterPanelOpen && (
                   <div className="mb-4">
                     <FilterPanel
+                      key={`adgroups-filter-${adgroupsFiltersString}`}
                       isOpen={true}
                       onClose={() => {
                         // Check if filters changed before closing
@@ -3227,9 +3324,28 @@ export const CampaignDetail: React.FC = () => {
                         setIsAdGroupsFilterPanelOpen(false);
                       }}
                       onApply={(newFilters) => {
+                        // Create a stable string representation of the filters
+                        const filtersStr = JSON.stringify(
+                          [...newFilters].sort((a, b) => {
+                            if (a.field !== b.field)
+                              return a.field.localeCompare(b.field);
+                            const aOp = a.operator || "";
+                            const bOp = b.operator || "";
+                            if (aOp !== bOp) return aOp.localeCompare(bOp);
+                            return String(a.value).localeCompare(
+                              String(b.value)
+                            );
+                          })
+                        );
+
+                        // Prevent applying the same filters multiple times
+                        if (lastAppliedFiltersRef.current === filtersStr) {
+                          return;
+                        }
+
+                        lastAppliedFiltersRef.current = filtersStr;
                         setAdgroupsFilters(newFilters);
                         setAdgroupsCurrentPage(1); // Reset to first page when applying filters
-                        // Data will refresh automatically via useEffect dependency on adgroupsFilters
                       }}
                       initialFilters={adgroupsFilters}
                       filterFields={[
