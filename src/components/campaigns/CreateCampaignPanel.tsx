@@ -150,6 +150,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   const [errors, setErrors] = useState<
     Partial<Record<keyof CreateCampaignData, string>>
   >({});
+  const [genericErrors, setGenericErrors] = useState<string[]>([]);
 
   // Load profiles when panel opens
   useEffect(() => {
@@ -187,9 +188,53 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     return dateStr;
   };
 
+  // Track the campaign ID that was used to initialize the form
+  const [initializedCampaignId, setInitializedCampaignId] = useState<string | number | undefined>(undefined);
+  // Store a snapshot of initialData when form is initialized to prevent re-initialization
+  const [snapshotInitialData, setSnapshotInitialData] = useState<Partial<CreateCampaignData> | null>(null);
+  
+  // Prevent formData from being reset when in edit mode - preserve all data
+  useEffect(() => {
+    // If we're in edit mode and formData.type is empty but we have initialized campaign,
+    // restore formData from snapshot to prevent fields from disappearing
+    if (isOpen && 
+        mode === "edit" && 
+        initializedCampaignId === campaignId && 
+        snapshotInitialData && 
+        (!formData.type || formData.type === "")) {
+      console.warn("Form data type is empty in edit mode, restoring from snapshot");
+      const restoredFormData = {
+        ...formData,
+        type: snapshotInitialData.type || formData.type,
+        campaign_name: snapshotInitialData.campaign_name || formData.campaign_name,
+        budget: snapshotInitialData.budget || formData.budget,
+        budgetType: snapshotInitialData.budgetType || formData.budgetType,
+        status: snapshotInitialData.status || formData.status,
+        startDate: snapshotInitialData.startDate || formData.startDate,
+        endDate: snapshotInitialData.endDate ? convertDateToInputFormat(snapshotInitialData.endDate) : formData.endDate,
+        profileId: snapshotInitialData.profileId || formData.profileId,
+        portfolioId: snapshotInitialData.portfolioId || formData.portfolioId,
+        targetingType: snapshotInitialData.targetingType || formData.targetingType,
+        bidding: snapshotInitialData.bidding || formData.bidding,
+        tags: snapshotInitialData.tags || formData.tags,
+        siteRestrictions: snapshotInitialData.siteRestrictions || formData.siteRestrictions,
+      };
+      setFormData(restoredFormData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode, campaignId, initializedCampaignId, formData.type]);
+
   // When opening in edit mode, pre-populate form with initial data
   useEffect(() => {
-    if (isOpen && mode === "edit" && initialData) {
+    // Only initialize form once per campaign ID when entering edit mode
+    // Use snapshot to prevent re-initialization if initialData reference changes
+    const shouldInitialize = isOpen && 
+                             mode === "edit" && 
+                             initialData && 
+                             campaignId &&
+                             initializedCampaignId !== campaignId;
+    
+    if (shouldInitialize) {
       const newFormData = {
         ...initialData,
         // Ensure type is a valid value (fallback to previous if not provided)
@@ -207,8 +252,21 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           shopperCohortBidAdjustments: [],
           bidAdjustmentsByPlacement: [],
         },
-        // Populate tags from initialData
-        tags: initialData.tags || {},
+        // Populate tags from initialData - ensure it's always an array
+        tags: (() => {
+          const tagsData = initialData.tags;
+          if (Array.isArray(tagsData)) {
+            return tagsData;
+          }
+          if (tagsData && typeof tagsData === 'object') {
+            // Convert object to array format
+            return Object.entries(tagsData).map(([key, value]) => ({
+              key,
+              value: value as string,
+            }));
+          }
+          return [];
+        })(),
         // Populate siteRestrictions from initialData
         siteRestrictions: initialData.siteRestrictions || undefined,
       };
@@ -270,7 +328,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         setSelectedAudience("");
         setAudiencePercentage(100);
       }
+      
+      // Mark this campaign as initialized and store snapshot
+      setInitializedCampaignId(campaignId);
+      setSnapshotInitialData({ ...initialData }); // Store snapshot to prevent re-initialization
     }
+    
+    // Only reset form when explicitly switching to create mode (not just when panel closes)
     if (isOpen && mode === "create" && !initialData) {
       // For fresh create opens, reset the form
       resetForm();
@@ -279,28 +343,52 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       setIncreaseBidsForAudiences(false);
       setSelectedAudience("");
       setAudiencePercentage(100);
+      setInitializedCampaignId(undefined); // Reset when switching to create mode
+      setSnapshotInitialData(null);
+    }
+    
+    // IMPORTANT: Never reset form data when in edit mode, even if panel closes
+    // This ensures form data persists even when modals open/close
+    // Only reset initialization flags when panel closes AND we're switching away from edit mode
+    if (!isOpen && mode !== "edit") {
+      setInitializedCampaignId(undefined);
+      setSnapshotInitialData(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, mode, initialData]);
+  }, [isOpen, mode, campaignId]);
 
-  // Parse field errors from submitError
+  // Parse field errors and generic errors from submitError
   useEffect(() => {
     if (submitError) {
       try {
-        // Try to parse as JSON (if it contains field errors)
+        // Try to parse as JSON (if it contains field errors and generic errors)
         const parsed = JSON.parse(submitError);
         if (parsed.fieldErrors && typeof parsed.fieldErrors === "object") {
           // Set field-specific errors
           setErrors(parsed.fieldErrors);
+        } else {
+          setErrors({});
+        }
+        
+        // Extract generic errors
+        if (parsed.genericErrors && Array.isArray(parsed.genericErrors)) {
+          setGenericErrors(parsed.genericErrors);
+        } else if (parsed.message && !parsed.fieldErrors) {
+          // If there's a message but no field errors, treat it as a generic error
+          setGenericErrors([parsed.message]);
+        } else {
+          setGenericErrors([]);
         }
       } catch (e) {
         // If not JSON, it's just a plain error message
-        // Clear field errors but keep the general error message
+        // Clear field errors but treat the message as a generic error
         setErrors({});
+        setGenericErrors([submitError]);
       }
     } else {
       // Clear errors when submitError is cleared
       setErrors({});
+      setGenericErrors([]);
     }
   }, [submitError]);
 
@@ -460,15 +548,25 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         newErrors.status = "Status is required";
       }
 
-      // Validate end date for SP campaigns (must be today or in the future, can be empty)
-      if (formData.type === "SP" && formData.endDate) {
-        const selectedDate = new Date(formData.endDate);
+      // Validate end date for SP campaigns
+      if (formData.type === "SP" && formData.endDate && formData.endDate.trim()) {
+        const endDate = new Date(formData.endDate);
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-        selectedDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
 
-        if (selectedDate < today) {
+        if (endDate < today) {
           newErrors.endDate = "End date must be today or in the future";
+        }
+        
+        // Also validate end date is after start date if start date exists
+        if (formData.startDate && formData.startDate.trim()) {
+          const startDate = new Date(formData.startDate);
+          startDate.setHours(0, 0, 0, 0);
+          
+          if (endDate <= startDate) {
+            newErrors.endDate = "End date must be greater than start date";
+          }
         }
       }
 
@@ -501,6 +599,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     // Start Date is required
     if (!formData.startDate || !formData.startDate.trim()) {
       newErrors.startDate = "Start Date is required";
+    } else {
+      // Validate start date is not in the past
+      const startDate = new Date(formData.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      startDate.setHours(0, 0, 0, 0);
+      
+      if (startDate < today) {
+        newErrors.startDate = "Start date cannot be in the past";
+      }
+      
+      // Validate end date is after start date (if both are provided)
+      if (formData.endDate && formData.endDate.trim()) {
+        const endDate = new Date(formData.endDate);
+        endDate.setHours(0, 0, 0, 0);
+        
+        if (endDate <= startDate) {
+          newErrors.endDate = "End date must be greater than start date";
+        }
+      }
     }
 
     // SD specific validation
@@ -660,14 +778,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     console.log("Validation result:", isValid, "Errors:", errors);
     if (!isValid) {
       console.log("Validation failed. Errors:", errors);
-      // Show alert with validation errors
-      const errorMessages = Object.values(errors).filter(Boolean);
-      if (errorMessages.length > 0) {
-        alert(
-          `Please fix the following errors:\n\n${errorMessages.join("\n")}`
-        );
-      }
-      // Scroll to first error field
+      // Scroll to first error field (no alert needed - errors are shown inline)
       const firstErrorField = Object.keys(errors)[0];
       if (firstErrorField) {
         // Try to find the input or dropdown for this field
@@ -686,9 +797,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
     // Filter payload to only include campaign-type-specific fields
     const filteredPayload = buildFilteredPayload(formData);
-    console.log("Filtered payload:", filteredPayload);
+    
     try {
-      console.log("Calling onSubmit with payload");
       await onSubmit(filteredPayload);
       console.log("onSubmit completed successfully");
       // Only reset form and close on success
@@ -751,15 +861,17 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           </h2>
 
           {/* Validation Errors Banner */}
-          {Object.keys(errors).length > 0 && (
+          {Object.values(errors).filter(Boolean).length > 0 && (
             <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-[13px] font-semibold text-red-600 mb-2">
                 Please fix the following errors:
               </p>
               <ul className="list-disc list-inside text-[12px] text-red-600 space-y-1">
-                {Object.entries(errors).map(([field, error]) =>
-                  error ? <li key={field}>{error}</li> : null
-                )}
+                {Object.entries(errors)
+                  .filter(([_, error]) => error)
+                  .map(([field, error]) => (
+                    <li key={field}>{error}</li>
+                  ))}
               </ul>
             </div>
           )}
@@ -1194,6 +1306,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("startDate", e.target.value)
                           }
                           disabled={mode === "edit"}
+                          min={new Date().toISOString().split("T")[0]} // Prevent selecting past dates
                           className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.startDate
                               ? "border-red-500"
@@ -1229,7 +1342,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("endDate", e.target.value)
                           }
-                          min={new Date().toISOString().split("T")[0]} // Minimum date is today
+                          min={formData.startDate || new Date().toISOString().split("T")[0]} // Must be after start date or today
                           className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
                               ? "border-red-500"
@@ -1315,7 +1428,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("endDate", e.target.value)
                           }
-                          min={formData.startDate || undefined}
+                          min={formData.startDate || new Date().toISOString().split("T")[0]} // Must be after start date or today
                           disabled={mode === "edit"}
                           className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
@@ -1517,8 +1630,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             />
                             {mode === "create" &&
                               formData.bidding &&
-                              !formData.bidding.strategy && (
-                                <p className="text-[10px] text-red-500 mt-1">
+                              !formData.bidding.strategy &&
+                              ((formData.bidding.bidAdjustmentsByPlacement?.length ?? 0) > 0 ||
+                                (formData.bidding.shopperCohortBidAdjustments?.length ?? 0) > 0) && (
+                                <p className="text-[10px] text-[#556179] mt-1">
                                   Strategy is required when Dynamic Bidding is
                                   provided
                                 </p>
@@ -1981,8 +2096,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           Read-only: Site restrictions cannot be changed after campaign creation
                         </p>
                       )}
-                      <Dropdown<string>
+                      <Dropdown<string | undefined>
                         options={[
+                          {
+                            value: undefined,
+                            label: "Select Site Restrictions",
+                          },
                           {
                             value: "AMAZON_BUSINESS",
                             label: "AMAZON_BUSINESS",
@@ -1990,7 +2109,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         ]}
                         value={formData.siteRestrictions || undefined}
                         onChange={(value) =>
-                          handleChange("siteRestrictions", value)
+                          handleChange("siteRestrictions", value || undefined)
                         }
                         placeholder="Select site restrictions (optional)"
                         buttonClassName={`w-full h-[38px] text-[14px] text-[#072929] ${
@@ -3008,24 +3127,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
               : "Create Campaign"}
           </button>
         </div>
-
-        {/* Submit Error Display */}
-        {submitError && (
-          <div className="px-4 pb-4">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-[13px] text-red-600">
-                {(() => {
-                  try {
-                    const parsed = JSON.parse(submitError);
-                    return parsed.message || submitError;
-                  } catch (e) {
-                    return submitError;
-                  }
-                })()}
-              </p>
-            </div>
-          </div>
-        )}
       </form>
     </div>
   );

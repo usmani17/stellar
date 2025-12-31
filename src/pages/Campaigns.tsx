@@ -249,6 +249,8 @@ export const Campaigns: React.FC = () => {
     message: string;
     title?: string;
     isSuccess?: boolean;
+    fieldErrors?: Record<string, string>;
+    genericErrors?: string[];
     actionButton?: {
       text: string;
       onClick: () => void;
@@ -257,9 +259,9 @@ export const Campaigns: React.FC = () => {
   // Extract error message from mutation error, handling both direct errors and API response errors
   const createCampaignError = useMemo(() => {
     if (!createCampaignMutation.error) return null;
-    
+
     const error = createCampaignMutation.error as any;
-    
+
     // Try to extract from API response first (most common case)
     if (error?.response?.data?.error) {
       // Check if there are field errors to include
@@ -272,7 +274,7 @@ export const Campaigns: React.FC = () => {
       }
       return error.response.data.error;
     }
-    
+
     // Try to parse if it's a JSON stringified error with field errors
     if (error?.message) {
       try {
@@ -286,13 +288,16 @@ export const Campaigns: React.FC = () => {
         return error.message;
       }
     }
-    
+
     return error?.message || "Failed to create campaign";
   }, [createCampaignMutation.error]);
   const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">(
     "create"
   );
   const [initialCampaignData, setInitialCampaignData] =
+    useState<Partial<CreateCampaignData> | null>(null);
+  // Store a deep snapshot of initialCampaignData when it's set to prevent mutations
+  const [originalCampaignDataSnapshot, setOriginalCampaignDataSnapshot] =
     useState<Partial<CreateCampaignData> | null>(null);
   const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
     string | number | null
@@ -820,59 +825,47 @@ export const Campaigns: React.FC = () => {
 
       // Extract error message from backend response
       let errorMessage = "Failed to create campaign. Please try again.";
-      let errorDetails = null;
       let fieldErrors: Record<string, string> = {};
+      let genericErrors: string[] = [];
 
       if (error?.response?.data) {
-        // Check for validation errors (400 status)
-        if (error.response.status === 400) {
-          // Check for field-specific validation errors
-          if (error.response.data.field_errors) {
-            fieldErrors = error.response.data.field_errors;
-          }
+        // Parse standardized error format
+        if (error.response.data.field_errors) {
+          fieldErrors = error.response.data.field_errors;
+        }
 
-          if (error.response.data.error) {
-            errorMessage = error.response.data.error;
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
-          }
-        } else {
-          // Check for error message
-          if (error.response.data.error) {
-            errorMessage = error.response.data.error;
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
-          }
+        if (error.response.data.generic_errors) {
+          genericErrors = Array.isArray(error.response.data.generic_errors)
+            ? error.response.data.generic_errors
+            : [error.response.data.generic_errors];
+        }
 
-          // Check for detailed error information
-          if (error.response.data.details) {
-            errorDetails = error.response.data.details;
-            // If details is an object with errors, format it
-            if (
-              typeof errorDetails === "object" &&
-              !Array.isArray(errorDetails)
-            ) {
-              if (errorDetails.errors) {
-                errorMessage = `Amazon API errors: ${JSON.stringify(
-                  errorDetails.errors
-                )}`;
-              } else if (errorDetails.message) {
-                errorMessage = `Amazon API error: ${errorDetails.message}`;
-              }
-            }
-          }
+        // Get summary error message
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (genericErrors.length > 0) {
+          errorMessage = genericErrors[0];
+        } else if (Object.keys(fieldErrors).length > 0) {
+          // Build summary from field errors
+          const fieldNames = Object.keys(fieldErrors);
+          errorMessage = `Validation failed: ${fieldNames.length} field error(s)`;
         }
       } else if (error?.message) {
         errorMessage = error.message;
+        genericErrors = [error.message];
       }
 
-      // Don't close panel on error - let user fix and resubmit
-      // Show error in modal for better visibility
+      // Auto-open error modal with field errors and generic errors
       setErrorModal({
         isOpen: true,
-        title: "Error",
+        title: "Validation Error",
         message: errorMessage,
         isSuccess: false,
+        fieldErrors:
+          Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+        genericErrors: genericErrors.length > 0 ? genericErrors : undefined,
       });
 
       // Pass field errors to the panel via a custom error object
@@ -880,6 +873,7 @@ export const Campaigns: React.FC = () => {
       const errorWithFields = {
         message: errorMessage,
         fieldErrors: fieldErrors,
+        genericErrors: genericErrors,
       };
 
       // Re-throw error so the form knows submission failed
@@ -914,7 +908,13 @@ export const Campaigns: React.FC = () => {
 
     try {
       // Get original data to compare changes
-      const original = initialCampaignData;
+      // IMPORTANT: Use the snapshot (captured when form opened) instead of current initialCampaignData
+      // This prevents mutations from the form affecting the comparison
+      const original = originalCampaignDataSnapshot
+        ? JSON.parse(JSON.stringify(originalCampaignDataSnapshot))
+        : initialCampaignData
+        ? JSON.parse(JSON.stringify(initialCampaignData))
+        : null;
       if (!original) {
         throw new Error("Original campaign data not available");
       }
@@ -977,7 +977,9 @@ export const Campaigns: React.FC = () => {
           normalizeBudgetType(originalBudgetType) &&
         (newBudgetType === "DAILY" || newBudgetType === "LIFETIME")
       ) {
-        updatePayload.budgetType = newBudgetType.toUpperCase() as "DAILY" | "LIFETIME";
+        updatePayload.budgetType = newBudgetType.toUpperCase() as
+          | "DAILY"
+          | "LIFETIME";
       }
 
       // 5. Check if endDate changed (for SP campaigns)
@@ -1028,7 +1030,9 @@ export const Campaigns: React.FC = () => {
           normalizeTargetingType(originalTargetingType) !==
           normalizeTargetingType(newTargetingType)
         ) {
-          updatePayload.targetingType = newTargetingType.toUpperCase() as "AUTO" | "MANUAL";
+          updatePayload.targetingType = newTargetingType.toUpperCase() as
+            | "AUTO"
+            | "MANUAL";
         }
 
         // 8. Check if tags changed
@@ -1036,11 +1040,13 @@ export const Campaigns: React.FC = () => {
           if (!tags) return [];
           if (Array.isArray(tags)) {
             return tags
-              .filter(tag => tag && typeof tag === 'object' && tag.key && tag.value)
+              .filter(
+                (tag) => tag && typeof tag === "object" && tag.key && tag.value
+              )
               .sort((a, b) => a.key.localeCompare(b.key))
-              .map(tag => `${tag.key}:${tag.value}`);
+              .map((tag) => `${tag.key}:${tag.value}`);
           }
-          if (typeof tags === 'object' && tags !== null) {
+          if (typeof tags === "object" && tags !== null) {
             return Object.entries(tags)
               .filter(([key, value]) => key && value)
               .sort(([a], [b]) => a.localeCompare(b))
@@ -1048,21 +1054,27 @@ export const Campaigns: React.FC = () => {
           }
           return [];
         };
-        
+
         const originalNormalized = normalizeTags(original.tags);
         const newNormalized = normalizeTags(data.tags);
-        const tagsChanged = JSON.stringify(originalNormalized) !== JSON.stringify(newNormalized);
-        
+        const tagsChanged =
+          JSON.stringify(originalNormalized) !== JSON.stringify(newNormalized);
+
         if (tagsChanged) {
           let tagsToSend: Array<{ key: string; value: string }> = [];
           const newTagsRaw = data.tags;
-          
+
           if (Array.isArray(newTagsRaw)) {
-            tagsToSend = newTagsRaw.filter(tag => tag && typeof tag === 'object' && tag.key && tag.value);
-          } else if (typeof newTagsRaw === 'object' && newTagsRaw !== null) {
+            tagsToSend = newTagsRaw.filter(
+              (tag) => tag && typeof tag === "object" && tag.key && tag.value
+            );
+          } else if (typeof newTagsRaw === "object" && newTagsRaw !== null) {
             tagsToSend = Object.entries(newTagsRaw)
               .filter(([key, value]) => key && value)
-              .map(([key, value]) => ({ key: String(key), value: String(value) }));
+              .map(([key, value]) => ({
+                key: String(key),
+                value: String(value),
+              }));
           }
           updatePayload.tags = tagsToSend;
         }
@@ -1075,29 +1087,193 @@ export const Campaigns: React.FC = () => {
         // 10. Check if dynamicBidding (bidding) changed
         const originalBidding = original.bidding || {};
         const newBidding = data.bidding || {};
-        const biddingChanged =
-          JSON.stringify(originalBidding) !== JSON.stringify(newBidding);
-        if (biddingChanged) {
+
+        // First, do a quick check on raw data - if both are empty/undefined, no change
+        if (!originalBidding || Object.keys(originalBidding).length === 0) {
+          if (!newBidding || Object.keys(newBidding).length === 0) {
+            // Both empty, no change
+          } else if (
+            newBidding.bidAdjustmentsByPlacement &&
+            newBidding.bidAdjustmentsByPlacement.length > 0
+          ) {
+            // Original empty but new has placements - there's a change
+            updatePayload.dynamicBidding = newBidding;
+          }
+        } else if (!newBidding || Object.keys(newBidding).length === 0) {
+          // Original has data but new is empty - there's a change
           updatePayload.dynamicBidding = newBidding;
+        } else {
+          // Both have data, normalize and compare
+          // Normalize bidding objects for comparison
+          const normalizeBidding = (bidding: any) => {
+            if (!bidding || typeof bidding !== "object") return {};
+
+            const normalized: any = {};
+
+            // Normalize strategy
+            if (bidding.strategy) {
+              normalized.strategy = bidding.strategy;
+            }
+
+            // Normalize bidAdjustmentsByPlacement - ensure all placements are included for accurate comparison
+            // The form always sends all 4 placements, but original data might only have non-zero ones
+            const allPlacements = [
+              "PLACEMENT_TOP",
+              "PLACEMENT_REST_OF_SEARCH",
+              "PLACEMENT_PRODUCT_PAGE",
+              "SITE_AMAZON_BUSINESS",
+            ];
+
+            if (
+              bidding.bidAdjustmentsByPlacement &&
+              Array.isArray(bidding.bidAdjustmentsByPlacement)
+            ) {
+              // Create a map of existing placements
+              const placementMap = new Map();
+              bidding.bidAdjustmentsByPlacement
+                .filter((adj: any) => adj && adj.placement)
+                .forEach((adj: any) => {
+                  placementMap.set(
+                    adj.placement,
+                    adj.percentage !== undefined && adj.percentage !== null
+                      ? Number(adj.percentage)
+                      : 0
+                  );
+                });
+
+              // Ensure all placements are included, defaulting to 0 if not present
+              const sorted = allPlacements
+                .map((placement) => ({
+                  placement,
+                  percentage: placementMap.get(placement) ?? 0,
+                }))
+                .sort((a, b) => a.placement.localeCompare(b.placement));
+
+              normalized.bidAdjustmentsByPlacement = sorted;
+            } else {
+              // If bidAdjustmentsByPlacement doesn't exist, create array with all placements at 0
+              normalized.bidAdjustmentsByPlacement = allPlacements
+                .map((placement) => ({ placement, percentage: 0 }))
+                .sort((a, b) => a.placement.localeCompare(b.placement));
+            }
+
+            // Normalize shopperCohortBidAdjustments - sort for consistent comparison
+            if (
+              bidding.shopperCohortBidAdjustments &&
+              Array.isArray(bidding.shopperCohortBidAdjustments)
+            ) {
+              const sorted = [...bidding.shopperCohortBidAdjustments]
+                .filter(
+                  (adj) =>
+                    adj &&
+                    adj.percentage !== undefined &&
+                    adj.percentage !== null
+                )
+                .sort((a, b) => {
+                  const aType = (a.shopperCohortType || "").localeCompare(
+                    b.shopperCohortType || ""
+                  );
+                  if (aType !== 0) return aType;
+                  return JSON.stringify(a.audienceSegments || []).localeCompare(
+                    JSON.stringify(b.audienceSegments || [])
+                  );
+                })
+                .map((adj) => ({
+                  percentage: Number(adj.percentage) || 0,
+                  shopperCohortType:
+                    adj.shopperCohortType || "AUDIENCE_SEGMENT",
+                  audienceSegments: Array.isArray(adj.audienceSegments)
+                    ? [...adj.audienceSegments].sort()
+                    : [],
+                }));
+              if (sorted.length > 0) {
+                normalized.shopperCohortBidAdjustments = sorted;
+              }
+            }
+
+            return normalized;
+          };
+
+          const normalizedOriginal = normalizeBidding(originalBidding);
+          const normalizedNew = normalizeBidding(newBidding);
+
+          // Compare placements more explicitly - check each placement individually
+          const originalPlacements =
+            normalizedOriginal.bidAdjustmentsByPlacement || [];
+          const newPlacements = normalizedNew.bidAdjustmentsByPlacement || [];
+
+          // Create maps for easier comparison
+          const originalPlacementMap = new Map(
+            originalPlacements.map((p: any) => [p.placement, p.percentage])
+          );
+          const newPlacementMap = new Map(
+            newPlacements.map((p: any) => [p.placement, p.percentage])
+          );
+
+          // Check if any placement percentage differs
+          let placementsChanged = false;
+          const allPlacements = [
+            "PLACEMENT_TOP",
+            "PLACEMENT_REST_OF_SEARCH",
+            "PLACEMENT_PRODUCT_PAGE",
+            "SITE_AMAZON_BUSINESS",
+          ];
+          const placementComparisons: any = {};
+          for (const placement of allPlacements) {
+            const originalPct = originalPlacementMap.get(placement) ?? 0;
+            const newPct = newPlacementMap.get(placement) ?? 0;
+            placementComparisons[placement] = {
+              original: originalPct,
+              new: newPct,
+              changed: originalPct !== newPct,
+            };
+            if (originalPct !== newPct) {
+              placementsChanged = true;
+              break;
+            }
+          }
+
+          // Check if strategy changed
+          const strategyChanged =
+            normalizedOriginal.strategy !== normalizedNew.strategy;
+
+          // Check if shopper cohort adjustments changed
+          const originalCohorts =
+            normalizedOriginal.shopperCohortBidAdjustments || [];
+          const newCohorts = normalizedNew.shopperCohortBidAdjustments || [];
+          const cohortsChanged =
+            JSON.stringify(originalCohorts) !== JSON.stringify(newCohorts);
+
+          const biddingChanged =
+            placementsChanged || strategyChanged || cohortsChanged;
+
+          if (biddingChanged) {
+            updatePayload.dynamicBidding = newBidding;
+          }
         }
       }
 
       // Execute single update if there are changes
       if (Object.keys(updatePayload).length === 0) {
-        // No changes detected, show message and close the panel
+        // No changes detected, show message but keep panel open
         setErrorModal({
           isOpen: true,
           title: "No Changes",
-          message: "No changes were detected. The campaign data is already up to date.",
+          message:
+            "No changes were detected. The campaign data is already up to date.",
           isSuccess: true,
         });
-        setIsCreateCampaignPanelOpen(false);
+        // Don't close the panel - let user continue editing
         setEditLoadingCampaignId(null);
         return;
       }
 
       // Make single API call with all changes
-      const response = await campaignsService.updateCampaign(accountIdNum, campaignId, updatePayload);
+      const response = await campaignsService.updateCampaign(
+        accountIdNum,
+        campaignId,
+        updatePayload
+      );
 
       // Refetch campaigns to update the data table
       await refetchCampaigns();
@@ -1105,6 +1281,7 @@ export const Campaigns: React.FC = () => {
       // Close the panel
       setIsCreateCampaignPanelOpen(false);
       setInitialCampaignData(null);
+      setOriginalCampaignDataSnapshot(null); // Clear snapshot when closing
       setCampaignFormMode("create");
       setEditLoadingCampaignId(null);
 
@@ -1119,7 +1296,9 @@ export const Campaigns: React.FC = () => {
           text: "View Campaign",
           onClick: () => {
             setErrorModal({ isOpen: false, message: "" });
-            navigate(`/accounts/${accountIdNum}/campaigns/${campaignTypeAndId}`);
+            navigate(
+              `/accounts/${accountIdNum}/campaigns/${campaignTypeAndId}`
+            );
           },
         },
       });
@@ -1282,38 +1461,38 @@ export const Campaigns: React.FC = () => {
         tags: (() => {
           const tagsData = (campaign as any).tags || (row as any).tags;
           if (!tagsData) return undefined;
-          
+
           // If it's already an array, return as is
           if (Array.isArray(tagsData)) {
             return tagsData;
           }
-          
+
           // If it's an object, convert to array
-          if (typeof tagsData === 'object' && tagsData !== null) {
+          if (typeof tagsData === "object" && tagsData !== null) {
             return Object.entries(tagsData).map(([key, value]) => ({
               key,
               value: value as string,
             }));
           }
-          
+
           // If it's a string, try to parse as JSON
-          if (typeof tagsData === 'string') {
+          if (typeof tagsData === "string") {
             try {
               const parsed = JSON.parse(tagsData);
               if (Array.isArray(parsed)) {
                 return parsed;
               }
-              if (typeof parsed === 'object' && parsed !== null) {
+              if (typeof parsed === "object" && parsed !== null) {
                 return Object.entries(parsed).map(([key, value]) => ({
                   key,
                   value: value as string,
                 }));
               }
             } catch (e) {
-              console.error('Failed to parse tags:', e);
+              console.error("Failed to parse tags:", e);
             }
           }
-          
+
           return undefined;
         })(),
         // Map siteRestrictions
@@ -1324,6 +1503,10 @@ export const Campaigns: React.FC = () => {
             (row as any).site_restrictions
         ),
       };
+
+      // Create a deep snapshot IMMEDIATELY to prevent mutations
+      const snapshot = JSON.parse(JSON.stringify(initial));
+      setOriginalCampaignDataSnapshot(snapshot);
 
       setInitialCampaignData(initial);
       setCampaignId(row.campaignId);
@@ -1536,6 +1719,8 @@ export const Campaigns: React.FC = () => {
         title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
         message={errorModal.message}
         isSuccess={errorModal.isSuccess}
+        fieldErrors={errorModal.fieldErrors}
+        genericErrors={errorModal.genericErrors}
         actionButton={errorModal.actionButton}
       />
 
@@ -1566,6 +1751,7 @@ export const Campaigns: React.FC = () => {
                   onToggle={() => {
                     setCampaignFormMode("create");
                     setInitialCampaignData(null);
+                    setOriginalCampaignDataSnapshot(null);
                     setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
                     setIsFilterPanelOpen(false); // Close filter panel when opening create panel
                   }}
@@ -1592,6 +1778,7 @@ export const Campaigns: React.FC = () => {
                   onClose={() => {
                     setIsCreateCampaignPanelOpen(false);
                     setInitialCampaignData(null);
+                    setOriginalCampaignDataSnapshot(null);
                     setCampaignFormMode("create");
                     setCampaignId(undefined);
                     setEditLoadingCampaignId(null);

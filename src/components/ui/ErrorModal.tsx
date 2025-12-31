@@ -20,6 +20,8 @@ interface ErrorModalProps {
   message: string;
   isSuccess?: boolean;
   errorDetails?: ErrorDetail[];
+  fieldErrors?: Record<string, string>; // Field-specific validation errors
+  genericErrors?: string[]; // Generic/non-field errors
   actionButton?: {
     text: string;
     onClick: () => void;
@@ -33,9 +35,26 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   message,
   isSuccess = false,
   errorDetails,
+  fieldErrors,
+  genericErrors,
   actionButton,
 }) => {
   if (!isOpen) return null;
+
+  // Determine if we need larger modal width
+  const hasFieldErrors = fieldErrors && Object.keys(fieldErrors).length > 0;
+  const hasGenericErrors = genericErrors && genericErrors.length > 0;
+  const hasErrorDetails = errorDetails && errorDetails.length > 0;
+  const needsLargeModal = hasFieldErrors || hasGenericErrors || hasErrorDetails;
+
+  // Helper function to format field names for display
+  const formatFieldName = (fieldName: string): string => {
+    // Convert camelCase to Title Case
+    return fieldName
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
+  };
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center">
@@ -46,7 +65,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       />
 
       {/* Modal */}
-      <div className={`relative bg-white rounded-xl shadow-2xl ${errorDetails && errorDetails.length > 0 ? 'max-w-2xl' : 'max-w-md'} w-full mx-4 border border-[#E8E8E3]`}>
+      <div className={`relative bg-white rounded-xl shadow-2xl ${needsLargeModal ? 'max-w-2xl' : 'max-w-md'} w-full mx-4 border border-[#E8E8E3]`}>
         <div className="p-6">
           {/* Icon */}
           <div className="flex items-center justify-center mb-4">
@@ -102,8 +121,89 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
               </div>
             )}
 
-            {/* Error Details Table */}
-            {errorDetails && errorDetails.length > 0 && (
+            {/* Field Errors Section */}
+            {hasFieldErrors && (
+              <div className="mb-4">
+                <h4 className="text-[14px] font-semibold text-[#072929] mb-2">
+                  Field Errors
+                </h4>
+                <div className="max-h-[300px] overflow-y-auto border border-[#e8e8e3] rounded-lg bg-[#f9f9f6]">
+                  <div className="p-3 space-y-2">
+                    {Object.entries(fieldErrors).map(([field, error]) => (
+                      <div
+                        key={field}
+                        className="flex items-start gap-2 p-2 bg-white rounded border border-red-100"
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          <svg
+                            className="w-4 h-4 text-red-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] font-medium text-[#0b0f16]">
+                            {formatFieldName(field)}:
+                          </div>
+                          <div className="text-[12px] text-red-700 mt-0.5">
+                            {error}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Generic Errors Section */}
+            {hasGenericErrors && (
+              <div className="mb-4">
+                <h4 className="text-[14px] font-semibold text-[#072929] mb-2">
+                  General Errors
+                </h4>
+                <div className="max-h-[200px] overflow-y-auto border border-[#e8e8e3] rounded-lg bg-[#f9f9f6]">
+                  <div className="p-3 space-y-2">
+                    {genericErrors.map((error, index) => (
+                      <div
+                        key={index}
+                        className="flex items-start gap-2 p-2 bg-white rounded border border-red-100"
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          <svg
+                            className="w-4 h-4 text-red-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </div>
+                        <div className="flex-1 text-[12px] text-red-700">
+                          {error}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Details Table (for policy violations) */}
+            {hasErrorDetails && (
               <div className="max-h-[400px] overflow-y-auto border border-[#e8e8e3] rounded-lg">
                 <table className="w-full text-left">
                   <thead className="bg-[#f5f5f0] sticky top-0">
