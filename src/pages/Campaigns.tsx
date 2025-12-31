@@ -872,7 +872,6 @@ export const Campaigns: React.FC = () => {
     }
 
     setCreateCampaignLoading(true);
-
     setCreateCampaignError(null);
 
     try {
