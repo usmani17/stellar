@@ -929,7 +929,7 @@ export const campaignsService = {
 
     const url = `/accounts/${accountId}/campaigns/${campaignId}/${
       params.toString() ? `?${params.toString()}` : ""
-    }`;
+      }`;
     const response = await api.get<CampaignDetail>(url);
     return response.data;
   },
@@ -968,7 +968,7 @@ export const campaignsService = {
     const queryString = queryParams.toString();
     const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${
       queryString ? `?${queryString}` : ""
-    }`;
+      }`;
     const response = await api.post<AdGroupsResponse>(url, { filters });
     return response.data;
   },
@@ -1007,7 +1007,7 @@ export const campaignsService = {
     const queryString = queryParams.toString();
     const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${
       queryString ? `?${queryString}` : ""
-    }`;
+      }`;
     const response = await api.post<KeywordsResponse>(url, { filters });
     return response.data;
   },
@@ -1046,7 +1046,7 @@ export const campaignsService = {
     const queryString = queryParams.toString();
     const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${
       queryString ? `?${queryString}` : ""
-    }`;
+      }`;
     const response = await api.post<ProductAdsResponse>(url, { filters });
     return response.data;
   },
@@ -1085,7 +1085,7 @@ export const campaignsService = {
     const queryString = queryParams.toString();
     const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${
       queryString ? `?${queryString}` : ""
-    }`;
+      }`;
     const response = await api.post<TargetsResponse>(url, { filters });
     return response.data;
   },
@@ -1134,7 +1134,7 @@ export const campaignsService = {
     const queryString = queryParams.toString();
     const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${
       queryString ? `?${queryString}` : ""
-    }`;
+      }`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1184,7 +1184,7 @@ export const campaignsService = {
     const queryString = queryParams.toString();
     const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${
       queryString ? `?${queryString}` : ""
-    }`;
+      }`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1194,16 +1194,13 @@ export const campaignsService = {
     payload: {
       campaignIds: Array<string | number>;
       action:
-        | "status"
-        | "budget"
-        | "budgetType"
-        | "name"
-        | "portfolioId"
-        | "endDate"
-        | "targetingType"
-        | "tags"
-        | "siteRestrictions"
-        | "dynamicBidding";
+      | "status"
+      | "budget"
+      | "budgetType"
+      | "name"
+      | "portfolioId"
+      | "endDate"
+      | "targetingType";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
       budgetType?: "DAILY" | "LIFETIME";
@@ -2719,7 +2716,7 @@ export const campaignsService = {
     const queryString = params.toString();
     const url = `/accounts/${accountId}/google-campaigns/${campaignId}/${
       queryString ? `?${queryString}` : ""
-    }`;
+      }`;
     const response = await api.get(url);
     return response.data;
   },
@@ -3191,5 +3188,41 @@ export const campaignsService = {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+  },
+
+  // TikTok Campaign Methods
+  getTikTokCampaigns: async (
+    accountId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      operation_status?: string;
+      advertiser_id?: string;
+    }
+  ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number }> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", String(params.page));
+    if (params?.page_size) queryParams.append("page_size", String(params.page_size));
+    if (params?.operation_status) queryParams.append("operation_status", params.operation_status);
+    if (params?.advertiser_id) queryParams.append("advertiser_id", params.advertiser_id);
+
+    const url = `/accounts/${accountId}/tiktok-campaigns/?${queryParams.toString()}`;
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  createTikTokCampaign: async (
+    accountId: number,
+    data: {
+      campaign_name: string;
+      objective_type: string;
+      budget?: number;
+      budget_mode?: string;
+      advertiser_id?: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-campaigns/create/`;
+    const response = await api.post(url, data);
+    return response.data;
   },
 };

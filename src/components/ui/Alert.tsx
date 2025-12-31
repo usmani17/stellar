@@ -6,10 +6,10 @@ interface AlertProps {
   className?: string;
 }
 
-export const Alert: React.FC<AlertProps> = ({ 
-  children, 
+export const Alert: React.FC<AlertProps> = ({
+  children,
   variant = 'error',
-  className = '' 
+  className = ''
 }) => {
   const variants = {
     error: 'bg-red-50 border-red-200 text-red-700',
@@ -27,7 +27,7 @@ export const Alert: React.FC<AlertProps> = ({
       text-h700
       ${className}
     `}
-    className="font-poppins"
+      className="font-poppins"
     >
       {children}
     </div>
