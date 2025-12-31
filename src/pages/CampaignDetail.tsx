@@ -2010,16 +2010,16 @@ export const CampaignDetail: React.FC = () => {
         ? adgroup.default_bid.replace(/[^0-9.]/g, "")
         : "0";
       oldValue = adgroup.default_bid || "$0.00";
-      if (
-        Number(currentBid) > campaignDetail?.campaign?.budget ||
-        currentBid < 0
-      ) {
-        setErrorModal({
-          isOpen: true,
-          message: `Bid value is out of range. Please enter a value between 0 and the campaign budget ${campaignDetail?.campaign?.budget}`,
-        });
-        return;
-      }
+      // if (
+      //   Number(currentBid) > campaignDetail?.campaign?.budget ||
+      //   currentBid < 0
+      // ) {
+      //   setErrorModal({
+      //     isOpen: true,
+      //     message: `Bid value is out of range. Please enter a value between 0 and the campaign budget. ${campaignDetail?.campaign?.budget}`,
+      //   });
+      //   return;
+      // }
       hasChanged =
         editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
     }
