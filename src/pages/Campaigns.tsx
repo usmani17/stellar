@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
@@ -38,68 +44,73 @@ import {
 } from "../components/campaigns/CreateCampaignPanel";
 import ExportIcon from "../assets/export-icon.svg";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { filtersService } from "../services/filters";
+import type { FilterDefinition } from "../types/filters";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
   const { startDate, endDate } = useDateRange();
   const { sidebarWidth } = useSidebar();
-  
+
   // Get account ID as number
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
-  
+
   // State for pagination, sorting, and filters
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filters, setFilters] = useState<FilterValues>([]);
-  
+
   // Build filter params helper
-  const buildFilterParams = useCallback((filterList: FilterValues): CampaignsQueryParams => {
-    const params: CampaignsQueryParams = {};
+  const buildFilterParams = useCallback(
+    (filterList: FilterValues): CampaignsQueryParams => {
+      const params: CampaignsQueryParams = {};
 
-    filterList.forEach((filter) => {
-      if (filter.field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
+      filterList.forEach((filter) => {
+        if (filter.field === "campaign_name") {
+          if (filter.operator === "contains") {
+            params.campaign_name__icontains = filter.value;
+          } else if (filter.operator === "not_contains") {
+            params.campaign_name__not_icontains = filter.value;
+          } else if (filter.operator === "equals") {
+            params.campaign_name = filter.value;
+          }
+        } else if (filter.field === "budget") {
+          if (filter.operator === "lt") {
+            params.budget__lt = filter.value;
+          } else if (filter.operator === "gt") {
+            params.budget__gt = filter.value;
+          } else if (filter.operator === "eq") {
+            params.budget = filter.value;
+          } else if (filter.operator === "lte") {
+            params.budget__lte = filter.value;
+          } else if (filter.operator === "gte") {
+            params.budget__gte = filter.value;
+          }
+        } else if (filter.field === "state") {
+          params.state = filter.value;
+        } else if (filter.field === "type") {
+          params.type = filter.value;
+        } else if (filter.field === "targeting_type") {
+          params.targeting_type = filter.value;
+        } else if (filter.field === "profile_name") {
+          if (filter.operator === "contains") {
+            params.profile_name__icontains = filter.value;
+          } else if (filter.operator === "not_contains") {
+            params.profile_name__not_icontains = filter.value;
+          } else if (filter.operator === "equals") {
+            params.profile_name = filter.value;
+          }
         }
-      } else if (filter.field === "budget") {
-        if (filter.operator === "lt") {
-          params.budget__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.budget__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.budget = filter.value;
-        } else if (filter.operator === "lte") {
-          params.budget__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.budget__gte = filter.value;
-        }
-      } else if (filter.field === "state") {
-        params.state = filter.value;
-      } else if (filter.field === "type") {
-        params.type = filter.value;
-      } else if (filter.field === "targeting_type") {
-        params.targeting_type = filter.value;
-      } else if (filter.field === "profile_name") {
-        if (filter.operator === "contains") {
-          params.profile_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.profile_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.profile_name = filter.value;
-        }
-      }
-    });
+      });
 
-    return params;
-  }, []);
-  
+      return params;
+    },
+    []
+  );
+
   // Build query params for React Query
   const queryParams = useMemo<CampaignsQueryParams>(() => {
     const params: CampaignsQueryParams = {
@@ -112,7 +123,16 @@ export const Campaigns: React.FC = () => {
       ...buildFilterParams(filters),
     };
     return params;
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, buildFilterParams]);
+  }, [
+    sortBy,
+    sortOrder,
+    currentPage,
+    itemsPerPage,
+    startDate,
+    endDate,
+    filters,
+    buildFilterParams,
+  ]);
 
   // Use React Query hook for campaigns data
   const {
@@ -144,9 +164,10 @@ export const Campaigns: React.FC = () => {
   const bulkDeleteMutation = useBulkDeleteCampaigns(accountIdNum || 0);
   const createCampaignMutation = useCreateCampaign(accountIdNum || 0);
   const updateCampaignMutation = useUpdateCampaign(accountIdNum || 0);
-  
+
   // Use mutation loading states
-  const bulkLoading = bulkUpdateMutation.isPending || bulkDeleteMutation.isPending;
+  const bulkLoading =
+    bulkUpdateMutation.isPending || bulkDeleteMutation.isPending;
   const createCampaignLoading = createCampaignMutation.isPending;
   const inlineEditLoading = bulkUpdateMutation.isPending;
   const [selectedCampaigns, setSelectedCampaigns] = useState<
@@ -203,9 +224,12 @@ export const Campaigns: React.FC = () => {
       tooltipFormatter: (v) => `${v.toFixed(2)} x`,
     },
   ];
+  const [, setFilterDefinitions] = useState<FilterDefinition[]>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
     useState(false);
+  const [, setCreateCampaignLoading] = useState(false);
+  const [, setCreateCampaignError] = useState<string | null>(null);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
@@ -235,6 +259,7 @@ export const Campaigns: React.FC = () => {
       onClick: () => void;
     };
   }>({ isOpen: false, message: "" });
+
   const createCampaignError = createCampaignMutation.error
     ? createCampaignMutation.error.message
     : null;
@@ -361,7 +386,6 @@ export const Campaigns: React.FC = () => {
   // React Query handles data fetching automatically based on queryParams changes
   // No need for manual useEffect to trigger fetches
 
-
   const handleExport = async (exportType: "all_data" | "current_view") => {
     if (!accountId) return;
 
@@ -428,6 +452,7 @@ export const Campaigns: React.FC = () => {
       const definitions = await filtersService.getFilterDefinitions(
         "campaigns"
       );
+
       setFilterDefinitions(definitions);
     } catch (error) {
       console.error("Failed to load filter definitions:", error);
@@ -847,6 +872,7 @@ export const Campaigns: React.FC = () => {
     }
 
     setCreateCampaignLoading(true);
+
     setCreateCampaignError(null);
 
     try {
@@ -865,7 +891,7 @@ export const Campaigns: React.FC = () => {
         data.campaign_name.trim()
       ) {
         updates.push(
-          campaignsService.bulkUpdateCampaigns(accountIdNum, {
+          bulkUpdateMutation.mutateAsync({
             campaignIds: [campaignId],
             action: "name",
             name: data.campaign_name.trim(),
