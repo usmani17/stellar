@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
 import { TikTokCampaignsTable, type TikTokCampaign } from "./components/TikTokCampaignsTable";
+import {
+    CreateTikTokCampaignPanel,
+    type CreateTikTokCampaignData,
+} from "../../components/campaigns/CreateTikTokCampaignPanel";
 
 export const TikTokCampaigns: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
-    const navigate = useNavigate();
     const { sidebarWidth } = useSidebar();
 
     // State
@@ -21,6 +24,10 @@ export const TikTokCampaigns: React.FC = () => {
     const [sortColumn, setSortColumn] = useState<string>("campaign_name");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const [searchQuery, setSearchQuery] = useState("");
+
+    // Create Campaign state
+    const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
+    const [createLoading, setCreateLoading] = useState(false);
 
     // Summary stats
     const [summary, setSummary] = useState({
@@ -95,6 +102,23 @@ export const TikTokCampaigns: React.FC = () => {
         setPage(newPage);
     };
 
+    const handleCreateCampaign = async (data: CreateTikTokCampaignData) => {
+        if (!accountId) return;
+
+        setCreateLoading(true);
+        try {
+            await campaignsService.createTikTokCampaign(parseInt(accountId), data);
+            setIsCreatePanelOpen(false);
+            // Refresh campaigns list
+            await fetchCampaigns();
+        } catch (error) {
+            console.error("Failed to create TikTok campaign:", error);
+            alert("Failed to create campaign. Please check the console for details.");
+        } finally {
+            setCreateLoading(false);
+        }
+    };
+
     const totalPages = Math.ceil(total / pageSize);
 
     const formatCurrency = (value: number) => {
@@ -125,15 +149,20 @@ export const TikTokCampaigns: React.FC = () => {
                         {/* Header with Actions */}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                                TikTok Campaign Manager
+                                Campaigns
                             </h1>
                             <div className="flex items-center gap-3">
                                 <button
-                                    onClick={() => navigate(`/accounts/${accountId}/tiktok/campaigns/create`)}
+                                    onClick={() => setIsCreatePanelOpen(!isCreatePanelOpen)}
                                     className="px-4 py-2 bg-forest-f60 text-white rounded-lg hover:bg-forest-f70 transition-colors flex items-center gap-2 h-10"
                                 >
                                     Create Campaign
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg
+                                        className={`w-4 h-4 transition-transform ${isCreatePanelOpen ? "rotate-180" : ""}`}
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </button>
@@ -146,12 +175,20 @@ export const TikTokCampaigns: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Create Campaign Panel */}
+                        <CreateTikTokCampaignPanel
+                            isOpen={isCreatePanelOpen}
+                            onClose={() => setIsCreatePanelOpen(false)}
+                            onSubmit={handleCreateCampaign}
+                            loading={createLoading}
+                        />
+
                         {/* Performance Trends Card */}
                         <div className="bg-white rounded-xl border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-[16px] font-medium text-[#072929]">Performance Trends</h2>
                                 <select className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white">
-                                    <option>Conversions, Spend</option>
+                                    <option>Sales, Spend</option>
                                     <option>Impressions, Clicks</option>
                                     <option>ROAS, CPA</option>
                                 </select>

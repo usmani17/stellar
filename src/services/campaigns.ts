@@ -927,8 +927,7 @@ export const campaignsService = {
       params.append("type", campaignType);
     }
 
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/${
-      params.toString() ? `?${params.toString()}` : ""
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/${params.toString() ? `?${params.toString()}` : ""
       }`;
     const response = await api.get<CampaignDetail>(url);
     return response.data;
@@ -966,8 +965,7 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${
-      queryString ? `?${queryString}` : ""
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.post<AdGroupsResponse>(url, { filters });
     return response.data;
@@ -1005,8 +1003,7 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${
-      queryString ? `?${queryString}` : ""
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.post<KeywordsResponse>(url, { filters });
     return response.data;
@@ -1044,8 +1041,7 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${
-      queryString ? `?${queryString}` : ""
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.post<ProductAdsResponse>(url, { filters });
     return response.data;
@@ -1083,8 +1079,7 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${
-      queryString ? `?${queryString}` : ""
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.post<TargetsResponse>(url, { filters });
     return response.data;
@@ -1132,8 +1127,7 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${
-      queryString ? `?${queryString}` : ""
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.post(url, { filters });
     return response.data;
@@ -1182,8 +1176,7 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${
-      queryString ? `?${queryString}` : ""
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.post(url, { filters });
     return response.data;
@@ -2714,8 +2707,7 @@ export const campaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/${
-      queryString ? `?${queryString}` : ""
+    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.get(url);
     return response.data;
@@ -3214,11 +3206,34 @@ export const campaignsService = {
   createTikTokCampaign: async (
     accountId: number,
     data: {
+      // Core Required
       campaign_name: string;
       objective_type: string;
+      // Conditionally Required
+      advertiser_id?: string;
+      app_promotion_type?: string;
+      virtual_objective_type?: string;
+      sales_destination?: string;
+      campaign_product_source?: string;
+      app_id?: string;
+      // Optional & Advanced
       budget?: number;
       budget_mode?: string;
-      advertiser_id?: string;
+      campaign_type?: string;
+      budget_optimize_on?: boolean;
+      special_industries?: string[];
+      is_search_campaign?: boolean;
+      is_advanced_dedicated_campaign?: boolean;
+      disable_skan_campaign?: boolean;
+      campaign_app_profile_page_state?: string;
+      rf_campaign_type?: string;
+      catalog_enabled?: boolean;
+      request_id?: string;
+      operation_status?: string;
+      postback_window_mode?: string;
+      rta_id?: string;
+      rta_bid_enabled?: boolean;
+      rta_product_selection_enabled?: boolean;
     }
   ): Promise<any> => {
     const url = `/accounts/${accountId}/tiktok-campaigns/create/`;
