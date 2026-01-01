@@ -2166,6 +2166,38 @@ export const campaignsService = {
     return response.data;
   },
 
+  createNegativeTargets: async (
+    accountId: number,
+    campaignId: string,
+    payload: {
+      negativeTargetingClauses: Array<{
+        adGroupId: string;
+        expression: Array<{
+          type: string;
+          value: string;
+        }>;
+        state?: "ENABLED" | "PAUSED";
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkUpdateNegativeTargets: async (
+    accountId: number,
+    payload: {
+      targetIds: Array<string | number>;
+      action: "status";
+      status: "enable" | "pause";
+    }
+  ) => {
+    const url = `/accounts/${accountId}/negative-targets/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
   // Google Campaigns
   syncGoogleCampaigns: async (
     accountId: number

@@ -26,8 +26,9 @@ export interface FilterItem {
     | "adId"
     | "asin"
     | "adGroupId"
-    | "keywordText";
-  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText
+    | "keywordText"
+    | "expression";
+  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, expression
   value: string | number;
 }
 
@@ -78,6 +79,11 @@ const STATE_OPTIONS = ["Enabled", "Paused", "Archived"];
 const TYPE_OPTIONS = ["SP", "SB", "SD"];
 const TARGETING_TYPE_OPTIONS = ["AUTO", "MANUAL"];
 const STATUS_OPTIONS = ["ENABLED", "PAUSED", "REMOVED"];
+// Expression types supported for negative targets
+const EXPRESSION_TYPE_OPTIONS = [
+  { value: "ASIN_BRAND_SAME_AS", label: "ASIN Brand Same As" },
+  { value: "ASIN_SAME_AS", label: "ASIN Same As" },
+];
 const CHANNEL_TYPE_OPTIONS = [
   "SEARCH",
   "DISPLAY",
@@ -107,6 +113,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const [selectedField, setSelectedField] = useState<string>("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
+  const [expressionType, setExpressionType] = useState<string>("ASIN_SAME_AS");
   const [profileOptions, setProfileOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
@@ -289,7 +296,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         selectedField === "adId" ||
         selectedField === "asin" ||
         selectedField === "adGroupId" ||
-        selectedField === "keywordText") &&
+        selectedField === "keywordText" ||
+        selectedField === "expression") &&
       !selectedOperator
     ) {
       return;
@@ -371,6 +379,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     } else {
       setSelectedField("");
       setSelectedOperator("");
+      setExpressionType("ASIN_SAME_AS");
     }
     setFilterValue("");
   };
@@ -423,6 +432,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     "asin",
     "adGroupId",
     "keywordText",
+    "expression",
     "budget",
     "default_bid",
     "spends",
@@ -445,6 +455,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const isTargetingType = selectedField === "targeting_type";
   const isStatusOrChannelType =
     selectedField === "status" || selectedField === "advertising_channel_type";
+  const isExpression = selectedField === "expression";
 
   if (!isOpen) return null;
 
@@ -531,7 +542,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   selectedField === "adId" ||
                   selectedField === "asin" ||
                   selectedField === "adGroupId" ||
-                  selectedField === "keywordText"
+                  selectedField === "keywordText" ||
+                  selectedField === "expression"
                     ? STRING_OPERATORS.map((op) => ({
                         value: op.value,
                         label: op.label,
@@ -551,10 +563,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
           {/* Value Input - Only show when a field is selected */}
           {selectedField && (
-            <div className="w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                Value
-              </label>
+            <div className={isExpression ? "flex-1" : "w-[200px]"}>
+              {!isExpression && (
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Value
+                </label>
+              )}
               {isProfileDropdown ? (
                 <Dropdown<string>
                   options={profileOptions}
@@ -611,6 +625,50 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"
                 />
+              ) : isExpression ? (
+                <div className="flex flex-row gap-2 items-end">
+                  {/* Expression Type Dropdown */}
+                  <div className="flex-1">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      Expression Type
+                    </label>
+                    <Dropdown<string>
+                      options={EXPRESSION_TYPE_OPTIONS.map((opt) => ({
+                        value: opt.value,
+                        label: opt.label,
+                      }))}
+                      value={expressionType || undefined}
+                      placeholder="Select Expression Type"
+                      onChange={(value) => setExpressionType(value)}
+                      buttonClassName="w-full bg-[#FEFEFB]"
+                    />
+                  </div>
+                  {/* Expression Value Input */}
+                  <div className="flex-1">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      Expression Value (ASIN)
+                    </label>
+                    <input
+                      type="text"
+                      value={filterValue}
+                      onChange={(e) =>
+                        setFilterValue(e.target.value.toUpperCase())
+                      }
+                      placeholder="Enter ASIN (e.g., B08N5WRWNW)"
+                      className={`w-full px-3 py-2 border rounded-lg text-[13.3px] bg-[#FEFEFB] ${
+                        filterValue && filterValue.length !== 10
+                          ? "border-yellow-300"
+                          : "border-gray-200"
+                      }`}
+                      maxLength={10}
+                    />
+                    {filterValue && filterValue.length !== 10 && (
+                      <p className="mt-1 text-[11.2px] text-yellow-600">
+                        ASIN must be exactly 10 characters
+                      </p>
+                    )}
+                  </div>
+                </div>
               ) : selectedField === "budget" ? (
                 <input
                   type="number"

@@ -46,6 +46,10 @@ import {
   type NegativeKeywordInput,
 } from "../components/campaigns/CreateNegativeKeywordPanel";
 import {
+  CreateNegativeTargetPanel,
+  type NegativeTargetInput,
+} from "../components/campaigns/CreateNegativeTargetPanel";
+import {
   CreateProductAdPanel,
   type ProductAdInput,
 } from "../components/productads/CreateProductAdPanel";
@@ -269,6 +273,9 @@ export const CampaignDetail: React.FC = () => {
 
   const [negativeTargets, setNegativeTargets] = useState<any[]>([]);
   const [negativeTargetsLoading, setNegativeTargetsLoading] = useState(false);
+  const [selectedNegativeTargetIds, setSelectedNegativeTargetIds] = useState<
+    Set<number>
+  >(new Set());
   const [negativeTargetsCurrentPage, setNegativeTargetsCurrentPage] =
     useState(1);
   const [negativeTargetsTotalPages, setNegativeTargetsTotalPages] = useState(0);
@@ -277,6 +284,21 @@ export const CampaignDetail: React.FC = () => {
   const [negativeTargetsSortOrder, setNegativeTargetsSortOrder] = useState<
     "asc" | "desc"
   >("asc");
+  const [
+    isNegativeTargetsFilterPanelOpen,
+    setIsNegativeTargetsFilterPanelOpen,
+  ] = useState(false);
+  const [negativeTargetsFilters, setNegativeTargetsFilters] =
+    useState<FilterValues>([]);
+  const [showNegativeTargetsBulkActions, setShowNegativeTargetsBulkActions] =
+    useState(false);
+  const [
+    pendingNegativeTargetsStatusAction,
+    setPendingNegativeTargetsStatusAction,
+  ] = useState<"enable" | "pause" | null>(null);
+  const [negativeTargetsBulkLoading, setNegativeTargetsBulkLoading] =
+    useState(false);
+  const negativeTargetsBulkActionsRef = useRef<HTMLDivElement>(null);
 
   const [isTargetsFilterPanelOpen, setIsTargetsFilterPanelOpen] =
     useState(false);
@@ -381,6 +403,44 @@ export const CampaignDetail: React.FC = () => {
     showNegativeKeywordsConfirmationModal,
     setShowNegativeKeywordsConfirmationModal,
   ] = useState(false);
+
+  // Negative target inline edit state
+  const [editingNegativeTargetField, setEditingNegativeTargetField] = useState<{
+    id: number;
+    field: "status";
+  } | null>(null);
+  const [editedNegativeTargetValue, setEditedNegativeTargetValue] =
+    useState<string>("");
+  const [negativeTargetEditLoading, setNegativeTargetEditLoading] = useState<
+    Set<number>
+  >(new Set());
+  const [pendingNegativeTargetChange, setPendingNegativeTargetChange] =
+    useState<{
+      id: number;
+      field: "status";
+      newValue: string;
+      oldValue: string;
+    } | null>(null);
+  const [
+    showNegativeTargetsConfirmationModal,
+    setShowNegativeTargetsConfirmationModal,
+  ] = useState(false);
+
+  // Negative target creation state
+  const [isCreateNegativeTargetPanelOpen, setIsCreateNegativeTargetPanelOpen] =
+    useState(false);
+  const [createNegativeTargetLoading, setCreateNegativeTargetLoading] =
+    useState(false);
+  const [createNegativeTargetError, setCreateNegativeTargetError] = useState<
+    string | null
+  >(null);
+  const [createNegativeTargetFieldErrors, setCreateNegativeTargetFieldErrors] =
+    useState<Record<string, string>>({});
+  const [createdNegativeTargets, setCreatedNegativeTargets] = useState<any[]>(
+    []
+  );
+  const [failedNegativeTargetCount, setFailedNegativeTargetCount] = useState(0);
+  const [failedNegativeTargets, setFailedNegativeTargets] = useState<any[]>([]);
 
   // Negative keyword bulk edit state
   const [showNegativeKeywordsBulkActions, setShowNegativeKeywordsBulkActions] =
@@ -690,6 +750,36 @@ export const CampaignDetail: React.FC = () => {
         } else if (filter.operator === "equals") {
           params.keywordText = filter.value;
         }
+      } else if (filter.field === "state") {
+        // State values are already uppercase (PAUSED, ENABLED) from FilterPanel with useUppercaseState=true
+        // But ensure uppercase for any edge cases
+        params.state = String(filter.value).toUpperCase();
+      }
+    });
+    return params;
+  };
+
+  const buildNegativeTargetsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "expression") {
+        // For expression, the operator contains the expression type (ASIN_BRAND_SAME_AS or ASIN_SAME_AS)
+        // and the value contains the ASIN
+        // We need to search for expressions that contain this type and value
+        // The backend expects expression__icontains to search in the JSON expression array
+        const expressionType = filter.operator || "ASIN_SAME_AS";
+        const asinValue = String(filter.value).trim();
+
+        // Build a search pattern that matches the expression structure
+        // The expression is stored as JSON: [{"type":"ASIN_SAME_AS","value":"B08N5WRWNW"}]
+        // We'll search for the ASIN value in the expression
+        if (asinValue) {
+          params.expression__icontains = asinValue;
+        }
+        // Optionally, we could also filter by type, but the backend might need to support that
+        // For now, we'll just search by ASIN value
       } else if (filter.field === "state") {
         // State values are already uppercase (PAUSED, ENABLED) from FilterPanel with useUppercaseState=true
         // But ensure uppercase for any edge cases
@@ -1047,6 +1137,29 @@ export const CampaignDetail: React.FC = () => {
     negativeTargetsSortOrder,
     isAutoCampaign,
     campaignType,
+  ]);
+
+  // Load negative targets for auto campaigns
+  useEffect(() => {
+    if (
+      accountId &&
+      campaignId &&
+      activeTab === "Negative Targets" &&
+      isAutoCampaign &&
+      campaignType
+    ) {
+      loadNegativeTargets();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    negativeTargetsCurrentPage,
+    negativeTargetsSortBy,
+    negativeTargetsSortOrder,
+    isAutoCampaign,
+    campaignType,
+    negativeTargetsFilters,
   ]);
 
   const loadCampaignDetail = async () => {
@@ -2207,6 +2320,71 @@ export const CampaignDetail: React.FC = () => {
     });
   };
 
+  const handleSelectAllNegativeTargets = (checked: boolean) => {
+    if (checked) {
+      setSelectedNegativeTargetIds(
+        new Set(negativeTargets.map((ntg) => ntg.id))
+      );
+    } else {
+      setSelectedNegativeTargetIds(new Set());
+    }
+  };
+
+  const handleSelectNegativeTarget = (id: number, checked: boolean) => {
+    setSelectedNegativeTargetIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  // Negative target bulk action handlers
+  const handleBulkNegativeTargetsStatus = async (
+    statusValue: "enable" | "pause"
+  ) => {
+    if (!accountId || selectedNegativeTargetIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setNegativeTargetsBulkLoading(true);
+      const selectedNegativeTargetIdsArray = Array.from(
+        selectedNegativeTargetIds
+      ).map((id) => {
+        const negativeTarget = negativeTargets.find((ntg) => ntg.id === id);
+        return negativeTarget?.targetId
+          ? String(negativeTarget.targetId)
+          : String(id);
+      });
+
+      await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
+        targetIds: selectedNegativeTargetIdsArray,
+        action: "status",
+        status: statusValue,
+      });
+
+      await loadNegativeTargets();
+      setSelectedNegativeTargetIds(new Set());
+      setShowNegativeTargetsConfirmationModal(false);
+      setPendingNegativeTargetsStatusAction(null);
+    } catch (error: any) {
+      console.error("Failed to update negative targets", error);
+      setShowNegativeTargetsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update negative targets. Please try again.",
+      });
+    } finally {
+      setNegativeTargetsBulkLoading(false);
+    }
+  };
+
   const handleTargetsSort = (column: string) => {
     if (targetsSortBy === column) {
       setTargetsSortOrder(targetsSortOrder === "asc" ? "desc" : "asc");
@@ -2274,6 +2452,7 @@ export const CampaignDetail: React.FC = () => {
           sort_by: negativeTargetsSortBy,
           order: negativeTargetsSortOrder,
           type: campaignType,
+          ...buildNegativeTargetsFilterParams(negativeTargetsFilters),
         }
       );
 
@@ -3017,6 +3196,244 @@ export const CampaignDetail: React.FC = () => {
     setPendingNegativeKeywordChange(null);
   };
 
+  // Negative target inline edit handlers
+  const handleNegativeTargetEditStart = (
+    id: number,
+    field: "status",
+    currentValue: string
+  ) => {
+    setEditingNegativeTargetField({ id, field });
+    setEditedNegativeTargetValue(currentValue);
+    setPendingNegativeTargetChange(null);
+  };
+
+  const handleNegativeTargetEditChange = (value: string) => {
+    setEditedNegativeTargetValue(value);
+  };
+
+  const handleNegativeTargetEditEnd = (newValue?: string) => {
+    if (!editingNegativeTargetField) return;
+    const negativeTarget = negativeTargets.find(
+      (ntg) => ntg.id === editingNegativeTargetField.id
+    );
+    if (!negativeTarget) {
+      setEditingNegativeTargetField(null);
+      setEditedNegativeTargetValue("");
+      return;
+    }
+
+    // Use the passed value if provided, otherwise use the state value
+    const valueToCompare =
+      newValue !== undefined ? newValue : editedNegativeTargetValue;
+
+    let hasChanged = false;
+    let oldValue = "";
+
+    if (editingNegativeTargetField.field === "status") {
+      const statusLower =
+        negativeTarget.status?.toLowerCase() ||
+        negativeTarget.state?.toLowerCase() ||
+        "enabled";
+      const currentStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "enabled"
+          : "paused";
+      oldValue = currentStatus;
+      hasChanged = valueToCompare.toUpperCase() !== currentStatus.toUpperCase();
+    }
+
+    if (hasChanged) {
+      setPendingNegativeTargetChange({
+        id: editingNegativeTargetField.id,
+        field: editingNegativeTargetField.field,
+        newValue: valueToCompare,
+        oldValue: oldValue,
+      });
+      setShowNegativeTargetsConfirmationModal(true);
+      setEditingNegativeTargetField(null);
+    } else {
+      setEditingNegativeTargetField(null);
+      setEditedNegativeTargetValue("");
+    }
+  };
+
+  const confirmNegativeTargetChange = async () => {
+    if (!pendingNegativeTargetChange || !accountId) return;
+
+    const negativeTarget = negativeTargets.find(
+      (ntg) => ntg.id === pendingNegativeTargetChange.id
+    );
+    if (!negativeTarget || !negativeTarget.targetId) {
+      alert("Negative target ID not found");
+      setPendingNegativeTargetChange(null);
+      return;
+    }
+
+    setNegativeTargetEditLoading((prev) =>
+      new Set(prev).add(pendingNegativeTargetChange.id)
+    );
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (pendingNegativeTargetChange.field === "status") {
+        // Map status values
+        const statusMap: Record<string, "enable" | "pause"> = {
+          enabled: "enable",
+          paused: "pause",
+        };
+        const statusValue =
+          statusMap[pendingNegativeTargetChange.newValue.toLowerCase()] ||
+          "enable";
+
+        await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
+          targetIds: [String(negativeTarget.targetId)],
+          action: "status",
+          status: statusValue,
+        });
+      }
+
+      // Reload negative targets
+      await loadNegativeTargets();
+      setPendingNegativeTargetChange(null);
+      setEditingNegativeTargetField(null);
+      setEditedNegativeTargetValue("");
+      setShowNegativeTargetsConfirmationModal(false);
+    } catch (error: any) {
+      console.error("Error updating negative target:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update negative target. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+      setShowNegativeTargetsConfirmationModal(false);
+    } finally {
+      setNegativeTargetEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingNegativeTargetChange.id);
+        return newSet;
+      });
+    }
+  };
+
+  const cancelNegativeTargetChange = () => {
+    setPendingNegativeTargetChange(null);
+    setEditingNegativeTargetField(null);
+    setEditedNegativeTargetValue("");
+    setShowNegativeTargetsConfirmationModal(false);
+  };
+
+  const handleNegativeTargetEditCancel = () => {
+    setEditingNegativeTargetField(null);
+    setEditedNegativeTargetValue("");
+    setPendingNegativeTargetChange(null);
+  };
+
+  const handleCreateNegativeTargets = async (
+    negativeTargets: Array<{
+      adGroupId: string;
+      expression: Array<{ type: string; value: string }>;
+      state?: "ENABLED" | "PAUSED";
+    }>
+  ) => {
+    if (!accountId || !campaignId || campaignType !== "SP") return;
+
+    setCreateNegativeTargetLoading(true);
+    setCreateNegativeTargetError(null);
+    setCreateNegativeTargetFieldErrors({});
+    setCreatedNegativeTargets([]);
+    setFailedNegativeTargetCount(0);
+    setFailedNegativeTargets([]);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.createNegativeTargets(
+        accountIdNum,
+        campaignId,
+        {
+          negativeTargetingClauses: negativeTargets.map((ntg) => ({
+            adGroupId: ntg.adGroupId,
+            expression: ntg.expression,
+            state: ntg.state || "ENABLED",
+          })),
+        }
+      );
+
+      // Check for partial success
+      const created = response.created || 0;
+      const failed = response.failed || 0;
+      const failedNegativeTargetsData = response.failed_negative_targets || [];
+
+      setCreatedNegativeTargets(response.negative_targets || []);
+      setFailedNegativeTargetCount(failed);
+      setFailedNegativeTargets(failedNegativeTargetsData);
+
+      if (failed === 0) {
+        // Complete success - close panel and show success message
+        setIsCreateNegativeTargetPanelOpen(false);
+        setCreateNegativeTargetError(null);
+        setCreateNegativeTargetFieldErrors({});
+        setCreatedNegativeTargets([]);
+        setFailedNegativeTargetCount(0);
+        setFailedNegativeTargets([]);
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `${created} negative target(s) created successfully!`,
+          isSuccess: true,
+        });
+
+        // Reload negative targets to show the new ones
+        await loadNegativeTargets();
+      } else {
+        // Partial success or all failed - show summary and keep panel open
+        const successMessage =
+          created > 0
+            ? `${created} negative target(s) created successfully. ${failed} negative target(s) failed.`
+            : `All ${failed} negative target(s) failed to create.`;
+
+        setCreateNegativeTargetError(successMessage);
+
+        // Show summary popup for partial success
+        if (created > 0 && failed > 0) {
+          setErrorModal({
+            isOpen: true,
+            title: "Summary",
+            message: `${created} negative target(s) created successfully. ${failed} negative target(s) failed.`,
+            isSuccess: false,
+          });
+        }
+      }
+
+      // Handle field errors if available
+      if (response.field_errors) {
+        setCreateNegativeTargetFieldErrors(response.field_errors);
+      }
+    } catch (error: any) {
+      console.error("Error creating negative targets:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to create negative targets. Please try again.";
+      setCreateNegativeTargetError(errorMessage);
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setCreateNegativeTargetLoading(false);
+    }
+  };
+
   // Bulk action handlers for Targets
   const handleBulkTargetsStatus = async (statusValue: "enable" | "pause") => {
     if (!accountId || selectedTargetIds.size === 0) return;
@@ -3437,13 +3854,20 @@ export const CampaignDetail: React.FC = () => {
       ) {
         setShowNegativeKeywordsBulkActions(false);
       }
+      if (
+        negativeTargetsBulkActionsRef.current &&
+        !negativeTargetsBulkActionsRef.current.contains(event.target as Node)
+      ) {
+        setShowNegativeTargetsBulkActions(false);
+      }
     };
 
     if (
       showAdGroupsBulkActions ||
       showKeywordsBulkActions ||
       showTargetsBulkActions ||
-      showNegativeKeywordsBulkActions
+      showNegativeKeywordsBulkActions ||
+      showNegativeTargetsBulkActions
     ) {
       document.addEventListener("mousedown", handleClickOutside);
     }
@@ -3456,6 +3880,7 @@ export const CampaignDetail: React.FC = () => {
     showKeywordsBulkActions,
     showTargetsBulkActions,
     showNegativeKeywordsBulkActions,
+    showNegativeTargetsBulkActions,
   ]);
 
   return (
@@ -6034,15 +6459,236 @@ export const CampaignDetail: React.FC = () => {
             {activeTab === "Negative Targets" && (
               <>
                 <div className="mb-4">
-                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
-                    Negative Targets
-                  </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                      Negative Targets
+                    </h2>
+                    <div className="flex items-center gap-3">
+                      {/* Bulk Actions Button */}
+                      {selectedNegativeTargetIds.size > 0 && (
+                        <div
+                          className="relative"
+                          ref={negativeTargetsBulkActionsRef}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowNegativeTargetsBulkActions(
+                                !showNegativeTargetsBulkActions
+                              )
+                            }
+                            className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors text-[10.64px] font-normal"
+                          >
+                            <svg
+                              className="w-4 h-4 text-[#072929]"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                              />
+                            </svg>
+                            <span className="text-[10.64px] text-[#072929] font-normal">
+                              Edit
+                            </span>
+                            {showNegativeTargetsBulkActions && (
+                              <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                                <div className="overflow-y-auto">
+                                  {[
+                                    { value: "enable", label: "Enabled" },
+                                    { value: "pause", label: "Paused" },
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                      disabled={
+                                        selectedNegativeTargetIds.size === 0
+                                      }
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (
+                                          selectedNegativeTargetIds.size === 0
+                                        )
+                                          return;
+                                        setPendingNegativeTargetsStatusAction(
+                                          opt.value as "enable" | "pause"
+                                        );
+                                        setShowNegativeTargetsConfirmationModal(
+                                          true
+                                        );
+                                        setShowNegativeTargetsBulkActions(
+                                          false
+                                        );
+                                      }}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                      {/* Create Negative Target Button */}
+                      <button
+                        onClick={() =>
+                          setIsCreateNegativeTargetPanelOpen(
+                            !isCreateNegativeTargetPanelOpen
+                          )
+                        }
+                        className="px-3 py-2 bg-[#136D6D] text-white rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors text-[11.2px] font-semibold"
+                      >
+                        <svg
+                          className="w-4 h-4 !text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                        Create Negative Targets
+                        <svg
+                          className={`w-4 h-4 !text-white transition-transform ${
+                            isCreateNegativeTargetPanelOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {/* Add Filter Button */}
+                      <button
+                        onClick={() =>
+                          setIsNegativeTargetsFilterPanelOpen(
+                            !isNegativeTargetsFilterPanelOpen
+                          )
+                        }
+                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg
+                          className="w-5 h-5 text-[#072929]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                          />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">
+                          Add Filter
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                            isNegativeTargetsFilterPanelOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Filter Panel */}
+                  {isNegativeTargetsFilterPanelOpen && (
+                    <div className="mb-4">
+                      <FilterPanel
+                        isOpen={true}
+                        onClose={() => {
+                          setIsNegativeTargetsFilterPanelOpen(false);
+                        }}
+                        onApply={(newFilters) => {
+                          setNegativeTargetsFilters(newFilters);
+                          setNegativeTargetsCurrentPage(1); // Reset to first page when applying filters
+                          // Data will refresh automatically via useEffect dependency on negativeTargetsFilters
+                        }}
+                        initialFilters={negativeTargetsFilters}
+                        filterFields={[
+                          { value: "expression", label: "Expression" },
+                          { value: "state", label: "Status" },
+                        ]}
+                        useUppercaseState={true}
+                      />
+                    </div>
+                  )}
+
+                  {/* Create Negative Target Panel */}
+                  {isCreateNegativeTargetPanelOpen && (
+                    <CreateNegativeTargetPanel
+                      isOpen={isCreateNegativeTargetPanelOpen}
+                      onClose={() => {
+                        setIsCreateNegativeTargetPanelOpen(false);
+                        // Reset error states when closing
+                        setCreateNegativeTargetError(null);
+                        setCreateNegativeTargetFieldErrors({});
+                        setCreatedNegativeTargets([]);
+                        setFailedNegativeTargetCount(0);
+                        setFailedNegativeTargets([]);
+                      }}
+                      onSubmit={handleCreateNegativeTargets}
+                      adgroups={(allAdgroups.length > 0
+                        ? allAdgroups
+                        : adgroups
+                      ).map((ag) => ({
+                        adGroupId: ag.adGroupId || String(ag.id),
+                        name: ag.name,
+                      }))}
+                      campaignId={campaignId || ""}
+                      loading={createNegativeTargetLoading}
+                      submitError={createNegativeTargetError}
+                      fieldErrors={createNegativeTargetFieldErrors}
+                      createdNegativeTargets={createdNegativeTargets}
+                      failedCount={failedNegativeTargetCount}
+                      failedNegativeTargets={failedNegativeTargets}
+                    />
+                  )}
+
                   <NegativeTargetsTable
                     negativeTargets={negativeTargets}
                     loading={negativeTargetsLoading}
+                    onSelectAll={handleSelectAllNegativeTargets}
+                    onSelect={handleSelectNegativeTarget}
+                    selectedIds={selectedNegativeTargetIds}
                     sortBy={negativeTargetsSortBy}
                     sortOrder={negativeTargetsSortOrder}
                     onSort={handleNegativeTargetsSort}
+                    editingField={editingNegativeTargetField}
+                    editedValue={editedNegativeTargetValue}
+                    onEditStart={handleNegativeTargetEditStart}
+                    onEditChange={handleNegativeTargetEditChange}
+                    onEditEnd={handleNegativeTargetEditEnd}
+                    onEditCancel={handleNegativeTargetEditCancel}
+                    inlineEditLoading={negativeTargetEditLoading}
+                    pendingChange={pendingNegativeTargetChange}
                   />
                 </div>
                 {/* Pagination */}
@@ -6402,6 +7048,67 @@ export const CampaignDetail: React.FC = () => {
                     className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {negativeKeywordsBulkLoading ? "Processing..." : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Confirmation Modal for Negative Targets Bulk Actions */}
+      {showNegativeTargetsConfirmationModal &&
+        pendingNegativeTargetsStatusAction && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+              onClick={() => {
+                if (!negativeTargetsBulkLoading) {
+                  setShowNegativeTargetsConfirmationModal(false);
+                  setPendingNegativeTargetsStatusAction(null);
+                }
+              }}
+            />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+              <div className="p-6">
+                <div className="mb-4 text-center">
+                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                    Confirm Action
+                  </h3>
+                  <p className="text-[14px] text-[#556179]">
+                    {pendingNegativeTargetsStatusAction
+                      ? `Are you sure you want to ${
+                          pendingNegativeTargetsStatusAction === "enable"
+                            ? "enable"
+                            : "pause"
+                        } ${selectedNegativeTargetIds.size} negative target(s)?`
+                      : ""}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNegativeTargetsConfirmationModal(false);
+                      setPendingNegativeTargetsStatusAction(null);
+                    }}
+                    disabled={negativeTargetsBulkLoading}
+                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (pendingNegativeTargetsStatusAction) {
+                        await handleBulkNegativeTargetsStatus(
+                          pendingNegativeTargetsStatusAction
+                        );
+                      }
+                    }}
+                    disabled={negativeTargetsBulkLoading}
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {negativeTargetsBulkLoading ? "Processing..." : "Confirm"}
                   </button>
                 </div>
               </div>
@@ -6928,6 +7635,109 @@ export const CampaignDetail: React.FC = () => {
                     className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
                   >
                     {targetEditLoading.has(pendingTargetChange.id)
+                      ? "Updating..."
+                      : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* Inline Edit Confirmation Modal for Negative Targets */}
+      {pendingNegativeTargetChange &&
+        showNegativeTargetsConfirmationModal &&
+        (() => {
+          const negativeTarget = negativeTargets.find(
+            (ntg) => ntg.id === pendingNegativeTargetChange.id
+          );
+          const targetId =
+            negativeTarget?.targetId || "Unnamed Negative Target";
+          const fieldLabel = "Status";
+
+          // Format old value
+          let oldValueDisplay = "";
+          if (pendingNegativeTargetChange.field === "status") {
+            oldValueDisplay =
+              pendingNegativeTargetChange.oldValue === "enabled"
+                ? "Enabled"
+                : "Paused";
+          }
+
+          // Format new value
+          let newValueDisplay = "";
+          if (pendingNegativeTargetChange.field === "status") {
+            newValueDisplay =
+              pendingNegativeTargetChange.newValue.toUpperCase() === "ENABLED"
+                ? "Enabled"
+                : "Paused";
+          }
+
+          return (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              onClick={(e) => {
+                if (
+                  e.target === e.currentTarget &&
+                  !negativeTargetEditLoading.has(pendingNegativeTargetChange.id)
+                ) {
+                  cancelNegativeTargetChange();
+                }
+              }}
+            >
+              <div
+                className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                  Confirm {fieldLabel} Change
+                </h3>
+
+                <div className="mb-4">
+                  <p className="text-[12.16px] text-[#556179] mb-2">
+                    Negative Target:{" "}
+                    <span className="font-semibold text-[#072929]">
+                      {targetId}
+                    </span>
+                  </p>
+                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {fieldLabel}:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {oldValueDisplay}
+                        </span>
+                        <span className="text-[12.16px] text-[#556179]">→</span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {newValueDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={cancelNegativeTargetChange}
+                    disabled={negativeTargetEditLoading.has(
+                      pendingNegativeTargetChange.id
+                    )}
+                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmNegativeTargetChange}
+                    disabled={negativeTargetEditLoading.has(
+                      pendingNegativeTargetChange.id
+                    )}
+                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                  >
+                    {negativeTargetEditLoading.has(
+                      pendingNegativeTargetChange.id
+                    )
                       ? "Updating..."
                       : "Confirm"}
                   </button>
