@@ -25,8 +25,9 @@ export interface FilterItem {
     | "sku"
     | "adId"
     | "asin"
-    | "adGroupId";
-  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId
+    | "adGroupId"
+    | "keywordText";
+  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText
   value: string | number;
 }
 
@@ -40,6 +41,7 @@ interface FilterPanelProps {
   filterFields?: Array<{ value: string; label: string }>;
   accountId?: string;
   channelType?: "amazon" | "google" | "walmart";
+  useUppercaseState?: boolean; // If true, use STATUS_OPTIONS (ENABLED, PAUSED) instead of STATE_OPTIONS (Enabled, Paused)
 }
 
 const DEFAULT_FILTER_FIELDS = [
@@ -96,6 +98,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   filterFields,
   accountId,
   channelType,
+  useUppercaseState = false,
 }) => {
   // Use initialFilters directly as the source of truth - no internal state sync
   // This prevents infinite loops when parent updates filters
@@ -230,7 +233,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             firstField === "sales" ||
             firstField === "ctr" ||
             firstField === "bid" ||
-            firstField === "adgroup_name");
+            firstField === "adgroup_name" ||
+            firstField === "keywordText");
 
         if (needsOp) {
           // For string fields, use "contains", for numeric use "eq"
@@ -284,7 +288,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         selectedField === "sku" ||
         selectedField === "adId" ||
         selectedField === "asin" ||
-        selectedField === "adGroupId") &&
+        selectedField === "adGroupId" ||
+        selectedField === "keywordText") &&
       !selectedOperator
     ) {
       return;
@@ -333,7 +338,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           nextField === "sku" ||
           nextField === "adId" ||
           nextField === "asin" ||
-          nextField === "adGroupId");
+          nextField === "adGroupId" ||
+          nextField === "keywordText");
 
       if (needsOp) {
         // For string fields, use "contains", for numeric use "eq"
@@ -416,6 +422,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     "adId",
     "asin",
     "adGroupId",
+    "keywordText",
     "budget",
     "default_bid",
     "spends",
@@ -485,7 +492,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     value === "sku" ||
                     value === "adId" ||
                     value === "asin" ||
-                    value === "adGroupId"
+                    value === "adGroupId" ||
+                    value === "keywordText"
                   ) {
                     setSelectedOperator(STRING_OPERATORS[0]?.value || "");
                   } else if (
@@ -522,7 +530,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   selectedField === "sku" ||
                   selectedField === "adId" ||
                   selectedField === "asin" ||
-                  selectedField === "adGroupId"
+                  selectedField === "adGroupId" ||
+                  selectedField === "keywordText"
                     ? STRING_OPERATORS.map((op) => ({
                         value: op.value,
                         label: op.label,
@@ -560,7 +569,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               ) : isStateOrType ? (
                 <Dropdown<string>
                   options={(selectedField === "state"
-                    ? STATE_OPTIONS
+                    ? useUppercaseState
+                      ? STATUS_OPTIONS
+                      : STATE_OPTIONS
                     : TYPE_OPTIONS
                   ).map((opt) => ({
                     value: opt,

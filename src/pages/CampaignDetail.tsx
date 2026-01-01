@@ -253,6 +253,12 @@ export const CampaignDetail: React.FC = () => {
   >(new Set());
   const [negativeKeywordsCurrentPage, setNegativeKeywordsCurrentPage] =
     useState(1);
+  const [
+    isNegativeKeywordsFilterPanelOpen,
+    setIsNegativeKeywordsFilterPanelOpen,
+  ] = useState(false);
+  const [negativeKeywordsFilters, setNegativeKeywordsFilters] =
+    useState<FilterValues>([]);
   const [negativeKeywordsTotalPages, setNegativeKeywordsTotalPages] =
     useState(0);
   const [negativeKeywordsSortBy, setNegativeKeywordsSortBy] =
@@ -671,6 +677,28 @@ export const CampaignDetail: React.FC = () => {
     return params;
   };
 
+  const buildNegativeKeywordsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "keywordText") {
+        if (filter.operator === "contains") {
+          params.keywordText__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.keywordText__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.keywordText = filter.value;
+        }
+      } else if (filter.field === "state") {
+        // State values are already uppercase (PAUSED, ENABLED) from FilterPanel with useUppercaseState=true
+        // But ensure uppercase for any edge cases
+        params.state = String(filter.value).toUpperCase();
+      }
+    });
+    return params;
+  };
+
   const buildAdGroupsFilterParams = (filterList: FilterValues) => {
     const params: any = {};
 
@@ -996,6 +1024,7 @@ export const CampaignDetail: React.FC = () => {
     negativeKeywordsSortOrder,
     isAutoCampaign,
     campaignType,
+    negativeKeywordsFilters,
   ]);
 
   // Load negative targets for auto campaigns
@@ -2211,6 +2240,7 @@ export const CampaignDetail: React.FC = () => {
           sort_by: negativeKeywordsSortBy,
           order: negativeKeywordsSortOrder,
           type: campaignType,
+          ...buildNegativeKeywordsFilterParams(negativeKeywordsFilters),
         }
       );
 
@@ -5783,8 +5813,74 @@ export const CampaignDetail: React.FC = () => {
                           />
                         </svg>
                       </button>
+                      {/* Add Filter Button */}
+                      <button
+                        onClick={() =>
+                          setIsNegativeKeywordsFilterPanelOpen(
+                            !isNegativeKeywordsFilterPanelOpen
+                          )
+                        }
+                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg
+                          className="w-5 h-5 text-[#072929]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                          />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">
+                          Add Filter
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                            isNegativeKeywordsFilterPanelOpen
+                              ? "rotate-180"
+                              : ""
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </div>
+
+                  {/* Filter Panel */}
+                  {isNegativeKeywordsFilterPanelOpen && (
+                    <div className="mb-4">
+                      <FilterPanel
+                        isOpen={true}
+                        onClose={() => {
+                          setIsNegativeKeywordsFilterPanelOpen(false);
+                        }}
+                        onApply={(newFilters) => {
+                          setNegativeKeywordsFilters(newFilters);
+                          setNegativeKeywordsCurrentPage(1); // Reset to first page when applying filters
+                          // Data will refresh automatically via useEffect dependency on negativeKeywordsFilters
+                        }}
+                        initialFilters={negativeKeywordsFilters}
+                        filterFields={[
+                          { value: "keywordText", label: "Text" },
+                          { value: "state", label: "Status" },
+                        ]}
+                        useUppercaseState={true}
+                      />
+                    </div>
+                  )}
 
                   {/* Create Negative Keyword Panel */}
                   {isCreateNegativeKeywordPanelOpen && (
