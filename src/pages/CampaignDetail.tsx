@@ -15,6 +15,7 @@ import {
   type Keyword,
   type ProductAd,
   type Target,
+  type CampaignDetail,
 } from "../services/campaigns";
 import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 import { KeywordsTable } from "../components/campaigns/KeywordsTable";
@@ -75,8 +76,9 @@ export const CampaignDetail: React.FC = () => {
     parseCampaignTypeAndId(campaignTypeAndId);
   const [activeTab, setActiveTab] = useState("Overview");
   const [loading, setLoading] = useState(true);
-  const [campaignDetail, setCampaignDetail] =
-    useState<CampaignDetailData | null>(null);
+  const [campaignDetail, setCampaignDetail] = useState<CampaignDetail | null>(
+    null
+  );
 
   // Inline edit state
   const [editingField, setEditingField] = useState<"budget" | "status" | null>(
@@ -176,22 +178,31 @@ export const CampaignDetail: React.FC = () => {
   // Track if AUTO campaign has keywords or targets
   const [autoCampaignHasKeywords, setAutoCampaignHasKeywords] = useState(false);
   const [autoCampaignHasTargets, setAutoCampaignHasTargets] = useState(false);
-  
+
   // Negative keywords and targets state (for auto campaigns)
   const [negativeKeywords, setNegativeKeywords] = useState<any[]>([]);
   const [negativeKeywordsLoading, setNegativeKeywordsLoading] = useState(false);
-  const [negativeKeywordsCurrentPage, setNegativeKeywordsCurrentPage] = useState(1);
-  const [negativeKeywordsTotalPages, setNegativeKeywordsTotalPages] = useState(0);
-  const [negativeKeywordsSortBy, setNegativeKeywordsSortBy] = useState<string>("id");
-  const [negativeKeywordsSortOrder, setNegativeKeywordsSortOrder] = useState<"asc" | "desc">("asc");
-  
+  const [negativeKeywordsCurrentPage, setNegativeKeywordsCurrentPage] =
+    useState(1);
+  const [negativeKeywordsTotalPages, setNegativeKeywordsTotalPages] =
+    useState(0);
+  const [negativeKeywordsSortBy, setNegativeKeywordsSortBy] =
+    useState<string>("id");
+  const [negativeKeywordsSortOrder, setNegativeKeywordsSortOrder] = useState<
+    "asc" | "desc"
+  >("asc");
+
   const [negativeTargets, setNegativeTargets] = useState<any[]>([]);
   const [negativeTargetsLoading, setNegativeTargetsLoading] = useState(false);
-  const [negativeTargetsCurrentPage, setNegativeTargetsCurrentPage] = useState(1);
+  const [negativeTargetsCurrentPage, setNegativeTargetsCurrentPage] =
+    useState(1);
   const [negativeTargetsTotalPages, setNegativeTargetsTotalPages] = useState(0);
-  const [negativeTargetsSortBy, setNegativeTargetsSortBy] = useState<string>("id");
-  const [negativeTargetsSortOrder, setNegativeTargetsSortOrder] = useState<"asc" | "desc">("asc");
-  
+  const [negativeTargetsSortBy, setNegativeTargetsSortBy] =
+    useState<string>("id");
+  const [negativeTargetsSortOrder, setNegativeTargetsSortOrder] = useState<
+    "asc" | "desc"
+  >("asc");
+
   const [isTargetsFilterPanelOpen, setIsTargetsFilterPanelOpen] =
     useState(false);
   const [targetsFilters, setTargetsFilters] = useState<FilterValues>([]);
@@ -278,11 +289,11 @@ export const CampaignDetail: React.FC = () => {
 
   const tabs = useMemo(() => {
     let filteredTabs = [...allTabs];
-    
+
     if (campaignType === "SD") {
       filteredTabs = filteredTabs.filter((tab) => tab !== "Keywords");
     }
-    
+
     // For AUTO campaigns, hide Keywords tab completely (as per user requirement)
     // But show Negative Keywords and Negative Targets before Logs
     if (campaignType === "SP" && isAutoCampaign) {
@@ -296,7 +307,11 @@ export const CampaignDetail: React.FC = () => {
           filteredTabs.splice(logsIndex, 0, "Negative Keywords");
         }
         if (!filteredTabs.includes("Negative Targets")) {
-          filteredTabs.splice(filteredTabs.indexOf("Negative Keywords") + 1, 0, "Negative Targets");
+          filteredTabs.splice(
+            filteredTabs.indexOf("Negative Keywords") + 1,
+            0,
+            "Negative Targets"
+          );
         }
       }
     } else {
@@ -305,7 +320,7 @@ export const CampaignDetail: React.FC = () => {
         (tab) => tab !== "Negative Keywords" && tab !== "Negative Targets"
       );
     }
-    
+
     return filteredTabs;
   }, [campaignType, isAutoCampaign]);
 
@@ -1995,6 +2010,16 @@ export const CampaignDetail: React.FC = () => {
         ? adgroup.default_bid.replace(/[^0-9.]/g, "")
         : "0";
       oldValue = adgroup.default_bid || "$0.00";
+      // if (
+      //   Number(currentBid) > campaignDetail?.campaign?.budget ||
+      //   currentBid < 0
+      // ) {
+      //   setErrorModal({
+      //     isOpen: true,
+      //     message: `Bid value is out of range. Please enter a value between 0 and the campaign budget. ${campaignDetail?.campaign?.budget}`,
+      //   });
+      //   return;
+      // }
       hasChanged =
         editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
     }
@@ -3190,6 +3215,7 @@ export const CampaignDetail: React.FC = () => {
                   <AdGroupsTable
                     adgroups={adgroups}
                     loading={adgroupsLoading}
+                    campaignDetail={campaignDetail}
                     campaignId={campaignId} // Pass campaignId to hide Campaign Name column
                     onSelectAll={handleSelectAllAdGroups}
                     onSelect={handleSelectAdGroup}

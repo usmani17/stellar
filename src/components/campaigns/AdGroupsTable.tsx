@@ -3,9 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
-import type { AdGroup } from "../../services/campaigns";
+import type { AdGroup, CampaignDetail } from "../../services/campaigns";
 
 interface AdGroupsTableProps {
+  campaignDetail: CampaignDetail | null;
   adgroups: AdGroup[];
   loading?: boolean;
   campaignId?: string | number; // Optional campaignId - when provided, hides Campaign Name column
@@ -66,6 +67,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   onConfirmChange,
   onCancelChange,
   summary,
+  campaignDetail,
 }) => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
@@ -635,6 +637,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                               type="number"
                               step="0.01"
                               min="0"
+                              max={campaignDetail?.campaign?.budget || 1000}
                               value={editedValue}
                               onChange={(e) => onEditChange?.(e.target.value)}
                               className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"

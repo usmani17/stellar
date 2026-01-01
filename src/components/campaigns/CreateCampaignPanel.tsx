@@ -29,7 +29,11 @@ export interface CreateCampaignData {
     | "DRIVE_PAGE_VISITS"
     | "GROW_BRAND_IMPRESSION_SHARE"
     | "RESERVE_SHARE_OF_VOICE";
-  productLocation?: "SOLD_ON_AMAZON" | "NOT_SOLD_ON_AMAZON" | "SOLD_ON_DTC";
+  productLocation?:
+    | "SOLD_ON_AMAZON"
+    | "NOT_SOLD_ON_AMAZON"
+    | "SOLD_ON_DTC"
+    | "";
   costType?: string;
   portfolioId?: string;
   targetedPGDealId?: string;
@@ -113,7 +117,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     // SB fields
     brandEntityId: "",
     goal: "DRIVE_PAGE_VISITS", // Default to Drive page visits
-    productLocation: "SOLD_ON_AMAZON",
+    productLocation: "",
     costType: "CPC",
     portfolioId: "",
     targetedPGDealId: "",
@@ -189,35 +193,47 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   };
 
   // Track the campaign ID that was used to initialize the form
-  const [initializedCampaignId, setInitializedCampaignId] = useState<string | number | undefined>(undefined);
+  const [initializedCampaignId, setInitializedCampaignId] = useState<
+    string | number | undefined
+  >(undefined);
   // Store a snapshot of initialData when form is initialized to prevent re-initialization
-  const [snapshotInitialData, setSnapshotInitialData] = useState<Partial<CreateCampaignData> | null>(null);
-  
+  const [snapshotInitialData, setSnapshotInitialData] =
+    useState<Partial<CreateCampaignData> | null>(null);
+
   // Prevent formData from being reset when in edit mode - preserve all data
   useEffect(() => {
     // If we're in edit mode and formData.type is empty but we have initialized campaign,
     // restore formData from snapshot to prevent fields from disappearing
-    if (isOpen && 
-        mode === "edit" && 
-        initializedCampaignId === campaignId && 
-        snapshotInitialData && 
-        (!formData.type || formData.type === "")) {
-      console.warn("Form data type is empty in edit mode, restoring from snapshot");
+    if (
+      isOpen &&
+      mode === "edit" &&
+      initializedCampaignId === campaignId &&
+      snapshotInitialData &&
+      !formData.type
+    ) {
+      console.warn(
+        "Form data type is empty in edit mode, restoring from snapshot"
+      );
       const restoredFormData = {
         ...formData,
         type: snapshotInitialData.type || formData.type,
-        campaign_name: snapshotInitialData.campaign_name || formData.campaign_name,
+        campaign_name:
+          snapshotInitialData.campaign_name || formData.campaign_name,
         budget: snapshotInitialData.budget || formData.budget,
         budgetType: snapshotInitialData.budgetType || formData.budgetType,
         status: snapshotInitialData.status || formData.status,
         startDate: snapshotInitialData.startDate || formData.startDate,
-        endDate: snapshotInitialData.endDate ? convertDateToInputFormat(snapshotInitialData.endDate) : formData.endDate,
+        endDate: snapshotInitialData.endDate
+          ? convertDateToInputFormat(snapshotInitialData.endDate)
+          : formData.endDate,
         profileId: snapshotInitialData.profileId || formData.profileId,
         portfolioId: snapshotInitialData.portfolioId || formData.portfolioId,
-        targetingType: snapshotInitialData.targetingType || formData.targetingType,
+        targetingType:
+          snapshotInitialData.targetingType || formData.targetingType,
         bidding: snapshotInitialData.bidding || formData.bidding,
         tags: snapshotInitialData.tags || formData.tags,
-        siteRestrictions: snapshotInitialData.siteRestrictions || formData.siteRestrictions,
+        siteRestrictions:
+          snapshotInitialData.siteRestrictions || formData.siteRestrictions,
       };
       setFormData(restoredFormData);
     }
@@ -228,12 +244,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   useEffect(() => {
     // Only initialize form once per campaign ID when entering edit mode
     // Use snapshot to prevent re-initialization if initialData reference changes
-    const shouldInitialize = isOpen && 
-                             mode === "edit" && 
-                             initialData && 
-                             campaignId &&
-                             initializedCampaignId !== campaignId;
-    
+    const shouldInitialize =
+      isOpen &&
+      mode === "edit" &&
+      initialData &&
+      campaignId &&
+      initializedCampaignId !== campaignId;
+
     if (shouldInitialize) {
       const newFormData = {
         ...initialData,
@@ -258,7 +275,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           if (Array.isArray(tagsData)) {
             return tagsData;
           }
-          if (tagsData && typeof tagsData === 'object') {
+          if (tagsData && typeof tagsData === "object") {
             // Convert object to array format
             return Object.entries(tagsData).map(([key, value]) => ({
               key,
@@ -328,12 +345,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         setSelectedAudience("");
         setAudiencePercentage(100);
       }
-      
+
       // Mark this campaign as initialized and store snapshot
       setInitializedCampaignId(campaignId);
       setSnapshotInitialData({ ...initialData }); // Store snapshot to prevent re-initialization
     }
-    
+
     // Only reset form when explicitly switching to create mode (not just when panel closes)
     if (isOpen && mode === "create" && !initialData) {
       // For fresh create opens, reset the form
@@ -346,7 +363,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       setInitializedCampaignId(undefined); // Reset when switching to create mode
       setSnapshotInitialData(null);
     }
-    
+
     // IMPORTANT: Never reset form data when in edit mode, even if panel closes
     // This ensures form data persists even when modals open/close
     // Only reset initialization flags when panel closes AND we're switching away from edit mode
@@ -369,7 +386,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         } else {
           setErrors({});
         }
-        
+
         // Extract generic errors
         if (parsed.genericErrors && Array.isArray(parsed.genericErrors)) {
           setGenericErrors(parsed.genericErrors);
@@ -475,7 +492,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
   const handleChange = (
     field: keyof CreateCampaignData,
-    value: string | number | string[] | Record<string, string> | Array<{ key: string; value: string }> | undefined
+    value:
+      | string
+      | number
+      | string[]
+      | Record<string, string>
+      | Array<{ key: string; value: string }>
+      | undefined
   ) => {
     setFormData((prev) => {
       const updated = { ...prev, [field]: value };
@@ -549,7 +572,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       }
 
       // Validate end date for SP campaigns
-      if (formData.type === "SP" && formData.endDate && formData.endDate.trim()) {
+      if (
+        formData.type === "SP" &&
+        formData.endDate &&
+        formData.endDate.trim()
+      ) {
         const endDate = new Date(formData.endDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -558,12 +585,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         if (endDate < today) {
           newErrors.endDate = "End date must be today or in the future";
         }
-        
+
         // Also validate end date is after start date if start date exists
         if (formData.startDate && formData.startDate.trim()) {
           const startDate = new Date(formData.startDate);
           startDate.setHours(0, 0, 0, 0);
-          
+
           if (endDate <= startDate) {
             newErrors.endDate = "End date must be greater than start date";
           }
@@ -605,16 +632,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       startDate.setHours(0, 0, 0, 0);
-      
+
       if (startDate < today) {
         newErrors.startDate = "Start date cannot be in the past";
       }
-      
+
       // Validate end date is after start date (if both are provided)
       if (formData.endDate && formData.endDate.trim()) {
         const endDate = new Date(formData.endDate);
         endDate.setHours(0, 0, 0, 0);
-        
+
         if (endDate <= startDate) {
           newErrors.endDate = "End date must be greater than start date";
         }
@@ -651,8 +678,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
   const buildFilteredPayload = (
     data: CreateCampaignData
-  ): CreateCampaignData => {
-    const basePayload: CreateCampaignData = {
+  ): CreateCampaignData & {
+    tags?: Array<{ key: string; value: string }> | Record<string, string>;
+  } => {
+    const basePayload: CreateCampaignData & {
+      tags?: Array<{ key: string; value: string }> | Record<string, string>;
+    } = {
       campaign_name: data.campaign_name,
       type: data.type as "SP" | "SB" | "SD",
       budget: data.budget,
@@ -684,7 +715,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           }
         });
         if (Object.keys(tagsObject).length > 0) {
-          basePayload.tags = tagsObject;
+          basePayload.tags = tagsObject as any;
         }
       }
       // SP campaigns ONLY support DAILY budget type - always set to DAILY
@@ -719,7 +750,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       if (data.goal) {
         basePayload.goal = data.goal;
       }
-      if (data.productLocation) {
+      // Only include productLocation if it's selected (not empty)
+      if (data.productLocation && data.productLocation.trim() !== "") {
         basePayload.productLocation = data.productLocation;
       }
       if (data.costType) {
@@ -740,7 +772,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           }
         });
         if (Object.keys(tagsObject).length > 0) {
-          basePayload.tags = tagsObject;
+          basePayload.tags = tagsObject as any;
         }
       }
       if (data.smartDefault) {
@@ -748,6 +780,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       }
       if (data.bidding) {
         basePayload.bidding = data.bidding;
+      }
+      if (data.siteRestrictions) {
+        basePayload.siteRestrictions = data.siteRestrictions;
       }
 
       return basePayload;
@@ -797,7 +832,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
     // Filter payload to only include campaign-type-specific fields
     const filteredPayload = buildFilteredPayload(formData);
-    
+
     try {
       await onSubmit(filteredPayload);
       console.log("onSubmit completed successfully");
@@ -823,7 +858,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       profileId: "",
       brandEntityId: "",
       goal: undefined,
-      productLocation: "SOLD_ON_AMAZON",
+      productLocation: "",
       costType: "CPC",
       portfolioId: "",
       targetedPGDealId: "",
@@ -1342,7 +1377,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("endDate", e.target.value)
                           }
-                          min={formData.startDate || new Date().toISOString().split("T")[0]} // Must be after start date or today
+                          min={
+                            formData.startDate ||
+                            new Date().toISOString().split("T")[0]
+                          } // Must be after start date or today
                           className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
                               ? "border-red-500"
@@ -1428,7 +1466,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("endDate", e.target.value)
                           }
-                          min={formData.startDate || new Date().toISOString().split("T")[0]} // Must be after start date or today
+                          min={
+                            formData.startDate ||
+                            new Date().toISOString().split("T")[0]
+                          } // Must be after start date or today
                           disabled={mode === "edit"}
                           className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
@@ -1631,8 +1672,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             {mode === "create" &&
                               formData.bidding &&
                               !formData.bidding.strategy &&
-                              ((formData.bidding.bidAdjustmentsByPlacement?.length ?? 0) > 0 ||
-                                (formData.bidding.shopperCohortBidAdjustments?.length ?? 0) > 0) && (
+                              ((formData.bidding.bidAdjustmentsByPlacement
+                                ?.length ?? 0) > 0 ||
+                                (formData.bidding.shopperCohortBidAdjustments
+                                  ?.length ?? 0) > 0) && (
                                 <p className="text-[10px] text-[#556179] mt-1">
                                   Strategy is required when Dynamic Bidding is
                                   provided
@@ -2093,13 +2136,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       </label>
                       {mode === "edit" && (
                         <p className="text-[10px] text-[#556179] mb-2 italic">
-                          Read-only: Site restrictions cannot be changed after campaign creation
+                          Read-only: Site restrictions cannot be changed after
+                          campaign creation
                         </p>
                       )}
-                      <Dropdown<string | undefined>
+                      <Dropdown<string>
                         options={[
                           {
-                            value: undefined,
+                            value: "",
                             label: "Select Site Restrictions",
                           },
                           {
@@ -2107,7 +2151,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             label: "AMAZON_BUSINESS",
                           },
                         ]}
-                        value={formData.siteRestrictions || undefined}
+                        value={formData.siteRestrictions || ""}
                         onChange={(value) =>
                           handleChange("siteRestrictions", value || undefined)
                         }
@@ -2128,16 +2172,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       </label>
                       <div className="space-y-2">
                         {(formData.tags || []).map((tag, index) => (
-                          <div
-                            key={index}
-                            className="flex gap-2 items-center"
-                          >
+                          <div key={index} className="flex gap-2 items-center">
                             <input
                               type="text"
                               value={tag.key || ""}
                               onChange={(e) => {
                                 const newTags = [...(formData.tags || [])];
-                                newTags[index] = { ...newTags[index], key: e.target.value };
+                                newTags[index] = {
+                                  ...newTags[index],
+                                  key: e.target.value,
+                                };
                                 handleChange("tags", newTags);
                               }}
                               placeholder="Key"
@@ -2148,7 +2192,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               value={tag.value || ""}
                               onChange={(e) => {
                                 const newTags = [...(formData.tags || [])];
-                                newTags[index] = { ...newTags[index], value: e.target.value };
+                                newTags[index] = {
+                                  ...newTags[index],
+                                  value: e.target.value,
+                                };
                                 handleChange("tags", newTags);
                               }}
                               placeholder="Value"
@@ -2343,6 +2390,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <Dropdown<string>
                         options={[
                           {
+                            value: "",
+                            label: "Select Product Location",
+                          },
+                          {
                             value: "SOLD_ON_AMAZON",
                             label:
                               "SOLD_ON_AMAZON - For products sold on Amazon websites",
@@ -2358,11 +2409,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               "SOLD_ON_DTC - Deprecated (For products sold on DTC websites)",
                           },
                         ]}
-                        value={formData.productLocation || "SOLD_ON_AMAZON"}
+                        value={formData.productLocation || ""}
                         onChange={(value) =>
                           handleChange("productLocation", value as any)
                         }
-                        placeholder="Select product location"
+                        placeholder="Select Product Location"
                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                         disabled={mode === "edit"}
                       />
@@ -2469,98 +2520,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Empty columns for spacing */}
                     <div></div>
                     <div></div>
-                  </div>
-                )}
-
-                {/* Tags Section - For SB campaigns */}
-                {formData.type === "SB" && (
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Tags (Key-Value Pairs) - Max 50
-                    </label>
-                    {mode === "edit" && (
-                      <p className="text-[10px] text-[#556179] mb-2 italic">
-                        Read-only in edit mode
-                      </p>
-                    )}
-                    <div className="space-y-2">
-                      {(formData.tags || []).map((tag, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <input
-                            type="text"
-                            value={tag.key || ""}
-                            onChange={(e) => {
-                              const newTags = [...(formData.tags || [])];
-                              newTags[index] = { ...newTags[index], key: e.target.value };
-                              handleChange("tags", newTags);
-                            }}
-                            placeholder="Key"
-                            disabled={mode === "edit"}
-                            className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                              mode === "edit"
-                                ? "bg-gray-50 cursor-not-allowed"
-                                : ""
-                            }`}
-                          />
-                          <input
-                            type="text"
-                            value={tag.value || ""}
-                            onChange={(e) => {
-                              const newTags = [...(formData.tags || [])];
-                              newTags[index] = { ...newTags[index], value: e.target.value };
-                              handleChange("tags", newTags);
-                            }}
-                            placeholder="Value"
-                            disabled={mode === "edit"}
-                            className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                              mode === "edit"
-                                ? "bg-gray-50 cursor-not-allowed"
-                                : ""
-                            }`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newTags = [...(formData.tags || [])];
-                              newTags.splice(index, 1);
-                              handleChange("tags", newTags);
-                            }}
-                            disabled={mode === "edit"}
-                            className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
-                              mode === "edit"
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                            }`}
-                            title="Remove"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      {(!formData.tags || formData.tags.length < 50) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newTags = [...(formData.tags || [])];
-                            newTags.push({ key: "", value: "" });
-                            handleChange("tags", newTags);
-                          }}
-                          disabled={mode === "edit"}
-                          className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px] ${
-                            mode === "edit"
-                              ? "opacity-50 cursor-not-allowed"
-                              : ""
-                          }`}
-                        >
-                          + Add Tag
-                        </button>
-                      )}
-                      {formData.tags && formData.tags.length >= 50 && (
-                        <p className="text-[11px] text-[#556179]">
-                          Maximum of 50 tags reached
-                        </p>
-                      )}
-                    </div>
                   </div>
                 )}
 
@@ -3094,6 +3053,104 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             </div>
                           )}
                         </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags Section - For SB campaigns */}
+                {formData.type === "SB" && (
+                  <div className="mt-4">
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Tags (Key-Value Pairs) - Max 50
+                    </label>
+                    {mode === "edit" && (
+                      <p className="text-[10px] text-[#556179] mb-2 italic">
+                        Read-only in edit mode
+                      </p>
+                    )}
+                    <div className="space-y-2">
+                      {(formData.tags || []).map((tag, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            value={tag.key || ""}
+                            onChange={(e) => {
+                              const newTags = [...(formData.tags || [])];
+                              newTags[index] = {
+                                ...newTags[index],
+                                key: e.target.value,
+                              };
+                              handleChange("tags", newTags);
+                            }}
+                            placeholder="Key"
+                            disabled={mode === "edit"}
+                            className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                              mode === "edit"
+                                ? "bg-gray-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          />
+                          <input
+                            type="text"
+                            value={tag.value || ""}
+                            onChange={(e) => {
+                              const newTags = [...(formData.tags || [])];
+                              newTags[index] = {
+                                ...newTags[index],
+                                value: e.target.value,
+                              };
+                              handleChange("tags", newTags);
+                            }}
+                            placeholder="Value"
+                            disabled={mode === "edit"}
+                            className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                              mode === "edit"
+                                ? "bg-gray-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newTags = [...(formData.tags || [])];
+                              newTags.splice(index, 1);
+                              handleChange("tags", newTags);
+                            }}
+                            disabled={mode === "edit"}
+                            className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
+                              mode === "edit"
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {(!formData.tags || formData.tags.length < 50) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTags = [...(formData.tags || [])];
+                            newTags.push({ key: "", value: "" });
+                            handleChange("tags", newTags);
+                          }}
+                          disabled={mode === "edit"}
+                          className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px] ${
+                            mode === "edit"
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          + Add Tag
+                        </button>
+                      )}
+                      {formData.tags && formData.tags.length >= 50 && (
+                        <p className="text-[11px] text-[#556179]">
+                          Maximum of 50 tags reached
+                        </p>
                       )}
                     </div>
                   </div>

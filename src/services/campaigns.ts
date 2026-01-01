@@ -2776,19 +2776,24 @@ export const campaignsService = {
     if (params?.end_date) filters.end_date = params.end_date;
     if (campaignId) filters.campaign_id = campaignId;
     if (params?.campaign_id) filters.campaign_id = params.campaign_id;
-    if (params?.asset_group_name) filters.asset_group_name = params.asset_group_name;
+    if (params?.asset_group_name)
+      filters.asset_group_name = params.asset_group_name;
     if (params?.asset_group_name__icontains)
       filters.asset_group_name__icontains = params.asset_group_name__icontains;
     if (params?.name) filters.name = params.name;
-    if (params?.name__icontains) filters.name__icontains = params.name__icontains;
+    if (params?.name__icontains)
+      filters.name__icontains = params.name__icontains;
     if (params?.status) filters.status = params.status;
     if (params?.account_name) filters.account_name = params.account_name;
     if (params?.account_name__icontains)
       filters.account_name__icontains = params.account_name__icontains;
 
-    const response = await api.post(`/accounts/${accountId}/google-asset-groups/`, {
-      filters,
-    });
+    const response = await api.post(
+      `/accounts/${accountId}/google-asset-groups/`,
+      {
+        filters,
+      }
+    );
     return response.data;
   },
 

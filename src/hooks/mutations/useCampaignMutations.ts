@@ -1,5 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { campaignsService, type CampaignsQueryParams } from "../../services/campaigns";
+import {
+  campaignsService,
+  type CampaignsQueryParams,
+} from "../../services/campaigns";
 import { queryKeys } from "../queries/queryKeys";
 
 /**
@@ -32,6 +35,7 @@ export const useBulkUpdateCampaigns = (accountId: number) => {
     },
     onSuccess: () => {
       // Invalidate all campaigns queries for this account to refetch fresh data
+      console.log("Invalidating campaigns queries for account", accountId);
       queryClient.invalidateQueries({
         queryKey: [...queryKeys.campaigns.all, "list", accountId],
       });
@@ -47,9 +51,7 @@ export const useBulkDeleteCampaigns = (accountId: number) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      campaignIds: Array<string | number>;
-    }) => {
+    mutationFn: async (payload: { campaignIds: Array<string | number> }) => {
       return await campaignsService.bulkDeleteCampaigns(accountId, payload);
     },
     onSuccess: () => {
@@ -113,7 +115,7 @@ export const useUpdateCampaign = (accountId: number) => {
     }) => {
       // This uses bulkUpdateCampaigns internally for updates
       const updates: Promise<any>[] = [];
-      
+
       if (payload.data.budget !== undefined) {
         updates.push(
           campaignsService.bulkUpdateCampaigns(accountId, {
@@ -125,7 +127,7 @@ export const useUpdateCampaign = (accountId: number) => {
           })
         );
       }
-      
+
       if (payload.data.budgetType) {
         updates.push(
           campaignsService.bulkUpdateCampaigns(accountId, {
@@ -135,7 +137,7 @@ export const useUpdateCampaign = (accountId: number) => {
           })
         );
       }
-      
+
       if (payload.data.endDate !== undefined) {
         updates.push(
           campaignsService.bulkUpdateCampaigns(accountId, {
@@ -145,7 +147,7 @@ export const useUpdateCampaign = (accountId: number) => {
           })
         );
       }
-      
+
       if (payload.data.portfolioId !== undefined) {
         updates.push(
           campaignsService.bulkUpdateCampaigns(accountId, {
@@ -155,7 +157,7 @@ export const useUpdateCampaign = (accountId: number) => {
           })
         );
       }
-      
+
       if (payload.data.targetingType) {
         updates.push(
           campaignsService.bulkUpdateCampaigns(accountId, {
@@ -171,10 +173,10 @@ export const useUpdateCampaign = (accountId: number) => {
     },
     onSuccess: () => {
       // Invalidate all campaigns queries for this account to refetch fresh data
+      console.log("Invalidating campaigns queries for account", accountId);
       queryClient.invalidateQueries({
         queryKey: [...queryKeys.campaigns.all, "list", accountId],
       });
     },
   });
 };
-

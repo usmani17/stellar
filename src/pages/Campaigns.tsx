@@ -44,6 +44,8 @@ import {
 } from "../components/campaigns/CreateCampaignPanel";
 import ExportIcon from "../assets/export-icon.svg";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { filtersService } from "../services/filters";
+import type { FilterDefinition } from "../types/filters";
 
 export const Campaigns: React.FC = () => {
   const navigate = useNavigate();
@@ -222,9 +224,12 @@ export const Campaigns: React.FC = () => {
       tooltipFormatter: (v) => `${v.toFixed(2)} x`,
     },
   ];
+  const [, setFilterDefinitions] = useState<FilterDefinition[]>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
     useState(false);
+  const [, setCreateCampaignLoading] = useState(false);
+  const [, setCreateCampaignError] = useState<string | null>(null);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBudgetPanel, setShowBudgetPanel] = useState(false);
   const [budgetAction, setBudgetAction] = useState<
@@ -483,6 +488,7 @@ export const Campaigns: React.FC = () => {
       const definitions = await filtersService.getFilterDefinitions(
         "campaigns"
       );
+
       setFilterDefinitions(definitions);
     } catch (error) {
       console.error("Failed to load filter definitions:", error);
