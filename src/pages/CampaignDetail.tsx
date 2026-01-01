@@ -141,6 +141,24 @@ export const CampaignDetail: React.FC = () => {
   const [pendingKeywordsStatusAction, setPendingKeywordsStatusAction] =
     useState<"enable" | "pause" | null>(null);
   const [keywordsBulkLoading, setKeywordsBulkLoading] = useState(false);
+
+  // Target bulk edit state
+  const [showTargetsBulkActions, setShowTargetsBulkActions] = useState(false);
+  const [showTargetsBidPanel, setShowTargetsBidPanel] = useState(false);
+  const [pendingTargetsStatusAction, setPendingTargetsStatusAction] = useState<
+    "enable" | "pause" | null
+  >(null);
+  const [targetsBulkLoading, setTargetsBulkLoading] = useState(false);
+  const [targetsBidAction, setTargetsBidAction] = useState<
+    "increase" | "decrease" | "set"
+  >("increase");
+  const [targetsBidUnit, setTargetsBidUnit] = useState<"percent" | "amount">(
+    "percent"
+  );
+  const [targetsBidValue, setTargetsBidValue] = useState<string>("");
+  const [targetsBidUpperLimit, setTargetsBidUpperLimit] = useState<string>("");
+  const [targetsBidLowerLimit, setTargetsBidLowerLimit] = useState<string>("");
+  const targetsBulkActionsRef = useRef<HTMLDivElement>(null);
   const [keywordsBidAction, setKeywordsBidAction] = useState<
     "increase" | "decrease" | "set"
   >("increase");
@@ -288,6 +306,24 @@ export const CampaignDetail: React.FC = () => {
   const [keywordEditLoading, setKeywordEditLoading] = useState<Set<number>>(
     new Set()
   );
+
+  // Target inline edit state
+  const [editingTargetField, setEditingTargetField] = useState<{
+    id: number;
+    field: "status" | "bid";
+  } | null>(null);
+  const [editedTargetValue, setEditedTargetValue] = useState<string>("");
+  const [pendingTargetChange, setPendingTargetChange] = useState<{
+    id: number;
+    field: "status" | "bid";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
+  const [targetEditLoading, setTargetEditLoading] = useState<Set<number>>(
+    new Set()
+  );
+  const [showTargetsConfirmationModal, setShowTargetsConfirmationModal] =
+    useState(false);
 
   // Filter tabs based on campaign type - SD campaigns don't have keywords
   const allTabs = [
@@ -2411,6 +2447,279 @@ export const CampaignDetail: React.FC = () => {
     setPendingKeywordChange(null);
   };
 
+  // Target inline edit handlers
+  const handleTargetEditStart = (
+    id: number,
+    field: "status" | "bid",
+    currentValue: string
+  ) => {
+    setEditingTargetField({ id, field });
+    setEditedTargetValue(currentValue);
+    setPendingTargetChange(null);
+  };
+
+  const handleTargetEditChange = (value: string) => {
+    setEditedTargetValue(value);
+  };
+
+  const handleTargetEditEnd = (newValue?: string) => {
+    if (!editingTargetField) return;
+    const target = targets.find((tgt) => tgt.id === editingTargetField.id);
+    if (!target) {
+      setEditingTargetField(null);
+      setEditedTargetValue("");
+      return;
+    }
+
+    // Use the passed value if provided, otherwise use the state value
+    const valueToCompare =
+      newValue !== undefined ? newValue : editedTargetValue;
+
+    let hasChanged = false;
+    let oldValue = "";
+
+    if (editingTargetField.field === "status") {
+      const statusLower = target.status?.toLowerCase() || "enabled";
+      const currentStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "enabled"
+          : "paused";
+      oldValue = currentStatus;
+      hasChanged = valueToCompare !== currentStatus;
+    } else if (editingTargetField.field === "bid") {
+      const currentBid = target.bid ? target.bid.replace(/[^0-9.]/g, "") : "0";
+      oldValue = target.bid || "$0.00";
+      hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
+    }
+
+    if (hasChanged) {
+      setPendingTargetChange({
+        id: editingTargetField.id,
+        field: editingTargetField.field,
+        newValue: valueToCompare,
+        oldValue: oldValue,
+      });
+      setShowTargetsConfirmationModal(true);
+      setEditingTargetField(null);
+    } else {
+      setEditingTargetField(null);
+      setEditedTargetValue("");
+    }
+  };
+
+  const confirmTargetChange = async () => {
+    if (!pendingTargetChange || !accountId) return;
+
+    const target = targets.find((tgt) => tgt.id === pendingTargetChange.id);
+    if (!target || !target.targetId) {
+      alert("Target ID not found");
+      setPendingTargetChange(null);
+      return;
+    }
+
+    setTargetEditLoading((prev) => new Set(prev).add(pendingTargetChange.id));
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (pendingTargetChange.field === "status") {
+        // Map status values
+        const statusMap: Record<string, "enable" | "pause"> = {
+          enabled: "enable",
+          paused: "pause",
+        };
+        const statusValue =
+          statusMap[pendingTargetChange.newValue.toLowerCase()] || "enable";
+
+        await campaignsService.bulkUpdateTargets(accountIdNum, {
+          targetIds: [String(target.targetId)],
+          action: "status",
+          status: statusValue,
+        });
+      } else if (pendingTargetChange.field === "bid") {
+        // Extract numeric value
+        const bidValue = parseFloat(pendingTargetChange.newValue);
+        if (isNaN(bidValue)) {
+          throw new Error("Invalid bid value");
+        }
+
+        await campaignsService.bulkUpdateTargets(accountIdNum, {
+          targetIds: [String(target.targetId)],
+          action: "bid",
+          bid: bidValue,
+        });
+      }
+
+      // Reload targets
+      await loadTargets();
+      setPendingTargetChange(null);
+      setEditingTargetField(null);
+      setEditedTargetValue("");
+      setShowTargetsConfirmationModal(false);
+    } catch (error: any) {
+      console.error("Error updating target:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update target. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+      setShowTargetsConfirmationModal(false);
+    } finally {
+      setTargetEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingTargetChange.id);
+        return newSet;
+      });
+    }
+  };
+
+  const cancelTargetChange = () => {
+    setPendingTargetChange(null);
+    setEditingTargetField(null);
+    setEditedTargetValue("");
+    setShowTargetsConfirmationModal(false);
+  };
+
+  const handleTargetEditCancel = () => {
+    setEditingTargetField(null);
+    setEditedTargetValue("");
+    setPendingTargetChange(null);
+  };
+
+  // Bulk action handlers for Targets
+  const handleBulkTargetsStatus = async (statusValue: "enable" | "pause") => {
+    if (!accountId || selectedTargetIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setTargetsBulkLoading(true);
+      const selectedTargetIdsArray = Array.from(selectedTargetIds).map((id) => {
+        const target = targets.find((tgt) => tgt.id === id);
+        return target?.targetId ? String(target.targetId) : String(id);
+      });
+
+      await campaignsService.bulkUpdateTargets(accountIdNum, {
+        targetIds: selectedTargetIdsArray,
+        action: "status",
+        status: statusValue,
+      });
+
+      await loadTargets();
+      setSelectedTargetIds(new Set());
+      setShowTargetsConfirmationModal(false);
+      setPendingTargetsStatusAction(null);
+    } catch (error: any) {
+      console.error("Failed to update targets", error);
+      setShowTargetsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update targets. Please try again.",
+      });
+    } finally {
+      setTargetsBulkLoading(false);
+    }
+  };
+
+  const handleBulkTargetsBid = async () => {
+    if (!accountId || selectedTargetIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    const valueNum = parseFloat(targetsBidValue);
+    if (isNaN(valueNum)) {
+      return;
+    }
+
+    try {
+      setTargetsBulkLoading(true);
+
+      const selectedTargetsData = targets.filter((tgt) =>
+        selectedTargetIds.has(tgt.id)
+      );
+      const updates: Array<{ targetId: string | number; newBid: number }> = [];
+
+      for (const target of selectedTargetsData) {
+        if (!target.targetId) continue;
+
+        const currentBid = parseFloat(
+          (target.bid || "$0.00").replace(/[^0-9.]/g, "")
+        );
+        let newBid = currentBid;
+
+        if (targetsBidAction === "set") {
+          newBid = valueNum;
+        } else if (targetsBidAction === "increase") {
+          if (targetsBidUnit === "percent") {
+            newBid = currentBid * (1 + valueNum / 100.0);
+          } else {
+            newBid = currentBid + valueNum;
+          }
+        } else if (targetsBidAction === "decrease") {
+          if (targetsBidUnit === "percent") {
+            newBid = currentBid * (1 - valueNum / 100.0);
+          } else {
+            newBid = currentBid - valueNum;
+          }
+        }
+
+        if (targetsBidUpperLimit) {
+          const upper = parseFloat(targetsBidUpperLimit);
+          if (!isNaN(upper)) {
+            newBid = Math.min(newBid, upper);
+          }
+        }
+        if (targetsBidLowerLimit) {
+          const lower = parseFloat(targetsBidLowerLimit);
+          if (!isNaN(lower)) {
+            newBid = Math.max(newBid, lower);
+          }
+        }
+
+        newBid = Math.max(newBid, 0);
+
+        updates.push({
+          targetId: String(target.targetId),
+          newBid: Math.round(newBid * 100) / 100,
+        });
+      }
+
+      for (const update of updates) {
+        await campaignsService.bulkUpdateTargets(accountIdNum, {
+          targetIds: [update.targetId],
+          action: "bid",
+          bid: update.newBid,
+        });
+      }
+
+      await loadTargets();
+      setSelectedTargetIds(new Set());
+      setShowTargetsConfirmationModal(false);
+      setShowTargetsBidPanel(false);
+      setTargetsBidValue("");
+      setTargetsBidUpperLimit("");
+      setTargetsBidLowerLimit("");
+    } catch (error: any) {
+      console.error("Failed to update targets", error);
+      setShowTargetsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update targets. Please try again.",
+      });
+    } finally {
+      setTargetsBulkLoading(false);
+    }
+  };
+
   // Bulk action handlers for Keywords
   const handleBulkKeywordsStatus = async (statusValue: "enable" | "pause") => {
     if (!accountId || selectedKeywordIds.size === 0) return;
@@ -2690,16 +2999,30 @@ export const CampaignDetail: React.FC = () => {
       ) {
         setShowKeywordsBulkActions(false);
       }
+      if (
+        targetsBulkActionsRef.current &&
+        !targetsBulkActionsRef.current.contains(event.target as Node)
+      ) {
+        setShowTargetsBulkActions(false);
+      }
     };
 
-    if (showAdGroupsBulkActions || showKeywordsBulkActions) {
+    if (
+      showAdGroupsBulkActions ||
+      showKeywordsBulkActions ||
+      showTargetsBulkActions
+    ) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showAdGroupsBulkActions, showKeywordsBulkActions]);
+  }, [
+    showAdGroupsBulkActions,
+    showKeywordsBulkActions,
+    showTargetsBulkActions,
+  ]);
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -4492,6 +4815,73 @@ export const CampaignDetail: React.FC = () => {
                     Targets
                   </h2>
                   <div className="flex items-center gap-3">
+                    {/* Bulk Actions Dropdown */}
+                    {selectedTargetIds.size > 0 && (
+                      <div className="relative" ref={targetsBulkActionsRef}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowTargetsBulkActions((prev) => !prev);
+                            setShowTargetsBidPanel(false);
+                            setIsTargetsFilterPanelOpen(false);
+                          }}
+                        >
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Edit
+                          </span>
+                        </Button>
+                        {showTargetsBulkActions && (
+                          <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                            <div className="overflow-y-auto">
+                              {[
+                                { value: "enable", label: "Enabled" },
+                                { value: "pause", label: "Paused" },
+                                { value: "edit_bid", label: "Edit Bid" },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  disabled={selectedTargetIds.size === 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (selectedTargetIds.size === 0) return;
+                                    if (opt.value === "edit_bid") {
+                                      setShowTargetsBidPanel(true);
+                                    } else {
+                                      setShowTargetsBidPanel(false);
+                                      setPendingTargetsStatusAction(
+                                        opt.value as "enable" | "pause"
+                                      );
+                                      setShowTargetsConfirmationModal(true);
+                                    }
+                                    setShowTargetsBulkActions(false);
+                                  }}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* Create Target Button */}
                     <button
                       onClick={async () => {
@@ -4606,6 +4996,137 @@ export const CampaignDetail: React.FC = () => {
                   />
                 )}
 
+                {/* Bid editor panel for Targets */}
+                {selectedTargetIds.size > 0 && showTargetsBidPanel && (
+                  <div className="px-6 mb-4">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="flex flex-wrap items-end gap-3 justify-between">
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Action
+                          </label>
+                          <Dropdown
+                            options={[
+                              { value: "increase", label: "Increase By" },
+                              { value: "decrease", label: "Decrease By" },
+                              { value: "set", label: "Set To" },
+                            ]}
+                            value={targetsBidAction}
+                            onChange={(val) => {
+                              const action = val as typeof targetsBidAction;
+                              setTargetsBidAction(action);
+                              if (action === "set") {
+                                setTargetsBidUnit("amount");
+                              }
+                            }}
+                            buttonClassName="w-full"
+                            width="w-full"
+                          />
+                        </div>
+                        {(targetsBidAction === "increase" ||
+                          targetsBidAction === "decrease") && (
+                          <div className="w-[140px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Unit
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                  targetsBidUnit === "percent"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                }`}
+                                onClick={() => setTargetsBidUnit("percent")}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                  targetsBidUnit === "amount"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                }`}
+                                onClick={() => setTargetsBidUnit("amount")}
+                              >
+                                $
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Value
+                          </label>
+                          <input
+                            type="number"
+                            value={targetsBidValue}
+                            onChange={(e) => setTargetsBidValue(e.target.value)}
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          />
+                        </div>
+                        {targetsBidAction === "increase" && (
+                          <div className="w-[160px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Upper Limit (Optional)
+                            </label>
+                            <input
+                              type="number"
+                              value={targetsBidUpperLimit}
+                              onChange={(e) =>
+                                setTargetsBidUpperLimit(e.target.value)
+                              }
+                              placeholder="$0.00"
+                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            />
+                          </div>
+                        )}
+                        {targetsBidAction === "decrease" && (
+                          <div className="w-[160px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Lower Limit (Optional)
+                            </label>
+                            <input
+                              type="number"
+                              value={targetsBidLowerLimit}
+                              onChange={(e) =>
+                                setTargetsBidLowerLimit(e.target.value)
+                              }
+                              placeholder="$0.00"
+                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            />
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowTargetsBidPanel(false);
+                              setTargetsBidValue("");
+                              setTargetsBidUpperLimit("");
+                              setTargetsBidLowerLimit("");
+                            }}
+                            className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setShowTargetsConfirmationModal(true);
+                            }}
+                            disabled={!targetsBidValue || targetsBulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Filter Panel */}
                 {isTargetsFilterPanelOpen && (
                   <div className="mb-4">
@@ -4642,6 +5163,14 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={targetsSortBy}
                     sortOrder={targetsSortOrder}
                     onSort={handleTargetsSort}
+                    editingField={editingTargetField}
+                    editedValue={editedTargetValue}
+                    onEditStart={handleTargetEditStart}
+                    onEditChange={handleTargetEditChange}
+                    onEditEnd={handleTargetEditEnd}
+                    onEditCancel={handleTargetEditCancel}
+                    inlineEditLoading={targetEditLoading}
+                    pendingChange={pendingTargetChange}
                   />
                 </div>
                 {/* Pagination */}
@@ -5098,6 +5627,66 @@ export const CampaignDetail: React.FC = () => {
         </div>
       )}
 
+      {/* Confirmation Modal for Targets Bulk Actions */}
+      {showTargetsConfirmationModal && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!targetsBulkLoading) {
+                setShowTargetsConfirmationModal(false);
+                setPendingTargetsStatusAction(null);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Action
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  {pendingTargetsStatusAction
+                    ? `Are you sure you want to ${
+                        pendingTargetsStatusAction === "enable"
+                          ? "enable"
+                          : "pause"
+                      } ${selectedTargetIds.size} target(s)?`
+                    : `Are you sure you want to update the bid for ${selectedTargetIds.size} target(s)?`}
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTargetsConfirmationModal(false);
+                    setPendingTargetsStatusAction(null);
+                  }}
+                  disabled={targetsBulkLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (pendingTargetsStatusAction) {
+                      await handleBulkTargetsStatus(pendingTargetsStatusAction);
+                    } else {
+                      await handleBulkTargetsBid();
+                    }
+                  }}
+                  disabled={targetsBulkLoading}
+                  className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {targetsBulkLoading ? "Processing..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal for Ad Groups Bulk Actions */}
       {showAdGroupsConfirmationModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center">
@@ -5402,6 +5991,115 @@ export const CampaignDetail: React.FC = () => {
                     className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
                   >
                     {keywordEditLoading.has(pendingKeywordChange.id)
+                      ? "Updating..."
+                      : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* Inline Edit Confirmation Modal for Targets */}
+      {pendingTargetChange &&
+        showTargetsConfirmationModal &&
+        (() => {
+          const target = targets.find(
+            (tgt) => tgt.id === pendingTargetChange.id
+          );
+          const targetName = target?.name || "Unnamed Target";
+          const fieldLabel =
+            pendingTargetChange.field === "status" ? "Status" : "Bid";
+
+          // Format old value
+          let oldValueDisplay = "";
+          if (pendingTargetChange.field === "bid") {
+            oldValueDisplay = pendingTargetChange.oldValue.startsWith("$")
+              ? pendingTargetChange.oldValue
+              : `$${parseFloat(
+                  pendingTargetChange.oldValue || "0"
+                ).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`;
+          } else if (pendingTargetChange.field === "status") {
+            oldValueDisplay =
+              pendingTargetChange.oldValue === "enabled" ? "Enabled" : "Paused";
+          }
+
+          // Format new value
+          let newValueDisplay = "";
+          if (pendingTargetChange.field === "bid") {
+            newValueDisplay = `$${parseFloat(
+              pendingTargetChange.newValue || "0"
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`;
+          } else if (pendingTargetChange.field === "status") {
+            newValueDisplay =
+              pendingTargetChange.newValue === "enabled" ? "Enabled" : "Paused";
+          }
+
+          return (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              onClick={(e) => {
+                if (
+                  e.target === e.currentTarget &&
+                  !targetEditLoading.has(pendingTargetChange.id)
+                ) {
+                  cancelTargetChange();
+                }
+              }}
+            >
+              <div
+                className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                  Confirm {fieldLabel} Change
+                </h3>
+
+                <div className="mb-4">
+                  <p className="text-[12.16px] text-[#556179] mb-2">
+                    Target:{" "}
+                    <span className="font-semibold text-[#072929]">
+                      {targetName}
+                    </span>
+                  </p>
+                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {fieldLabel}:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {oldValueDisplay}
+                        </span>
+                        <span className="text-[12.16px] text-[#556179]">→</span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {newValueDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={cancelTargetChange}
+                    disabled={targetEditLoading.has(pendingTargetChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmTargetChange}
+                    disabled={targetEditLoading.has(pendingTargetChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                  >
+                    {targetEditLoading.has(pendingTargetChange.id)
                       ? "Updating..."
                       : "Confirm"}
                   </button>

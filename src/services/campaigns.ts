@@ -2125,7 +2125,7 @@ export const campaignsService = {
     payload: {
       targetIds: Array<string | number>;
       action: "status" | "bid";
-      status?: "enable" | "pause" | "archive";
+      status?: "enable" | "pause"; // ARCHIVED is not supported for targets
       bid?: number;
     }
   ) => {
