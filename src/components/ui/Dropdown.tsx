@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../lib/cn";
 
 export interface DropdownOption<T = string> {
@@ -69,8 +70,10 @@ export const Dropdown = <T extends string | number = string>({
 }: DropdownProps<T>) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [searchQuery, setSearchQuery] = useState("");
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width?: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value) || null;
 
@@ -90,12 +93,54 @@ export const Dropdown = <T extends string | number = string>({
       )
     : options;
 
+  // Calculate menu position for portal rendering when defaultOpen is true
+  useEffect(() => {
+    if (isOpen && defaultOpen && dropdownRef.current) {
+      const triggerRect = dropdownRef.current.getBoundingClientRect();
+      // Use the trigger width for the menu width when width is "w-full"
+      const menuWidth = width === "w-full" ? triggerRect.width : 200;
+      const menuHeight = Math.min(filteredOptions.length * 40 + (searchable ? 50 : 0), 400);
+      
+      let top = triggerRect.bottom + 8; // mt-2 = 8px
+      let left = triggerRect.left;
+      
+      if (position === "top") {
+        top = triggerRect.top - menuHeight - 8; // mb-2 = 8px
+      }
+      
+      if (align === "right") {
+        left = triggerRect.right - menuWidth;
+      } else if (align === "center") {
+        left = triggerRect.left + (triggerRect.width / 2) - (menuWidth / 2);
+      }
+      
+      // Ensure menu stays within viewport
+      if (left + menuWidth > window.innerWidth) {
+        left = window.innerWidth - menuWidth - 8;
+      }
+      if (left < 8) {
+        left = 8;
+      }
+      if (top + menuHeight > window.innerHeight) {
+        top = window.innerHeight - menuHeight - 8;
+      }
+      if (top < 8) {
+        top = 8;
+      }
+      
+      setMenuPosition({ top, left, width: menuWidth });
+    } else {
+      setMenuPosition(null);
+    }
+  }, [isOpen, defaultOpen, filteredOptions.length, searchable, align, position, width]);
+
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
+        !dropdownRef.current.contains(event.target as Node) &&
+        (!defaultOpen || (menuRef.current && !menuRef.current.contains(event.target as Node)))
       ) {
         setIsOpen(false);
         setSearchQuery("");
@@ -116,7 +161,7 @@ export const Dropdown = <T extends string | number = string>({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isOpen, searchable, onClose]);
+  }, [isOpen, searchable, onClose, defaultOpen]);
 
   const handleSelect = (option: DropdownOption<T>) => {
     if (option.disabled) return;
@@ -213,79 +258,99 @@ export const Dropdown = <T extends string | number = string>({
     top: "bottom-full mb-2",
   };
 
-  return (
-    <div ref={dropdownRef} className={cn("relative", className)}>
-      {renderButton
-        ? renderButton(selectedOption, isOpen, toggleDropdown)
-        : defaultRenderButton(selectedOption, isOpen)}
-
-      {isOpen && (
-        <div
-          className={cn(
-            "absolute z-[100000] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
-            width,
-            maxHeight,
-            alignClasses[align],
-            positionClasses[position],
-            menuClassName
-          )}
-          style={{ zIndex: 100000 }}
-        >
-          {/* Search Input */}
-          {searchable && (
-            <div className="p-2 border-b border-gray-200">
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  const query = e.target.value;
-                  setSearchQuery(query);
-                  // Call external search callback if provided
-                  if (onSearchChange) {
-                    onSearchChange(query);
-                  }
-                }}
-                placeholder={searchPlaceholder}
-                className="w-full px-3 py-2 text-[10px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-              />
-            </div>
-          )}
-
-          {/* Options List */}
-          <div className="overflow-y-auto" style={{ maxHeight: "inherit" }}>
-            {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-[10px] text-[#556179] text-center">
-                {emptyMessage}
-              </div>
-            ) : (
-              filteredOptions.map((option) => {
-                const isSelected = option.value === value;
-                return (
-                  <button
-                    key={String(option.value)}
-                    type="button"
-                    onClick={() => handleSelect(option)}
-                    disabled={option.disabled}
-                    className={cn(
-                      "w-full text-left px-3 py-2 text-[10px] text-text-primary bg-[#FEFEFB] hover:bg-gray-50 transition-colors",
-                      isSelected && "bg-[#F0F0ED] text-[#072929] font-medium",
-                      !isSelected && "text-[#313850]",
-                      option.disabled && "opacity-50 cursor-not-allowed",
-                      !option.disabled && "cursor-pointer",
-                      optionClassName
-                    )}
-                  >
-                    {renderOption
-                      ? renderOption(option, isSelected)
-                      : defaultRenderOption(option, isSelected)}
-                  </button>
-                );
-              })
-            )}
+  const renderMenu = () => {
+    if (!isOpen) return null;
+    
+    return (
+      <div
+        ref={menuRef}
+        className={cn(
+          "z-[100000] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
+          !defaultOpen && width, // Only apply width class when not using portal
+          maxHeight,
+          !defaultOpen && "absolute",
+          !defaultOpen && alignClasses[align],
+          !defaultOpen && positionClasses[position],
+          menuClassName
+        )}
+        style={
+          defaultOpen && menuPosition
+            ? {
+                zIndex: 100000,
+                position: "fixed",
+                top: `${menuPosition.top}px`,
+                left: `${menuPosition.left}px`,
+                width: menuPosition.width ? `${menuPosition.width}px` : undefined,
+              }
+            : { zIndex: 100000 }
+        }
+      >
+        {/* Search Input */}
+        {searchable && (
+          <div className="p-2 border-b border-gray-200">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                const query = e.target.value;
+                setSearchQuery(query);
+                // Call external search callback if provided
+                if (onSearchChange) {
+                  onSearchChange(query);
+                }
+              }}
+              placeholder={searchPlaceholder}
+              className="w-full px-3 py-2 text-[10px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+            />
           </div>
+        )}
+
+        {/* Options List */}
+        <div className="overflow-y-auto" style={{ maxHeight: "inherit" }}>
+          {filteredOptions.length === 0 ? (
+            <div className="px-3 py-2 text-[10px] text-[#556179] text-center">
+              {emptyMessage}
+            </div>
+          ) : (
+            filteredOptions.map((option) => {
+              const isSelected = option.value === value;
+              return (
+                <button
+                  key={String(option.value)}
+                  type="button"
+                  onClick={() => handleSelect(option)}
+                  disabled={option.disabled}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-[10px] text-text-primary bg-[#FEFEFB] hover:bg-gray-50 transition-colors",
+                    isSelected && "bg-[#F0F0ED] text-[#072929] font-medium",
+                    !isSelected && "text-[#313850]",
+                    option.disabled && "opacity-50 cursor-not-allowed",
+                    !option.disabled && "cursor-pointer",
+                    optionClassName
+                  )}
+                >
+                  {renderOption
+                    ? renderOption(option, isSelected)
+                    : defaultRenderOption(option, isSelected)}
+                </button>
+              );
+            })
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div ref={dropdownRef} className={cn("relative", className)}>
+        {renderButton
+          ? renderButton(selectedOption, isOpen, toggleDropdown)
+          : defaultRenderButton(selectedOption, isOpen)}
+        {!defaultOpen && renderMenu()}
+      </div>
+      {defaultOpen && menuPosition && isOpen && createPortal(renderMenu(), document.body)}
+    </>
   );
 };

@@ -1261,9 +1261,10 @@ export const campaignsService = {
     accountId: number,
     payload: {
       adgroupIds: Array<string | number>;
-      action: "status" | "default_bid";
+      action: "status" | "default_bid" | "name";
       status?: "enable" | "pause" | "archive";
       value?: number;
+      name?: string;
     }
   ) => {
     const url = `/accounts/${accountId}/adgroups/bulk-update/`;

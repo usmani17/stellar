@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
+import { Dropdown } from "../ui/Dropdown";
 import type { Keyword } from "../../services/campaigns";
 
 interface KeywordsTableProps {
@@ -12,6 +13,26 @@ interface KeywordsTableProps {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
+  editingField?: {
+    id: number;
+    field: "status" | "bid";
+  } | null;
+  editedValue?: string;
+  onEditStart?: (
+    id: number,
+    field: "status" | "bid",
+    currentValue: string
+  ) => void;
+  onEditChange?: (value: string) => void;
+  onEditEnd?: (value?: string) => void;
+  onEditCancel?: () => void;
+  inlineEditLoading?: Set<number>;
+  pendingChange?: {
+    id: number;
+    field: "status" | "bid";
+    newValue: string;
+    oldValue: string;
+  } | null;
 }
 
 export const KeywordsTable: React.FC<KeywordsTableProps> = ({
@@ -23,7 +44,16 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
   sortBy = "id",
   sortOrder = "asc",
   onSort,
+  editingField = null,
+  editedValue = "",
+  onEditStart,
+  onEditChange,
+  onEditEnd,
+  onEditCancel,
+  inlineEditLoading = new Set(),
+  pendingChange = null,
 }) => {
+  const statusSelectionMadeRef = useRef<number | null>(null);
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
       return (
@@ -229,14 +259,162 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
 
                       {/* State */}
                       <td className="py-[10px] px-[10px] min-w-[115px]">
-                        <StatusBadge status={keyword.status} />
+                        {inlineEditLoading.has(keyword.id) ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {pendingChange?.field === "status"
+                                ? pendingChange.newValue === "enabled"
+                                  ? "Enabled"
+                                  : pendingChange.newValue === "paused"
+                                  ? "Paused"
+                                  : "Archived"
+                                : keyword.status}
+                            </span>
+                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        ) : pendingChange?.id === keyword.id &&
+                          pendingChange?.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {pendingChange.newValue === "enabled"
+                                ? "Enabled"
+                                : pendingChange.newValue === "paused"
+                                ? "Paused"
+                                : "Archived"}
+                            </span>
+                          </div>
+                        ) : editingField?.id === keyword.id &&
+                          editingField?.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <Dropdown
+                              options={[
+                                { value: "enabled", label: "Enabled" },
+                                { value: "paused", label: "Paused" },
+                              ]}
+                              value={(() => {
+                                if (editedValue) return editedValue;
+                                const statusLower =
+                                  keyword.status?.toLowerCase() || "enabled";
+                                return statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                  ? "enabled"
+                                  : "paused";
+                              })()}
+                              onChange={(val) => {
+                                // Mark that a selection was made for this keyword
+                                statusSelectionMadeRef.current = keyword.id;
+                                const newValue = val as string;
+                                onEditChange?.(newValue);
+                                // Call onEditEnd with the new value immediately when a value is selected
+                                onEditEnd?.(newValue);
+                                // Clear the ref after a short delay to allow onClose to check it
+                                setTimeout(() => {
+                                  if (
+                                    statusSelectionMadeRef.current ===
+                                    keyword.id
+                                  ) {
+                                    statusSelectionMadeRef.current = null;
+                                  }
+                                }, 200);
+                              }}
+                              onClose={() => {
+                                // Only cancel if no selection was made (clicked outside)
+                                if (
+                                  statusSelectionMadeRef.current !==
+                                    keyword.id &&
+                                  editingField?.id === keyword.id
+                                ) {
+                                  onEditCancel?.();
+                                }
+                              }}
+                              defaultOpen={true}
+                              closeOnSelect={true}
+                              buttonClassName="w-full text-[13.3px] px-2 py-1"
+                              width="w-full"
+                              align="center"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                            onClick={() => {
+                              const statusLower =
+                                keyword.status?.toLowerCase() || "enabled";
+                              const statusValue =
+                                statusLower === "enable" ||
+                                statusLower === "enabled"
+                                  ? "enabled"
+                                  : "paused";
+                              onEditStart?.(keyword.id, "status", statusValue);
+                            }}
+                          >
+                            <StatusBadge status={keyword.status} />
+                          </div>
+                        )}
                       </td>
 
                       {/* Bid */}
                       <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {keyword.bid || "$0.00"}
-                        </span>
+                        {inlineEditLoading.has(keyword.id) ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              $
+                              {parseFloat(
+                                pendingChange?.newValue || "0"
+                              ).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </span>
+                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        ) : pendingChange?.id === keyword.id &&
+                          pendingChange?.field === "bid" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              $
+                              {parseFloat(
+                                pendingChange.newValue || "0"
+                              ).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </span>
+                          </div>
+                        ) : editingField?.id === keyword.id &&
+                          editingField?.field === "bid" ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={editedValue}
+                              onChange={(e) => onEditChange?.(e.target.value)}
+                              className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
+                              autoFocus
+                              onBlur={(e) => onEditEnd?.(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === "Escape") {
+                                  onEditEnd?.(
+                                    (e.target as HTMLInputElement).value
+                                  );
+                                }
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                            onClick={() => {
+                              const currentBid = keyword.bid
+                                ? keyword.bid.replace(/[^0-9.]/g, "")
+                                : "0";
+                              onEditStart?.(keyword.id, "bid", currentBid);
+                            }}
+                          >
+                            {keyword.bid || "$0.00"}
+                          </div>
+                        )}
                       </td>
 
                       {/* CTR */}

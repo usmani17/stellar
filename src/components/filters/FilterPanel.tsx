@@ -97,6 +97,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   accountId,
   channelType,
 }) => {
+  // Use initialFilters directly as the source of truth - no internal state sync
+  // This prevents infinite loops when parent updates filters
   const [activeFilters, setActiveFilters] =
     useState<FilterValues>(initialFilters);
   const [selectedField, setSelectedField] = useState<string>("");
@@ -107,11 +109,16 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   >([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const isInitialMountRef = useRef(true);
 
-  // Sync activeFilters with initialFilters when they change externally
+  // Only sync on initial mount, not on every prop change
+  // This prevents infinite loops - parent component manages filter state
   useEffect(() => {
-    setActiveFilters(initialFilters);
-  }, [initialFilters]);
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      setActiveFilters(initialFilters);
+    }
+  }, []); // Empty deps - only run on mount
 
   // Fetch profiles when profile_name is selected and it's an Amazon channel
   useEffect(() => {

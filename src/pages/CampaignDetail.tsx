@@ -134,6 +134,25 @@ export const CampaignDetail: React.FC = () => {
   const [showAdGroupsConfirmationModal, setShowAdGroupsConfirmationModal] =
     useState(false);
   const [adGroupsBulkLoading, setAdGroupsBulkLoading] = useState(false);
+  const [showKeywordsConfirmationModal, setShowKeywordsConfirmationModal] =
+    useState(false);
+  const [showKeywordsBulkActions, setShowKeywordsBulkActions] = useState(false);
+  const [showKeywordsBidPanel, setShowKeywordsBidPanel] = useState(false);
+  const [pendingKeywordsStatusAction, setPendingKeywordsStatusAction] =
+    useState<"enable" | "pause" | null>(null);
+  const [keywordsBulkLoading, setKeywordsBulkLoading] = useState(false);
+  const [keywordsBidAction, setKeywordsBidAction] = useState<
+    "increase" | "decrease" | "set"
+  >("increase");
+  const [keywordsBidUnit, setKeywordsBidUnit] = useState<"percent" | "amount">(
+    "percent"
+  );
+  const [keywordsBidValue, setKeywordsBidValue] = useState<string>("");
+  const [keywordsBidUpperLimit, setKeywordsBidUpperLimit] =
+    useState<string>("");
+  const [keywordsBidLowerLimit, setKeywordsBidLowerLimit] =
+    useState<string>("");
+  const keywordsBulkActionsRef = useRef<HTMLDivElement>(null);
   const [adGroupsBidAction, setAdGroupsBidAction] = useState<
     "increase" | "decrease" | "set"
   >("increase");
@@ -146,6 +165,10 @@ export const CampaignDetail: React.FC = () => {
   const [adGroupsBidLowerLimit, setAdGroupsBidLowerLimit] =
     useState<string>("");
   const adGroupsBulkActionsRef = useRef<HTMLDivElement>(null);
+  const adgroupsLoadingRef = useRef(false);
+  const adgroupsAbortControllerRef = useRef<AbortController | null>(null);
+  const adgroupsRequestIdRef = useRef<string>("");
+  const lastAppliedFiltersRef = useRef<string>("");
   const [isKeywordsFilterPanelOpen, setIsKeywordsFilterPanelOpen] =
     useState(false);
   const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
@@ -237,7 +260,7 @@ export const CampaignDetail: React.FC = () => {
   // Ad Group inline edit state
   const [editingAdGroupField, setEditingAdGroupField] = useState<{
     id: number;
-    field: "status" | "default_bid";
+    field: "status" | "default_bid" | "name";
   } | null>(null);
   const [editedAdGroupValue, setEditedAdGroupValue] = useState<string>("");
   const [adGroupEditLoading, setAdGroupEditLoading] = useState<Set<number>>(
@@ -245,10 +268,26 @@ export const CampaignDetail: React.FC = () => {
   );
   const [pendingAdGroupChange, setPendingAdGroupChange] = useState<{
     id: number;
-    field: "status" | "default_bid";
+    field: "status" | "default_bid" | "name";
     newValue: string;
     oldValue: string;
   } | null>(null);
+
+  // Keyword inline edit state
+  const [editingKeywordField, setEditingKeywordField] = useState<{
+    id: number;
+    field: "status" | "bid";
+  } | null>(null);
+  const [editedKeywordValue, setEditedKeywordValue] = useState<string>("");
+  const [pendingKeywordChange, setPendingKeywordChange] = useState<{
+    id: number;
+    field: "status" | "bid";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
+  const [keywordEditLoading, setKeywordEditLoading] = useState<Set<number>>(
+    new Set()
+  );
 
   // Filter tabs based on campaign type - SD campaigns don't have keywords
   const allTabs = [
@@ -409,12 +448,35 @@ export const CampaignDetail: React.FC = () => {
     }
   }, [isAutoCampaign, accountId, campaignId, startDate, endDate, campaignType]);
 
-  // Reset pagination when date range, tab, or filters change
+  // Memoize filter string to prevent unnecessary re-renders
+  // Use a deep comparison by sorting and stringifying to ensure stable comparison
+  const adgroupsFiltersString = useMemo(() => {
+    const sorted = [...adgroupsFilters].sort((a, b) => {
+      if (a.field !== b.field) return a.field.localeCompare(b.field);
+      const aOp = a.operator || "";
+      const bOp = b.operator || "";
+      if (aOp !== bOp) return aOp.localeCompare(bOp);
+      return String(a.value).localeCompare(String(b.value));
+    });
+    return JSON.stringify(sorted);
+  }, [adgroupsFilters]);
+
+  // Memoize date strings to prevent unnecessary re-renders
+  const startDateStr = useMemo(
+    () => startDate.toISOString().split("T")[0],
+    [startDate]
+  );
+  const endDateStr = useMemo(
+    () => endDate.toISOString().split("T")[0],
+    [endDate]
+  );
+
+  // Reset pagination when date range or tab changes (but NOT filters - that's handled in onApply)
   useEffect(() => {
     if (activeTab === "Ad Groups") {
       setAdgroupsCurrentPage(1);
     }
-  }, [activeTab, startDate, endDate, adgroupsFilters]);
+  }, [activeTab, startDate, endDate]);
 
   useEffect(() => {
     if (activeTab === "Keywords") {
@@ -709,19 +771,63 @@ export const CampaignDetail: React.FC = () => {
   };
 
   useEffect(() => {
+    // Cancel any pending request when dependencies change
+    if (adgroupsAbortControllerRef.current) {
+      adgroupsAbortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    adgroupsAbortControllerRef.current = new AbortController();
+    const currentController = adgroupsAbortControllerRef.current;
+
+    // Generate a unique request ID based on all dependencies to prevent duplicate requests
+    const requestId = JSON.stringify({
+      accountId,
+      campaignId,
+      activeTab,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      adgroupsCurrentPage,
+      adgroupsSortBy,
+      adgroupsSortOrder,
+      adgroupsFilters: adgroupsFiltersString,
+      campaignType, // Include campaignType in request ID
+    });
+
+    // Skip if this is the same request as the last one (prevents React StrictMode double calls and infinite loops)
+    if (adgroupsRequestIdRef.current === requestId) {
+      return;
+    }
+
+    adgroupsRequestIdRef.current = requestId;
+
     if (accountId && campaignId && activeTab === "Ad Groups") {
+      // Prevent multiple simultaneous calls
+      if (adgroupsLoadingRef.current) {
+        return;
+      }
       loadAdGroups();
     }
+
+    // Cleanup function to cancel request if component unmounts or dependencies change
+    return () => {
+      if (currentController) {
+        currentController.abort();
+      }
+      // Don't reset loadingRef here - it will be reset in loadAdGroups finally block
+      // Resetting it here can cause race conditions
+    };
   }, [
     accountId,
     campaignId,
     activeTab,
-    startDate,
-    endDate,
+    startDateStr, // Use memoized date string instead of Date object
+    endDateStr, // Use memoized date string instead of Date object
     adgroupsCurrentPage,
     adgroupsSortBy,
     adgroupsSortOrder,
-    adgroupsFilters,
+    adgroupsFiltersString, // Use memoized string to ensure stable reference comparison
+    campaignType, // Add campaignType since it's used in loadAdGroups
   ]);
 
   useEffect(() => {
@@ -845,12 +951,24 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const loadAdGroups = async () => {
+    // Prevent multiple simultaneous calls
+    if (adgroupsLoadingRef.current) {
+      return;
+    }
+
     try {
+      adgroupsLoadingRef.current = true;
       setAdgroupsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
 
       if (isNaN(accountIdNum) || !campaignId) {
         setAdgroupsLoading(false);
+        adgroupsLoadingRef.current = false;
+        return;
+      }
+
+      // Check if request was aborted
+      if (adgroupsAbortControllerRef.current?.signal.aborted) {
         return;
       }
 
@@ -858,8 +976,8 @@ export const CampaignDetail: React.FC = () => {
       const data = await campaignsService.getAdGroups(
         accountIdNum,
         campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
+        startDateStr,
+        endDateStr,
         {
           page: adgroupsCurrentPage,
           page_size: 10,
@@ -870,14 +988,27 @@ export const CampaignDetail: React.FC = () => {
         }
       );
 
+      // Check if request was aborted before updating state
+      if (adgroupsAbortControllerRef.current?.signal.aborted) {
+        return;
+      }
+
       setAdgroups(data.adgroups);
       setAdgroupsTotalPages(data.total_pages || 0);
     } catch (error) {
+      // Don't log aborted requests as errors
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
       console.error("Failed to load ad groups:", error);
-      setAdgroups([]);
-      setAdgroupsTotalPages(0);
+      // Only update state if request wasn't aborted
+      if (!adgroupsAbortControllerRef.current?.signal.aborted) {
+        setAdgroups([]);
+        setAdgroupsTotalPages(0);
+      }
     } finally {
       setAdgroupsLoading(false);
+      adgroupsLoadingRef.current = false;
     }
   };
 
@@ -1970,7 +2101,7 @@ export const CampaignDetail: React.FC = () => {
   // Ad Group inline edit handlers
   const handleAdGroupEditStart = (
     id: number,
-    field: "status" | "default_bid",
+    field: "status" | "default_bid" | "name",
     currentValue: string
   ) => {
     setEditingAdGroupField({ id, field });
@@ -1982,15 +2113,20 @@ export const CampaignDetail: React.FC = () => {
     setEditedAdGroupValue(value);
   };
 
-  const handleAdGroupEditEnd = () => {
+  const handleAdGroupEditEnd = (newValue?: string) => {
     if (!editingAdGroupField) return;
-
     const adgroup = adgroups.find((ag) => ag.id === editingAdGroupField.id);
     if (!adgroup) {
       setEditingAdGroupField(null);
       setEditedAdGroupValue("");
       return;
     }
+
+    // Use the passed value if provided, otherwise use the state value
+    // This handles the case where onEditEnd is called immediately after onChange
+    // before React state has updated
+    const valueToCompare =
+      newValue !== undefined ? newValue : editedAdGroupValue;
 
     let hasChanged = false;
     let oldValue = "";
@@ -2004,7 +2140,7 @@ export const CampaignDetail: React.FC = () => {
           ? "paused"
           : "archived";
       oldValue = currentStatus;
-      hasChanged = editedAdGroupValue !== currentStatus;
+      hasChanged = valueToCompare !== currentStatus;
     } else if (editingAdGroupField.field === "default_bid") {
       const currentBid = adgroup.default_bid
         ? adgroup.default_bid.replace(/[^0-9.]/g, "")
@@ -2020,15 +2156,19 @@ export const CampaignDetail: React.FC = () => {
       //   });
       //   return;
       // }
+      hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
+    } else if (editingAdGroupField.field === "name") {
+      oldValue = adgroup.name || "";
       hasChanged =
-        editedAdGroupValue !== currentBid && editedAdGroupValue !== "";
+        valueToCompare.trim() !== oldValue.trim() &&
+        valueToCompare.trim() !== "";
     }
 
     if (hasChanged) {
       setPendingAdGroupChange({
         id: editingAdGroupField.id,
         field: editingAdGroupField.field,
-        newValue: editedAdGroupValue,
+        newValue: valueToCompare,
         oldValue: oldValue,
       });
       setEditingAdGroupField(null);
@@ -2082,6 +2222,12 @@ export const CampaignDetail: React.FC = () => {
           action: "default_bid",
           value: bidValue,
         });
+      } else if (pendingAdGroupChange.field === "name") {
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: [adgroup.adGroupId],
+          action: "name",
+          name: pendingAdGroupChange.newValue.trim(),
+        });
       }
 
       // Reload ad groups
@@ -2089,9 +2235,16 @@ export const CampaignDetail: React.FC = () => {
       setPendingAdGroupChange(null);
       setEditingAdGroupField(null);
       setEditedAdGroupValue("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating ad group:", error);
-      alert("Failed to update ad group. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update ad group. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     } finally {
       setAdGroupEditLoading((prev) => {
         const newSet = new Set(prev);
@@ -2105,6 +2258,288 @@ export const CampaignDetail: React.FC = () => {
     setPendingAdGroupChange(null);
     setEditingAdGroupField(null);
     setEditedAdGroupValue("");
+  };
+
+  const handleAdGroupEditCancel = () => {
+    setEditingAdGroupField(null);
+    setEditedAdGroupValue("");
+    setPendingAdGroupChange(null);
+  };
+
+  // Keyword inline edit handlers
+  const handleKeywordEditStart = (
+    id: number,
+    field: "status" | "bid",
+    currentValue: string
+  ) => {
+    setEditingKeywordField({ id, field });
+    setEditedKeywordValue(currentValue);
+    setPendingKeywordChange(null);
+  };
+
+  const handleKeywordEditChange = (value: string) => {
+    setEditedKeywordValue(value);
+  };
+
+  const handleKeywordEditEnd = (newValue?: string) => {
+    if (!editingKeywordField) return;
+    const keyword = keywords.find((kw) => kw.id === editingKeywordField.id);
+    if (!keyword) {
+      setEditingKeywordField(null);
+      setEditedKeywordValue("");
+      return;
+    }
+
+    // Use the passed value if provided, otherwise use the state value
+    const valueToCompare =
+      newValue !== undefined ? newValue : editedKeywordValue;
+
+    let hasChanged = false;
+    let oldValue = "";
+
+    if (editingKeywordField.field === "status") {
+      const statusLower = keyword.status?.toLowerCase() || "enabled";
+      const currentStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "enabled"
+          : "paused";
+      oldValue = currentStatus;
+      hasChanged = valueToCompare !== currentStatus;
+    } else if (editingKeywordField.field === "bid") {
+      const currentBid = keyword.bid
+        ? keyword.bid.replace(/[^0-9.]/g, "")
+        : "0";
+      oldValue = keyword.bid || "$0.00";
+      hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
+    }
+
+    if (hasChanged) {
+      setPendingKeywordChange({
+        id: editingKeywordField.id,
+        field: editingKeywordField.field,
+        newValue: valueToCompare,
+        oldValue: oldValue,
+      });
+      setShowKeywordsConfirmationModal(true);
+      setEditingKeywordField(null);
+    } else {
+      setEditingKeywordField(null);
+      setEditedKeywordValue("");
+    }
+  };
+
+  const confirmKeywordChange = async () => {
+    if (!pendingKeywordChange || !accountId) return;
+
+    const keyword = keywords.find((kw) => kw.id === pendingKeywordChange.id);
+    if (!keyword || !keyword.keywordId) {
+      alert("Keyword ID not found");
+      setPendingKeywordChange(null);
+      return;
+    }
+
+    setKeywordEditLoading((prev) => new Set(prev).add(pendingKeywordChange.id));
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (pendingKeywordChange.field === "status") {
+        // Map status values
+        const statusMap: Record<string, "enable" | "pause"> = {
+          enabled: "enable",
+          paused: "pause",
+        };
+        const statusValue =
+          statusMap[pendingKeywordChange.newValue.toLowerCase()] || "enable";
+
+        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          keywordIds: [keyword.keywordId],
+          action: "status",
+          status: statusValue,
+        });
+      } else if (pendingKeywordChange.field === "bid") {
+        // Extract numeric value
+        const bidValue = parseFloat(pendingKeywordChange.newValue);
+        if (isNaN(bidValue)) {
+          throw new Error("Invalid bid value");
+        }
+
+        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          keywordIds: [keyword.keywordId],
+          action: "bid",
+          bid: bidValue,
+        });
+      }
+
+      // Reload keywords
+      await loadKeywords();
+      setPendingKeywordChange(null);
+      setEditingKeywordField(null);
+      setEditedKeywordValue("");
+    } catch (error: any) {
+      console.error("Error updating keyword:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update keyword. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+      setShowKeywordsConfirmationModal(false);
+    } finally {
+      setKeywordEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingKeywordChange.id);
+        return newSet;
+      });
+    }
+  };
+
+  const cancelKeywordChange = () => {
+    setPendingKeywordChange(null);
+    setEditingKeywordField(null);
+    setEditedKeywordValue("");
+    setShowKeywordsConfirmationModal(false);
+  };
+
+  const handleKeywordEditCancel = () => {
+    setEditingKeywordField(null);
+    setEditedKeywordValue("");
+    setPendingKeywordChange(null);
+  };
+
+  // Bulk action handlers for Keywords
+  const handleBulkKeywordsStatus = async (statusValue: "enable" | "pause") => {
+    if (!accountId || selectedKeywordIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setKeywordsBulkLoading(true);
+      const selectedKeywordIdsArray = Array.from(selectedKeywordIds).map(
+        (id) => {
+          const keyword = keywords.find((kw) => kw.id === id);
+          return keyword?.keywordId || id;
+        }
+      );
+
+      await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        keywordIds: selectedKeywordIdsArray,
+        action: "status",
+        status: statusValue,
+      });
+
+      await loadKeywords();
+      setSelectedKeywordIds(new Set());
+      setShowKeywordsConfirmationModal(false);
+      setPendingKeywordsStatusAction(null);
+    } catch (error: any) {
+      console.error("Failed to update keywords", error);
+      setShowKeywordsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update keywords. Please try again.",
+      });
+    } finally {
+      setKeywordsBulkLoading(false);
+    }
+  };
+
+  const handleBulkKeywordsBid = async () => {
+    if (!accountId || selectedKeywordIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    const valueNum = parseFloat(keywordsBidValue);
+    if (isNaN(valueNum)) {
+      return;
+    }
+
+    try {
+      setKeywordsBulkLoading(true);
+
+      const selectedKeywordsData = keywords.filter((kw) =>
+        selectedKeywordIds.has(kw.id)
+      );
+      const updates: Array<{ keywordId: string | number; newBid: number }> = [];
+
+      for (const keyword of selectedKeywordsData) {
+        if (!keyword.keywordId) continue;
+
+        const currentBid = parseFloat(
+          (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+        );
+        let newBid = currentBid;
+
+        if (keywordsBidAction === "set") {
+          newBid = valueNum;
+        } else if (keywordsBidAction === "increase") {
+          if (keywordsBidUnit === "percent") {
+            newBid = currentBid * (1 + valueNum / 100.0);
+          } else {
+            newBid = currentBid + valueNum;
+          }
+        } else if (keywordsBidAction === "decrease") {
+          if (keywordsBidUnit === "percent") {
+            newBid = currentBid * (1 - valueNum / 100.0);
+          } else {
+            newBid = currentBid - valueNum;
+          }
+        }
+
+        if (keywordsBidUpperLimit) {
+          const upper = parseFloat(keywordsBidUpperLimit);
+          if (!isNaN(upper)) {
+            newBid = Math.min(newBid, upper);
+          }
+        }
+        if (keywordsBidLowerLimit) {
+          const lower = parseFloat(keywordsBidLowerLimit);
+          if (!isNaN(lower)) {
+            newBid = Math.max(newBid, lower);
+          }
+        }
+
+        newBid = Math.max(newBid, 0);
+
+        updates.push({
+          keywordId: keyword.keywordId,
+          newBid: Math.round(newBid * 100) / 100,
+        });
+      }
+
+      for (const update of updates) {
+        await campaignsService.bulkUpdateKeywords(accountIdNum, {
+          keywordIds: [update.keywordId],
+          action: "bid",
+          bid: update.newBid,
+        });
+      }
+
+      await loadKeywords();
+      setSelectedKeywordIds(new Set());
+      setShowKeywordsConfirmationModal(false);
+      setShowKeywordsBidPanel(false);
+      setKeywordsBidValue("");
+      setKeywordsBidUpperLimit("");
+      setKeywordsBidLowerLimit("");
+    } catch (error: any) {
+      console.error("Failed to update keywords", error);
+      setShowKeywordsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update keywords. Please try again.",
+      });
+    } finally {
+      setKeywordsBulkLoading(false);
+    }
   };
 
   // Bulk action handlers for Ad Groups
@@ -2136,6 +2571,7 @@ export const CampaignDetail: React.FC = () => {
       setPendingAdGroupsStatusAction(null);
     } catch (error: any) {
       console.error("Failed to update ad groups", error);
+      setShowAdGroupsConfirmationModal(false);
       setErrorModal({
         isOpen: true,
         message:
@@ -2227,6 +2663,7 @@ export const CampaignDetail: React.FC = () => {
       setAdGroupsBidLowerLimit("");
     } catch (error: any) {
       console.error("Failed to update ad groups", error);
+      setShowAdGroupsConfirmationModal(false);
       setErrorModal({
         isOpen: true,
         message:
@@ -2247,16 +2684,22 @@ export const CampaignDetail: React.FC = () => {
       ) {
         setShowAdGroupsBulkActions(false);
       }
+      if (
+        keywordsBulkActionsRef.current &&
+        !keywordsBulkActionsRef.current.contains(event.target as Node)
+      ) {
+        setShowKeywordsBulkActions(false);
+      }
     };
 
-    if (showAdGroupsBulkActions) {
+    if (showAdGroupsBulkActions || showKeywordsBulkActions) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showAdGroupsBulkActions]);
+  }, [showAdGroupsBulkActions, showKeywordsBulkActions]);
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -3086,19 +3529,14 @@ export const CampaignDetail: React.FC = () => {
                           <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                             Value
                           </label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={adGroupsBidValue}
-                              onChange={(e) =>
-                                setAdGroupsBidValue(e.target.value)
-                              }
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
-                              {adGroupsBidUnit === "percent" ? "%" : "$"}
-                            </span>
-                          </div>
+                          <input
+                            type="number"
+                            value={adGroupsBidValue}
+                            onChange={(e) =>
+                              setAdGroupsBidValue(e.target.value)
+                            }
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          />
                         </div>
                         {adGroupsBidAction === "increase" && (
                           <div className="w-[160px]">
@@ -3190,6 +3628,7 @@ export const CampaignDetail: React.FC = () => {
                 {isAdGroupsFilterPanelOpen && (
                   <div className="mb-4">
                     <FilterPanel
+                      key={`adgroups-filter-${adgroupsFiltersString}`}
                       isOpen={true}
                       onClose={() => {
                         // Check if filters changed before closing
@@ -3197,9 +3636,28 @@ export const CampaignDetail: React.FC = () => {
                         setIsAdGroupsFilterPanelOpen(false);
                       }}
                       onApply={(newFilters) => {
+                        // Create a stable string representation of the filters
+                        const filtersStr = JSON.stringify(
+                          [...newFilters].sort((a, b) => {
+                            if (a.field !== b.field)
+                              return a.field.localeCompare(b.field);
+                            const aOp = a.operator || "";
+                            const bOp = b.operator || "";
+                            if (aOp !== bOp) return aOp.localeCompare(bOp);
+                            return String(a.value).localeCompare(
+                              String(b.value)
+                            );
+                          })
+                        );
+
+                        // Prevent applying the same filters multiple times
+                        if (lastAppliedFiltersRef.current === filtersStr) {
+                          return;
+                        }
+
+                        lastAppliedFiltersRef.current = filtersStr;
                         setAdgroupsFilters(newFilters);
                         setAdgroupsCurrentPage(1); // Reset to first page when applying filters
-                        // Data will refresh automatically via useEffect dependency on adgroupsFilters
                       }}
                       initialFilters={adgroupsFilters}
                       filterFields={[
@@ -3228,6 +3686,7 @@ export const CampaignDetail: React.FC = () => {
                     onEditStart={handleAdGroupEditStart}
                     onEditChange={handleAdGroupEditChange}
                     onEditEnd={handleAdGroupEditEnd}
+                    onEditCancel={handleAdGroupEditCancel}
                     inlineEditLoading={adGroupEditLoading}
                     pendingChange={pendingAdGroupChange}
                     onConfirmChange={confirmAdGroupChange}
@@ -3334,6 +3793,73 @@ export const CampaignDetail: React.FC = () => {
                     Keywords
                   </h2>
                   <div className="flex items-center gap-3">
+                    {/* Bulk Actions Dropdown */}
+                    {selectedKeywordIds.size > 0 && (
+                      <div className="relative" ref={keywordsBulkActionsRef}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowKeywordsBulkActions((prev) => !prev);
+                            setShowKeywordsBidPanel(false);
+                            setIsKeywordsFilterPanelOpen(false);
+                          }}
+                        >
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Edit
+                          </span>
+                        </Button>
+                        {showKeywordsBulkActions && (
+                          <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                            <div className="overflow-y-auto">
+                              {[
+                                { value: "enable", label: "Enabled" },
+                                { value: "pause", label: "Paused" },
+                                { value: "edit_bid", label: "Edit Bid" },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  disabled={selectedKeywordIds.size === 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (selectedKeywordIds.size === 0) return;
+                                    if (opt.value === "edit_bid") {
+                                      setShowKeywordsBidPanel(true);
+                                    } else {
+                                      setShowKeywordsBidPanel(false);
+                                      setPendingKeywordsStatusAction(
+                                        opt.value as "enable" | "pause"
+                                      );
+                                      setShowKeywordsConfirmationModal(true);
+                                    }
+                                    setShowKeywordsBulkActions(false);
+                                  }}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* Create Keyword Button */}
                     <button
                       onClick={async () => {
@@ -3417,6 +3943,139 @@ export const CampaignDetail: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Bid editor panel for Keywords */}
+                {selectedKeywordIds.size > 0 && showKeywordsBidPanel && (
+                  <div className="px-6 mb-4">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="flex flex-wrap items-end gap-3 justify-between">
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Action
+                          </label>
+                          <Dropdown
+                            options={[
+                              { value: "increase", label: "Increase By" },
+                              { value: "decrease", label: "Decrease By" },
+                              { value: "set", label: "Set To" },
+                            ]}
+                            value={keywordsBidAction}
+                            onChange={(val) => {
+                              const action = val as typeof keywordsBidAction;
+                              setKeywordsBidAction(action);
+                              if (action === "set") {
+                                setKeywordsBidUnit("amount");
+                              }
+                            }}
+                            buttonClassName="w-full"
+                            width="w-full"
+                          />
+                        </div>
+                        {(keywordsBidAction === "increase" ||
+                          keywordsBidAction === "decrease") && (
+                          <div className="w-[140px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Unit
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                  keywordsBidUnit === "percent"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                }`}
+                                onClick={() => setKeywordsBidUnit("percent")}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                  keywordsBidUnit === "amount"
+                                    ? "bg-forest-f40  border-forest-f40"
+                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
+                                }`}
+                                onClick={() => setKeywordsBidUnit("amount")}
+                              >
+                                $
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="w-[160px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Value
+                          </label>
+                          <input
+                            type="number"
+                            value={keywordsBidValue}
+                            onChange={(e) =>
+                              setKeywordsBidValue(e.target.value)
+                            }
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                          />
+                        </div>
+                        {keywordsBidAction === "increase" && (
+                          <div className="w-[160px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Upper Limit (Optional)
+                            </label>
+                            <input
+                              type="number"
+                              value={keywordsBidUpperLimit}
+                              onChange={(e) =>
+                                setKeywordsBidUpperLimit(e.target.value)
+                              }
+                              placeholder="$0.00"
+                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            />
+                          </div>
+                        )}
+                        {keywordsBidAction === "decrease" && (
+                          <div className="w-[160px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Lower Limit (Optional)
+                            </label>
+                            <input
+                              type="number"
+                              value={keywordsBidLowerLimit}
+                              onChange={(e) =>
+                                setKeywordsBidLowerLimit(e.target.value)
+                              }
+                              placeholder="$0.00"
+                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                            />
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowKeywordsBidPanel(false);
+                              setKeywordsBidValue("");
+                              setKeywordsBidUpperLimit("");
+                              setKeywordsBidLowerLimit("");
+                            }}
+                            className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setShowKeywordsConfirmationModal(true);
+                            }}
+                            disabled={!keywordsBidValue || keywordsBulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Filter Panel */}
                 {isKeywordsFilterPanelOpen && (
                   <div className="mb-4">
@@ -3483,6 +4142,14 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={keywordsSortBy}
                     sortOrder={keywordsSortOrder}
                     onSort={handleKeywordsSort}
+                    editingField={editingKeywordField}
+                    editedValue={editedKeywordValue}
+                    onEditStart={handleKeywordEditStart}
+                    onEditChange={handleKeywordEditChange}
+                    onEditEnd={handleKeywordEditEnd}
+                    onEditCancel={handleKeywordEditCancel}
+                    inlineEditLoading={keywordEditLoading}
+                    pendingChange={pendingKeywordChange}
                   />
                 </div>
                 {/* Pagination */}
@@ -4369,6 +5036,68 @@ export const CampaignDetail: React.FC = () => {
         isSuccess={errorModal.isSuccess}
       />
 
+      {/* Confirmation Modal for Keywords Bulk Actions */}
+      {showKeywordsConfirmationModal && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!keywordsBulkLoading) {
+                setShowKeywordsConfirmationModal(false);
+                setPendingKeywordsStatusAction(null);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Action
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  {pendingKeywordsStatusAction
+                    ? `Are you sure you want to ${
+                        pendingKeywordsStatusAction === "enable"
+                          ? "enable"
+                          : "pause"
+                      } ${selectedKeywordIds.size} keyword(s)?`
+                    : `Are you sure you want to update the bid for ${selectedKeywordIds.size} keyword(s)?`}
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowKeywordsConfirmationModal(false);
+                    setPendingKeywordsStatusAction(null);
+                  }}
+                  disabled={keywordsBulkLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (pendingKeywordsStatusAction) {
+                      await handleBulkKeywordsStatus(
+                        pendingKeywordsStatusAction
+                      );
+                    } else {
+                      await handleBulkKeywordsBid();
+                    }
+                  }}
+                  disabled={keywordsBulkLoading}
+                  className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {keywordsBulkLoading ? "Processing..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal for Ad Groups Bulk Actions */}
       {showAdGroupsConfirmationModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center">
@@ -4441,7 +5170,11 @@ export const CampaignDetail: React.FC = () => {
           );
           const adgroupName = adgroup?.name || "Unnamed Ad Group";
           const fieldLabel =
-            pendingAdGroupChange.field === "status" ? "Status" : "Default Bid";
+            pendingAdGroupChange.field === "status"
+              ? "Status"
+              : pendingAdGroupChange.field === "default_bid"
+              ? "Default Bid"
+              : "Name";
 
           // Format old value
           let oldValueDisplay = "";
@@ -4454,7 +5187,7 @@ export const CampaignDetail: React.FC = () => {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}`;
-          } else {
+          } else if (pendingAdGroupChange.field === "status") {
             oldValueDisplay =
               pendingAdGroupChange.oldValue === "enabled"
                 ? "Enabled"
@@ -4463,6 +5196,9 @@ export const CampaignDetail: React.FC = () => {
                 : pendingAdGroupChange.oldValue === "archived"
                 ? "Archived"
                 : pendingAdGroupChange.oldValue;
+          } else {
+            // name
+            oldValueDisplay = pendingAdGroupChange.oldValue || "—";
           }
 
           // Format new value
@@ -4476,7 +5212,7 @@ export const CampaignDetail: React.FC = () => {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}`;
-          } else {
+          } else if (pendingAdGroupChange.field === "status") {
             newValueDisplay =
               pendingAdGroupChange.newValue === "enabled"
                 ? "Enabled"
@@ -4485,6 +5221,9 @@ export const CampaignDetail: React.FC = () => {
                 : pendingAdGroupChange.newValue === "archived"
                 ? "Archived"
                 : pendingAdGroupChange.newValue;
+          } else {
+            // name
+            newValueDisplay = pendingAdGroupChange.newValue || "—";
           }
 
           return (
@@ -4546,6 +5285,123 @@ export const CampaignDetail: React.FC = () => {
                     className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
                   >
                     {adGroupEditLoading.has(pendingAdGroupChange.id)
+                      ? "Updating..."
+                      : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* Inline Edit Confirmation Modal for Keywords */}
+      {pendingKeywordChange &&
+        showKeywordsConfirmationModal &&
+        (() => {
+          const keyword = keywords.find(
+            (kw) => kw.id === pendingKeywordChange.id
+          );
+          const keywordName = keyword?.name || "Unnamed Keyword";
+          const fieldLabel =
+            pendingKeywordChange.field === "status" ? "Status" : "Bid";
+
+          // Format old value
+          let oldValueDisplay = "";
+          if (pendingKeywordChange.field === "bid") {
+            oldValueDisplay = pendingKeywordChange.oldValue.startsWith("$")
+              ? pendingKeywordChange.oldValue
+              : `$${parseFloat(
+                  pendingKeywordChange.oldValue || "0"
+                ).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`;
+          } else if (pendingKeywordChange.field === "status") {
+            oldValueDisplay =
+              pendingKeywordChange.oldValue === "enabled"
+                ? "Enabled"
+                : pendingKeywordChange.oldValue === "paused"
+                ? "Paused"
+                : "Archived";
+          }
+
+          // Format new value
+          let newValueDisplay = "";
+          if (pendingKeywordChange.field === "bid") {
+            newValueDisplay = `$${parseFloat(
+              pendingKeywordChange.newValue || "0"
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`;
+          } else if (pendingKeywordChange.field === "status") {
+            newValueDisplay =
+              pendingKeywordChange.newValue === "enabled"
+                ? "Enabled"
+                : pendingKeywordChange.newValue === "paused"
+                ? "Paused"
+                : "Archived";
+          }
+
+          return (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              onClick={(e) => {
+                if (
+                  e.target === e.currentTarget &&
+                  !keywordEditLoading.has(pendingKeywordChange.id)
+                ) {
+                  cancelKeywordChange();
+                }
+              }}
+            >
+              <div
+                className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                  Confirm {fieldLabel} Change
+                </h3>
+
+                <div className="mb-4">
+                  <p className="text-[12.16px] text-[#556179] mb-2">
+                    Keyword:{" "}
+                    <span className="font-semibold text-[#072929]">
+                      {keywordName}
+                    </span>
+                  </p>
+                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {fieldLabel}:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {oldValueDisplay}
+                        </span>
+                        <span className="text-[12.16px] text-[#556179]">→</span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {newValueDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={cancelKeywordChange}
+                    disabled={keywordEditLoading.has(pendingKeywordChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmKeywordChange}
+                    disabled={keywordEditLoading.has(pendingKeywordChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                  >
+                    {keywordEditLoading.has(pendingKeywordChange.id)
                       ? "Updating..."
                       : "Confirm"}
                   </button>
