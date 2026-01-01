@@ -1200,7 +1200,10 @@ export const campaignsService = {
         | "name"
         | "portfolioId"
         | "endDate"
-        | "targetingType";
+        | "targetingType"
+        | "tags"
+        | "siteRestrictions"
+        | "dynamicBidding";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
       budgetType?: "DAILY" | "LIFETIME";
@@ -1212,6 +1215,9 @@ export const campaignsService = {
       portfolioId?: string | null;
       endDate?: string | null;
       targetingType?: "AUTO" | "MANUAL";
+      tags?: Array<{ key: string; value: string }>;
+      siteRestrictions?: string | null;
+      dynamicBidding?: any;
     }
   ) => {
     const url = `/accounts/${accountId}/campaigns/bulk-update/`;
@@ -1227,6 +1233,27 @@ export const campaignsService = {
   ) => {
     const url = `/accounts/${accountId}/campaigns/bulk-delete/`;
     const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  updateCampaign: async (
+    accountId: number,
+    campaignId: string | number,
+    payload: {
+      name?: string;
+      status?: "enable" | "pause";
+      budget?: number;
+      budgetType?: "DAILY" | "LIFETIME";
+      endDate?: string | null;
+      portfolioId?: string | null;
+      targetingType?: "AUTO" | "MANUAL";
+      tags?: Array<{ key: string; value: string }>;
+      siteRestrictions?: string | null;
+      dynamicBidding?: any;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/update/`;
+    const response = await api.put(url, payload);
     return response.data;
   },
 
@@ -1643,7 +1670,7 @@ export const campaignsService = {
       portfolioId?: string;
       siteRestrictions?: string[];
       targetedPGDealId?: string;
-      tags?: Record<string, string>;
+      tags?: Array<{ key: string; value: string }>;
       smartDefault?: "MANUAL" | "TARGETING";
       bidding?: {
         bidOptimization?: boolean;

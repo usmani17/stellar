@@ -15,13 +15,7 @@ export const useBulkUpdateCampaigns = (accountId: number) => {
   return useMutation({
     mutationFn: async (payload: {
       campaignIds: Array<string | number>;
-      action:
-        | "status"
-        | "budget"
-        | "budgetType"
-        | "endDate"
-        | "portfolioId"
-        | "targetingType";
+      action: "status" | "budget" | "budgetType" | "endDate" | "portfolioId" | "targetingType" | "name" | "tags" | "siteRestrictions" | "dynamicBidding";
       status?: "enable" | "pause";
       budgetAction?: "increase" | "decrease" | "set";
       unit?: "percent" | "amount";
@@ -32,6 +26,10 @@ export const useBulkUpdateCampaigns = (accountId: number) => {
       endDate?: string | null;
       portfolioId?: string | number | null;
       targetingType?: "AUTO" | "MANUAL";
+      name?: string;
+      tags?: Record<string, string>;
+      siteRestrictions?: string | null;
+      dynamicBidding?: any;
     }) => {
       return await campaignsService.bulkUpdateCampaigns(accountId, payload);
     },

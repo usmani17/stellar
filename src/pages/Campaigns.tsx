@@ -254,19 +254,55 @@ export const Campaigns: React.FC = () => {
     message: string;
     title?: string;
     isSuccess?: boolean;
+    fieldErrors?: Record<string, string>;
+    genericErrors?: string[];
     actionButton?: {
       text: string;
       onClick: () => void;
     };
   }>({ isOpen: false, message: "" });
+  // Extract error message from mutation error, handling both direct errors and API response errors
+  const createCampaignError = useMemo(() => {
+    if (!createCampaignMutation.error) return null;
 
-  const createCampaignError = createCampaignMutation.error
-    ? createCampaignMutation.error.message
-    : null;
+    const error = createCampaignMutation.error as any;
+
+    // Try to extract from API response first (most common case)
+    if (error?.response?.data?.error) {
+      // Check if there are field errors to include
+      const fieldErrors = error.response.data.field_errors;
+      if (fieldErrors) {
+        return JSON.stringify({
+          message: error.response.data.error,
+          fieldErrors: fieldErrors,
+        });
+      }
+      return error.response.data.error;
+    }
+
+    // Try to parse if it's a JSON stringified error with field errors
+    if (error?.message) {
+      try {
+        const parsed = JSON.parse(error.message);
+        if (parsed.message && parsed.fieldErrors) {
+          return error.message; // Return the JSON string so panel can parse it
+        }
+        return parsed.message || error.message;
+      } catch (e) {
+        // Not JSON, return as is
+        return error.message;
+      }
+    }
+
+    return error?.message || "Failed to create campaign";
+  }, [createCampaignMutation.error]);
   const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">(
     "create"
   );
   const [initialCampaignData, setInitialCampaignData] =
+    useState<Partial<CreateCampaignData> | null>(null);
+  // Store a deep snapshot of initialCampaignData when it's set to prevent mutations
+  const [originalCampaignDataSnapshot, setOriginalCampaignDataSnapshot] =
     useState<Partial<CreateCampaignData> | null>(null);
   const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
     string | number | null
@@ -739,9 +775,10 @@ export const Campaigns: React.FC = () => {
 
       console.log("Create campaign response:", response);
 
-      // Extract campaign ID from response
-      // Backend returns: { "created": True, "campaignId": "...", "response": {...} }
+      // Extract campaign ID and type from response
+      // Backend returns: { "created": True, "campaignId": "...", "campaignType": "SP"|"SB"|"SD", "response": {...} }
       let campaignId: string | number | null = null;
+      const campaignType = response?.campaignType || data.type || "SP"; // Use response type or fallback to data type
 
       // First try to get campaignId directly from response
       if (response?.campaignId) {
@@ -763,6 +800,8 @@ export const Campaigns: React.FC = () => {
 
       // Show success modal with navigation button if we have campaign ID
       if (campaignId) {
+        // Construct URL with campaign type prefix: sp_123456, sb_123456, or sd_123456
+        const campaignTypeAndId = `${campaignType.toLowerCase()}_${campaignId}`;
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -772,7 +811,9 @@ export const Campaigns: React.FC = () => {
             text: "View Campaign",
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
-              navigate(`/accounts/${accountIdNum}/campaigns/${campaignId}`);
+              navigate(
+                `/accounts/${accountIdNum}/campaigns/${campaignTypeAndId}`
+              );
             },
           },
         });
@@ -790,60 +831,57 @@ export const Campaigns: React.FC = () => {
 
       // Extract error message from backend response
       let errorMessage = "Failed to create campaign. Please try again.";
-      let errorDetails = null;
       let fieldErrors: Record<string, string> = {};
+      let genericErrors: string[] = [];
 
       if (error?.response?.data) {
-        // Check for validation errors (400 status)
-        if (error.response.status === 400) {
-          // Check for field-specific validation errors
-          if (error.response.data.field_errors) {
-            fieldErrors = error.response.data.field_errors;
-          }
+        // Parse standardized error format
+        if (error.response.data.field_errors) {
+          fieldErrors = error.response.data.field_errors;
+        }
 
-          if (error.response.data.error) {
-            errorMessage = error.response.data.error;
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
-          }
-        } else {
-          // Check for error message
-          if (error.response.data.error) {
-            errorMessage = error.response.data.error;
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
-          }
+        if (error.response.data.generic_errors) {
+          genericErrors = Array.isArray(error.response.data.generic_errors)
+            ? error.response.data.generic_errors
+            : [error.response.data.generic_errors];
+        }
 
-          // Check for detailed error information
-          if (error.response.data.details) {
-            errorDetails = error.response.data.details;
-            // If details is an object with errors, format it
-            if (
-              typeof errorDetails === "object" &&
-              !Array.isArray(errorDetails)
-            ) {
-              if (errorDetails.errors) {
-                errorMessage = `Amazon API errors: ${JSON.stringify(
-                  errorDetails.errors
-                )}`;
-              } else if (errorDetails.message) {
-                errorMessage = `Amazon API error: ${errorDetails.message}`;
-              }
-            }
-          }
+        // Get summary error message
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (genericErrors.length > 0) {
+          errorMessage = genericErrors[0];
+        } else if (Object.keys(fieldErrors).length > 0) {
+          // Build summary from field errors
+          const fieldNames = Object.keys(fieldErrors);
+          errorMessage = `Validation failed: ${fieldNames.length} field error(s)`;
         }
       } else if (error?.message) {
         errorMessage = error.message;
+        genericErrors = [error.message];
       }
+
+      // Auto-open error modal with field errors and generic errors
+      setErrorModal({
+        isOpen: true,
+        title: "Validation Error",
+        message: errorMessage,
+        isSuccess: false,
+        fieldErrors:
+          Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+        genericErrors: genericErrors.length > 0 ? genericErrors : undefined,
+      });
 
       // Pass field errors to the panel via a custom error object
       // The panel will parse this and set field-specific errors
       const errorWithFields = {
         message: errorMessage,
         fieldErrors: fieldErrors,
+        genericErrors: genericErrors,
       };
 
-      // Don't close panel on error - let user fix and resubmit
       // Re-throw error so the form knows submission failed
       // Note: createCampaignError is derived from mutation error state
       throw new Error(JSON.stringify(errorWithFields));
@@ -871,38 +909,38 @@ export const Campaigns: React.FC = () => {
       throw new Error("Invalid account ID");
     }
 
-    setCreateCampaignLoading(true);
-    setCreateCampaignError(null);
+    // Set loading state for the specific campaign being edited
+    setEditLoadingCampaignId(campaignId);
 
     try {
       // Get original data to compare changes
-      const original = initialCampaignData;
+      // IMPORTANT: Use the snapshot (captured when form opened) instead of current initialCampaignData
+      // This prevents mutations from the form affecting the comparison
+      const original = originalCampaignDataSnapshot
+        ? JSON.parse(JSON.stringify(originalCampaignDataSnapshot))
+        : initialCampaignData
+        ? JSON.parse(JSON.stringify(initialCampaignData))
+        : null;
       if (!original) {
         throw new Error("Original campaign data not available");
       }
 
-      // Track which fields have changed
-      const updates: Array<Promise<any>> = [];
+      // Build update payload with all changed fields
+      const updatePayload: any = {};
 
       // 1. Check if name changed
       if (
         data.campaign_name !== original.campaign_name &&
         data.campaign_name.trim()
       ) {
-        updates.push(
-          bulkUpdateMutation.mutateAsync({
-            campaignIds: [campaignId],
-            action: "name",
-            name: data.campaign_name.trim(),
-          })
-        );
+        updatePayload.name = data.campaign_name.trim();
       }
 
       // 2. Check if status changed
       const originalStatus = original.status || "";
       const newStatus = data.status || "";
 
-      // Normalize status values for comparison (convert to lowercase for comparison)
+      // Normalize status values for comparison
       const normalizeStatusForCompare = (s: string) => {
         const upper = s.toUpperCase();
         if (upper === "ENABLED" || upper === "ENABLE") return "enabled";
@@ -926,48 +964,28 @@ export const Campaigns: React.FC = () => {
         normalizeStatusForCompare(newStatus) !==
         normalizeStatusForCompare(originalStatus)
       ) {
-        const statusValue = statusMap[newStatus] || "enable";
-        updates.push(
-          bulkUpdateMutation.mutateAsync({
-            campaignIds: [campaignId],
-            action: "status",
-            status: statusValue,
-          })
-        );
+        updatePayload.status = statusMap[newStatus] || "enable";
       }
 
       // 3. Check if budget changed
       const originalBudget = original.budget || 0;
       const newBudget = data.budget || 0;
       if (Math.abs(newBudget - originalBudget) > 0.01) {
-        updates.push(
-          bulkUpdateMutation.mutateAsync({
-            campaignIds: [campaignId],
-            action: "budget",
-            budgetAction: "set",
-            unit: "amount",
-            value: newBudget,
-          })
-        );
+        updatePayload.budget = newBudget;
       }
 
-      // 4. Check if budgetType changed (only for SB and SD campaigns)
+      // 4. Check if budgetType changed
       const originalBudgetType = original.budgetType || "";
       const newBudgetType = data.budgetType || "";
-      // Normalize budgetType values for comparison
       const normalizeBudgetType = (bt: string) => bt.toUpperCase();
       if (
         normalizeBudgetType(newBudgetType) !==
           normalizeBudgetType(originalBudgetType) &&
         (newBudgetType === "DAILY" || newBudgetType === "LIFETIME")
       ) {
-        updates.push(
-          bulkUpdateMutation.mutateAsync({
-            campaignIds: [campaignId],
-            action: "budgetType",
-            budgetType: newBudgetType.toUpperCase() as "DAILY" | "LIFETIME",
-          })
-        );
+        updatePayload.budgetType = newBudgetType.toUpperCase() as
+          | "DAILY"
+          | "LIFETIME";
       }
 
       // 5. Check if endDate changed (for SP campaigns)
@@ -978,9 +996,7 @@ export const Campaigns: React.FC = () => {
         // Convert both to YYYYMMDD format for comparison
         const normalizeEndDate = (dateStr: string): string => {
           if (!dateStr) return "";
-          // If already in YYYYMMDD format, return as is
           if (!dateStr.includes("-") && /^\d{8}$/.test(dateStr)) return dateStr;
-          // If in YYYY-MM-DD format, convert to YYYYMMDD
           if (dateStr.includes("-")) {
             return dateStr.replace(/-/g, "");
           }
@@ -991,23 +1007,13 @@ export const Campaigns: React.FC = () => {
         const newEndDateNormalized = normalizeEndDate(newEndDate);
 
         if (originalEndDateNormalized !== newEndDateNormalized) {
-          // Format as YYYYMMDD for API (or null if empty)
-          const endDateForAPI = newEndDateNormalized || null;
-
-          updates.push(
-            campaignsService.bulkUpdateCampaigns(accountIdNum, {
-              campaignIds: [campaignId],
-              action: "endDate",
-              endDate: endDateForAPI,
-            })
-          );
+          updatePayload.endDate = newEndDateNormalized || null;
         }
       }
 
       // 6. Check if portfolioId changed
       const originalPortfolioId = original.portfolioId || "";
       const newPortfolioId = data.portfolioId || "";
-      // Compare as strings (both could be empty string or undefined)
       const originalPortfolioIdStr = originalPortfolioId
         ? String(originalPortfolioId).trim()
         : "";
@@ -1015,21 +1021,13 @@ export const Campaigns: React.FC = () => {
         ? String(newPortfolioId).trim()
         : "";
       if (originalPortfolioIdStr !== newPortfolioIdStr) {
-        // If newPortfolioId is empty, send null to remove portfolio assignment
-        updates.push(
-          campaignsService.bulkUpdateCampaigns(accountIdNum, {
-            campaignIds: [campaignId],
-            action: "portfolioId",
-            portfolioId: newPortfolioIdStr || null,
-          })
-        );
+        updatePayload.portfolioId = newPortfolioIdStr || null;
       }
 
       // 7. Check if targetingType changed (for SP campaigns)
       if (data.type === "SP") {
         const originalTargetingType = original.targetingType || "";
         const newTargetingType = data.targetingType || "";
-        // Normalize for comparison (handle both cases)
         const normalizeTargetingType = (tt: string) => {
           if (!tt) return "";
           return tt.toUpperCase();
@@ -1038,42 +1036,286 @@ export const Campaigns: React.FC = () => {
           normalizeTargetingType(originalTargetingType) !==
           normalizeTargetingType(newTargetingType)
         ) {
-          updates.push(
-            campaignsService.bulkUpdateCampaigns(accountIdNum, {
-              campaignIds: [campaignId],
-              action: "targetingType",
-              targetingType: newTargetingType.toUpperCase() as
-                | "AUTO"
-                | "MANUAL",
-            })
+          updatePayload.targetingType = newTargetingType.toUpperCase() as
+            | "AUTO"
+            | "MANUAL";
+        }
+
+        // 8. Check if tags changed
+        const normalizeTags = (tags: any): string[] => {
+          if (!tags) return [];
+          if (Array.isArray(tags)) {
+            return tags
+              .filter(
+                (tag) => tag && typeof tag === "object" && tag.key && tag.value
+              )
+              .sort((a, b) => a.key.localeCompare(b.key))
+              .map((tag) => `${tag.key}:${tag.value}`);
+          }
+          if (typeof tags === "object" && tags !== null) {
+            return Object.entries(tags)
+              .filter(([key, value]) => key && value)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([key, value]) => `${key}:${value}`);
+          }
+          return [];
+        };
+
+        const originalNormalized = normalizeTags(original.tags);
+        const newNormalized = normalizeTags(data.tags);
+        const tagsChanged =
+          JSON.stringify(originalNormalized) !== JSON.stringify(newNormalized);
+
+        if (tagsChanged) {
+          let tagsToSend: Array<{ key: string; value: string }> = [];
+          const newTagsRaw = data.tags;
+
+          if (Array.isArray(newTagsRaw)) {
+            tagsToSend = newTagsRaw.filter(
+              (tag) => tag && typeof tag === "object" && tag.key && tag.value
+            );
+          } else if (typeof newTagsRaw === "object" && newTagsRaw !== null) {
+            tagsToSend = Object.entries(newTagsRaw)
+              .filter(([key, value]) => key && value)
+              .map(([key, value]) => ({
+                key: String(key),
+                value: String(value),
+              }));
+          }
+          updatePayload.tags = tagsToSend;
+        }
+
+        // 9. Check if siteRestrictions changed
+        // Skip siteRestrictions - cannot be updated after campaign creation (Amazon API limitation)
+        // Note: siteRestrictions field is disabled in edit mode, so this check should never trigger
+        // But we skip it anyway as a safety measure
+
+        // 10. Check if dynamicBidding (bidding) changed
+        const originalBidding = original.bidding || {};
+        const newBidding = data.bidding || {};
+
+        // First, do a quick check on raw data - if both are empty/undefined, no change
+        if (!originalBidding || Object.keys(originalBidding).length === 0) {
+          if (!newBidding || Object.keys(newBidding).length === 0) {
+            // Both empty, no change
+          } else if (
+            newBidding.bidAdjustmentsByPlacement &&
+            newBidding.bidAdjustmentsByPlacement.length > 0
+          ) {
+            // Original empty but new has placements - there's a change
+            updatePayload.dynamicBidding = newBidding;
+          }
+        } else if (!newBidding || Object.keys(newBidding).length === 0) {
+          // Original has data but new is empty - there's a change
+          updatePayload.dynamicBidding = newBidding;
+        } else {
+          // Both have data, normalize and compare
+          // Normalize bidding objects for comparison
+          const normalizeBidding = (bidding: any) => {
+            if (!bidding || typeof bidding !== "object") return {};
+
+            const normalized: any = {};
+
+            // Normalize strategy
+            if (bidding.strategy) {
+              normalized.strategy = bidding.strategy;
+            }
+
+            // Normalize bidAdjustmentsByPlacement - ensure all placements are included for accurate comparison
+            // The form always sends all 4 placements, but original data might only have non-zero ones
+            const allPlacements = [
+              "PLACEMENT_TOP",
+              "PLACEMENT_REST_OF_SEARCH",
+              "PLACEMENT_PRODUCT_PAGE",
+              "SITE_AMAZON_BUSINESS",
+            ];
+
+            if (
+              bidding.bidAdjustmentsByPlacement &&
+              Array.isArray(bidding.bidAdjustmentsByPlacement)
+            ) {
+              // Create a map of existing placements
+              const placementMap = new Map();
+              bidding.bidAdjustmentsByPlacement
+                .filter((adj: any) => adj && adj.placement)
+                .forEach((adj: any) => {
+                  placementMap.set(
+                    adj.placement,
+                    adj.percentage !== undefined && adj.percentage !== null
+                      ? Number(adj.percentage)
+                      : 0
+                  );
+                });
+
+              // Ensure all placements are included, defaulting to 0 if not present
+              const sorted = allPlacements
+                .map((placement) => ({
+                  placement,
+                  percentage: placementMap.get(placement) ?? 0,
+                }))
+                .sort((a, b) => a.placement.localeCompare(b.placement));
+
+              normalized.bidAdjustmentsByPlacement = sorted;
+            } else {
+              // If bidAdjustmentsByPlacement doesn't exist, create array with all placements at 0
+              normalized.bidAdjustmentsByPlacement = allPlacements
+                .map((placement) => ({ placement, percentage: 0 }))
+                .sort((a, b) => a.placement.localeCompare(b.placement));
+            }
+
+            // Normalize shopperCohortBidAdjustments - sort for consistent comparison
+            if (
+              bidding.shopperCohortBidAdjustments &&
+              Array.isArray(bidding.shopperCohortBidAdjustments)
+            ) {
+              const sorted = [...bidding.shopperCohortBidAdjustments]
+                .filter(
+                  (adj) =>
+                    adj &&
+                    adj.percentage !== undefined &&
+                    adj.percentage !== null
+                )
+                .sort((a, b) => {
+                  const aType = (a.shopperCohortType || "").localeCompare(
+                    b.shopperCohortType || ""
+                  );
+                  if (aType !== 0) return aType;
+                  return JSON.stringify(a.audienceSegments || []).localeCompare(
+                    JSON.stringify(b.audienceSegments || [])
+                  );
+                })
+                .map((adj) => ({
+                  percentage: Number(adj.percentage) || 0,
+                  shopperCohortType:
+                    adj.shopperCohortType || "AUDIENCE_SEGMENT",
+                  audienceSegments: Array.isArray(adj.audienceSegments)
+                    ? [...adj.audienceSegments].sort()
+                    : [],
+                }));
+              if (sorted.length > 0) {
+                normalized.shopperCohortBidAdjustments = sorted;
+              }
+            }
+
+            return normalized;
+          };
+
+          const normalizedOriginal = normalizeBidding(originalBidding);
+          const normalizedNew = normalizeBidding(newBidding);
+
+          // Compare placements more explicitly - check each placement individually
+          const originalPlacements =
+            normalizedOriginal.bidAdjustmentsByPlacement || [];
+          const newPlacements = normalizedNew.bidAdjustmentsByPlacement || [];
+
+          // Create maps for easier comparison
+          const originalPlacementMap = new Map(
+            originalPlacements.map((p: any) => [p.placement, p.percentage])
           );
+          const newPlacementMap = new Map(
+            newPlacements.map((p: any) => [p.placement, p.percentage])
+          );
+
+          // Check if any placement percentage differs
+          let placementsChanged = false;
+          const allPlacements = [
+            "PLACEMENT_TOP",
+            "PLACEMENT_REST_OF_SEARCH",
+            "PLACEMENT_PRODUCT_PAGE",
+            "SITE_AMAZON_BUSINESS",
+          ];
+          const placementComparisons: any = {};
+          for (const placement of allPlacements) {
+            const originalPct = originalPlacementMap.get(placement) ?? 0;
+            const newPct = newPlacementMap.get(placement) ?? 0;
+            placementComparisons[placement] = {
+              original: originalPct,
+              new: newPct,
+              changed: originalPct !== newPct,
+            };
+            if (originalPct !== newPct) {
+              placementsChanged = true;
+              break;
+            }
+          }
+
+          // Check if strategy changed
+          const strategyChanged =
+            normalizedOriginal.strategy !== normalizedNew.strategy;
+
+          // Check if shopper cohort adjustments changed
+          const originalCohorts =
+            normalizedOriginal.shopperCohortBidAdjustments || [];
+          const newCohorts = normalizedNew.shopperCohortBidAdjustments || [];
+          const cohortsChanged =
+            JSON.stringify(originalCohorts) !== JSON.stringify(newCohorts);
+
+          const biddingChanged =
+            placementsChanged || strategyChanged || cohortsChanged;
+
+          if (biddingChanged) {
+            updatePayload.dynamicBidding = newBidding;
+          }
         }
       }
 
-      // Execute all updates
-      if (updates.length === 0) {
-        // No changes detected, just close the panel
-        setIsCreateCampaignPanelOpen(false);
-        setCreateCampaignError(null);
-        setCreateCampaignLoading(false);
+      // Execute single update if there are changes
+      if (Object.keys(updatePayload).length === 0) {
+        // No changes detected, show message but keep panel open
+        setErrorModal({
+          isOpen: true,
+          title: "No Changes",
+          message:
+            "No changes were detected. The campaign data is already up to date.",
+          isSuccess: true,
+        });
+        // Don't close the panel - let user continue editing
+        setEditLoadingCampaignId(null);
         return;
       }
 
-      await Promise.all(updates);
+      // Make single API call with all changes
+      const response = await campaignsService.updateCampaign(
+        accountIdNum,
+        campaignId,
+        updatePayload
+      );
 
-      // React Query will automatically refetch campaigns after mutation
+      // Refetch campaigns to update the data table
+      await refetchCampaigns();
 
       // Close the panel
       setIsCreateCampaignPanelOpen(false);
       setInitialCampaignData(null);
+      setOriginalCampaignDataSnapshot(null); // Clear snapshot when closing
       setCampaignFormMode("create");
+      setEditLoadingCampaignId(null);
+
+      // Show success modal with optional "View Campaign" button
+      const campaignTypeAndId = `${data.type.toLowerCase()}_${campaignId}`;
+      setErrorModal({
+        isOpen: true,
+        title: "Success",
+        message: `Campaign "${data.campaign_name}" updated successfully!`,
+        isSuccess: true,
+        actionButton: {
+          text: "View Campaign",
+          onClick: () => {
+            setErrorModal({ isOpen: false, message: "" });
+            navigate(
+              `/accounts/${accountIdNum}/campaigns/${campaignTypeAndId}`
+            );
+          },
+        },
+      });
     } catch (error: any) {
       console.error("Failed to update campaign:", error);
+      setEditLoadingCampaignId(null);
       const errorMessage =
         error.response?.data?.error ||
         error.message ||
         "Failed to update campaign. Please try again.";
-      // Note: createCampaignError is derived from mutation error state
+      // Re-throw error so parent component can handle it
       throw error;
     }
   };
@@ -1121,6 +1363,80 @@ export const Campaigns: React.FC = () => {
         }
       }
 
+      // Map dynamicBidding from backend to frontend bidding structure
+      const mapDynamicBidding = (dynamicBidding: any) => {
+        if (!dynamicBidding) return undefined;
+
+        // If dynamicBidding is a string, parse it as JSON
+        let parsedBidding = dynamicBidding;
+        if (typeof dynamicBidding === "string") {
+          try {
+            parsedBidding = JSON.parse(dynamicBidding);
+          } catch (e) {
+            console.error("Failed to parse dynamicBidding JSON:", e);
+            return undefined;
+          }
+        }
+
+        const bidding: any = {
+          bidOptimization: true, // Default value
+          shopperCohortBidAdjustments: [],
+          bidAdjustmentsByPlacement: [],
+        };
+
+        // Map strategy
+        if (parsedBidding.strategy) {
+          bidding.strategy = parsedBidding.strategy;
+        }
+
+        // Map placementBidding to bidAdjustmentsByPlacement
+        if (
+          parsedBidding.placementBidding &&
+          Array.isArray(parsedBidding.placementBidding)
+        ) {
+          bidding.bidAdjustmentsByPlacement =
+            parsedBidding.placementBidding.map((pb: any) => ({
+              percentage: pb.percentage || 0,
+              placement: pb.placement, // Already in correct format (PLACEMENT_TOP, etc.)
+            }));
+        }
+
+        // Map shopperCohortBidding to shopperCohortBidAdjustments
+        if (
+          parsedBidding.shopperCohortBidding &&
+          Array.isArray(parsedBidding.shopperCohortBidding)
+        ) {
+          bidding.shopperCohortBidAdjustments =
+            parsedBidding.shopperCohortBidding.map((scb: any) => ({
+              percentage: scb.percentage || 0,
+              shopperCohortType: scb.shopperCohortType || "AUDIENCE_SEGMENT",
+              audienceSegments: scb.audienceSegments || [],
+            }));
+        }
+
+        console.log(
+          "Mapped dynamicBidding:",
+          parsedBidding,
+          "to bidding:",
+          bidding
+        );
+        return bidding;
+      };
+
+      // Map siteRestrictions (could be array or string)
+      const mapSiteRestrictions = (siteRestrictions: any) => {
+        if (!siteRestrictions) return undefined;
+        // If it's an array, take the first element (frontend expects string)
+        if (Array.isArray(siteRestrictions) && siteRestrictions.length > 0) {
+          return siteRestrictions[0];
+        }
+        // If it's a string, return as is
+        if (typeof siteRestrictions === "string") {
+          return siteRestrictions;
+        }
+        return undefined;
+      };
+
       const initial: Partial<CreateCampaignData> = {
         campaign_name: campaign.name || row.campaign_name,
         type: (row.type?.toUpperCase() as any) || "SP",
@@ -1143,7 +1459,60 @@ export const Campaigns: React.FC = () => {
           (campaign.targetingType as any) ||
           (campaign.targeting_type as any) ||
           undefined,
+        // Map dynamicBidding from backend to frontend bidding structure
+        bidding: mapDynamicBidding(
+          (campaign as any).dynamicBidding || (row as any).dynamicBidding
+        ),
+        // Map tags from object to array format
+        tags: (() => {
+          const tagsData = (campaign as any).tags || (row as any).tags;
+          if (!tagsData) return undefined;
+
+          // If it's already an array, return as is
+          if (Array.isArray(tagsData)) {
+            return tagsData;
+          }
+
+          // If it's an object, convert to array
+          if (typeof tagsData === "object" && tagsData !== null) {
+            return Object.entries(tagsData).map(([key, value]) => ({
+              key,
+              value: value as string,
+            }));
+          }
+
+          // If it's a string, try to parse as JSON
+          if (typeof tagsData === "string") {
+            try {
+              const parsed = JSON.parse(tagsData);
+              if (Array.isArray(parsed)) {
+                return parsed;
+              }
+              if (typeof parsed === "object" && parsed !== null) {
+                return Object.entries(parsed).map(([key, value]) => ({
+                  key,
+                  value: value as string,
+                }));
+              }
+            } catch (e) {
+              console.error("Failed to parse tags:", e);
+            }
+          }
+
+          return undefined;
+        })(),
+        // Map siteRestrictions
+        siteRestrictions: mapSiteRestrictions(
+          (campaign as any).siteRestrictions ||
+            (campaign as any).site_restrictions ||
+            (row as any).siteRestrictions ||
+            (row as any).site_restrictions
+        ),
       };
+
+      // Create a deep snapshot IMMEDIATELY to prevent mutations
+      const snapshot = JSON.parse(JSON.stringify(initial));
+      setOriginalCampaignDataSnapshot(snapshot);
 
       setInitialCampaignData(initial);
       setCampaignId(row.campaignId);
@@ -1154,10 +1523,7 @@ export const Campaigns: React.FC = () => {
       setEditLoadingCampaignId(null);
     } catch (error) {
       console.error("Failed to load campaign for edit:", error);
-      setCreateCampaignError("Failed to load campaign for edit");
       setEditLoadingCampaignId(null);
-    } finally {
-      setCreateCampaignLoading(false);
     }
   };
 
@@ -1359,6 +1725,8 @@ export const Campaigns: React.FC = () => {
         title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
         message={errorModal.message}
         isSuccess={errorModal.isSuccess}
+        fieldErrors={errorModal.fieldErrors}
+        genericErrors={errorModal.genericErrors}
         actionButton={errorModal.actionButton}
       />
 
@@ -1389,6 +1757,7 @@ export const Campaigns: React.FC = () => {
                   onToggle={() => {
                     setCampaignFormMode("create");
                     setInitialCampaignData(null);
+                    setOriginalCampaignDataSnapshot(null);
                     setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
                     setIsFilterPanelOpen(false); // Close filter panel when opening create panel
                   }}
@@ -1414,14 +1783,18 @@ export const Campaigns: React.FC = () => {
                   isOpen={isCreateCampaignPanelOpen}
                   onClose={() => {
                     setIsCreateCampaignPanelOpen(false);
-                    setCreateCampaignError(null);
                     setInitialCampaignData(null);
+                    setOriginalCampaignDataSnapshot(null);
                     setCampaignFormMode("create");
                     setCampaignId(undefined);
+                    setEditLoadingCampaignId(null);
                   }}
                   onSubmit={handleCampaignPanelSubmit}
                   accountId={accountId}
-                  loading={createCampaignLoading}
+                  loading={
+                    createCampaignLoading ||
+                    editLoadingCampaignId === campaignId
+                  }
                   submitError={createCampaignError}
                   mode={campaignFormMode}
                   initialData={initialCampaignData}

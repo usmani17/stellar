@@ -29,11 +29,15 @@ export interface CreateCampaignData {
     | "DRIVE_PAGE_VISITS"
     | "GROW_BRAND_IMPRESSION_SHARE"
     | "RESERVE_SHARE_OF_VOICE";
-  productLocation?: "SOLD_ON_AMAZON" | "NOT_SOLD_ON_AMAZON" | "SOLD_ON_DTC";
+  productLocation?:
+    | "SOLD_ON_AMAZON"
+    | "NOT_SOLD_ON_AMAZON"
+    | "SOLD_ON_DTC"
+    | "";
   costType?: string;
   portfolioId?: string;
   targetedPGDealId?: string;
-  tags?: Record<string, string>;
+  tags?: Array<{ key: string; value: string }>;
   smartDefault?: "MANUAL" | "TARGETING";
   country?: string;
   // Bidding object
@@ -50,7 +54,11 @@ export interface CreateCampaignData {
     }>;
     bidAdjustmentsByPlacement?: Array<{
       percentage: number;
-      placement: "PLACEMENT_TOP" | "PLACEMENT_REST_OF_SEARCH" | "PLACEMENT_PRODUCT_PAGE" | "SITE_AMAZON_BUSINESS";
+      placement:
+        | "PLACEMENT_TOP"
+        | "PLACEMENT_REST_OF_SEARCH"
+        | "PLACEMENT_PRODUCT_PAGE"
+        | "SITE_AMAZON_BUSINESS";
     }>;
   };
   // SD (Sponsored Display) specific fields
@@ -109,11 +117,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     // SB fields
     brandEntityId: "",
     goal: "DRIVE_PAGE_VISITS", // Default to Drive page visits
-    productLocation: "SOLD_ON_AMAZON",
+    productLocation: "",
     costType: "CPC",
     portfolioId: "",
     targetedPGDealId: "",
-    tags: {},
+    tags: [],
     smartDefault: undefined,
     // SD fields
     tactic: "",
@@ -132,7 +140,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     "strategy" | "placements" | "audiences"
   >("placements");
   const [increaseBidsForAudiences, setIncreaseBidsForAudiences] =
-    useState<boolean>(true);
+    useState<boolean>(false);
   const [selectedAudience, setSelectedAudience] = useState<string>("");
   const [audiencePercentage, setAudiencePercentage] = useState<number>(100);
   const [profileOptions, setProfileOptions] = useState<
@@ -146,6 +154,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   const [errors, setErrors] = useState<
     Partial<Record<keyof CreateCampaignData, string>>
   >({});
+  const [genericErrors, setGenericErrors] = useState<string[]>([]);
 
   // Load profiles when panel opens
   useEffect(() => {
@@ -183,9 +192,66 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     return dateStr;
   };
 
+  // Track the campaign ID that was used to initialize the form
+  const [initializedCampaignId, setInitializedCampaignId] = useState<
+    string | number | undefined
+  >(undefined);
+  // Store a snapshot of initialData when form is initialized to prevent re-initialization
+  const [snapshotInitialData, setSnapshotInitialData] =
+    useState<Partial<CreateCampaignData> | null>(null);
+
+  // Prevent formData from being reset when in edit mode - preserve all data
+  useEffect(() => {
+    // If we're in edit mode and formData.type is empty but we have initialized campaign,
+    // restore formData from snapshot to prevent fields from disappearing
+    if (
+      isOpen &&
+      mode === "edit" &&
+      initializedCampaignId === campaignId &&
+      snapshotInitialData &&
+      !formData.type
+    ) {
+      console.warn(
+        "Form data type is empty in edit mode, restoring from snapshot"
+      );
+      const restoredFormData = {
+        ...formData,
+        type: snapshotInitialData.type || formData.type,
+        campaign_name:
+          snapshotInitialData.campaign_name || formData.campaign_name,
+        budget: snapshotInitialData.budget || formData.budget,
+        budgetType: snapshotInitialData.budgetType || formData.budgetType,
+        status: snapshotInitialData.status || formData.status,
+        startDate: snapshotInitialData.startDate || formData.startDate,
+        endDate: snapshotInitialData.endDate
+          ? convertDateToInputFormat(snapshotInitialData.endDate)
+          : formData.endDate,
+        profileId: snapshotInitialData.profileId || formData.profileId,
+        portfolioId: snapshotInitialData.portfolioId || formData.portfolioId,
+        targetingType:
+          snapshotInitialData.targetingType || formData.targetingType,
+        bidding: snapshotInitialData.bidding || formData.bidding,
+        tags: snapshotInitialData.tags || formData.tags,
+        siteRestrictions:
+          snapshotInitialData.siteRestrictions || formData.siteRestrictions,
+      };
+      setFormData(restoredFormData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode, campaignId, initializedCampaignId, formData.type]);
+
   // When opening in edit mode, pre-populate form with initial data
   useEffect(() => {
-    if (isOpen && mode === "edit" && initialData) {
+    // Only initialize form once per campaign ID when entering edit mode
+    // Use snapshot to prevent re-initialization if initialData reference changes
+    const shouldInitialize =
+      isOpen &&
+      mode === "edit" &&
+      initialData &&
+      campaignId &&
+      initializedCampaignId !== campaignId;
+
+    if (shouldInitialize) {
       const newFormData = {
         ...initialData,
         // Ensure type is a valid value (fallback to previous if not provided)
@@ -197,40 +263,149 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           initialData.type === "SP"
             ? "DAILY"
             : initialData.budgetType || "DAILY",
+        // Populate bidding from initialData (mapped from dynamicBidding)
+        bidding: initialData.bidding || {
+          bidOptimization: true,
+          shopperCohortBidAdjustments: [],
+          bidAdjustmentsByPlacement: [],
+        },
+        // Populate tags from initialData - ensure it's always an array
+        tags: (() => {
+          const tagsData = initialData.tags;
+          if (Array.isArray(tagsData)) {
+            return tagsData;
+          }
+          if (tagsData && typeof tagsData === "object") {
+            // Convert object to array format
+            return Object.entries(tagsData).map(([key, value]) => ({
+              key,
+              value: value as string,
+            }));
+          }
+          return [];
+        })(),
+        // Populate siteRestrictions from initialData
+        siteRestrictions: initialData.siteRestrictions || undefined,
       };
-      setFormData((prev) => ({
-        ...prev,
-        ...newFormData,
-      }));
+      console.log("Setting form data with initialData:", {
+        initialData,
+        newFormData,
+        bidding: newFormData.bidding,
+      });
+
+      setFormData((prev) => {
+        const updated = {
+          ...prev,
+          ...newFormData,
+        };
+        console.log("Updated formData:", updated);
+        return updated;
+      });
+
       // Store original data for comparison (with original endDate format)
       setOriginalData({ ...initialData });
+
+      // Set active tab based on what data exists
+      if (initialData.bidding?.strategy) {
+        setActiveBiddingTab("strategy");
+      } else if (
+        initialData.bidding?.bidAdjustmentsByPlacement &&
+        initialData.bidding.bidAdjustmentsByPlacement.length > 0
+      ) {
+        setActiveBiddingTab("placements");
+      } else if (
+        initialData.bidding?.shopperCohortBidAdjustments &&
+        initialData.bidding.shopperCohortBidAdjustments.length > 0
+      ) {
+        setActiveBiddingTab("audiences");
+      }
+
+      // Set increaseBidsForAudiences based on existing bidding data
+      // If there are shopperCohortBidAdjustments, set to true, otherwise false (default)
+      if (
+        initialData.bidding?.shopperCohortBidAdjustments &&
+        initialData.bidding.shopperCohortBidAdjustments.length > 0
+      ) {
+        setIncreaseBidsForAudiences(true);
+        // Set selectedAudience and audiencePercentage from existing data if available
+        const firstAdjustment =
+          initialData.bidding.shopperCohortBidAdjustments[0];
+        if (
+          firstAdjustment.audienceSegments &&
+          firstAdjustment.audienceSegments.length > 0
+        ) {
+          const audienceSegment = firstAdjustment.audienceSegments[0];
+          setSelectedAudience(audienceSegment.audienceId || "");
+        }
+        if (firstAdjustment.percentage !== undefined) {
+          setAudiencePercentage(firstAdjustment.percentage);
+        }
+      } else {
+        setIncreaseBidsForAudiences(false);
+        setSelectedAudience("");
+        setAudiencePercentage(100);
+      }
+
+      // Mark this campaign as initialized and store snapshot
+      setInitializedCampaignId(campaignId);
+      setSnapshotInitialData({ ...initialData }); // Store snapshot to prevent re-initialization
     }
+
+    // Only reset form when explicitly switching to create mode (not just when panel closes)
     if (isOpen && mode === "create" && !initialData) {
       // For fresh create opens, reset the form
       resetForm();
       setOriginalData(null);
+      // Reset audience-related state to defaults
+      setIncreaseBidsForAudiences(false);
+      setSelectedAudience("");
+      setAudiencePercentage(100);
+      setInitializedCampaignId(undefined); // Reset when switching to create mode
+      setSnapshotInitialData(null);
+    }
+
+    // IMPORTANT: Never reset form data when in edit mode, even if panel closes
+    // This ensures form data persists even when modals open/close
+    // Only reset initialization flags when panel closes AND we're switching away from edit mode
+    if (!isOpen && mode !== "edit") {
+      setInitializedCampaignId(undefined);
+      setSnapshotInitialData(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, mode, initialData]);
+  }, [isOpen, mode, campaignId]);
 
-  // Parse field errors from submitError
+  // Parse field errors and generic errors from submitError
   useEffect(() => {
     if (submitError) {
       try {
-        // Try to parse as JSON (if it contains field errors)
+        // Try to parse as JSON (if it contains field errors and generic errors)
         const parsed = JSON.parse(submitError);
         if (parsed.fieldErrors && typeof parsed.fieldErrors === "object") {
           // Set field-specific errors
           setErrors(parsed.fieldErrors);
+        } else {
+          setErrors({});
+        }
+
+        // Extract generic errors
+        if (parsed.genericErrors && Array.isArray(parsed.genericErrors)) {
+          setGenericErrors(parsed.genericErrors);
+        } else if (parsed.message && !parsed.fieldErrors) {
+          // If there's a message but no field errors, treat it as a generic error
+          setGenericErrors([parsed.message]);
+        } else {
+          setGenericErrors([]);
         }
       } catch (e) {
         // If not JSON, it's just a plain error message
-        // Clear field errors but keep the general error message
+        // Clear field errors but treat the message as a generic error
         setErrors({});
+        setGenericErrors([submitError]);
       }
     } else {
       // Clear errors when submitError is cleared
       setErrors({});
+      setGenericErrors([]);
     }
   }, [submitError]);
 
@@ -317,7 +492,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
   const handleChange = (
     field: keyof CreateCampaignData,
-    value: string | number | string[] | Record<string, string>
+    value:
+      | string
+      | number
+      | string[]
+      | Record<string, string>
+      | Array<{ key: string; value: string }>
+      | undefined
   ) => {
     setFormData((prev) => {
       const updated = { ...prev, [field]: value };
@@ -390,15 +571,29 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         newErrors.status = "Status is required";
       }
 
-      // Validate end date for SP campaigns (must be today or in the future, can be empty)
-      if (formData.type === "SP" && formData.endDate) {
-        const selectedDate = new Date(formData.endDate);
+      // Validate end date for SP campaigns
+      if (
+        formData.type === "SP" &&
+        formData.endDate &&
+        formData.endDate.trim()
+      ) {
+        const endDate = new Date(formData.endDate);
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-        selectedDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
 
-        if (selectedDate < today) {
+        if (endDate < today) {
           newErrors.endDate = "End date must be today or in the future";
+        }
+
+        // Also validate end date is after start date if start date exists
+        if (formData.startDate && formData.startDate.trim()) {
+          const startDate = new Date(formData.startDate);
+          startDate.setHours(0, 0, 0, 0);
+
+          if (endDate <= startDate) {
+            newErrors.endDate = "End date must be greater than start date";
+          }
         }
       }
 
@@ -431,6 +626,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     // Start Date is required
     if (!formData.startDate || !formData.startDate.trim()) {
       newErrors.startDate = "Start Date is required";
+    } else {
+      // Validate start date is not in the past
+      const startDate = new Date(formData.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      startDate.setHours(0, 0, 0, 0);
+
+      if (startDate < today) {
+        newErrors.startDate = "Start date cannot be in the past";
+      }
+
+      // Validate end date is after start date (if both are provided)
+      if (formData.endDate && formData.endDate.trim()) {
+        const endDate = new Date(formData.endDate);
+        endDate.setHours(0, 0, 0, 0);
+
+        if (endDate <= startDate) {
+          newErrors.endDate = "End date must be greater than start date";
+        }
+      }
     }
 
     // SD specific validation
@@ -439,13 +654,20 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     }
 
     // SP specific: strategy is required if dynamicBidding (bidding) is provided (only for create mode)
+    // Only validate strategy requirement if bidding object has placementBidding or shopperCohortBidding
+    // If bidding only has bidOptimization, strategy is not required
     if (
+      mode === "create" &&
       formData.type === "SP" &&
       formData.bidding &&
+      ((formData.bidding.bidAdjustmentsByPlacement?.length ?? 0) > 0 ||
+        (formData.bidding.shopperCohortBidAdjustments?.length ?? 0) > 0) &&
       !formData.bidding.strategy
     ) {
-      // Strategy is required for create requests if dynamicBidding is provided
+      // Strategy is required for create requests if dynamicBidding with placements/audiences is provided
       // This prevents submission - error message is shown in the Strategy tab UI
+      newErrors.bidding =
+        "Strategy is required when placement or audience bid adjustments are provided";
       setErrors(newErrors);
       return false;
     }
@@ -456,8 +678,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
   const buildFilteredPayload = (
     data: CreateCampaignData
-  ): CreateCampaignData => {
-    const basePayload: CreateCampaignData = {
+  ): CreateCampaignData & {
+    tags?: Array<{ key: string; value: string }> | Record<string, string>;
+  } => {
+    const basePayload: CreateCampaignData & {
+      tags?: Array<{ key: string; value: string }> | Record<string, string>;
+    } = {
       campaign_name: data.campaign_name,
       type: data.type as "SP" | "SB" | "SD",
       budget: data.budget,
@@ -480,8 +706,17 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       if (data.siteRestrictions) {
         basePayload.siteRestrictions = data.siteRestrictions;
       }
-      if (data.tags && Object.keys(data.tags).length > 0) {
-        basePayload.tags = data.tags;
+      // Convert tags array to object for Amazon API
+      if (data.tags && Array.isArray(data.tags) && data.tags.length > 0) {
+        const tagsObject: Record<string, string> = {};
+        data.tags.forEach((tag) => {
+          if (tag.key && tag.value) {
+            tagsObject[tag.key] = tag.value;
+          }
+        });
+        if (Object.keys(tagsObject).length > 0) {
+          basePayload.tags = tagsObject as any;
+        }
       }
       // SP campaigns ONLY support DAILY budget type - always set to DAILY
       basePayload.budgetType = "DAILY";
@@ -515,7 +750,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       if (data.goal) {
         basePayload.goal = data.goal;
       }
-      if (data.productLocation) {
+      // Only include productLocation if it's selected (not empty)
+      if (data.productLocation && data.productLocation.trim() !== "") {
         basePayload.productLocation = data.productLocation;
       }
       if (data.costType) {
@@ -527,14 +763,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       if (data.targetedPGDealId) {
         basePayload.targetedPGDealId = data.targetedPGDealId;
       }
-      if (data.tags && Object.keys(data.tags).length > 0) {
-        basePayload.tags = data.tags;
+      // Convert tags array to object for Amazon API
+      if (data.tags && Array.isArray(data.tags) && data.tags.length > 0) {
+        const tagsObject: Record<string, string> = {};
+        data.tags.forEach((tag) => {
+          if (tag.key && tag.value) {
+            tagsObject[tag.key] = tag.value;
+          }
+        });
+        if (Object.keys(tagsObject).length > 0) {
+          basePayload.tags = tagsObject as any;
+        }
       }
       if (data.smartDefault) {
         basePayload.smartDefault = data.smartDefault;
       }
       if (data.bidding) {
         basePayload.bidding = data.bidding;
+      }
+      if (data.siteRestrictions) {
+        basePayload.siteRestrictions = data.siteRestrictions;
       }
 
       return basePayload;
@@ -558,21 +806,43 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Form submitted, mode:", mode);
+    console.log("Form data:", formData);
 
-    if (!validate()) {
+    const isValid = validate();
+    console.log("Validation result:", isValid, "Errors:", errors);
+    if (!isValid) {
+      console.log("Validation failed. Errors:", errors);
+      // Scroll to first error field (no alert needed - errors are shown inline)
+      const firstErrorField = Object.keys(errors)[0];
+      if (firstErrorField) {
+        // Try to find the input or dropdown for this field
+        const errorElement =
+          document.querySelector(`[name="${firstErrorField}"]`) ||
+          document.querySelector(`input[placeholder*="${firstErrorField}"]`) ||
+          document
+            .querySelector(`label:contains("${firstErrorField}")`)
+            ?.closest("div");
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
       return;
     }
 
     // Filter payload to only include campaign-type-specific fields
     const filteredPayload = buildFilteredPayload(formData);
+
     try {
       await onSubmit(filteredPayload);
+      console.log("onSubmit completed successfully");
       // Only reset form and close on success
       resetForm();
       setErrors({});
     } catch (error) {
       // Error handling is done in parent component
       // Don't reset form or close panel on error - let user fix and resubmit
+      console.error("Submit error:", error);
     }
   };
 
@@ -588,11 +858,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       profileId: "",
       brandEntityId: "",
       goal: undefined,
-      productLocation: "SOLD_ON_AMAZON",
+      productLocation: "",
       costType: "CPC",
       portfolioId: "",
       targetedPGDealId: "",
-      tags: {},
+      tags: [],
       smartDefault: undefined,
       tactic: "",
       // Targeting Type
@@ -624,6 +894,22 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
             {mode === "edit" ? "Edit Campaign" : "Create Campaign"}
           </h2>
+
+          {/* Validation Errors Banner */}
+          {Object.values(errors).filter(Boolean).length > 0 && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-[13px] font-semibold text-red-600 mb-2">
+                Please fix the following errors:
+              </p>
+              <ul className="list-disc list-inside text-[12px] text-red-600 space-y-1">
+                {Object.entries(errors)
+                  .filter(([_, error]) => error)
+                  .map(([field, error]) => (
+                    <li key={field}>{error}</li>
+                  ))}
+              </ul>
+            </div>
+          )}
 
           {/* Form Fields - Layout matching Figma */}
           <div className="space-y-6">
@@ -1055,6 +1341,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("startDate", e.target.value)
                           }
                           disabled={mode === "edit"}
+                          min={new Date().toISOString().split("T")[0]} // Prevent selecting past dates
                           className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.startDate
                               ? "border-red-500"
@@ -1090,7 +1377,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("endDate", e.target.value)
                           }
-                          min={new Date().toISOString().split("T")[0]} // Minimum date is today
+                          min={
+                            formData.startDate ||
+                            new Date().toISOString().split("T")[0]
+                          } // Must be after start date or today
                           className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
                               ? "border-red-500"
@@ -1176,7 +1466,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("endDate", e.target.value)
                           }
-                          min={formData.startDate || undefined}
+                          min={
+                            formData.startDate ||
+                            new Date().toISOString().split("T")[0]
+                          } // Must be after start date or today
                           disabled={mode === "edit"}
                           className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors.endDate
@@ -1242,11 +1535,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <h3 className="text-[14px] font-semibold text-[#072929]">
                         Dynamic Bidding
                       </h3>
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
                     </div>
 
                     {/* Bid Optimization Field */}
@@ -1255,13 +1543,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Bid Optimization
                       </label>
                       <div className="flex items-center gap-3">
-                        <label
-                          className={`flex items-center gap-2 ${
-                            mode === "edit"
-                              ? "cursor-not-allowed opacity-60"
-                              : "cursor-pointer"
-                          }`}
-                        >
+                        <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={formData.bidding?.bidOptimization ?? true}
@@ -1288,7 +1570,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 return updated;
                               });
                             }}
-                            disabled={mode === "edit"}
                             className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
                           />
                           <span className="text-[13.3px] font-medium text-[#072929]">
@@ -1387,12 +1668,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               }}
                               placeholder="Select strategy"
                               buttonClassName="w-full bg-[#FEFEFB] text-[14px] text-[#072929]"
-                              disabled={mode === "edit"}
                             />
                             {mode === "create" &&
                               formData.bidding &&
-                              !formData.bidding.strategy && (
-                                <p className="text-[10px] text-red-500 mt-1">
+                              !formData.bidding.strategy &&
+                              ((formData.bidding.bidAdjustmentsByPlacement
+                                ?.length ?? 0) > 0 ||
+                                (formData.bidding.shopperCohortBidAdjustments
+                                  ?.length ?? 0) > 0) && (
+                                <p className="text-[10px] text-[#556179] mt-1">
                                   Strategy is required when Dynamic Bidding is
                                   provided
                                 </p>
@@ -1483,12 +1767,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     min="-99"
                                     max="900"
                                     step="1"
-                                    disabled={mode === "edit"}
-                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                      mode === "edit"
-                                        ? "bg-gray-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className="bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                   />
                                 </div>
                                 <span className="text-[13px] text-[#072929]">
@@ -1508,7 +1787,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     type="number"
                                     value={
                                       formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                        (adj) => adj.placement === "PLACEMENT_REST_OF_SEARCH"
+                                        (adj) =>
+                                          adj.placement ===
+                                          "PLACEMENT_REST_OF_SEARCH"
                                       )?.percentage || 0
                                     }
                                     onChange={(e) => {
@@ -1530,7 +1811,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           ];
                                           const existingIndex =
                                             adjustments.findIndex(
-                                              (adj) => adj.placement === "PLACEMENT_REST_OF_SEARCH"
+                                              (adj) =>
+                                                adj.placement ===
+                                                "PLACEMENT_REST_OF_SEARCH"
                                             );
                                           if (existingIndex >= 0) {
                                             adjustments[
@@ -1539,7 +1822,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           } else {
                                             adjustments.push({
                                               percentage: value,
-                                              placement: "PLACEMENT_REST_OF_SEARCH",
+                                              placement:
+                                                "PLACEMENT_REST_OF_SEARCH",
                                             });
                                           }
                                           updated.bidding.bidAdjustmentsByPlacement =
@@ -1551,12 +1835,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     min="-99"
                                     max="900"
                                     step="1"
-                                    disabled={mode === "edit"}
-                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                      mode === "edit"
-                                        ? "bg-gray-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className="bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                   />
                                 </div>
                                 <span className="text-[13px] text-[#072929]">
@@ -1576,7 +1855,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     type="number"
                                     value={
                                       formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                        (adj) => adj.placement === "PLACEMENT_PRODUCT_PAGE"
+                                        (adj) =>
+                                          adj.placement ===
+                                          "PLACEMENT_PRODUCT_PAGE"
                                       )?.percentage || 0
                                     }
                                     onChange={(e) => {
@@ -1598,7 +1879,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           ];
                                           const existingIndex =
                                             adjustments.findIndex(
-                                              (adj) => adj.placement === "PLACEMENT_PRODUCT_PAGE"
+                                              (adj) =>
+                                                adj.placement ===
+                                                "PLACEMENT_PRODUCT_PAGE"
                                             );
                                           if (existingIndex >= 0) {
                                             adjustments[
@@ -1607,7 +1890,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           } else {
                                             adjustments.push({
                                               percentage: value,
-                                              placement: "PLACEMENT_PRODUCT_PAGE",
+                                              placement:
+                                                "PLACEMENT_PRODUCT_PAGE",
                                             });
                                           }
                                           updated.bidding.bidAdjustmentsByPlacement =
@@ -1619,12 +1903,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     min="-99"
                                     max="900"
                                     step="1"
-                                    disabled={mode === "edit"}
-                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                      mode === "edit"
-                                        ? "bg-gray-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className="bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                   />
                                 </div>
                                 <span className="text-[13px] text-[#072929]">
@@ -1644,7 +1923,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     type="number"
                                     value={
                                       formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                        (adj) => adj.placement === "SITE_AMAZON_BUSINESS"
+                                        (adj) =>
+                                          adj.placement ===
+                                          "SITE_AMAZON_BUSINESS"
                                       )?.percentage || 0
                                     }
                                     onChange={(e) => {
@@ -1666,7 +1947,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           ];
                                           const existingIndex =
                                             adjustments.findIndex(
-                                              (adj) => adj.placement === "SITE_AMAZON_BUSINESS"
+                                              (adj) =>
+                                                adj.placement ===
+                                                "SITE_AMAZON_BUSINESS"
                                             );
                                           if (existingIndex >= 0) {
                                             adjustments[
@@ -1687,12 +1970,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     min="-99"
                                     max="900"
                                     step="1"
-                                    disabled={mode === "edit"}
-                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                      mode === "edit"
-                                        ? "bg-gray-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className="bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                   />
                                 </div>
                                 <span className="text-[13px] text-[#072929]">
@@ -1723,7 +2001,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 onChange={() =>
                                   setIncreaseBidsForAudiences(true)
                                 }
-                                disabled={mode === "edit"}
                                 className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
                               />
                               <span className="text-[13px] font-medium text-[#072929]">
@@ -1744,7 +2021,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 onChange={() =>
                                   setIncreaseBidsForAudiences(false)
                                 }
-                                disabled={mode === "edit"}
                                 className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
                               />
                               <span className="text-[13px] font-medium text-[#072929]">
@@ -1787,7 +2063,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                       }
                                       placeholder="Select audience"
                                       buttonClassName="w-full bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                      disabled={mode === "edit"}
                                     />
                                     <svg
                                       className="w-4 h-4 text-[#556179] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -1822,12 +2097,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         min="0"
                                         max="900"
                                         step="1"
-                                        disabled={mode === "edit"}
-                                        className={`bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                          mode === "edit"
-                                            ? "bg-gray-50 cursor-not-allowed"
-                                            : ""
-                                        }`}
+                                        className="bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                       />
                                     </div>
                                     <span className="text-[13px] text-[#072929]">
@@ -1864,26 +2134,35 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Site Restrictions
                       </label>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mb-2 italic">
+                          Read-only: Site restrictions cannot be changed after
+                          campaign creation
+                        </p>
+                      )}
                       <Dropdown<string>
                         options={[
+                          {
+                            value: "",
+                            label: "Select Site Restrictions",
+                          },
                           {
                             value: "AMAZON_BUSINESS",
                             label: "AMAZON_BUSINESS",
                           },
                         ]}
-                        value={formData.siteRestrictions || undefined}
+                        value={formData.siteRestrictions || ""}
                         onChange={(value) =>
-                          handleChange("siteRestrictions", value)
+                          handleChange("siteRestrictions", value || undefined)
                         }
                         placeholder="Select site restrictions (optional)"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName={`w-full h-[38px] text-[14px] text-[#072929] ${
+                          mode === "edit"
+                            ? "bg-gray-50 cursor-not-allowed"
+                            : "bg-[#FEFEFB]"
+                        }`}
                         disabled={mode === "edit"}
                       />
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
                     </div>
 
                     {/* Tags */}
@@ -1891,102 +2170,69 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Tags (Key-Value Pairs) - Max 50
                       </label>
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mb-2 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
                       <div className="space-y-2">
-                        {Object.entries(formData.tags || {}).map(
-                          ([key, value], index) => (
-                            <div
-                              key={index}
-                              className="flex gap-2 items-center"
+                        {(formData.tags || []).map((tag, index) => (
+                          <div key={index} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              value={tag.key || ""}
+                              onChange={(e) => {
+                                const newTags = [...(formData.tags || [])];
+                                newTags[index] = {
+                                  ...newTags[index],
+                                  key: e.target.value,
+                                };
+                                handleChange("tags", newTags);
+                              }}
+                              placeholder="Key"
+                              className="bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            />
+                            <input
+                              type="text"
+                              value={tag.value || ""}
+                              onChange={(e) => {
+                                const newTags = [...(formData.tags || [])];
+                                newTags[index] = {
+                                  ...newTags[index],
+                                  value: e.target.value,
+                                };
+                                handleChange("tags", newTags);
+                              }}
+                              placeholder="Value"
+                              className="bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newTags = [...(formData.tags || [])];
+                                newTags.splice(index, 1);
+                                handleChange("tags", newTags);
+                              }}
+                              className="px-3 py-2 text-red-500 hover:text-red-700 transition-colors"
+                              title="Remove"
                             >
-                              <input
-                                type="text"
-                                value={key}
-                                onChange={(e) => {
-                                  const newTags = { ...formData.tags };
-                                  const oldKey = key;
-                                  delete newTags[oldKey];
-                                  if (e.target.value) {
-                                    newTags[e.target.value] = value;
-                                  }
-                                  handleChange("tags", newTags);
-                                }}
-                                placeholder="Key"
-                                disabled={mode === "edit"}
-                                className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                  mode === "edit"
-                                    ? "bg-gray-50 cursor-not-allowed"
-                                    : ""
-                                }`}
-                              />
-                              <input
-                                type="text"
-                                value={value}
-                                onChange={(e) => {
-                                  const newTags = { ...formData.tags };
-                                  newTags[key] = e.target.value;
-                                  handleChange("tags", newTags);
-                                }}
-                                placeholder="Value"
-                                disabled={mode === "edit"}
-                                className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                  mode === "edit"
-                                    ? "bg-gray-50 cursor-not-allowed"
-                                    : ""
-                                }`}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newTags = { ...formData.tags };
-                                  delete newTags[key];
-                                  handleChange("tags", newTags);
-                                }}
-                                disabled={mode === "edit"}
-                                className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
-                                  mode === "edit"
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : ""
-                                }`}
-                                title="Remove"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          )
-                        )}
-                        {(!formData.tags ||
-                          Object.keys(formData.tags).length < 50) && (
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        {(!formData.tags || formData.tags.length < 50) && (
                           <button
                             type="button"
                             onClick={() => {
-                              const newTags = { ...(formData.tags || {}) };
-                              const newKey = `key${
-                                Object.keys(newTags).length + 1
-                              }`;
-                              newTags[newKey] = "";
+                              const newTags = [...(formData.tags || [])];
+                              newTags.push({ key: "", value: "" });
                               handleChange("tags", newTags);
                             }}
-                            disabled={mode === "edit"}
-                            className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px] ${
-                              mode === "edit"
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                            }`}
+                            className="px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px]"
                           >
                             + Add Tag
                           </button>
                         )}
-                        {formData.tags &&
-                          Object.keys(formData.tags).length >= 50 && (
-                            <p className="text-[11px] text-[#556179]">
-                              Maximum of 50 tags reached
-                            </p>
-                          )}
+                        {formData.tags && formData.tags.length >= 50 && (
+                          <p className="text-[11px] text-[#556179]">
+                            Maximum of 50 tags reached
+                          </p>
+                        )}
                       </div>
                     </div>
                   </>
@@ -2144,6 +2390,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <Dropdown<string>
                         options={[
                           {
+                            value: "",
+                            label: "Select Product Location",
+                          },
+                          {
                             value: "SOLD_ON_AMAZON",
                             label:
                               "SOLD_ON_AMAZON - For products sold on Amazon websites",
@@ -2159,11 +2409,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               "SOLD_ON_DTC - Deprecated (For products sold on DTC websites)",
                           },
                         ]}
-                        value={formData.productLocation || "SOLD_ON_AMAZON"}
+                        value={formData.productLocation || ""}
                         onChange={(value) =>
                           handleChange("productLocation", value as any)
                         }
-                        placeholder="Select product location"
+                        placeholder="Select Product Location"
                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                         disabled={mode === "edit"}
                       />
@@ -2270,109 +2520,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Empty columns for spacing */}
                     <div></div>
                     <div></div>
-                  </div>
-                )}
-
-                {/* Tags Section - For SB campaigns */}
-                {formData.type === "SB" && (
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Tags (Key-Value Pairs) - Max 50
-                    </label>
-                    {mode === "edit" && (
-                      <p className="text-[10px] text-[#556179] mb-2 italic">
-                        Read-only in edit mode
-                      </p>
-                    )}
-                    <div className="space-y-2">
-                      {Object.entries(formData.tags || {}).map(
-                        ([key, value], index) => (
-                          <div key={index} className="flex gap-2 items-center">
-                            <input
-                              type="text"
-                              value={key}
-                              onChange={(e) => {
-                                const newTags = { ...formData.tags };
-                                const oldKey = key;
-                                delete newTags[oldKey];
-                                if (e.target.value) {
-                                  newTags[e.target.value] = value;
-                                }
-                                handleChange("tags", newTags);
-                              }}
-                              placeholder="Key"
-                              disabled={mode === "edit"}
-                              className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                mode === "edit"
-                                  ? "bg-gray-50 cursor-not-allowed"
-                                  : ""
-                              }`}
-                            />
-                            <input
-                              type="text"
-                              value={value}
-                              onChange={(e) => {
-                                const newTags = { ...formData.tags };
-                                newTags[key] = e.target.value;
-                                handleChange("tags", newTags);
-                              }}
-                              placeholder="Value"
-                              disabled={mode === "edit"}
-                              className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                mode === "edit"
-                                  ? "bg-gray-50 cursor-not-allowed"
-                                  : ""
-                              }`}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newTags = { ...formData.tags };
-                                delete newTags[key];
-                                handleChange("tags", newTags);
-                              }}
-                              disabled={mode === "edit"}
-                              className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
-                                mode === "edit"
-                                  ? "opacity-50 cursor-not-allowed"
-                                  : ""
-                              }`}
-                              title="Remove"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )
-                      )}
-                      {(!formData.tags ||
-                        Object.keys(formData.tags).length < 50) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newTags = { ...(formData.tags || {}) };
-                            const newKey = `key${
-                              Object.keys(newTags).length + 1
-                            }`;
-                            newTags[newKey] = "";
-                            handleChange("tags", newTags);
-                          }}
-                          disabled={mode === "edit"}
-                          className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px] ${
-                            mode === "edit"
-                              ? "opacity-50 cursor-not-allowed"
-                              : ""
-                          }`}
-                        >
-                          + Add Tag
-                        </button>
-                      )}
-                      {formData.tags &&
-                        Object.keys(formData.tags).length >= 50 && (
-                          <p className="text-[11px] text-[#556179]">
-                            Maximum of 50 tags reached
-                          </p>
-                        )}
-                    </div>
                   </div>
                 )}
 
@@ -2552,12 +2699,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     min="-99"
                                     max="900"
                                     step="1"
-                                    disabled={mode === "edit"}
-                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                      mode === "edit"
-                                        ? "bg-gray-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className="bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                   />
                                 </div>
                                 <span className="text-[13px] text-[#072929]">
@@ -2577,7 +2719,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     type="number"
                                     value={
                                       formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                        (adj) => adj.placement === "PLACEMENT_REST_OF_SEARCH"
+                                        (adj) =>
+                                          adj.placement ===
+                                          "PLACEMENT_REST_OF_SEARCH"
                                       )?.percentage || 0
                                     }
                                     onChange={(e) => {
@@ -2599,7 +2743,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           ];
                                           const existingIndex =
                                             adjustments.findIndex(
-                                              (adj) => adj.placement === "PLACEMENT_REST_OF_SEARCH"
+                                              (adj) =>
+                                                adj.placement ===
+                                                "PLACEMENT_REST_OF_SEARCH"
                                             );
                                           if (existingIndex >= 0) {
                                             adjustments[
@@ -2608,7 +2754,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           } else {
                                             adjustments.push({
                                               percentage: value,
-                                              placement: "PLACEMENT_REST_OF_SEARCH",
+                                              placement:
+                                                "PLACEMENT_REST_OF_SEARCH",
                                             });
                                           }
                                           updated.bidding.bidAdjustmentsByPlacement =
@@ -2620,12 +2767,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     min="-99"
                                     max="900"
                                     step="1"
-                                    disabled={mode === "edit"}
-                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                      mode === "edit"
-                                        ? "bg-gray-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className="bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                   />
                                 </div>
                                 <span className="text-[13px] text-[#072929]">
@@ -2645,7 +2787,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     type="number"
                                     value={
                                       formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                        (adj) => adj.placement === "PLACEMENT_PRODUCT_PAGE"
+                                        (adj) =>
+                                          adj.placement ===
+                                          "PLACEMENT_PRODUCT_PAGE"
                                       )?.percentage || 0
                                     }
                                     onChange={(e) => {
@@ -2667,7 +2811,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           ];
                                           const existingIndex =
                                             adjustments.findIndex(
-                                              (adj) => adj.placement === "PLACEMENT_PRODUCT_PAGE"
+                                              (adj) =>
+                                                adj.placement ===
+                                                "PLACEMENT_PRODUCT_PAGE"
                                             );
                                           if (existingIndex >= 0) {
                                             adjustments[
@@ -2676,7 +2822,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           } else {
                                             adjustments.push({
                                               percentage: value,
-                                              placement: "PLACEMENT_PRODUCT_PAGE",
+                                              placement:
+                                                "PLACEMENT_PRODUCT_PAGE",
                                             });
                                           }
                                           updated.bidding.bidAdjustmentsByPlacement =
@@ -2688,12 +2835,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     min="-99"
                                     max="900"
                                     step="1"
-                                    disabled={mode === "edit"}
-                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                      mode === "edit"
-                                        ? "bg-gray-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className="bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                   />
                                 </div>
                                 <span className="text-[13px] text-[#072929]">
@@ -2713,7 +2855,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     type="number"
                                     value={
                                       formData.bidding?.bidAdjustmentsByPlacement?.find(
-                                        (adj) => adj.placement === "SITE_AMAZON_BUSINESS"
+                                        (adj) =>
+                                          adj.placement ===
+                                          "SITE_AMAZON_BUSINESS"
                                       )?.percentage || 0
                                     }
                                     onChange={(e) => {
@@ -2735,7 +2879,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                           ];
                                           const existingIndex =
                                             adjustments.findIndex(
-                                              (adj) => adj.placement === "SITE_AMAZON_BUSINESS"
+                                              (adj) =>
+                                                adj.placement ===
+                                                "SITE_AMAZON_BUSINESS"
                                             );
                                           if (existingIndex >= 0) {
                                             adjustments[
@@ -2756,12 +2902,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                     min="-99"
                                     max="900"
                                     step="1"
-                                    disabled={mode === "edit"}
-                                    className={`bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                      mode === "edit"
-                                        ? "bg-gray-50 cursor-not-allowed"
-                                        : ""
-                                    }`}
+                                    className="bg-[#FEFEFB] w-full px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                   />
                                 </div>
                                 <span className="text-[13px] text-[#072929]">
@@ -2792,7 +2933,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 onChange={() =>
                                   setIncreaseBidsForAudiences(true)
                                 }
-                                disabled={mode === "edit"}
                                 className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
                               />
                               <span className="text-[13px] font-medium text-[#072929]">
@@ -2813,7 +2953,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 onChange={() =>
                                   setIncreaseBidsForAudiences(false)
                                 }
-                                disabled={mode === "edit"}
                                 className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300"
                               />
                               <span className="text-[13px] font-medium text-[#072929]">
@@ -2856,7 +2995,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                       }
                                       placeholder="Select audience"
                                       buttonClassName="w-full bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                      disabled={mode === "edit"}
                                     />
                                     <svg
                                       className="w-4 h-4 text-[#556179] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -2891,12 +3029,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                         min="0"
                                         max="900"
                                         step="1"
-                                        disabled={mode === "edit"}
-                                        className={`bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                          mode === "edit"
-                                            ? "bg-gray-50 cursor-not-allowed"
-                                            : ""
-                                        }`}
+                                        className="bg-[#FEFEFB] w-24 px-3 py-2 border border-gray-200 rounded text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                       />
                                     </div>
                                     <span className="text-[13px] text-[#072929]">
@@ -2920,6 +3053,104 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             </div>
                           )}
                         </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags Section - For SB campaigns */}
+                {formData.type === "SB" && (
+                  <div className="mt-4">
+                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      Tags (Key-Value Pairs) - Max 50
+                    </label>
+                    {mode === "edit" && (
+                      <p className="text-[10px] text-[#556179] mb-2 italic">
+                        Read-only in edit mode
+                      </p>
+                    )}
+                    <div className="space-y-2">
+                      {(formData.tags || []).map((tag, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            value={tag.key || ""}
+                            onChange={(e) => {
+                              const newTags = [...(formData.tags || [])];
+                              newTags[index] = {
+                                ...newTags[index],
+                                key: e.target.value,
+                              };
+                              handleChange("tags", newTags);
+                            }}
+                            placeholder="Key"
+                            disabled={mode === "edit"}
+                            className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                              mode === "edit"
+                                ? "bg-gray-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          />
+                          <input
+                            type="text"
+                            value={tag.value || ""}
+                            onChange={(e) => {
+                              const newTags = [...(formData.tags || [])];
+                              newTags[index] = {
+                                ...newTags[index],
+                                value: e.target.value,
+                              };
+                              handleChange("tags", newTags);
+                            }}
+                            placeholder="Value"
+                            disabled={mode === "edit"}
+                            className={`bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                              mode === "edit"
+                                ? "bg-gray-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newTags = [...(formData.tags || [])];
+                              newTags.splice(index, 1);
+                              handleChange("tags", newTags);
+                            }}
+                            disabled={mode === "edit"}
+                            className={`px-3 py-2 text-red-500 hover:text-red-700 transition-colors ${
+                              mode === "edit"
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {(!formData.tags || formData.tags.length < 50) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTags = [...(formData.tags || [])];
+                            newTags.push({ key: "", value: "" });
+                            handleChange("tags", newTags);
+                          }}
+                          disabled={mode === "edit"}
+                          className={`px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px] ${
+                            mode === "edit"
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          + Add Tag
+                        </button>
+                      )}
+                      {formData.tags && formData.tags.length >= 50 && (
+                        <p className="text-[11px] text-[#556179]">
+                          Maximum of 50 tags reached
+                        </p>
                       )}
                     </div>
                   </div>
@@ -2953,24 +3184,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
               : "Create Campaign"}
           </button>
         </div>
-
-        {/* Submit Error Display */}
-        {submitError && (
-          <div className="px-4 pb-4">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-[13px] text-red-600">
-                {(() => {
-                  try {
-                    const parsed = JSON.parse(submitError);
-                    return parsed.message || submitError;
-                  } catch (e) {
-                    return submitError;
-                  }
-                })()}
-              </p>
-            </div>
-          </div>
-        )}
       </form>
     </div>
   );
