@@ -51,7 +51,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   const formatFieldName = (fieldName: string): string => {
     // Convert camelCase to Title Case
     return fieldName
-      .replace(/([A-Z])/g, ' $1')
+      .replace(/([A-Z])/g, " $1")
       .replace(/^./, (str) => str.toUpperCase())
       .trim();
   };
@@ -65,15 +65,11 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       />
 
       {/* Modal */}
-<<<<<<< HEAD
-      <div className={`relative bg-white rounded-xl shadow-2xl ${needsLargeModal ? 'max-w-2xl' : 'max-w-md'} w-full mx-4 border border-[#E8E8E3]`}>
-=======
       <div
         className={`relative bg-white rounded-xl shadow-2xl ${
           errorDetails && errorDetails.length > 0 ? "max-w-2xl" : "max-w-md"
         } w-full mx-4 border border-[#E8E8E3]`}
       >
->>>>>>> b95754bf03c7ab8228a26039c848d54e5d8b3b09
         <div className="p-6">
           {/* Icon */}
           <div className="flex items-center justify-center mb-4">
