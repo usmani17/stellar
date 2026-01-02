@@ -207,11 +207,15 @@ export const LogsTable: React.FC<LogsTableProps> = ({
       {/* Main Container - All content inside sandstorm-s0 container */}
       <div className="self-stretch bg-sandstorm-s0 rounded-xl p-6 border border-sandstorm-s40">
         {/* Header Section - Title and Export Dropdown */}
-        {showHeader && (
+        {(showHeader || showExport) && (
           <div className="w-full flex justify-between items-center mb-4">
-            <h1 className="text-teal-950 text-2xl font-medium">
-              Log / History
-            </h1>
+            {showHeader ? (
+              <h1 className="text-teal-950 text-2xl font-medium">
+                Log / History
+              </h1>
+            ) : (
+              <div />
+            )}
             {/* Export Dropdown */}
             {showExport && (
               <div

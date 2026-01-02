@@ -158,6 +158,23 @@ export const Keywords: React.FC = () => {
     new Set()
   );
 
+  // Additional inline edit state for the confirmation modal flow
+  const [editingCell, setEditingCell] = useState<{
+    keywordId: string | number;
+    field: "status" | "bid";
+  } | null>(null);
+  const [editedValue, setEditedValue] = useState<string>("");
+  const [inlineEditKeyword, setInlineEditKeyword] = useState<Keyword | null>(
+    null
+  );
+  const [inlineEditField, setInlineEditField] = useState<
+    "status" | "bid" | null
+  >(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
+
   const toggleChartMetric = (key: string) => {
     setChartToggles((prev) => ({
       ...prev,
@@ -2010,7 +2027,9 @@ export const Keywords: React.FC = () => {
                 // Format old value
                 let oldValueDisplay = "";
                 if (pendingKeywordChange.field === "bid") {
-                  oldValueDisplay = pendingKeywordChange.oldValue.startsWith("$")
+                  oldValueDisplay = pendingKeywordChange.oldValue.startsWith(
+                    "$"
+                  )
                     ? pendingKeywordChange.oldValue
                     : `$${parseFloat(
                         pendingKeywordChange.oldValue || "0"
