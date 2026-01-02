@@ -304,7 +304,7 @@ export const TikTokCampaigns: React.FC = () => {
                             filterFields={TIKTOK_CAMPAIGN_FILTER_FIELDS}
                             initialFilters={filters}
                             accountId={accountId}
-                            channelType="amazon" // Using amazon for now as TikTok is not in the type
+                            channelType="tiktok"
                         />
 
                         {/* Performance Trends Chart */}

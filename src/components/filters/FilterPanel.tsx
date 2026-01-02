@@ -6,29 +6,27 @@ import { accountsService } from "../../services/accounts";
 export interface FilterItem {
   id: string;
   field:
-    | "campaign_name"
-    | "state"
-    | "budget"
-    | "type"
-    | "targeting_type"
-    | "profile_name"
-    | "status"
-    | "advertising_channel_type"
-    | "account_name"
-    | "name"
-    | "default_bid"
-    | "spends"
-    | "sales"
-    | "ctr"
-    | "bid"
-    | "adgroup_name"
-    | "sku"
-    | "adId"
-    | "asin"
-    | "adGroupId"
-    | "keywordText"
-    | "expression";
-  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, expression
+  | "campaign_name"
+  | "state"
+  | "budget"
+  | "type"
+  | "targeting_type"
+  | "profile_name"
+  | "status"
+  | "advertising_channel_type"
+  | "account_name"
+  | "name"
+  | "default_bid"
+  | "spends"
+  | "sales"
+  | "ctr"
+  | "bid"
+  | "adgroup_name"
+  | "sku"
+  | "adId"
+  | "asin"
+  | "adGroupId";
+  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId
   value: string | number;
 }
 
@@ -41,8 +39,7 @@ interface FilterPanelProps {
   initialFilters?: FilterValues;
   filterFields?: Array<{ value: string; label: string }>;
   accountId?: string;
-  channelType?: "amazon" | "google" | "walmart";
-  useUppercaseState?: boolean; // If true, use STATUS_OPTIONS (ENABLED, PAUSED) instead of STATE_OPTIONS (Enabled, Paused)
+  channelType?: "amazon" | "google" | "walmart" | "tiktok";
 }
 
 const DEFAULT_FILTER_FIELDS = [
@@ -77,6 +74,16 @@ const NUMERIC_OPERATORS = [
 
 const STATE_OPTIONS = ["Enabled", "Paused", "Archived"];
 const TYPE_OPTIONS = ["SP", "SB", "SD"];
+const TIKTOK_TYPE_OPTIONS = [
+  "TRAFFIC",
+  "CONVERSIONS",
+  "APP_PROMOTION",
+  "REACH",
+  "VIDEO_VIEWS",
+  "LEAD_GENERATION",
+  "PRODUCT_SALES",
+  "ENGAGEMENT",
+];
 const TARGETING_TYPE_OPTIONS = ["AUTO", "MANUAL"];
 const STATUS_OPTIONS = ["ENABLED", "PAUSED", "REMOVED"];
 // Expression types supported for negative targets
@@ -310,11 +317,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       operator: isProfileDropdown ? "equals" : selectedOperator || undefined,
       value:
         selectedField === "budget" ||
-        selectedField === "default_bid" ||
-        selectedField === "spends" ||
-        selectedField === "sales" ||
-        selectedField === "ctr" ||
-        selectedField === "bid"
+          selectedField === "default_bid" ||
+          selectedField === "spends" ||
+          selectedField === "sales" ||
+          selectedField === "ctr" ||
+          selectedField === "bid"
           ? parseFloat(filterValue) || 0
           : filterValue,
     };
@@ -534,24 +541,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Dropdown<string>
                 options={
                   selectedField === "campaign_name" ||
-                  selectedField === "profile_name" ||
-                  selectedField === "account_name" ||
-                  selectedField === "name" ||
-                  selectedField === "adgroup_name" ||
-                  selectedField === "sku" ||
-                  selectedField === "adId" ||
-                  selectedField === "asin" ||
-                  selectedField === "adGroupId" ||
-                  selectedField === "keywordText" ||
-                  selectedField === "expression"
+                    selectedField === "profile_name" ||
+                    selectedField === "account_name" ||
+                    selectedField === "name" ||
+                    selectedField === "adgroup_name" ||
+                    selectedField === "sku" ||
+                    selectedField === "adId" ||
+                    selectedField === "asin" ||
+                    selectedField === "adGroupId"
                     ? STRING_OPERATORS.map((op) => ({
-                        value: op.value,
-                        label: op.label,
-                      }))
+                      value: op.value,
+                      label: op.label,
+                    }))
                     : NUMERIC_OPERATORS.map((op) => ({
-                        value: op.value,
-                        label: op.label,
-                      }))
+                      value: op.value,
+                      label: op.label,
+                    }))
                 }
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
@@ -583,10 +588,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               ) : isStateOrType ? (
                 <Dropdown<string>
                   options={(selectedField === "state"
-                    ? useUppercaseState
-                      ? STATUS_OPTIONS
-                      : STATE_OPTIONS
-                    : TYPE_OPTIONS
+                    ? STATE_OPTIONS
+                    : channelType === "tiktok" ? TIKTOK_TYPE_OPTIONS : TYPE_OPTIONS
                   ).map((opt) => ({
                     value: opt,
                     label: opt,
@@ -594,7 +597,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue || undefined}
                   placeholder={`Select ${
                     selectedField === "state" ? "State" : "Type"
-                  }`}
+                    }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"
                 />
@@ -619,9 +622,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     label: opt,
                   }))}
                   value={filterValue || undefined}
-                  placeholder={`Select ${
-                    selectedField === "status" ? "Status" : "Channel Type"
-                  }`}
+                  placeholder={`Select ${selectedField === "status" ? "Status" : "Channel Type"
+                    }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"
                 />
