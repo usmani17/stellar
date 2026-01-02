@@ -14,6 +14,19 @@ import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { Button } from "../../components/ui";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { ErrorModal } from "../../components/ui/ErrorModal";
+import {
+    FilterSection,
+    FilterSectionPanel,
+} from "../../components/filters/FilterSection";
+import { type FilterValues } from "../../components/filters/FilterPanel";
+
+// TikTok Campaign Filter Fields
+const TIKTOK_CAMPAIGN_FILTER_FIELDS = [
+    { value: "campaign_name", label: "Campaign Name" },
+    { value: "state", label: "Status" },
+    { value: "type", label: "Objective Type" },
+    { value: "budget", label: "Budget" },
+];
 
 export const TikTokCampaigns: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
@@ -33,11 +46,9 @@ export const TikTokCampaigns: React.FC = () => {
     const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
     const [createLoading, setCreateLoading] = useState(false);
 
-    // Filter state
+    // Filter state - using FilterPanel compatible state
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-    const [statusFilter, setStatusFilter] = useState<string>("all");
-    const [nameFilter, setNameFilter] = useState<string>("");
-    const [typeFilter, setTypeFilter] = useState<string>("all");
+    const [filters, setFilters] = useState<FilterValues>([]);
 
     // Error modal state
     const [errorModal, setErrorModal] = useState<{
@@ -175,25 +186,34 @@ export const TikTokCampaigns: React.FC = () => {
         return data;
     }, []);
 
-    // Filter campaigns based on all active filters
+    // Filter campaigns based on FilterPanel filters and search query
     const filteredCampaignsItems = useMemo(() => {
         return campaigns.filter(campaign => {
-            // Status filter
-            if (statusFilter !== "all") {
-                const statusMatch = campaign.operation_status?.toLowerCase() === statusFilter.toLowerCase();
-                if (!statusMatch) return false;
-            }
-
-            // Name filter
-            if (nameFilter.trim() !== "") {
-                const nameMatch = campaign.campaign_name.toLowerCase().includes(nameFilter.toLowerCase());
-                if (!nameMatch) return false;
-            }
-
-            // Type filter
-            if (typeFilter !== "all") {
-                const typeMatch = campaign.objective_type === typeFilter;
-                if (!typeMatch) return false;
+            // Apply filters from FilterPanel
+            for (const filter of filters) {
+                if (filter.field === "campaign_name") {
+                    const nameMatch = campaign.campaign_name.toLowerCase().includes(String(filter.value).toLowerCase());
+                    if (filter.operator === "contains" && !nameMatch) return false;
+                    if (filter.operator === "not_contains" && nameMatch) return false;
+                    if (filter.operator === "equals" && campaign.campaign_name.toLowerCase() !== String(filter.value).toLowerCase()) return false;
+                }
+                if (filter.field === "state") {
+                    const statusNormalized = campaign.operation_status?.toLowerCase() === "enable" ? "ENABLED" :
+                        campaign.operation_status?.toLowerCase() === "disable" ? "PAUSED" : campaign.operation_status;
+                    if (statusNormalized !== filter.value) return false;
+                }
+                if (filter.field === "type") {
+                    if (campaign.objective_type !== filter.value) return false;
+                }
+                if (filter.field === "budget") {
+                    const budgetValue = campaign.budget || 0;
+                    const filterValue = Number(filter.value);
+                    if (filter.operator === "gt" && budgetValue <= filterValue) return false;
+                    if (filter.operator === "lt" && budgetValue >= filterValue) return false;
+                    if (filter.operator === "eq" && budgetValue !== filterValue) return false;
+                    if (filter.operator === "gte" && budgetValue < filterValue) return false;
+                    if (filter.operator === "lte" && budgetValue > filterValue) return false;
+                }
             }
 
             // Search query (from top search bar)
@@ -206,27 +226,7 @@ export const TikTokCampaigns: React.FC = () => {
 
             return true;
         });
-    }, [campaigns, statusFilter, nameFilter, typeFilter, searchQuery]);
-
-    // Status dropdown options
-    const statusOptions = [
-        { value: "all", label: "All Status" },
-        { value: "enable", label: "Enabled" },
-        { value: "disable", label: "Disabled" },
-    ];
-
-    // Type dropdown options
-    const typeOptions = [
-        { value: "all", label: "All Types" },
-        { value: "TRAFFIC", label: "Traffic" },
-        { value: "CONVERSIONS", label: "Website Conversions" },
-        { value: "APP_PROMOTION", label: "App Promotion" },
-        { value: "REACH", label: "Reach" },
-        { value: "VIDEO_VIEWS", label: "Video Views" },
-        { value: "LEAD_GENERATION", label: "Lead Generation" },
-        { value: "PRODUCT_SALES", label: "Product Sales" },
-        { value: "ENGAGEMENT", label: "Engagement" },
-    ];
+    }, [campaigns, filters, searchQuery]);
 
     return (
         <div className="min-h-screen bg-white flex">
@@ -254,7 +254,6 @@ export const TikTokCampaigns: React.FC = () => {
                                 <button
                                     onClick={() => setIsCreatePanelOpen(!isCreatePanelOpen)}
                                     className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] hover:text-white transition-colors flex items-center gap-2"
-
                                 >
                                     Create Campaign
                                     <svg
@@ -266,121 +265,68 @@ export const TikTokCampaigns: React.FC = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </button>
-                                {/* Add Filter Button */}
-                                <button
-                                    onClick={() => {
+                                {/* Add Filter Button - Using FilterSection component */}
+                                <FilterSection
+                                    isOpen={isFilterPanelOpen}
+                                    onToggle={() => {
                                         setIsFilterPanelOpen(!isFilterPanelOpen);
                                         if (!isFilterPanelOpen) setIsCreatePanelOpen(false);
                                     }}
-                                    className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                                >
-                                    <svg
-                                        className="w-5 h-5 text-[#072929]"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                                    </svg>
-                                    <span className="text-[10.64px] text-[#072929] font-normal">
-                                        Add Filter
-                                    </span>
-                                    <svg
-                                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""}`}
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </button>
+                                    filters={filters}
+                                    onApply={() => { }} // Handled by FilterSectionPanel
+                                    filterFields={TIKTOK_CAMPAIGN_FILTER_FIELDS}
+                                    initialFilters={filters}
+                                />
                             </div>
                         </div>
 
-                        {/* Filter Panel */}
-                        {isFilterPanelOpen && (
-                            <div className="bg-background-field rounded-lg border border-gray-200 p-4">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-[12px] font-medium text-[#072929]">Filters</h3>
-                                    <button
-                                        onClick={() => setIsFilterPanelOpen(false)}
-                                        className="text-gray-500 hover:text-[#072929] transition-colors"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap items-end gap-4">
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-[10.64px] text-gray-500">Campaign Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Filter by name..."
-                                            value={nameFilter}
-                                            onChange={(e) => setNameFilter(e.target.value)}
-                                            className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-[10.64px] text-[#072929] min-w-[200px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-[10.64px] text-gray-500">Type</label>
-                                        <Dropdown
-                                            options={typeOptions}
-                                            value={typeFilter}
-                                            onChange={(val) => setTypeFilter(val as string)}
-                                            width="w-[180px]"
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-[10.64px] text-gray-500">Status</label>
-                                        <Dropdown
-                                            options={statusOptions}
-                                            value={statusFilter}
-                                            onChange={(val) => setStatusFilter(val as string)}
-                                            width="w-[150px]"
-                                        />
-                                    </div>
-
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => {
-                                            setStatusFilter("all");
-                                            setNameFilter("");
-                                            setTypeFilter("all");
-                                        }}
-                                        className="text-[10.64px] text-[#136D6D] hover:underline pb-2"
-                                    >
-                                        Clear Filters
-                                    </Button>
-                                </div>
+                        {/* Create Campaign Panel */}
+                        {isCreatePanelOpen && (
+                            <div className="relative z-30">
+                                <CreateTikTokCampaignPanel
+                                    isOpen={isCreatePanelOpen}
+                                    onClose={() => setIsCreatePanelOpen(false)}
+                                    onSubmit={handleCreateCampaign}
+                                    loading={createLoading}
+                                />
                             </div>
                         )}
 
-                        {/* Create Campaign Panel */}
-                        <CreateTikTokCampaignPanel
-                            isOpen={isCreatePanelOpen}
-                            onClose={() => setIsCreatePanelOpen(false)}
-                            onSubmit={handleCreateCampaign}
-                            loading={createLoading}
+                        {/* Filter Panel - Using FilterSectionPanel component */}
+                        <FilterSectionPanel
+                            isOpen={isFilterPanelOpen}
+                            onToggle={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                            filters={filters}
+                            onApply={(newFilters) => {
+                                setFilters(newFilters);
+                                setPage(1); // Reset to first page when applying filters
+                            }}
+                            filterFields={TIKTOK_CAMPAIGN_FILTER_FIELDS}
+                            initialFilters={filters}
+                            accountId={accountId}
+                            channelType="amazon" // Using amazon for now as TikTok is not in the type
                         />
 
                         {/* Performance Trends Chart */}
-                        <PerformanceChart
-                            data={chartData}
-                            toggles={chartToggles}
-                            onToggle={toggleChartMetric}
-                            title="Performance Trends"
-                            metrics={[
-                                { key: "spend", label: "Spend", color: "#136D6D" },
-                                { key: "conversions", label: "Conversions", color: "#FF6B6B" },
-                                { key: "impressions", label: "Impressions", color: "#7C3AED" },
-                                { key: "clicks", label: "Clicks", color: "#169aa3" },
-                                { key: "ctr", label: "CTR", color: "#F59E0B" },
-                                { key: "cpc", label: "CPC", color: "#059669" },
-                            ]}
-                        />
+                        <div className="relative">
+                            <PerformanceChart
+                                data={chartData}
+                                toggles={chartToggles}
+                                onToggle={toggleChartMetric}
+                                title="Performance Trends"
+                                metrics={[
+                                    { key: "spend", label: "Spend", color: "#136D6D" },
+                                    { key: "conversions", label: "Conversions", color: "#FF6B6B" },
+                                    { key: "impressions", label: "Impressions", color: "#7C3AED" },
+                                    { key: "clicks", label: "Clicks", color: "#169aa3" },
+                                    { key: "ctr", label: "CTR", color: "#F59E0B" },
+                                    { key: "cpc", label: "CPC", color: "#059669" },
+                                ]}
+                            />
+                            {isCreatePanelOpen && (
+                                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-20 rounded-[12px] cursor-not-allowed" />
+                            )}
+                        </div>
 
                         {/* Campaigns Overview Card */}
                         <div className="bg-background-field rounded-lg border border-gray-200 p-6">
