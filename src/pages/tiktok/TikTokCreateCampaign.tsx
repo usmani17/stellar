@@ -45,10 +45,10 @@ export const TikTokCreateCampaign: React.FC = () => {
 
                         {/* Placeholder Content */}
                         <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 text-center">
-                            <p className="text-[14px] text-[#556179] mb-4">
+                            <p className="text-[13.3px] text-[#556179] mb-4">
                                 Create Campaign functionality coming soon
                             </p>
-                            <p className="text-[12px] text-[#556179]">
+                            <p className="text-[13.3px] text-[#556179]">
                                 This page will allow you to create new TikTok Ads campaigns.
                             </p>
                         </div>

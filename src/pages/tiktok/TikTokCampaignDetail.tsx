@@ -205,7 +205,7 @@ export const TikTokCampaignDetail: React.FC = () => {
                             <p className="text-gray-500 text-[12.16px]">Campaign not found</p>
                             <button
                                 onClick={() => navigate(-1)}
-                                className="mt-4 px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a]"
+                                className="mt-4 px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a]"
                             >
                                 Go Back
                             </button>
@@ -258,70 +258,70 @@ export const TikTokCampaignDetail: React.FC = () => {
                         </div>
 
                         {/* Campaign Information Card */}
-                        <div className="bg-background-field rounded-lg border border-gray-200 p-6">
-                            <h2 className="text-[12.16px] font-semibold text-[#072929] mb-6">
+                        <div className="bg-[#f9f9f6] rounded-[12px] border border-[#e8e8e3] p-6">
+                            <h2 className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px] mb-6">
                                 Campaign Information
                             </h2>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {/* Campaign Name */}
                                 <div>
-                                    <p className="text-[10.64px] text-gray-500 mb-1">Campaign Name</p>
-                                    <p className="text-[11.2px] font-medium text-[#072929]">
+                                    <p className="text-[13.3px] text-[#556179] mb-1">Campaign Name</p>
+                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
                                         {campaign.campaign_name}
                                     </p>
                                 </div>
 
                                 {/* Status */}
                                 <div>
-                                    <p className="text-[10.64px] text-gray-500 mb-1">Status</p>
+                                    <p className="text-[13.3px] text-[#556179] mb-1">Status</p>
                                     <StatusBadge status={getStatusBadgeValue(campaign.operation_status)} />
                                 </div>
 
                                 {/* Objective Type */}
                                 <div>
-                                    <p className="text-[10.64px] text-gray-500 mb-1">Objective Type</p>
-                                    <p className="text-[11.2px] font-medium text-[#072929]">
+                                    <p className="text-[13.3px] text-[#556179] mb-1">Objective Type</p>
+                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
                                         {campaign.objective_type || "-"}
                                     </p>
                                 </div>
 
                                 {/* Budget */}
                                 <div>
-                                    <p className="text-[10.64px] text-gray-500 mb-1">Budget</p>
-                                    <p className="text-[11.2px] font-medium text-[#072929]">
+                                    <p className="text-[13.3px] text-[#556179] mb-1">Budget</p>
+                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
                                         {formatCurrency(campaign.budget)}
                                     </p>
                                 </div>
 
                                 {/* Budget Mode */}
                                 <div>
-                                    <p className="text-[10.64px] text-gray-500 mb-1">Budget Mode</p>
-                                    <p className="text-[11.2px] font-medium text-[#072929]">
+                                    <p className="text-[13.3px] text-[#556179] mb-1">Budget Mode</p>
+                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
                                         {campaign.budget_mode || "-"}
                                     </p>
                                 </div>
 
                                 {/* Created Date */}
                                 <div>
-                                    <p className="text-[10.64px] text-gray-500 mb-1">Created</p>
-                                    <p className="text-[11.2px] font-medium text-[#072929]">
+                                    <p className="text-[13.3px] text-[#556179] mb-1">Created</p>
+                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
                                         {formatDate(campaign.create_time)}
                                     </p>
                                 </div>
 
                                 {/* Last Modified */}
                                 <div>
-                                    <p className="text-[10.64px] text-gray-500 mb-1">Last Modified</p>
-                                    <p className="text-[11.2px] font-medium text-[#072929]">
+                                    <p className="text-[13.3px] text-[#556179] mb-1">Last Modified</p>
+                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
                                         {formatDate(campaign.modify_time)}
                                     </p>
                                 </div>
 
                                 {/* Campaign ID */}
                                 <div>
-                                    <p className="text-[10.64px] text-gray-500 mb-1">Campaign ID</p>
-                                    <p className="text-[11.2px] font-medium text-[#072929]">
+                                    <p className="text-[13.3px] text-[#556179] mb-1">Campaign ID</p>
+                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
                                         {campaign.campaign_id}
                                     </p>
                                 </div>
