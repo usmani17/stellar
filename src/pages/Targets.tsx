@@ -776,8 +776,12 @@ export const Targets: React.FC = () => {
 
     try {
       setBulkLoading(true);
+      // Get targetIds from selected targets - use targetId from the target objects
+      const selectedTargetsData = getSelectedTargetsData();
+      const targetIds = selectedTargetsData.map((t) => t.targetId || t.id).filter(Boolean);
+      
       await campaignsService.bulkUpdateTargets(accountIdNum, {
-        targetIds: Array.from(selectedTargets),
+        targetIds: targetIds,
         action: "status",
         status: statusValue,
       });
@@ -881,7 +885,7 @@ export const Targets: React.FC = () => {
   };
 
   const getSelectedTargetsData = () => {
-    return targets.filter((t) => selectedTargets.has(t.id));
+    return targets.filter((t) => selectedTargets.has(t.targetId || t.id));
   };
 
   // Generate chart data based on targets and date range
@@ -907,13 +911,15 @@ export const Targets: React.FC = () => {
   }, [chartDataFromApi]);
 
   const allSelected =
-    targets.length > 0 && selectedTargets.size === targets.length;
+    targets.length > 0 &&
+    targets.every((t) => selectedTargets.has(t.targetId || t.id));
   const someSelected =
-    selectedTargets.size > 0 && selectedTargets.size < targets.length;
+    targets.some((t) => selectedTargets.has(t.targetId || t.id)) &&
+    !allSelected;
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allIds = new Set(targets.map((t) => t.id));
+      const allIds = new Set(targets.map((t) => t.targetId || t.id));
       setSelectedTargets(allIds);
     } else {
       setSelectedTargets(new Set());
@@ -1663,18 +1669,19 @@ export const Targets: React.FC = () => {
                             <td className="py-[10px] px-[10px]">
                               <div className="flex items-center justify-center">
                                 <Checkbox
-                                  checked={selectedTargets.has(target.id)}
+                                  checked={selectedTargets.has(target.targetId || target.id)}
                                   onChange={(checked) => {
+                                    const targetId = target.targetId || target.id;
                                     if (checked) {
                                       setSelectedTargets((prev) => {
                                         const newSet = new Set(prev);
-                                        newSet.add(target.id);
+                                        newSet.add(targetId);
                                         return newSet;
                                       });
                                     } else {
                                       setSelectedTargets((prev) => {
                                         const newSet = new Set(prev);
-                                        newSet.delete(target.id);
+                                        newSet.delete(targetId);
                                         return newSet;
                                       });
                                     }
