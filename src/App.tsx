@@ -40,6 +40,7 @@ import { GoogleAdGroups } from "./pages/google/GoogleAdGroups";
 import { GoogleAds } from "./pages/google/GoogleAds";
 import { GoogleKeywords } from "./pages/google/GoogleKeywords";
 import { TikTokCampaigns } from "./pages/tiktok/TikTokCampaigns";
+import { TikTokCampaignDetail } from "./pages/tiktok/TikTokCampaignDetail";
 import { TikTokCreateCampaign } from "./pages/tiktok/TikTokCreateCampaign";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
@@ -404,6 +405,18 @@ function App() {
                         <AccountRequiredRoute>
                           <Layout>
                             <TikTokCreateCampaign />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/campaigns/:campaignId"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokCampaignDetail />
                           </Layout>
                         </AccountRequiredRoute>
                       </ProtectedRoute>

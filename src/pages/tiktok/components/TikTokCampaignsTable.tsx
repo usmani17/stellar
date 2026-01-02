@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { Checkbox } from "../../../components/ui/Checkbox";
 
@@ -36,6 +37,15 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     onSelectCampaign,
     onSelectAll,
 }) => {
+    const navigate = useNavigate();
+    const { accountId } = useParams<{ accountId: string }>();
+
+    const handleCampaignClick = (campaignId: string) => {
+        if (accountId) {
+            navigate(`/accounts/${accountId}/tiktok/campaigns/${campaignId}`);
+        }
+    };
+
     const formatCurrency = (value?: number) => {
         if (value === undefined || value === null) return "—";
         return new Intl.NumberFormat("en-US", {
@@ -182,9 +192,12 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 />
                             </td>
                             <td className="px-4 py-4">
-                                <div className="text-[10.64px] font-medium text-[#072929]">
+                                <button
+                                    onClick={() => handleCampaignClick(campaign.campaign_id)}
+                                    className="text-[10.64px] font-medium text-[#136D6D] hover:text-[#0e5a5a] hover:underline cursor-pointer text-left"
+                                >
                                     {campaign.campaign_name}
-                                </div>
+                                </button>
                             </td>
                             <td className="px-4 py-4 text-[10.64px] text-gray-600">
                                 {getObjectiveLabel(campaign.objective_type)}
