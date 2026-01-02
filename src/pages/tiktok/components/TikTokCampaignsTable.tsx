@@ -1,4 +1,6 @@
 import React from "react";
+import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { Checkbox } from "../../../components/ui/Checkbox";
 
 export interface TikTokCampaign {
     id: number;
@@ -19,6 +21,9 @@ interface TikTokCampaignsTableProps {
     onSort?: (column: string) => void;
     sortColumn?: string;
     sortDirection?: "asc" | "desc";
+    selectedCampaigns?: Set<string | number>;
+    onSelectCampaign?: (campaignId: string | number) => void;
+    onSelectAll?: () => void;
 }
 
 export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
@@ -27,6 +32,9 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     onSort,
     sortColumn,
     sortDirection,
+    selectedCampaigns = new Set(),
+    onSelectCampaign,
+    onSelectAll,
 }) => {
     const formatCurrency = (value?: number) => {
         if (value === undefined || value === null) return "—";
@@ -38,34 +46,18 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
         }).format(value);
     };
 
-    const getStatusBadge = (status: string) => {
+    const normalizeStatus = (status: string): string => {
         const statusLower = status?.toLowerCase() || "";
         if (statusLower === "enable" || statusLower === "active") {
-            return (
-                <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                    Enable
-                </span>
-            );
+            return "Enabled";
         }
         if (statusLower === "disable" || statusLower === "paused") {
-            return (
-                <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
-                    Paused
-                </span>
-            );
+            return "Paused";
         }
         if (statusLower === "archived") {
-            return (
-                <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                    Archived
-                </span>
-            );
+            return "Archived";
         }
-        return (
-            <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
-                {status || "Unknown"}
-            </span>
-        );
+        return status || "Enabled";
     };
 
     const getObjectiveLabel = (objective: string) => {
@@ -101,6 +93,8 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
         );
     };
 
+    const allSelected = campaigns.length > 0 && campaigns.every(c => selectedCampaigns.has(c.campaign_id));
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -111,7 +105,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     if (campaigns.length === 0) {
         return (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 text-[10.64px]">
                 No campaigns found. Create your first TikTok campaign to get started.
             </div>
         );
@@ -119,14 +113,17 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     return (
         <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <input type="checkbox" className="rounded border-gray-300" />
+            <table className="min-w-full">
+                <thead>
+                    <tr className="border-b border-gray-200">
+                        <th className="px-4 py-3 text-left">
+                            <Checkbox
+                                checked={allSelected}
+                                onChange={() => onSelectAll?.()}
+                            />
                         </th>
                         <th
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
                             onClick={() => onSort?.("campaign_name")}
                         >
                             <div className="flex items-center gap-1">
@@ -134,11 +131,11 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 {getSortIcon("campaign_name")}
                             </div>
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider">
                             Type
                         </th>
                         <th
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
                             onClick={() => onSort?.("operation_status")}
                         >
                             <div className="flex items-center gap-1">
@@ -147,7 +144,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                             </div>
                         </th>
                         <th
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
                             onClick={() => onSort?.("budget")}
                         >
                             <div className="flex items-center gap-1">
@@ -155,57 +152,63 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 {getSortIcon("budget")}
                             </div>
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider">
                             Spends
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider">
                             Conversions
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider">
                             CPA
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider">
                             ROAS
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-[10.64px] font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                         </th>
                     </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {campaigns.map((campaign) => (
-                        <tr key={campaign.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-4 whitespace-nowrap">
-                                <input type="checkbox" className="rounded border-gray-300" />
+                <tbody>
+                    {campaigns.map((campaign, index) => (
+                        <tr
+                            key={campaign.id}
+                            className={`hover:bg-gray-50 ${index !== campaigns.length - 1 ? "border-b border-gray-200" : ""}`}
+                        >
+                            <td className="px-4 py-4">
+                                <Checkbox
+                                    checked={selectedCampaigns.has(campaign.campaign_id)}
+                                    onChange={() => onSelectCampaign?.(campaign.campaign_id)}
+                                />
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
+                            <td className="px-4 py-4">
+                                <div className="text-[10.64px] font-medium text-[#072929]">
                                     {campaign.campaign_name}
                                 </div>
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 py-4 text-[10.64px] text-gray-600">
                                 {getObjectiveLabel(campaign.objective_type)}
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                                {getStatusBadge(campaign.operation_status)}
+                            <td className="px-4 py-4">
+                                <StatusBadge status={normalizeStatus(campaign.operation_status)} />
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-4 py-4 text-[10.64px] text-[#072929]">
                                 {formatCurrency(campaign.budget)}
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 py-4 text-[10.64px] text-gray-600">
                                 —
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 py-4 text-[10.64px] text-gray-600">
                                 —
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 py-4 text-[10.64px] text-gray-600">
                                 —
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-4 py-4 text-[10.64px] text-gray-600">
                                 —
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                                <button className="text-gray-400 hover:text-gray-600">
+                            <td className="px-4 py-4 text-[10.64px] text-gray-600">
+                                <button className="text-gray-400 hover:text-[#072929] transition-colors">
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                                     </svg>
