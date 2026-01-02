@@ -40,7 +40,7 @@ export const TikTokCampaigns: React.FC = () => {
     const [pageSize] = useState(20);
     const [sortColumn, setSortColumn] = useState<string>("campaign_name");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-    const [searchQuery, setSearchQuery] = useState("");
+    // Removed unused searchQuery state
 
     // Create Campaign state
     const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
@@ -216,17 +216,12 @@ export const TikTokCampaigns: React.FC = () => {
                 }
             }
 
-            // Search query (from top search bar)
-            if (searchQuery.trim() !== "") {
-                const searchMatch =
-                    campaign.campaign_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    campaign.campaign_id?.toString().includes(searchQuery);
-                if (!searchMatch) return false;
-            }
+            // Search query filtering removed as search input was removed from UI
+
 
             return true;
         });
-    }, [campaigns, filters, searchQuery]);
+    }, [campaigns, filters]);
 
     return (
         <div className="min-h-screen bg-white flex">
@@ -253,16 +248,24 @@ export const TikTokCampaigns: React.FC = () => {
                                 {/* Create Campaign Button */}
                                 <button
                                     onClick={() => setIsCreatePanelOpen(!isCreatePanelOpen)}
-                                    className="px-3 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] hover:text-white transition-colors flex items-center gap-2 h-10"
+                                    className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors"
                                 >
-                                    Create Campaign
+                                    <span className="text-[10.64px] text-white font-normal">
+                                        Create Campaign
+                                    </span>
                                     <svg
-                                        className={`w-4 h-4 transition-transform ${isCreatePanelOpen ? "rotate-180" : ""}`}
+                                        className={`w-5 h-5 text-white transition-transform ${isCreatePanelOpen ? "rotate-180" : ""
+                                            }`}
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
                                     >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 9l-7 7-7-7"
+                                        />
                                     </svg>
                                 </button>
                                 {/* Add Filter Button - Using FilterSection component */}
@@ -328,78 +331,58 @@ export const TikTokCampaigns: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Campaigns Overview Card */}
-                        <div className="bg-[#f9f9f6] rounded-[12px] border border-[#e8e8e3] p-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                                <h2 className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">Campaigns Overview</h2>
-                                <div className="flex items-center gap-3">
-                                    {/* Search Input */}
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            placeholder="Search by Name or Account ID"
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="pl-10 pr-4 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] w-72 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
-                                        />
-                                        <svg
-                                            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                        </svg>
-                                    </div>
-                                    {/* Edit Button */}
-                                    <Button
-                                        variant="ghost"
-                                        className="px-3 py-2 bg-[#FEFEFB] border border-[#e8e8e3] rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[13.3px] text-[#29303f] font-normal"
-                                    >
-                                        <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
-                                        </svg>
-                                        <span className="text-[13.3px] text-[#29303f] font-normal">Edit</span>
-                                    </Button>
-                                    {/* Export Button */}
-                                    <Button
-                                        variant="ghost"
-                                        className="px-3 py-2 bg-[#FEFEFB] border border-[#e8e8e3] rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[13.3px] text-[#29303f] font-normal"
-                                    >
-                                        <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                    </Button>
+                        {/* Edit and Export Buttons - Above Table */}
+                        <div className="flex items-center justify-end gap-2 mb-4">
+                            {/* Edit Button */}
+                            <Button
+                                variant="ghost"
+                                className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                            >
+                                <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                <span className="text-[10.64px] text-[#072929] font-normal">Edit</span>
+                            </Button>
+
+                            {/* Export Button */}
+                            <Button
+                                variant="ghost"
+                                className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                            >
+                                <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span className="text-[10.64px] text-[#072929] font-normal">Export</span>
+                            </Button>
+                        </div>
+
+                        <TikTokCampaignsTable
+                            campaigns={filteredCampaignsItems}
+                            loading={loading}
+                            onSort={handleSort}
+                            sortColumn={sortColumn}
+                            sortDirection={sortDirection}
+                        />
+
+                        {/* Pagination */}
+                        {total > 0 && (
+                            <div className="flex items-center justify-end mt-4 pt-4 border-t border-[#e8e8e3]">
+                                <div className="flex items-center gap-2 text-[13.3px] text-[#556179]">
+                                    <span>Page</span>
+                                    <Dropdown
+                                        options={Array.from({ length: totalPages }, (_, i) => ({
+                                            value: (i + 1).toString(),
+                                            label: (i + 1).toString()
+                                        }))}
+                                        value={page.toString()}
+                                        onChange={(val) => handlePageChange(parseInt(val as string))}
+                                        width="w-16"
+                                    />
+                                    <span>of {totalPages} Result</span>
                                 </div>
                             </div>
+                        )}
 
-                            <TikTokCampaignsTable
-                                campaigns={filteredCampaignsItems}
-                                loading={loading}
-                                onSort={handleSort}
-                                sortColumn={sortColumn}
-                                sortDirection={sortDirection}
-                            />
-
-                            {/* Pagination */}
-                            {total > 0 && (
-                                <div className="flex items-center justify-end mt-4 pt-4 border-t border-[#e8e8e3]">
-                                    <div className="flex items-center gap-2 text-[13.3px] text-[#556179]">
-                                        <span>Page</span>
-                                        <Dropdown
-                                            options={Array.from({ length: totalPages }, (_, i) => ({
-                                                value: (i + 1).toString(),
-                                                label: (i + 1).toString()
-                                            }))}
-                                            value={page.toString()}
-                                            onChange={(val) => handlePageChange(parseInt(val as string))}
-                                            width="w-16"
-                                        />
-                                        <span>of {totalPages} Result</span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </div>
             </div>
@@ -412,6 +395,6 @@ export const TikTokCampaigns: React.FC = () => {
                 message={errorModal.message}
                 isSuccess={errorModal.isSuccess}
             />
-        </div>
+        </div >
     );
 };

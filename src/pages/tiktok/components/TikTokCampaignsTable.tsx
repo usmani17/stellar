@@ -56,20 +56,6 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
         }).format(value);
     };
 
-    const normalizeStatus = (status: string): string => {
-        const statusLower = status?.toLowerCase() || "";
-        if (statusLower === "enable" || statusLower === "active") {
-            return "Enabled";
-        }
-        if (statusLower === "disable" || statusLower === "paused") {
-            return "Paused";
-        }
-        if (statusLower === "archived") {
-            return "Archived";
-        }
-        return status || "Enabled";
-    };
-
     const getObjectiveLabel = (objective: string) => {
         const objectiveMap: Record<string, string> = {
             TRAFFIC: "Traffic",
@@ -84,39 +70,49 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
         return objectiveMap[objective] || objective;
     };
 
+    const normalizeStatus = (status: string): string => {
+        const statusLower = status?.toLowerCase() || "";
+        if (statusLower === "enable" || statusLower === "active") {
+            return "Enabled";
+        }
+        if (statusLower === "disable" || statusLower === "paused") {
+            return "Paused";
+        }
+        if (statusLower === "archived") {
+            return "Archived";
+        }
+        return status || "Enabled";
+    };
+
     const getSortIcon = (column: string) => {
         if (sortColumn !== column) {
             return (
-                <svg className="w-4 h-4 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
+                <div className="flex flex-col -gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg className="w-2 h-2 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4l-8 8h16z" /></svg>
+                    <svg className="w-2 h-2 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 20l8-8H4z" /></svg>
+                </div>
             );
         }
         return sortDirection === "asc" ? (
-            <svg className="w-4 h-4 ml-1 text-[#556179]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-            </svg>
+            <svg className="w-2 h-2 text-[#136D6D]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4l-8 8h16z" /></svg>
         ) : (
-            <svg className="w-4 h-4 ml-1 text-[#556179]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <svg className="w-2 h-2 text-[#136D6D]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 20l8-8H4z" /></svg>
         );
     };
 
-    const allSelected = campaigns.length > 0 && campaigns.every(c => selectedCampaigns.has(c.campaign_id));
-
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forest-f60"></div>
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#136D6D] mb-4"></div>
+                <p className="text-[13.3px] text-[#556179]">Loading campaigns...</p>
             </div>
         );
     }
 
     if (campaigns.length === 0) {
         return (
-            <div className="text-center py-12 text-[#556179] text-[13.3px] leading-[1.26]">
-                No campaigns found. Create your first TikTok campaign to get started.
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
+                <p className="text-[13.3px] text-[#556179]">No campaigns found.</p>
             </div>
         );
     }
@@ -124,13 +120,13 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     return (
         <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
             <div className="overflow-x-auto w-full">
-                <table className="min-w-[1200px] w-full">
-                    <thead className="bg-sandstorm-s20">
+                <table className="min-w-[1000px] w-full border-collapse">
+                    <thead>
                         <tr className="border-b border-[#e8e8e3]">
                             <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
                                 <div className="flex items-center justify-center">
                                     <Checkbox
-                                        checked={allSelected}
+                                        checked={campaigns.length > 0 && selectedCampaigns.size === campaigns.length}
                                         onChange={() => onSelectAll?.()}
                                         size="small"
                                     />
@@ -145,7 +141,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                     {getSortIcon("campaign_name")}
                                 </div>
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[150px]">
                                 Type
                             </th>
                             <th
@@ -181,66 +177,83 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {campaigns.map((campaign, index) => (
-                            <tr
-                                key={campaign.id}
-                                className={`group hover:bg-gray-100 transition-colors ${index !== campaigns.length - 1 ? "border-b border-[#e8e8e3]" : ""}`}
-                            >
-                                <td className="py-[10px] px-[10px]">
-                                    <div className="flex items-center justify-center">
-                                        <Checkbox
-                                            checked={selectedCampaigns.has(campaign.campaign_id)}
-                                            onChange={() => onSelectCampaign?.(campaign.campaign_id)}
-                                            size="small"
-                                        />
-                                    </div>
-                                </td>
-                                <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            type="button"
-                                            className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            title="Edit campaign"
-                                        >
-                                            <svg className="w-4 h-4 text-[#556179]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            onClick={() => handleCampaignClick(campaign.campaign_id)}
-                                            className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
-                                        >
-                                            {campaign.campaign_name}
-                                        </button>
-                                    </div>
-                                </td>
-                                <td className="py-[10px] px-[10px]">
-                                    <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {/* Summary Row */}
+                        <tr className="border-b border-[#e8e8e3] bg-[#f5f5f0]">
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] font-semibold text-[#0b0f16] leading-[1.26]">
+                                Total ({campaigns.length})
+                            </td>
+                            <td className="py-[10px] px-[10px]" colSpan={3}></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {formatCurrency(campaigns.reduce((sum, c) => sum + (c.budget || 0), 0))}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                —
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                —
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                —
+                            </td>
+                        </tr>
+                        {campaigns.map((campaign, index) => {
+                            const isLastRow = index === campaigns.length - 1;
+                            return (
+                                <tr
+                                    key={campaign.id}
+                                    className={`group ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                                        } hover:bg-gray-100 transition-colors cursor-pointer`}
+                                    onClick={() => handleCampaignClick(campaign.campaign_id)}
+                                >
+                                    <td
+                                        className="py-[10px] px-[10px]"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="flex items-center justify-center">
+                                            <Checkbox
+                                                checked={selectedCampaigns.has(campaign.campaign_id)}
+                                                onChange={() => onSelectCampaign?.(campaign.campaign_id)}
+                                                size="small"
+                                            />
+                                        </div>
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] max-w-[400px]">
+                                        <div className="flex items-center gap-2">
+                                            <button className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
+                                                </svg>
+                                            </button>
+                                            <span className="truncate hover:underline">{campaign.campaign_name}</span>
+                                        </div>
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                         {getObjectiveLabel(campaign.objective_type)}
-                                    </span>
-                                </td>
-                                <td className="py-[10px] px-[10px] min-w-[115px]">
-                                    <StatusBadge status={normalizeStatus(campaign.operation_status)} />
-                                </td>
-                                <td className="py-[10px] px-[10px]">
-                                    <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    </td>
+                                    <td className="py-[10px] px-[10px]">
+                                        <StatusBadge
+                                            status={normalizeStatus(campaign.operation_status).toUpperCase() as any}
+                                        />
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                         {formatCurrency(campaign.budget)}
-                                    </span>
-                                </td>
-                                <td className="py-[10px] px-[10px]">
-                                    <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">—</span>
-                                </td>
-                                <td className="py-[10px] px-[10px]">
-                                    <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">—</span>
-                                </td>
-                                <td className="py-[10px] px-[10px]">
-                                    <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">—</span>
-                                </td>
-                                <td className="py-[10px] px-[10px]">
-                                    <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">—</span>
-                                </td>
-                            </tr>
-                        ))}
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        {formatCurrency(campaign.budget)}
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        —
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        —
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        —
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
