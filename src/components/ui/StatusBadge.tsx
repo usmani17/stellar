@@ -68,6 +68,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         text: "text-[#a3a8b3]",
         label: "Archived",
       },
+      ARCHIVED: {
+        bg: "bg-[rgba(163,168,179,0.1)]",
+        text: "text-[#a3a8b3]",
+        label: "Archived",
+      },
     };
 
   const statusInfo =

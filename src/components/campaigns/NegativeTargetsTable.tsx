@@ -273,12 +273,14 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                     target.resolvedExpression ||
                     target.resolvedExpressions ||
                     "";
+                  const statusValue = target.status || target.state || "ENABLED";
+                  const isArchived = statusValue?.toLowerCase() === "archived";
                   return (
                     <tr
                       key={target.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
                       {onSelect && (
@@ -355,17 +357,19 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1 transition-colors"
+                            className={`rounded px-2 py-1 transition-colors ${
+                              isArchived
+                                ? "cursor-not-allowed opacity-60"
+                                : "cursor-pointer hover:bg-gray-100"
+                            }`}
                             onClick={() => {
-                              const currentState =
-                                target.status || target.state || "ENABLED";
-                              onEditStart?.(target.id, "status", currentState);
+                              if (!isArchived) {
+                                onEditStart?.(target.id, "status", statusValue);
+                              }
                             }}
                           >
                             <StatusBadge
-                              status={
-                                target.status || target.state || "ENABLED"
-                              }
+                              status={statusValue}
                               uppercase={true}
                             />
                             {inlineEditLoading.has(target.id) && (

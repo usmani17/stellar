@@ -423,12 +423,18 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                 )}
                 {adgroups.map((adgroup, index) => {
                   const isLastRow = index === adgroups.length - 1;
+                  const isArchived =
+                    adgroup.status?.toLowerCase() === "archived";
                   return (
                     <tr
                       key={adgroup.id}
                       className={`group ${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-100 transition-colors`}
+                      } ${
+                        isArchived
+                          ? "bg-gray-100 opacity-60"
+                          : "hover:bg-gray-100"
+                      } transition-colors`}
                     >
                       {/* Checkbox */}
                       <td className="py-[10px] px-[10px]">
@@ -485,13 +491,19 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full whitespace-nowrap cursor-pointer hover:underline"
+                            className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
+                              isArchived
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-[#0b0f16] cursor-pointer hover:underline"
+                            }`}
                             onClick={() => {
-                              onEditStart?.(
-                                adgroup.id,
-                                "name",
-                                adgroup.name || ""
-                              );
+                              if (!isArchived) {
+                                onEditStart?.(
+                                  adgroup.id,
+                                  "name",
+                                  adgroup.name || ""
+                                );
+                              }
                             }}
                             title={adgroup.name}
                           >
@@ -632,18 +644,28 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                            className={`text-[13.3px] leading-[1.26] ${
+                              isArchived
+                                ? "cursor-not-allowed opacity-60"
+                                : "cursor-pointer hover:underline"
+                            }`}
                             onClick={() => {
-                              const statusLower =
-                                adgroup.status?.toLowerCase() || "enabled";
-                              const statusValue =
-                                statusLower === "enable" ||
-                                statusLower === "enabled"
-                                  ? "enabled"
-                                  : statusLower === "paused"
-                                  ? "paused"
-                                  : "archived";
-                              onEditStart?.(adgroup.id, "status", statusValue);
+                              if (!isArchived) {
+                                const statusLower =
+                                  adgroup.status?.toLowerCase() || "enabled";
+                                const statusValue =
+                                  statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                    ? "enabled"
+                                    : statusLower === "paused"
+                                    ? "paused"
+                                    : "archived";
+                                onEditStart?.(
+                                  adgroup.id,
+                                  "status",
+                                  statusValue
+                                );
+                              }
                             }}
                           >
                             <StatusBadge status={adgroup.status} />
@@ -701,16 +723,22 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                            className={`text-[13.3px] leading-[1.26] ${
+                              isArchived
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-[#0b0f16] cursor-pointer hover:underline"
+                            }`}
                             onClick={() => {
-                              const bidValue = adgroup.default_bid
-                                ? adgroup.default_bid.replace(/[^0-9.]/g, "")
-                                : "0";
-                              onEditStart?.(
-                                adgroup.id,
-                                "default_bid",
-                                bidValue
-                              );
+                              if (!isArchived) {
+                                const bidValue = adgroup.default_bid
+                                  ? adgroup.default_bid.replace(/[^0-9.]/g, "")
+                                  : "0";
+                                onEditStart?.(
+                                  adgroup.id,
+                                  "default_bid",
+                                  bidValue
+                                );
+                              }
                             }}
                           >
                             {adgroup.default_bid || "$0.00"}

@@ -284,12 +284,14 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
               <tbody>
                 {negativeKeywords.map((keyword, index) => {
                   const isLastRow = index === negativeKeywords.length - 1;
+                  const statusValue = keyword.status || keyword.state || "Enabled";
+                  const isArchived = statusValue?.toLowerCase() === "archived";
                   return (
                     <tr
                       key={keyword.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
                       {onSelect && (
@@ -360,8 +362,10 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                               {pendingChange?.field === "status"
                                 ? pendingChange.newValue === "enabled"
                                   ? "Enabled"
-                                  : "Paused"
-                                : keyword.status || keyword.state || "Enabled"}
+                                  : pendingChange.newValue === "paused"
+                                  ? "Paused"
+                                  : "Archived"
+                                : statusValue}
                             </span>
                             <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
                           </div>
@@ -371,7 +375,9 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {pendingChange.newValue === "enabled"
                                 ? "Enabled"
-                                : "Paused"}
+                                : pendingChange.newValue === "paused"
+                                ? "Paused"
+                                : "Archived"}
                             </span>
                           </div>
                         ) : editingField?.id === keyword.id &&
@@ -430,25 +436,25 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                            className={`text-[13.3px] leading-[1.26] ${
+                              isArchived
+                                ? "cursor-not-allowed opacity-60"
+                                : "cursor-pointer hover:underline"
+                            }`}
                             onClick={() => {
-                              const statusLower = (
-                                keyword.status ||
-                                keyword.state ||
-                                "enabled"
-                              ).toLowerCase();
-                              const statusValue =
-                                statusLower === "enable" ||
-                                statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
-                              onEditStart?.(keyword.id, "status", statusValue);
+                              if (!isArchived) {
+                                const statusLower = statusValue.toLowerCase();
+                                const editStatusValue =
+                                  statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                    ? "enabled"
+                                    : "paused";
+                                onEditStart?.(keyword.id, "status", editStatusValue);
+                              }
                             }}
                           >
                             <StatusBadge
-                              status={
-                                keyword.status || keyword.state || "Enabled"
-                              }
+                              status={statusValue}
                               uppercase={true}
                             />
                           </div>
