@@ -55,7 +55,11 @@ export interface CreateCampaignData {
         | "PLACEMENT_TOP"
         | "PLACEMENT_REST_OF_SEARCH"
         | "PLACEMENT_PRODUCT_PAGE"
-        | "SITE_AMAZON_BUSINESS";
+        | "SITE_AMAZON_BUSINESS"
+        | "TOP_OF_SEARCH"
+        | "DETAIL_PAGE"
+        | "OTHER"
+        | "HOME";
     }>;
   };
   // SD (Sponsored Display) specific fields
@@ -82,6 +86,39 @@ const STATE_OPTIONS = [
   { value: "Enabled", label: "Enabled" },
   { value: "Paused", label: "Paused" },
 ];
+
+// Helper function to get placement values based on campaign type
+const getPlacementValues = (campaignType: string) => {
+  if (campaignType === "SB") {
+    // SB campaigns use: TOP_OF_SEARCH, DETAIL_PAGE, OTHER, HOME
+    return {
+      TOP_OF_SEARCH: "TOP_OF_SEARCH",
+      DETAIL_PAGE: "DETAIL_PAGE",
+      OTHER: "OTHER",
+      HOME: "HOME",
+      labels: {
+        TOP_OF_SEARCH: "Top of search (TOP_OF_SEARCH)",
+        DETAIL_PAGE: "Detail page (DETAIL_PAGE)",
+        OTHER: "Other (OTHER)",
+        HOME: "Home (HOME)",
+      },
+    };
+  } else {
+    // SP campaigns use: PLACEMENT_TOP, PLACEMENT_REST_OF_SEARCH, PLACEMENT_PRODUCT_PAGE, SITE_AMAZON_BUSINESS
+    return {
+      PLACEMENT_TOP: "PLACEMENT_TOP",
+      PLACEMENT_REST_OF_SEARCH: "PLACEMENT_REST_OF_SEARCH",
+      PLACEMENT_PRODUCT_PAGE: "PLACEMENT_PRODUCT_PAGE",
+      SITE_AMAZON_BUSINESS: "SITE_AMAZON_BUSINESS",
+      labels: {
+        PLACEMENT_TOP: "Top of search (PLACEMENT_TOP)",
+        PLACEMENT_REST_OF_SEARCH: "Rest of search (PLACEMENT_REST_OF_SEARCH)",
+        PLACEMENT_PRODUCT_PAGE: "Product page (PLACEMENT_PRODUCT_PAGE)",
+        SITE_AMAZON_BUSINESS: "Amazon Business (SITE_AMAZON_BUSINESS)",
+      },
+    };
+  }
+};
 
 const TARGETING_TYPE_OPTIONS = [
   { value: "AUTO", label: "Auto" },
