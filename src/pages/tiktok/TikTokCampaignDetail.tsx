@@ -1,33 +1,46 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { KPICard } from "../../components/ui/KPICard";
 import { StatusBadge } from "../../components/ui/StatusBadge";
-import { useSidebar } from "../../contexts/SidebarContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
-import { PerformanceChart } from "../../components/charts/PerformanceChart";
+import type { FilterValues } from "../../components/filters/FilterPanel";
+import {
+    TikTokOverviewTab,
+    TikTokCampaignDetailAdGroupsTab,
+    TikTokCampaignDetailLogsTab,
+    type TikTokAdGroup,
+} from "./components/tabs";
+import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 
 interface TikTokCampaignDetailData {
-    campaign_id: string;
-    campaign_name: string;
-    operation_status?: string;
-    objective_type?: string;
-    budget?: number;
-    budget_mode?: string;
-    create_time?: string;
-    modify_time?: string;
-    // Metrics
-    spend?: number;
-    impressions?: number;
-    clicks?: number;
-    conversions?: number;
-    ctr?: number;
-    cpc?: number;
-    cpm?: number;
-    conversion_rate?: number;
+    campaign: {
+        campaign_id: string;
+        campaign_name: string;
+        advertiser_id: string;
+        budget: number;
+        operation_status: string;
+        objective_type?: string;
+        create_time?: string;
+        budget_mode?: string;
+        start_time?: string;
+    };
+    chart_data?: Array<{
+        date: string;
+        spend: number;
+        impressions: number;
+        clicks: number;
+        conversions: number;
+    }>;
+    kpi_cards?: Array<{
+        label: string;
+        value: string;
+        change?: string;
+        isPositive?: boolean;
+    }>;
 }
 
 export const TikTokCampaignDetail: React.FC = () => {
@@ -35,330 +48,334 @@ export const TikTokCampaignDetail: React.FC = () => {
         accountId: string;
         campaignId: string;
     }>();
-    const navigate = useNavigate();
-    const { sidebarWidth } = useSidebar();
     const { startDate, endDate } = useDateRange();
+    const { sidebarWidth } = useSidebar();
+    const [activeTab, setActiveTab] = useState("Overview");
     const [loading, setLoading] = useState(true);
-    const [campaign, setCampaign] = useState<TikTokCampaignDetailData | null>(null);
-    const [kpiCards, setKpiCards] = useState<Array<{ label: string; value: string }>>([]);
-    const [chartData, setChartData] = useState<Array<any>>([]);
+    const [campaignDetail, setCampaignDetail] = useState<TikTokCampaignDetailData | null>(null);
 
-    // Chart toggles
+    // Ad Groups State
+    const [adgroups, setAdgroups] = useState<TikTokAdGroup[]>([]);
+    const [adgroupsLoading, setAdgroupsLoading] = useState(false);
+    const [selectedAdGroupIds, setSelectedAdGroupIds] = useState<Set<string>>(new Set());
+    const [adgroupsCurrentPage, setAdgroupsCurrentPage] = useState(1);
+    const [adgroupsTotalPages, setAdgroupsTotalPages] = useState(0);
+    const [adgroupsSortBy, setAdgroupsSortBy] = useState<string>("spend"); // default sort
+    const [adgroupsSortOrder, setAdgroupsSortOrder] = useState<"asc" | "desc">("desc");
+    const [isAdGroupsFilterPanelOpen, setIsAdGroupsFilterPanelOpen] = useState(false);
+    const [adgroupsFilters, setAdgroupsFilters] = useState<FilterValues>([]);
+
+
+    // Chart State
     const [chartToggles, setChartToggles] = useState({
         spend: true,
-        conversions: true,
-        impressions: false,
+        impressions: true,
         clicks: false,
-        ctr: false,
-        cpc: false,
+        conversions: false,
     });
 
-    // Toggle chart metric
-    const toggleChartMetric = (metric: string) => {
-        setChartToggles(prev => ({
-            ...prev,
-            [metric]: !prev[metric as keyof typeof prev]
-        }));
-    };
+    const tabs = ["Overview", "Ad Groups", "Ads", "Logs"];
 
+    // Set Page Title
     useEffect(() => {
-        const title = campaign?.campaign_name
-            ? campaign.campaign_name
-            : "TikTok Campaign Detail";
+        const title = campaignDetail?.campaign?.campaign_name || "TikTok Campaign Detail";
         setPageTitle(title);
-        return () => {
-            resetPageTitle();
-        };
-    }, [campaign]);
+        return () => resetPageTitle();
+    }, [campaignDetail]);
 
-    const fetchCampaignDetail = useCallback(async () => {
-        if (!accountId || !campaignId) return;
-
-        setLoading(true);
-        try {
-            // Use the new campaign detail endpoint with chart data
-            // Format dates as YYYY-MM-DD strings
-            const formattedStartDate = startDate.toISOString().split('T')[0];
-            const formattedEndDate = endDate.toISOString().split('T')[0];
-
-            console.log('[TikTok] Fetching campaign detail with dates:', formattedStartDate, 'to', formattedEndDate);
-
-            const response = await campaignsService.getTikTokCampaignDetail(
-                parseInt(accountId),
-                campaignId,
-                formattedStartDate,
-                formattedEndDate
-            );
-
-            console.log('[TikTok] chart_data returned:', response?.chart_data?.length, 'items', response?.chart_data);
-
-            if (response) {
-                // Map API response to component state
-                setCampaign({
-                    campaign_id: response.campaign.campaign_id,
-                    campaign_name: response.campaign.campaign_name,
-                    operation_status: response.campaign.operation_status,
-                    objective_type: response.campaign.objective_type,
-                    budget: response.campaign.budget,
-                    budget_mode: response.campaign.budget_mode,
-                    create_time: response.campaign.create_time,
-                    modify_time: response.campaign.modify_time,
-                });
-
-                // Set KPI cards from response
-                setKpiCards(response.kpi_cards || []);
-
-                // Set chart data from response (real data from backend)
-                setChartData(response.chart_data || []);
-            }
-        } catch (error) {
-            console.error("Failed to fetch TikTok campaign detail:", error);
-        } finally {
-            setLoading(false);
+    // Initial Load & Refresh on Date/ID Change
+    useEffect(() => {
+        if (accountId && campaignId) {
+            loadCampaignDetail();
         }
     }, [accountId, campaignId, startDate, endDate]);
 
-    useEffect(() => {
-        fetchCampaignDetail();
-    }, [fetchCampaignDetail]);
-
-    // Process chart data with computed metrics
-    const processedChartData = useMemo(() => {
-        return chartData.map(item => ({
-            ...item,
-            ctr: item.impressions > 0 ? parseFloat(((item.clicks / item.impressions) * 100).toFixed(2)) : 0,
-            cpc: item.clicks > 0 ? parseFloat((item.spend / item.clicks).toFixed(2)) : 0,
-        }));
-    }, [chartData]);
-
-    // Format status for StatusBadge
-    const getStatusBadgeValue = (status?: string) => {
-        if (!status) return "Unknown";
-        const normalized = status.toLowerCase();
-        if (normalized === "enable" || normalized === "enabled") return "ENABLED";
-        if (normalized === "disable" || normalized === "disabled" || normalized === "paused") return "PAUSED";
-        return status.toUpperCase();
-    };
-
-    // Format currency
-    const formatCurrency = (value?: number) => {
-        if (value === undefined || value === null) return "$0.00";
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-        }).format(value);
-    };
-
-    // Format number
-    const formatNumber = (value?: number) => {
-        if (value === undefined || value === null) return "0";
-        return new Intl.NumberFormat('en-US').format(value);
-    };
-
-    // Format percentage
-    const formatPercentage = (value?: number) => {
-        if (value === undefined || value === null) return "0%";
-        return `${value.toFixed(2)}%`;
-    };
-
-    // Format date
-    const formatDate = (dateStr?: string) => {
-        if (!dateStr) return "-";
+    // Fetch Campaign Detail
+    const loadCampaignDetail = async () => {
         try {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-            });
-        } catch {
-            return dateStr;
+            setLoading(true);
+            const accountIdNum = parseInt(accountId!, 10);
+            const campaignIdNum = parseInt(campaignId!, 10); // Check if backend expects string or num
+
+            if (isNaN(accountIdNum) || !campaignId) return;
+
+            const data = await campaignsService.getTikTokCampaignDetail(
+                accountIdNum,
+                campaignIdNum, // Assuming service handles number/string conversion if needed
+                startDate?.toISOString().split('T')[0],
+                endDate?.toISOString().split('T')[0]
+            );
+            setCampaignDetail(data);
+        } catch (error) {
+            console.error("Failed to load TikTok campaign detail:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-white flex">
-                <Sidebar />
-                <div
-                    className="flex-1 min-w-0 w-full"
-                    style={{ marginLeft: `${sidebarWidth}px` }}
-                >
-                    <DashboardHeader />
-                    <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
-                        <div className="flex items-center justify-center h-64">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#136D6D]"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
+    // Lazy Load Tab Data
+    useEffect(() => {
+        if (activeTab === "Ad Groups" && accountId && campaignId) {
+            loadAdGroups();
+        }
+    }, [activeTab, accountId, campaignId, startDate, endDate, adgroupsCurrentPage, adgroupsSortBy, adgroupsSortOrder, adgroupsFilters]);
+
+
+    const loadAdGroups = async () => {
+        try {
+            setAdgroupsLoading(true);
+            const accountIdNum = parseInt(accountId!, 10);
+            // Logic to build filters...
+
+            const data = await campaignsService.getTikTokAdGroups(
+                accountIdNum,
+                {
+                    campaign_id: campaignId,
+                    page: adgroupsCurrentPage,
+                    page_size: 10,
+                    sort_by: adgroupsSortBy,
+                    order: adgroupsSortOrder,
+                    start_date: startDate?.toISOString().split('T')[0],
+                    end_date: endDate?.toISOString().split('T')[0],
+                    // Add other filters
+                }
+            );
+            setAdgroups(data.adgroups || []);
+            setAdgroupsTotalPages(data.total_pages || 0);
+
+        } catch (error) {
+            console.error("Failed to load ad groups:", error);
+        } finally {
+            setAdgroupsLoading(false);
+        }
+    };
+
+
+    const handleSortAdGroups = (column: string) => {
+        if (adgroupsSortBy === column) {
+            setAdgroupsSortOrder(adgroupsSortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setAdgroupsSortBy(column);
+            setAdgroupsSortOrder("desc");
+        }
+    };
+
+
+    if (loading && !campaignDetail) {
+        return <div className="p-8 text-center text-gray-500">Loading Campaign...</div>;
     }
 
-    if (!campaign) {
-        return (
-            <div className="min-h-screen bg-white flex">
-                <Sidebar />
-                <div
-                    className="flex-1 min-w-0 w-full"
-                    style={{ marginLeft: `${sidebarWidth}px` }}
-                >
-                    <DashboardHeader />
-                    <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white">
-                        <div className="flex flex-col items-center justify-center h-64">
-                            <p className="text-gray-500 text-[12.16px]">Campaign not found</p>
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="mt-4 px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a]"
-                            >
-                                Go Back
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
+    if (!campaignDetail) {
+        return <div className="p-8 text-center text-red-500">Campaign not found.</div>;
     }
 
     return (
-        <div className="min-h-screen bg-white flex">
-            {/* Sidebar */}
+        <div className="flex min-h-screen bg-white">
             <Sidebar />
 
-            {/* Main Content */}
             <div
-                className="flex-1 min-w-0 w-full"
+                className="flex-1 min-w-0 w-full transition-all duration-300"
                 style={{ marginLeft: `${sidebarWidth}px` }}
             >
-                {/* Header */}
                 <DashboardHeader />
 
-                {/* Main Content Area */}
-                <div className="px-4 py-6 sm:px-6 lg:p-8 bg-white overflow-x-hidden min-w-0">
-                    <div className="space-y-6">
-                        {/* Back Button and Title */}
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <svg
-                                    className="w-5 h-5 text-[#072929]"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
+                <div className="p-8 bg-white space-y-6 overflow-x-hidden">
+                    {/* Page Header */}
+                    <div>
+                        <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
+                            {loading
+                                ? "Loading..."
+                                : campaignDetail.campaign.campaign_name}
+                        </h1>
+                    </div>
+
+                    {/* Campaign Info Block - Amazon Style Ref */}
+                    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 mb-6">
+                        <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
+                            Campaign Information
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                            {/* Campaign Name */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Campaign Name
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate" title={campaignDetail.campaign.campaign_name}>
+                                    {campaignDetail.campaign.campaign_name}
+                                </div>
+                            </div>
+
+                            {/* Campaign ID */}
+                            {/* Campaign ID */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Campaign ID
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-mono">
+                                    {campaignDetail.campaign.campaign_id}
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            {/* Status */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Status
+                                </label>
+                                <div>
+                                    <StatusBadge status={campaignDetail.campaign.operation_status} />
+                                </div>
+                            </div>
+
+                            {/* Budget */}
+                            {/* Budget */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Budget
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(campaignDetail.campaign.budget)}
+                                </div>
+                            </div>
+
+                            {/* Start Date */}
+                            {/* Start Date */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Start Date
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    {campaignDetail.campaign.start_time
+                                        ? new Date(campaignDetail.campaign.start_time).toLocaleDateString()
+                                        : (campaignDetail.campaign.create_time ? new Date(campaignDetail.campaign.create_time).toLocaleDateString() : "-")}
+                                </div>
+                            </div>
+
+                            {/* Objective Type */}
+                            {/* Objective Type */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Objective Type
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] capitalize">
+                                    {campaignDetail.campaign.objective_type?.replace(/_/g, " ").toLowerCase() || "-"}
+                                </div>
+                            </div>
+
+                            {/* Budget Type */}
+                            {/* Budget Type */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Budget Type
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] capitalize">
+                                    {campaignDetail.campaign.budget_mode?.replace(/_/g, " ").toLowerCase() || "Daily"}
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {campaignDetail.kpi_cards?.map((card, idx) => (
+                            <KPICard
+                                key={idx}
+                                label={card.label}
+                                value={card.value}
+                                change={card.change}
+                                isPositive={card.isPositive}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Tabs Navigation */}
+                    <div className="bg-[#fefefb] border-b border-[#e8e8e3]">
+                        <div className="flex gap-6 px-6">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`py-4 text-[13.3px] font-medium border-b-2 transition-colors ${activeTab === tab
+                                        ? "border-[#136D6D] text-[#136D6D]"
+                                        : "border-transparent text-[#556179] hover:text-[#29303f]"
+                                        }`}
                                 >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                            </button>
-                            <div>
-                                <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                                    {campaign.campaign_name}
-                                </h1>
-                                <p className="text-[10.64px] text-gray-500">
-                                    Campaign ID: {campaign.campaign_id}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Campaign Information Card */}
-                        <div className="bg-[#f9f9f6] rounded-[12px] border border-[#e8e8e3] p-6">
-                            <h2 className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px] mb-6">
-                                Campaign Information
-                            </h2>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {/* Campaign Name */}
-                                <div>
-                                    <p className="text-[13.3px] text-[#556179] mb-1">Campaign Name</p>
-                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
-                                        {campaign.campaign_name}
-                                    </p>
-                                </div>
-
-                                {/* Status */}
-                                <div>
-                                    <p className="text-[13.3px] text-[#556179] mb-1">Status</p>
-                                    <StatusBadge status={getStatusBadgeValue(campaign.operation_status)} />
-                                </div>
-
-                                {/* Objective Type */}
-                                <div>
-                                    <p className="text-[13.3px] text-[#556179] mb-1">Objective Type</p>
-                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
-                                        {campaign.objective_type || "-"}
-                                    </p>
-                                </div>
-
-                                {/* Budget */}
-                                <div>
-                                    <p className="text-[13.3px] text-[#556179] mb-1">Budget</p>
-                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
-                                        {formatCurrency(campaign.budget)}
-                                    </p>
-                                </div>
-
-                                {/* Budget Mode */}
-                                <div>
-                                    <p className="text-[13.3px] text-[#556179] mb-1">Budget Mode</p>
-                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
-                                        {campaign.budget_mode || "-"}
-                                    </p>
-                                </div>
-
-                                {/* Created Date */}
-                                <div>
-                                    <p className="text-[13.3px] text-[#556179] mb-1">Created</p>
-                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
-                                        {formatDate(campaign.create_time)}
-                                    </p>
-                                </div>
-
-                                {/* Last Modified */}
-                                <div>
-                                    <p className="text-[13.3px] text-[#556179] mb-1">Last Modified</p>
-                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
-                                        {formatDate(campaign.modify_time)}
-                                    </p>
-                                </div>
-
-                                {/* Campaign ID */}
-                                <div>
-                                    <p className="text-[13.3px] text-[#556179] mb-1">Campaign ID</p>
-                                    <p className="text-[13.3px] font-medium text-[#0b0f16] leading-[1.26]">
-                                        {campaign.campaign_id}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* KPI Cards - from API response */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {kpiCards.map((kpi, index) => (
-                                <KPICard
-                                    key={index}
-                                    label={kpi.label}
-                                    value={kpi.value}
-                                />
+                                    {tab}
+                                </button>
                             ))}
                         </div>
+                    </div>
 
-                        {/* Performance Chart */}
-                        <PerformanceChart
-                            data={processedChartData}
-                            toggles={chartToggles}
-                            onToggle={toggleChartMetric}
-                            title="Performance Trends"
-                            metrics={[
-                                { key: "spend", label: "Spend", color: "#136D6D" },
-                                { key: "conversions", label: "Conversions", color: "#FF6B6B" },
-                                { key: "impressions", label: "Impressions", color: "#7C3AED" },
-                                { key: "clicks", label: "Clicks", color: "#169aa3" },
-                                { key: "ctr", label: "CTR", color: "#F59E0B" },
-                                { key: "cpc", label: "CPC", color: "#059669" },
-                            ]}
-                        />
+                    {/* Tab Content */}
+                    <div className="mt-6">
+                        {activeTab === "Overview" && (
+                            <TikTokOverviewTab
+                                chartData={campaignDetail.chart_data || []}
+                                chartToggles={chartToggles}
+                                onToggleChartMetric={(metric) =>
+                                    setChartToggles((prev) => ({ ...prev, [metric]: !prev[metric as keyof typeof prev] }))
+                                }
+                                metrics={[
+                                    {
+                                        key: "spend",
+                                        label: "Spend",
+                                        color: "#136D6D",
+                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val)
+                                    },
+                                    {
+                                        key: "impressions",
+                                        label: "Impressions",
+                                        color: "#F59E0B",
+                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
+                                    },
+                                    {
+                                        key: "clicks",
+                                        label: "Clicks",
+                                        color: "#3B82F6",
+                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
+                                    },
+                                    {
+                                        key: "conversions",
+                                        label: "Conversions",
+                                        color: "#10B981",
+                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
+                                    },
+                                ]}
+                            />
+                        )}
+
+                        {activeTab === "Ad Groups" && (
+                            <TikTokCampaignDetailAdGroupsTab
+                                adgroups={adgroups}
+                                loading={adgroupsLoading}
+                                selectedAdGroupIds={selectedAdGroupIds}
+                                onSelectAll={(checked) => {
+                                    if (checked) setSelectedAdGroupIds(new Set(adgroups.map(ag => ag.adgroup_id)));
+                                    else setSelectedAdGroupIds(new Set());
+                                }}
+                                onSelectAdGroup={(id, checked) => {
+                                    const newSet = new Set(selectedAdGroupIds);
+                                    if (checked) newSet.add(id);
+                                    else newSet.delete(id);
+                                    setSelectedAdGroupIds(newSet);
+                                }}
+                                sortBy={adgroupsSortBy}
+                                sortOrder={adgroupsSortOrder}
+                                onSort={handleSortAdGroups}
+                                currentPage={adgroupsCurrentPage}
+                                totalPages={adgroupsTotalPages}
+                                onPageChange={setAdgroupsCurrentPage}
+                                isFilterPanelOpen={isAdGroupsFilterPanelOpen}
+                                onToggleFilterPanel={() => setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen)}
+                                filters={adgroupsFilters}
+                                onApplyFilters={setAdgroupsFilters}
+                            />
+                        )}
+
+
+                        {activeTab === "Logs" && <TikTokCampaignDetailLogsTab />}
                     </div>
                 </div>
             </div>
