@@ -143,9 +143,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   const allSelected =
     adgroups.length > 0 &&
     adgroups.every((ag) => selectedIds.has(ag.adGroupId || ag.id));
-  const someSelected = adgroups.some((ag) =>
-    selectedIds.has(ag.adGroupId || ag.id)
-  );
+  const someSelected =
+    adgroups.some((ag) => selectedIds.has(ag.adGroupId || ag.id)) &&
+    !allSelected;
 
   const handleSelectAll = (checked: boolean) => {
     onSelectAll?.(checked);
