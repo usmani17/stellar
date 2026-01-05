@@ -1,5 +1,6 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { useParams } from "react-router-dom";
+import { campaignsService } from "../../../../services/campaigns";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
@@ -39,7 +40,242 @@ interface TikTokCampaignDetailAdGroupsTabProps {
     onApplyFilters: (filters: FilterValues) => void;
     syncing?: boolean;
     onSync?: () => void;
+    onRefresh?: () => void;
 }
+
+const TikTokCreateAdGroupPanel: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess: () => void;
+}> = ({ isOpen, onClose, onSuccess }) => {
+    const { accountId, campaignId } = useParams<{ accountId: string; campaignId: string }>();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Form State
+    const [adgroupName, setAdgroupName] = useState("");
+    const [budgetMode, setBudgetMode] = useState("BUDGET_MODE_DAY");
+    const [budget, setBudget] = useState<number | "">("");
+    const [scheduleType, setScheduleType] = useState("SCHEDULE_FROM_NOW");
+    const [scheduleStartTime, setScheduleStartTime] = useState("");
+    const [optimizationGoal, setOptimizationGoal] = useState("CLICK");
+    const [billingEvent, setBillingEvent] = useState("CPC");
+    const [locationIds, setLocationIds] = useState("");
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!accountId || !campaignId) return;
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const locIds = locationIds.split(",").map(id => id.trim()).filter(id => id);
+
+            await campaignsService.createTikTokAdGroup(parseInt(accountId), {
+                campaign_id: campaignId,
+                adgroup_name: adgroupName,
+                budget_mode: budgetMode,
+                budget: Number(budget),
+                schedule_type: scheduleType,
+                schedule_start_time: scheduleStartTime,
+                optimization_goal: optimizationGoal,
+                billing_event: billingEvent,
+                location_ids: locIds,
+            });
+            onSuccess();
+            onClose();
+            // Reset form
+            setAdgroupName("");
+            setBudget("");
+            setScheduleStartTime("");
+            setLocationIds("");
+        } catch (err: any) {
+            console.error("Error creating ad group:", err);
+            setError(err.message || "Failed to create ad group");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCancel = () => {
+        setAdgroupName("");
+        setBudget("");
+        setScheduleStartTime("");
+        setLocationIds("");
+        setError(null);
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
+            {/* Form */}
+            <div className="p-4 border-b border-gray-200">
+                <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
+                    Create Ad Group
+                </h2>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
+                        <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                )}
+
+                {/* Single line inputs in grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    {/* Ad Group Name */}
+                    <div className="lg:col-span-2">
+                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                            Ad Group Name *
+                        </label>
+                        <input
+                            type="text"
+                            required
+                            value={adgroupName}
+                            onChange={(e) => setAdgroupName(e.target.value)}
+                            placeholder="Enter ad group name"
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
+                    </div>
+
+                    {/* Budget Mode */}
+                    <div>
+                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                            Budget Mode *
+                        </label>
+                        <select
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            value={budgetMode}
+                            onChange={(e) => setBudgetMode(e.target.value)}
+                        >
+                            <option value="BUDGET_MODE_DAY">Daily Budget</option>
+                            <option value="BUDGET_MODE_TOTAL">Lifetime Budget</option>
+                        </select>
+                    </div>
+
+                    {/* Budget */}
+                    <div>
+                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                            Budget *
+                        </label>
+                        <input
+                            type="number"
+                            required
+                            value={budget}
+                            onChange={(e) => setBudget(parseFloat(e.target.value))}
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
+                    </div>
+                </div>
+
+                {/* Second row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    {/* Schedule Type */}
+                    <div>
+                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                            Schedule Type *
+                        </label>
+                        <select
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            value={scheduleType}
+                            onChange={(e) => setScheduleType(e.target.value)}
+                        >
+                            <option value="SCHEDULE_FROM_NOW">Run Continuously</option>
+                            <option value="SCHEDULE_START_END">Set Start/End Date</option>
+                        </select>
+                    </div>
+
+                    {/* Start Time */}
+                    <div>
+                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                            Start Time (UTC)
+                        </label>
+                        <input
+                            type="text"
+                            value={scheduleStartTime}
+                            onChange={(e) => setScheduleStartTime(e.target.value)}
+                            placeholder="YYYY-MM-DD HH:MM:SS"
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        />
+                    </div>
+
+                    {/* Optimization Goal */}
+                    <div>
+                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                            Optimization Goal *
+                        </label>
+                        <select
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            value={optimizationGoal}
+                            onChange={(e) => setOptimizationGoal(e.target.value)}
+                        >
+                            <option value="CLICK">Click</option>
+                            <option value="CONVERSION">Conversion</option>
+                            <option value="REACH">Reach</option>
+                            <option value="VIDEO_VIEW">Video View</option>
+                        </select>
+                    </div>
+
+                    {/* Billing Event */}
+                    <div>
+                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                            Billing Event *
+                        </label>
+                        <select
+                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                            value={billingEvent}
+                            onChange={(e) => setBillingEvent(e.target.value)}
+                        >
+                            <option value="CPC">CPC</option>
+                            <option value="CPM">CPM</option>
+                            <option value="OCPM">oCPM</option>
+                            <option value="CPV">CPV</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Location IDs - Full width */}
+                <div className="mb-4">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                        Location IDs
+                    </label>
+                    <textarea
+                        rows={2}
+                        value={locationIds}
+                        onChange={(e) => setLocationIds(e.target.value)}
+                        placeholder="6252001 (comma separated)"
+                        className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    />
+                </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 flex items-center justify-end gap-3">
+                <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {loading ? "Creating..." : "Create Ad Group"}
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGroupsTabProps> = ({
     adgroups,
@@ -53,13 +289,21 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
     currentPage,
     totalPages,
     onPageChange,
-    isFilterPanelOpen,
+    isFilterPanelOpen: externalIsFilterPanelOpen,
     onToggleFilterPanel,
     filters,
     onApplyFilters,
     syncing,
     onSync,
+    onRefresh,
 }) => {
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(externalIsFilterPanelOpen);
+
+    // Sync external filter panel state with internal state
+    React.useEffect(() => {
+        setIsFilterPanelOpen(externalIsFilterPanelOpen);
+    }, [externalIsFilterPanelOpen]);
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat("en-US", {
             style: "currency",
@@ -127,42 +371,98 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
 
     return (
         <>
-            {/* Header Actions (Filter/Sync) */}
-            <div className="flex items-center justify-end mb-4 gap-3">
-                <button
-                    onClick={onToggleFilterPanel}
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                >
-                    <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                    </svg>
-                    <span className="text-[10.64px] text-[#072929] font-normal">Add Filter</span>
-                    <svg
-                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-                {onSync && (
+            {/* Header with Title and Actions */}
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Ad Groups
+                </h2>
+                <div className="flex items-center gap-2">
+                    {/* Create Ad Group Button */}
                     <button
-                        onClick={onSync}
-                        disabled={syncing}
-                        className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold"
+                        onClick={() => {
+                            setIsCreateModalOpen(!isCreateModalOpen);
+                            if (!isCreateModalOpen) {
+                                setIsFilterPanelOpen(false); // Close filter panel when opening create panel
+                            }
+                        }}
+                        className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors"
                     >
-                        {syncing ? "Syncing..." : "Sync Ad Groups"}
+                        <svg className="w-5 h-5 !text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="text-[10.64px] text-white font-normal">Create Ad Group</span>
+                        <svg
+                            className={`w-4 h-4 !text-white transition-transform ${isCreateModalOpen ? "rotate-180" : ""}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
                     </button>
-                )}
+
+                    {/* Edit Button */}
+                    <button
+                        className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                    >
+                        <svg className="w-4 h-4 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">Edit</span>
+                    </button>
+
+                    {/* Filter Button */}
+                    <button
+                        onClick={() => {
+                            setIsFilterPanelOpen(!isFilterPanelOpen);
+                            if (!isFilterPanelOpen) {
+                                setIsCreateModalOpen(false); // Close create panel when opening filter panel
+                            }
+                        }}
+                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                    >
+                        <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">Add Filter</span>
+                        <svg
+                            className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    {/* Sync Button */}
+                    {onSync && (
+                        <button
+                            onClick={onSync}
+                            disabled={syncing}
+                            className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold"
+                        >
+                            {syncing ? "Syncing..." : "Sync Ad Groups"}
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {/* Create Ad Group Panel */}
+            <TikTokCreateAdGroupPanel
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSuccess={() => {
+                    if (onRefresh) onRefresh();
+                }}
+            />
 
             {/* Filter Panel */}
             {isFilterPanelOpen && (
                 <div className="mb-4">
                     <FilterPanel
                         isOpen={true}
-                        onClose={onToggleFilterPanel}
+                        onClose={() => setIsFilterPanelOpen(false)}
                         onApply={onApplyFilters}
                         initialFilters={filters}
                         filterFields={[

@@ -396,6 +396,61 @@ export interface TargetsResponse {
   total_pages: number;
 }
 
+// Google Ad Groups Query Params
+export interface GoogleAdGroupsQueryParams {
+  sort_by?: string;
+  order?: "asc" | "desc";
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  page_size?: number;
+  adgroup_name?: string;
+  adgroup_name__icontains?: string;
+  adgroup_name__not_icontains?: string;
+  status?: string;
+  cpc_bid_dollars?: number;
+  cpc_bid_dollars__lt?: number;
+  cpc_bid_dollars__gt?: number;
+  cpc_bid_dollars__lte?: number;
+  cpc_bid_dollars__gte?: number;
+  account_name?: string;
+  account_name__icontains?: string;
+  account_name__not_icontains?: string;
+  campaign_name?: string;
+  campaign_name__icontains?: string;
+  campaign_name__not_icontains?: string;
+  spends?: number;
+  spends__lt?: number;
+  spends__gt?: number;
+  spends__lte?: number;
+  spends__gte?: number;
+  sales?: number;
+  sales__lt?: number;
+  sales__gt?: number;
+  sales__lte?: number;
+  sales__gte?: number;
+  impressions?: number;
+  impressions__lt?: number;
+  impressions__gt?: number;
+  impressions__lte?: number;
+  impressions__gte?: number;
+  clicks?: number;
+  clicks__lt?: number;
+  clicks__gt?: number;
+  clicks__lte?: number;
+  clicks__gte?: number;
+  acos?: number;
+  acos__lt?: number;
+  acos__gt?: number;
+  acos__lte?: number;
+  acos__gte?: number;
+  roas?: number;
+  roas__lt?: number;
+  roas__gt?: number;
+  roas__lte?: number;
+  roas__gte?: number;
+}
+
 export const campaignsService = {
   getCampaigns: async (
     accountId: number,
@@ -2580,6 +2635,7 @@ export const campaignsService = {
     window.URL.revokeObjectURL(url);
   },
 
+
   exportGoogleAdGroups: async (
     accountId: number,
     params?: GoogleAdGroupsQueryParams,
@@ -3339,4 +3395,24 @@ export const campaignsService = {
     });
     return response.data;
   },
+
+  createTikTokAdGroup: async (
+    accountId: number,
+    data: {
+      campaign_id: string;
+      adgroup_name: string;
+      location_ids: string[];
+      budget_mode: string;
+      budget: number;
+      schedule_type: string;
+      schedule_start_time: string;
+      optimization_goal: string;
+      billing_event: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-adgroups/create/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
 };

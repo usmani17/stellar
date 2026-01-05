@@ -65,6 +65,7 @@ export const TikTokCampaignDetail: React.FC = () => {
     const [isAdGroupsFilterPanelOpen, setIsAdGroupsFilterPanelOpen] = useState(false);
     const [adgroupsFilters, setAdgroupsFilters] = useState<FilterValues>([]);
 
+    const [isCreateAdGroupPanelOpen, setIsCreateAdGroupPanelOpen] = useState(false);
 
     // Chart State
     const [chartToggles, setChartToggles] = useState({
@@ -371,6 +372,7 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 onToggleFilterPanel={() => setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen)}
                                 filters={adgroupsFilters}
                                 onApplyFilters={setAdgroupsFilters}
+                                onRefresh={loadAdGroups}
                             />
                         )}
 
