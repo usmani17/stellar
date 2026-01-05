@@ -19,7 +19,7 @@ import {
     FilterSectionPanel,
 } from "../../components/filters/FilterSection";
 import { type FilterValues } from "../../components/filters/FilterPanel";
-import { selectXAxisSize } from "recharts/types/state/selectors/axisSelectors";
+// import { selectXAxisSize } from "recharts/types/state/selectors/axisSelectors";
 
 // TikTok Campaign Filter Fields
 const TIKTOK_CAMPAIGN_FILTER_FIELDS = [

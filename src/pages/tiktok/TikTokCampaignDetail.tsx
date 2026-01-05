@@ -6,6 +6,7 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { KPICard } from "../../components/ui/KPICard";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { useSidebar } from "../../contexts/SidebarContext";
+import { useDateRange } from "../../contexts/DateRangeContext";
 import { campaignsService } from "../../services/campaigns";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 
@@ -36,8 +37,11 @@ export const TikTokCampaignDetail: React.FC = () => {
     }>();
     const navigate = useNavigate();
     const { sidebarWidth } = useSidebar();
+    const { startDate, endDate } = useDateRange();
     const [loading, setLoading] = useState(true);
     const [campaign, setCampaign] = useState<TikTokCampaignDetailData | null>(null);
+    const [kpiCards, setKpiCards] = useState<Array<{ label: string; value: string }>>([]);
+    const [chartData, setChartData] = useState<Array<any>>([]);
 
     // Chart toggles
     const [chartToggles, setChartToggles] = useState({
@@ -72,59 +76,60 @@ export const TikTokCampaignDetail: React.FC = () => {
 
         setLoading(true);
         try {
-            // Fetch all campaigns and find the specific one
-            const response = await campaignsService.getTikTokCampaigns(
+            // Use the new campaign detail endpoint with chart data
+            // Format dates as YYYY-MM-DD strings
+            const formattedStartDate = startDate.toISOString().split('T')[0];
+            const formattedEndDate = endDate.toISOString().split('T')[0];
+
+            console.log('[TikTok] Fetching campaign detail with dates:', formattedStartDate, 'to', formattedEndDate);
+
+            const response = await campaignsService.getTikTokCampaignDetail(
                 parseInt(accountId),
-                { page: 1, page_size: 100 }
+                campaignId,
+                formattedStartDate,
+                formattedEndDate
             );
 
-            if (response && response.campaigns) {
-                const foundCampaign = response.campaigns.find(
-                    (c: any) => c.campaign_id === campaignId || c.campaign_id?.toString() === campaignId
-                );
-                if (foundCampaign) {
-                    setCampaign(foundCampaign);
-                }
+            console.log('[TikTok] chart_data returned:', response?.chart_data?.length, 'items', response?.chart_data);
+
+            if (response) {
+                // Map API response to component state
+                setCampaign({
+                    campaign_id: response.campaign.campaign_id,
+                    campaign_name: response.campaign.campaign_name,
+                    operation_status: response.campaign.operation_status,
+                    objective_type: response.campaign.objective_type,
+                    budget: response.campaign.budget,
+                    budget_mode: response.campaign.budget_mode,
+                    create_time: response.campaign.create_time,
+                    modify_time: response.campaign.modify_time,
+                });
+
+                // Set KPI cards from response
+                setKpiCards(response.kpi_cards || []);
+
+                // Set chart data from response (real data from backend)
+                setChartData(response.chart_data || []);
             }
         } catch (error) {
             console.error("Failed to fetch TikTok campaign detail:", error);
         } finally {
             setLoading(false);
         }
-    }, [accountId, campaignId]);
+    }, [accountId, campaignId, startDate, endDate]);
 
     useEffect(() => {
         fetchCampaignDetail();
     }, [fetchCampaignDetail]);
 
-    // Generate sample chart data
-    const chartData = useMemo(() => {
-        const days = 14;
-        const data = [];
-        const today = new Date();
-
-        for (let i = days - 1; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-            const baseSpend = 2000 + Math.random() * 1500;
-            const baseConversions = 100 + Math.random() * 80;
-            const baseImpressions = 40000 + Math.random() * 25000;
-            const baseClicks = 1500 + Math.random() * 1200;
-
-            data.push({
-                date: dateStr,
-                spend: Math.round(baseSpend),
-                conversions: Math.round(baseConversions),
-                impressions: Math.round(baseImpressions),
-                clicks: Math.round(baseClicks),
-                ctr: parseFloat(((baseClicks / baseImpressions) * 100).toFixed(2)),
-                cpc: parseFloat((baseSpend / baseClicks).toFixed(2)),
-            });
-        }
-        return data;
-    }, []);
+    // Process chart data with computed metrics
+    const processedChartData = useMemo(() => {
+        return chartData.map(item => ({
+            ...item,
+            ctr: item.impressions > 0 ? parseFloat(((item.clicks / item.impressions) * 100).toFixed(2)) : 0,
+            cpc: item.clicks > 0 ? parseFloat((item.spend / item.clicks).toFixed(2)) : 0,
+        }));
+    }, [chartData]);
 
     // Format status for StatusBadge
     const getStatusBadgeValue = (status?: string) => {
@@ -328,37 +333,20 @@ export const TikTokCampaignDetail: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* KPI Cards */}
+                        {/* KPI Cards - from API response */}
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            <KPICard
-                                label="Spend"
-                                value={formatCurrency(campaign.spend)}
-                            />
-                            <KPICard
-                                label="Impressions"
-                                value={formatNumber(campaign.impressions)}
-                            />
-                            <KPICard
-                                label="Clicks"
-                                value={formatNumber(campaign.clicks)}
-                            />
-                            <KPICard
-                                label="CTR"
-                                value={formatPercentage(campaign.ctr)}
-                            />
-                            <KPICard
-                                label="CPC"
-                                value={formatCurrency(campaign.cpc)}
-                            />
-                            <KPICard
-                                label="Conversions"
-                                value={formatNumber(campaign.conversions)}
-                            />
+                            {kpiCards.map((kpi, index) => (
+                                <KPICard
+                                    key={index}
+                                    label={kpi.label}
+                                    value={kpi.value}
+                                />
+                            ))}
                         </div>
 
                         {/* Performance Chart */}
                         <PerformanceChart
-                            data={chartData}
+                            data={processedChartData}
                             toggles={chartToggles}
                             onToggle={toggleChartMetric}
                             title="Performance Trends"

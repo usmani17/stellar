@@ -3240,4 +3240,41 @@ export const campaignsService = {
     const response = await api.post(url, data);
     return response.data;
   },
+
+  // TikTok Campaign Detail
+  getTikTokCampaignDetail: async (
+    accountId: number,
+    campaignId: string | number,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    campaign: {
+      id: number;
+      campaign_id: string;
+      advertiser_id: string;
+      campaign_name: string;
+      operation_status: string;
+      objective_type: string;
+      budget_mode: string;
+      budget: number;
+      create_time: string;
+      modify_time: string;
+    };
+    kpi_cards: Array<{ label: string; value: string }>;
+    chart_data: Array<{
+      date: string;
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+    }>;
+  }> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    const queryString = params.toString();
+    const url = `/accounts/${accountId}/tiktok-campaigns/${campaignId}/${queryString ? `?${queryString}` : ""}`;
+    const response = await api.get(url);
+    return response.data;
+  },
 };
