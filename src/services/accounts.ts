@@ -177,5 +177,15 @@ export const accountsService = {
     );
     return response.data.portfolios || [];
   },
+
+  // Amazon Brand Entities (per account, optionally filtered by profileId)
+  getBrandEntities: async (accountId: number, profileId?: string): Promise<Array<{ id: string; name: string }>> => {
+    const params = profileId ? { profileId } : {};
+    const response = await api.get<{ brandEntities: Array<{ id: string; name: string }> }>(
+      `/accounts/${accountId}/brand-entities/`,
+      { params }
+    );
+    return response.data.brandEntities || [];
+  },
 };
 

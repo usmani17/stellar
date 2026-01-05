@@ -1363,7 +1363,7 @@ export const Campaigns: React.FC = () => {
         }
       }
 
-      // Map dynamicBidding from backend to frontend bidding structure
+      // Map dynamicBidding from backend to frontend bidding structure (for SP campaigns)
       const mapDynamicBidding = (dynamicBidding: any) => {
         if (!dynamicBidding) return undefined;
 
@@ -1423,6 +1423,61 @@ export const Campaigns: React.FC = () => {
         return bidding;
       };
 
+      // Map bidding from backend to frontend bidding structure (for SB campaigns)
+      const mapBidding = (bidding: any) => {
+        if (!bidding) return undefined;
+
+        // If bidding is a string, parse it as JSON
+        let parsedBidding = bidding;
+        if (typeof bidding === "string") {
+          try {
+            parsedBidding = JSON.parse(bidding);
+          } catch (e) {
+            console.error("Failed to parse bidding JSON:", e);
+            return undefined;
+          }
+        }
+
+        const biddingObj: any = {
+          bidOptimization: parsedBidding.bidOptimization ?? true, // Default value
+          shopperCohortBidAdjustments: [],
+          bidAdjustmentsByPlacement: [],
+        };
+
+        // Map bidAdjustmentsByPlacement (SB uses same field name)
+        if (
+          parsedBidding.bidAdjustmentsByPlacement &&
+          Array.isArray(parsedBidding.bidAdjustmentsByPlacement)
+        ) {
+          biddingObj.bidAdjustmentsByPlacement =
+            parsedBidding.bidAdjustmentsByPlacement.map((pb: any) => ({
+              percentage: pb.percentage || 0,
+              placement: pb.placement, // Already in correct format (PLACEMENT_TOP, etc.)
+            }));
+        }
+
+        // Map shopperCohortBidAdjustments (SB uses same field name)
+        if (
+          parsedBidding.shopperCohortBidAdjustments &&
+          Array.isArray(parsedBidding.shopperCohortBidAdjustments)
+        ) {
+          biddingObj.shopperCohortBidAdjustments =
+            parsedBidding.shopperCohortBidAdjustments.map((scb: any) => ({
+              percentage: scb.percentage || 0,
+              shopperCohortType: scb.shopperCohortType || "AUDIENCE_SEGMENT",
+              audienceSegments: scb.audienceSegments || [],
+            }));
+        }
+
+        console.log(
+          "Mapped bidding:",
+          parsedBidding,
+          "to bidding:",
+          biddingObj
+        );
+        return biddingObj;
+      };
+
       // Map siteRestrictions (could be array or string)
       const mapSiteRestrictions = (siteRestrictions: any) => {
         if (!siteRestrictions) return undefined;
@@ -1437,9 +1492,11 @@ export const Campaigns: React.FC = () => {
         return undefined;
       };
 
+      const campaignTypeUpper = (row.type?.toUpperCase() as any) || "SP";
+
       const initial: Partial<CreateCampaignData> = {
         campaign_name: campaign.name || row.campaign_name,
-        type: (row.type?.toUpperCase() as any) || "SP",
+        type: campaignTypeUpper,
         // Try to pre-select profile if we have it on the row
         profileId: (row as any).profile_id || undefined,
         // Pre-select portfolio if present in campaign detail
@@ -1454,15 +1511,28 @@ export const Campaigns: React.FC = () => {
           (campaign.budgetType as any) || (row.budgetType as any) || "DAILY",
         status: normalizedStatus || "Enabled",
         startDate: campaign.startDate || row.startDate,
-        endDate: campaign.endDate,
-        targetingType:
-          (campaign.targetingType as any) ||
-          (campaign.targeting_type as any) ||
-          undefined,
-        // Map dynamicBidding from backend to frontend bidding structure
-        bidding: mapDynamicBidding(
-          (campaign as any).dynamicBidding || (row as any).dynamicBidding
-        ),
+        // Only include endDate for non-SB campaigns
+        ...(campaignTypeUpper !== "SB" && { endDate: campaign.endDate }),
+        // Only include targetingType for SP campaigns
+        ...(campaignTypeUpper === "SP" && {
+          targetingType:
+            (campaign.targetingType as any) ||
+            (campaign.targeting_type as any) ||
+            undefined,
+        }),
+        // Map bidding based on campaign type
+        bidding:
+          campaignTypeUpper === "SB"
+            ? mapBidding((campaign as any).bidding || (row as any).bidding)
+            : mapDynamicBidding(
+                (campaign as any).dynamicBidding || (row as any).dynamicBidding
+              ),
+        // SB-specific fields
+        ...(campaignTypeUpper === "SB" && {
+          brandEntityId: (campaign as any).brandEntityId || undefined,
+          goal: (campaign as any).goal || "PAGE_VISIT",
+          productLocation: (campaign as any).productLocation || "",
+        }),
         // Map tags from object to array format
         tags: (() => {
           const tagsData = (campaign as any).tags || (row as any).tags;
