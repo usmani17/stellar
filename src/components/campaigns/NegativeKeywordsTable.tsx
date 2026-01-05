@@ -358,27 +358,31 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       <td className="py-[10px] px-[10px] min-w-[115px]">
                         {inlineEditLoading.has(keyword.id) ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {pendingChange?.field === "status"
-                                ? pendingChange.newValue === "enabled"
-                                  ? "Enabled"
-                                  : pendingChange.newValue === "paused"
-                                  ? "Paused"
-                                  : "Archived"
-                                : statusValue}
-                            </span>
+                            <StatusBadge
+                              status={
+                                pendingChange?.field === "status"
+                                  ? pendingChange.newValue === "enabled"
+                                    ? "Enabled"
+                                    : pendingChange.newValue === "paused"
+                                    ? "Paused"
+                                    : "Archived"
+                                  : statusValue
+                              }
+                            />
                             <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
                           </div>
                         ) : pendingChange?.id === keyword.id &&
                           pendingChange?.field === "status" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {pendingChange.newValue === "enabled"
-                                ? "Enabled"
-                                : pendingChange.newValue === "paused"
-                                ? "Paused"
-                                : "Archived"}
-                            </span>
+                            <StatusBadge
+                              status={
+                                pendingChange.newValue === "enabled"
+                                  ? "Enabled"
+                                  : pendingChange.newValue === "paused"
+                                  ? "Paused"
+                                  : "Archived"
+                              }
+                            />
                           </div>
                         ) : editingField?.id === keyword.id &&
                           editingField?.field === "status" ? (
