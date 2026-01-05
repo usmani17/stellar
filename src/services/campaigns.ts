@@ -67,6 +67,7 @@ export interface CampaignsQueryParams {
   // State and Type filters
   state?: string;
   type?: string;
+  targeting_type?: string;
   // Profile name filters with operators
   profile_name?: string;
   profile_name__icontains?: string;
@@ -456,6 +457,9 @@ export const campaignsService = {
     if (params?.type) {
       filters.type = params.type;
     }
+    if (params?.targeting_type) {
+      filters.targeting_type = params.targeting_type;
+    }
     // Profile name filters
     if (params?.profile_name) {
       filters.profile_name = params.profile_name;
@@ -533,6 +537,9 @@ export const campaignsService = {
     }
     if (params?.type) {
       filters.type = params.type;
+    }
+    if (params?.targeting_type) {
+      filters.targeting_type = params.targeting_type;
     }
     // Profile name filters
     if (params?.profile_name) {
