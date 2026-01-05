@@ -4,6 +4,7 @@ import { campaignsService } from "../../../../services/campaigns";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import { CreateTikTokAdGroupPanel } from "../../../../components/tiktok/CreateTikTokAdGroupPanel";
 
 // Define interface locally or import if shared
 export interface TikTokAdGroup {
@@ -43,240 +44,6 @@ interface TikTokCampaignDetailAdGroupsTabProps {
     onRefresh?: () => void;
 }
 
-const TikTokCreateAdGroupPanel: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    onSuccess: () => void;
-}> = ({ isOpen, onClose, onSuccess }) => {
-    const { accountId, campaignId } = useParams<{ accountId: string; campaignId: string }>();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    // Form State
-    const [adgroupName, setAdgroupName] = useState("");
-    const [budgetMode, setBudgetMode] = useState("BUDGET_MODE_DAY");
-    const [budget, setBudget] = useState<number | "">("");
-    const [scheduleType, setScheduleType] = useState("SCHEDULE_FROM_NOW");
-    const [scheduleStartTime, setScheduleStartTime] = useState("");
-    const [optimizationGoal, setOptimizationGoal] = useState("CLICK");
-    const [billingEvent, setBillingEvent] = useState("CPC");
-    const [locationIds, setLocationIds] = useState("");
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!accountId || !campaignId) return;
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            const locIds = locationIds.split(",").map(id => id.trim()).filter(id => id);
-
-            await campaignsService.createTikTokAdGroup(parseInt(accountId), {
-                campaign_id: campaignId,
-                adgroup_name: adgroupName,
-                budget_mode: budgetMode,
-                budget: Number(budget),
-                schedule_type: scheduleType,
-                schedule_start_time: scheduleStartTime,
-                optimization_goal: optimizationGoal,
-                billing_event: billingEvent,
-                location_ids: locIds,
-            });
-            onSuccess();
-            onClose();
-            // Reset form
-            setAdgroupName("");
-            setBudget("");
-            setScheduleStartTime("");
-            setLocationIds("");
-        } catch (err: any) {
-            console.error("Error creating ad group:", err);
-            setError(err.message || "Failed to create ad group");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleCancel = () => {
-        setAdgroupName("");
-        setBudget("");
-        setScheduleStartTime("");
-        setLocationIds("");
-        setError(null);
-        onClose();
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
-            {/* Form */}
-            <div className="p-4 border-b border-gray-200">
-                <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
-                    Create Ad Group
-                </h2>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
-                        <p className="text-sm text-red-700">{error}</p>
-                    </div>
-                )}
-
-                {/* Single line inputs in grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                    {/* Ad Group Name */}
-                    <div className="lg:col-span-2">
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Ad Group Name *
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            value={adgroupName}
-                            onChange={(e) => setAdgroupName(e.target.value)}
-                            placeholder="Enter ad group name"
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        />
-                    </div>
-
-                    {/* Budget Mode */}
-                    <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Budget Mode *
-                        </label>
-                        <select
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                            value={budgetMode}
-                            onChange={(e) => setBudgetMode(e.target.value)}
-                        >
-                            <option value="BUDGET_MODE_DAY">Daily Budget</option>
-                            <option value="BUDGET_MODE_TOTAL">Lifetime Budget</option>
-                        </select>
-                    </div>
-
-                    {/* Budget */}
-                    <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Budget *
-                        </label>
-                        <input
-                            type="number"
-                            required
-                            value={budget}
-                            onChange={(e) => setBudget(parseFloat(e.target.value))}
-                            placeholder="0.00"
-                            min="0"
-                            step="0.01"
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        />
-                    </div>
-                </div>
-
-                {/* Second row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                    {/* Schedule Type */}
-                    <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Schedule Type *
-                        </label>
-                        <select
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                            value={scheduleType}
-                            onChange={(e) => setScheduleType(e.target.value)}
-                        >
-                            <option value="SCHEDULE_FROM_NOW">Run Continuously</option>
-                            <option value="SCHEDULE_START_END">Set Start/End Date</option>
-                        </select>
-                    </div>
-
-                    {/* Start Time */}
-                    <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Start Time (UTC)
-                        </label>
-                        <input
-                            type="text"
-                            value={scheduleStartTime}
-                            onChange={(e) => setScheduleStartTime(e.target.value)}
-                            placeholder="YYYY-MM-DD HH:MM:SS"
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        />
-                    </div>
-
-                    {/* Optimization Goal */}
-                    <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Optimization Goal *
-                        </label>
-                        <select
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                            value={optimizationGoal}
-                            onChange={(e) => setOptimizationGoal(e.target.value)}
-                        >
-                            <option value="CLICK">Click</option>
-                            <option value="CONVERSION">Conversion</option>
-                            <option value="REACH">Reach</option>
-                            <option value="VIDEO_VIEW">Video View</option>
-                        </select>
-                    </div>
-
-                    {/* Billing Event */}
-                    <div>
-                        <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                            Billing Event *
-                        </label>
-                        <select
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                            value={billingEvent}
-                            onChange={(e) => setBillingEvent(e.target.value)}
-                        >
-                            <option value="CPC">CPC</option>
-                            <option value="CPM">CPM</option>
-                            <option value="OCPM">oCPM</option>
-                            <option value="CPV">CPV</option>
-                        </select>
-                    </div>
-                </div>
-
-                {/* Location IDs - Full width */}
-                <div className="mb-4">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                        Location IDs
-                    </label>
-                    <textarea
-                        rows={2}
-                        value={locationIds}
-                        onChange={(e) => setLocationIds(e.target.value)}
-                        placeholder="6252001 (comma separated)"
-                        className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                    />
-                </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="p-4 flex items-center justify-end gap-3">
-                <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
-                >
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {loading ? "Creating..." : "Create Ad Group"}
-                </button>
-            </div>
-        </div>
-    );
-};
-
 export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGroupsTabProps> = ({
     adgroups,
     loading,
@@ -297,6 +64,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
     onSync,
     onRefresh,
 }) => {
+    const { accountId, campaignId } = useParams<{ accountId: string; campaignId: string }>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(externalIsFilterPanelOpen);
 
@@ -449,11 +217,22 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
             </div>
 
             {/* Create Ad Group Panel */}
-            <TikTokCreateAdGroupPanel
+            <CreateTikTokAdGroupPanel
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                onSuccess={() => {
-                    if (onRefresh) onRefresh();
+                campaignId={campaignId!}
+                onSubmit={async (data) => {
+                    try {
+                        if (!accountId) return;
+                        await campaignsService.createTikTokAdGroup(parseInt(accountId), {
+                            ...data,
+                            schedule_start_time: data.schedule_start_time || "",
+                        });
+                        if (onRefresh) onRefresh();
+                        setIsCreateModalOpen(false);
+                    } catch (error) {
+                        console.error("Failed to create ad group:", error);
+                    }
                 }}
             />
 
