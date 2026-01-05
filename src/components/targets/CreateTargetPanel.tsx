@@ -45,38 +45,30 @@ interface CreateTargetPanelProps {
   failedTargets?: FailedTarget[];
 }
 
+// Only supported expression types as per Amazon API documentation
 const EXPRESSION_TYPE_OPTIONS = [
-  // Query-based expressions
-  { value: "QUERY_HIGH_REL_MATCHES", label: "Query High Rel Matches" },
-  { value: "QUERY_BROAD_REL_MATCHES", label: "Query Broad Rel Matches" },
-  { value: "QUERY_BROAD_MATCHES", label: "Query Broad Matches" },
-  { value: "QUERY_PHRASE_MATCHES", label: "Query Phrase Matches" },
-  { value: "QUERY_EXACT_MATCHES", label: "Query Exact Matches" },
-  // ASIN-based expressions
-  { value: "ASIN_SAME_AS", label: "ASIN Same As" },
-  { value: "ASIN_SUBSTITUTE_RELATED", label: "ASIN Substitute Related" },
-  { value: "ASIN_ACCESSORY_RELATED", label: "ASIN Accessory Related" },
+  { value: "ASIN_AGE_RANGE_SAME_AS", label: "ASIN Age Range Same As" },
   { value: "ASIN_BRAND_SAME_AS", label: "ASIN Brand Same As" },
   { value: "ASIN_CATEGORY_SAME_AS", label: "ASIN Category Same As" },
-  { value: "ASIN_PRICE_LESS_THAN", label: "ASIN Price Less Than" },
+  { value: "ASIN_EXPANDED_FROM", label: "ASIN Expanded From" },
+  { value: "ASIN_GENRE_SAME_AS", label: "ASIN Genre Same As" },
+  {
+    value: "ASIN_IS_PRIME_SHIPPING_ELIGIBLE",
+    label: "ASIN Is Prime Shipping Eligible",
+  },
   { value: "ASIN_PRICE_BETWEEN", label: "ASIN Price Between" },
   { value: "ASIN_PRICE_GREATER_THAN", label: "ASIN Price Greater Than" },
-  {
-    value: "ASIN_REVIEW_RATING_LESS_THAN",
-    label: "ASIN Review Rating Less Than",
-  },
+  { value: "ASIN_PRICE_LESS_THAN", label: "ASIN Price Less Than" },
   { value: "ASIN_REVIEW_RATING_BETWEEN", label: "ASIN Review Rating Between" },
   {
     value: "ASIN_REVIEW_RATING_GREATER_THAN",
     label: "ASIN Review Rating Greater Than",
   },
   {
-    value: "ASIN_IS_PRIME_SHIPPING_ELIGIBLE",
-    label: "ASIN Is Prime Shipping Eligible",
+    value: "ASIN_REVIEW_RATING_LESS_THAN",
+    label: "ASIN Review Rating Less Than",
   },
-  { value: "ASIN_AGE_RANGE_SAME_AS", label: "ASIN Age Range Same As" },
-  { value: "ASIN_GENRE_SAME_AS", label: "ASIN Genre Same As" },
-  { value: "ASIN_EXPANDED_FROM", label: "ASIN Expanded From" },
+  { value: "ASIN_SAME_AS", label: "ASIN Same As" },
   { value: "KEYWORD_GROUP_SAME_AS", label: "Keyword Group Same As" },
 ];
 

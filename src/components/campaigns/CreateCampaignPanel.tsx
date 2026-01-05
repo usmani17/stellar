@@ -739,7 +739,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     // Campaign type specific fields
     if (data.type === "SP") {
       // SP specific fields
-      if (data.targetingType) {
+      // targetingType is not editable in edit mode (Amazon API doesn't allow updating it)
+      if (data.targetingType && mode !== "edit") {
         basePayload.targetingType = data.targetingType;
       }
       if (data.portfolioId) {
@@ -1399,7 +1400,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         placeholder="Select targeting type"
                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        disabled={mode === "edit"}
                       />
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
                     </div>
 
                     {/* Start Date */}

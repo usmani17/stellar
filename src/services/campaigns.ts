@@ -2152,11 +2152,75 @@ export const campaignsService = {
     payload: {
       targetIds: Array<string | number>;
       action: "status" | "bid";
-      status?: "enable" | "pause" | "archive";
+      status?: "enable" | "pause"; // ARCHIVED is not supported for targets
       bid?: number;
     }
   ) => {
     const url = `/accounts/${accountId}/targets/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createNegativeKeywords: async (
+    accountId: number,
+    campaignId: string,
+    payload: {
+      negativeKeywords: Array<{
+        adGroupId: string;
+        keywordText: string;
+        matchType: "NEGATIVE_BROAD" | "NEGATIVE_EXACT" | "NEGATIVE_PHRASE";
+        nativeLanguageKeyword?: string;
+        nativeLanguageLocale?: string;
+        state?: "ENABLED" | "PAUSED";
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkUpdateNegativeKeywords: async (
+    accountId: number,
+    payload: {
+      keywordIds: Array<string | number>;
+      action: "status";
+      status: "enable" | "pause";
+    }
+  ) => {
+    const url = `/accounts/${accountId}/negative-keywords/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createNegativeTargets: async (
+    accountId: number,
+    campaignId: string,
+    payload: {
+      negativeTargetingClauses: Array<{
+        adGroupId: string;
+        expression: Array<{
+          type: string;
+          value: string;
+        }>;
+        state?: "ENABLED" | "PAUSED";
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/create/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkUpdateNegativeTargets: async (
+    accountId: number,
+    payload: {
+      targetIds: Array<string | number>;
+      action: "status";
+      status: "enable" | "pause";
+    }
+  ) => {
+    const url = `/accounts/${accountId}/negative-targets/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },

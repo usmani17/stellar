@@ -158,6 +158,23 @@ export const Keywords: React.FC = () => {
     new Set()
   );
 
+  // Additional inline edit state for the confirmation modal flow
+  const [editingCell, setEditingCell] = useState<{
+    keywordId: string | number;
+    field: "status" | "bid";
+  } | null>(null);
+  const [editedValue, setEditedValue] = useState<string>("");
+  const [inlineEditKeyword, setInlineEditKeyword] = useState<Keyword | null>(
+    null
+  );
+  const [inlineEditField, setInlineEditField] = useState<
+    "status" | "bid" | null
+  >(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
+
   const toggleChartMetric = (key: string) => {
     setChartToggles((prev) => ({
       ...prev,
@@ -790,8 +807,14 @@ export const Keywords: React.FC = () => {
 
     try {
       setBulkLoading(true);
+      // Get keywordIds from selected keywords - use keywordId from the keyword objects
+      const selectedKeywordsData = getSelectedKeywordsData();
+      const keywordIds = selectedKeywordsData
+        .map((k) => k.keywordId || k.id)
+        .filter(Boolean);
+
       await campaignsService.bulkUpdateKeywords(accountIdNum, {
-        keywordIds: Array.from(selectedKeywords),
+        keywordIds: keywordIds,
         action: "status",
         status: statusValue,
       });
@@ -909,7 +932,7 @@ export const Keywords: React.FC = () => {
   };
 
   const getSelectedKeywordsData = () => {
-    return keywords.filter((k) => selectedKeywords.has(k.id));
+    return keywords.filter((k) => selectedKeywords.has(k.keywordId || k.id));
   };
 
   // Generate chart data based on keywords and date range
@@ -935,13 +958,15 @@ export const Keywords: React.FC = () => {
   }, [chartDataFromApi]);
 
   const allSelected =
-    keywords.length > 0 && selectedKeywords.size === keywords.length;
+    keywords.length > 0 &&
+    keywords.every((k) => selectedKeywords.has(k.keywordId || k.id));
   const someSelected =
-    selectedKeywords.size > 0 && selectedKeywords.size < keywords.length;
+    keywords.some((k) => selectedKeywords.has(k.keywordId || k.id)) &&
+    !allSelected;
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const allIds = new Set(keywords.map((k) => k.id));
+      const allIds = new Set(keywords.map((k) => k.keywordId || k.id));
       setSelectedKeywords(allIds);
     } else {
       setSelectedKeywords(new Set());
@@ -1681,18 +1706,22 @@ export const Keywords: React.FC = () => {
                             <td className="py-[10px] px-[10px]">
                               <div className="flex items-center justify-center">
                                 <Checkbox
-                                  checked={selectedKeywords.has(keyword.id)}
+                                  checked={selectedKeywords.has(
+                                    keyword.keywordId || keyword.id
+                                  )}
                                   onChange={(checked) => {
+                                    const keywordId =
+                                      keyword.keywordId || keyword.id;
                                     if (checked) {
                                       setSelectedKeywords((prev) => {
                                         const newSet = new Set(prev);
-                                        newSet.add(keyword.id);
+                                        newSet.add(keywordId);
                                         return newSet;
                                       });
                                     } else {
                                       setSelectedKeywords((prev) => {
                                         const newSet = new Set(prev);
-                                        newSet.delete(keyword.id);
+                                        newSet.delete(keywordId);
                                         return newSet;
                                       });
                                     }
@@ -2010,7 +2039,9 @@ export const Keywords: React.FC = () => {
                 // Format old value
                 let oldValueDisplay = "";
                 if (pendingKeywordChange.field === "bid") {
-                  oldValueDisplay = pendingKeywordChange.oldValue.startsWith("$")
+                  oldValueDisplay = pendingKeywordChange.oldValue.startsWith(
+                    "$"
+                  )
                     ? pendingKeywordChange.oldValue
                     : `$${parseFloat(
                         pendingKeywordChange.oldValue || "0"

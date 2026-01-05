@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useRef } from "react";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Tooltip } from "../ui/Tooltip";
+import { Dropdown } from "../ui/Dropdown";
+import { Checkbox } from "../ui/Checkbox";
 
 interface NegativeKeyword {
   id: number;
   profileId?: string;
   last_updated?: string;
-  keywordId?: number;
+  keywordId?: number | string;
   keywordText?: string;
   name?: string; // For backward compatibility
   matchType?: string;
@@ -23,18 +25,61 @@ interface NegativeKeyword {
 interface NegativeKeywordsTableProps {
   negativeKeywords: NegativeKeyword[];
   loading?: boolean;
+  onSelectAll?: (checked: boolean) => void;
+  onSelect?: (id: number, checked: boolean) => void;
+  selectedIds?: Set<number>;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
+  editingField?: {
+    id: number;
+    field: "status";
+  } | null;
+  editedValue?: string;
+  onEditStart?: (id: number, field: "status", currentValue: string) => void;
+  onEditChange?: (value: string) => void;
+  onEditEnd?: (value?: string) => void;
+  onEditCancel?: () => void;
+  inlineEditLoading?: Set<number>;
+  pendingChange?: {
+    id: number;
+    field: "status";
+    newValue: string;
+    oldValue: string;
+  } | null;
 }
 
 export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
   negativeKeywords,
   loading = false,
+  onSelectAll,
+  onSelect,
+  selectedIds = new Set(),
   sortBy = "id",
   sortOrder = "asc",
   onSort,
+  editingField = null,
+  editedValue = "",
+  onEditStart,
+  onEditChange,
+  onEditEnd,
+  onEditCancel,
+  inlineEditLoading = new Set(),
+  pendingChange = null,
 }) => {
+  const statusSelectionMadeRef = useRef<number | null>(null);
+  const allSelected =
+    negativeKeywords.length > 0 &&
+    negativeKeywords.every((nkw) => selectedIds.has(nkw.id));
+  const someSelected = negativeKeywords.some((nkw) => selectedIds.has(nkw.id));
+
+  const handleSelectAll = (checked: boolean) => {
+    onSelectAll?.(checked);
+  };
+
+  const handleSelect = (id: number, checked: boolean) => {
+    onSelect?.(id, checked);
+  };
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
       return (
@@ -112,6 +157,16 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
             <table className="min-w-full">
               <thead className="sticky top-0 bg-[#fefefb] z-10">
                 <tr className="border-b border-[#e8e8e3]">
+                  {/* Checkbox Header */}
+                  {onSelectAll && (
+                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[50px]">
+                      <Checkbox
+                        checked={allSelected}
+                        indeterminate={someSelected && !allSelected}
+                        onChange={handleSelectAll}
+                      />
+                    </th>
+                  )}
                   {/* ID Header */}
                   <th
                     className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
@@ -236,6 +291,17 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } hover:bg-gray-50 transition-colors`}
                     >
+                      {/* Checkbox */}
+                      {onSelect && (
+                        <td className="py-[10px] px-[10px]">
+                          <Checkbox
+                            checked={selectedIds.has(keyword.id)}
+                            onChange={(checked) =>
+                              handleSelect(keyword.id, checked)
+                            }
+                          />
+                        </td>
+                      )}
                       {/* ID */}
                       <td className="py-[10px] px-[10px]">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -288,10 +354,105 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                       {/* State */}
                       <td className="py-[10px] px-[10px] min-w-[115px]">
-                        <StatusBadge
-                          status={keyword.status || keyword.state || "Enabled"}
-                          uppercase={true}
-                        />
+                        {inlineEditLoading.has(keyword.id) ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {pendingChange?.field === "status"
+                                ? pendingChange.newValue === "enabled"
+                                  ? "Enabled"
+                                  : "Paused"
+                                : keyword.status || keyword.state || "Enabled"}
+                            </span>
+                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        ) : pendingChange?.id === keyword.id &&
+                          pendingChange?.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {pendingChange.newValue === "enabled"
+                                ? "Enabled"
+                                : "Paused"}
+                            </span>
+                          </div>
+                        ) : editingField?.id === keyword.id &&
+                          editingField?.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <Dropdown
+                              options={[
+                                { value: "enabled", label: "Enabled" },
+                                { value: "paused", label: "Paused" },
+                              ]}
+                              value={(() => {
+                                if (editedValue) return editedValue;
+                                const statusLower = (
+                                  keyword.status ||
+                                  keyword.state ||
+                                  "enabled"
+                                ).toLowerCase();
+                                return statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                  ? "enabled"
+                                  : "paused";
+                              })()}
+                              onChange={(val) => {
+                                // Mark that a selection was made for this keyword
+                                statusSelectionMadeRef.current = keyword.id;
+                                const newValue = val as string;
+                                onEditChange?.(newValue);
+                                // Call onEditEnd with the new value immediately when a value is selected
+                                onEditEnd?.(newValue);
+                                // Clear the ref after a short delay to allow onClose to check it
+                                setTimeout(() => {
+                                  if (
+                                    statusSelectionMadeRef.current ===
+                                    keyword.id
+                                  ) {
+                                    statusSelectionMadeRef.current = null;
+                                  }
+                                }, 200);
+                              }}
+                              onClose={() => {
+                                // Only cancel if no selection was made (clicked outside)
+                                if (
+                                  statusSelectionMadeRef.current !==
+                                    keyword.id &&
+                                  editingField?.id === keyword.id
+                                ) {
+                                  onEditCancel?.();
+                                }
+                              }}
+                              defaultOpen={true}
+                              closeOnSelect={true}
+                              buttonClassName="w-full text-[13.3px] px-2 py-1"
+                              width="w-full"
+                              align="center"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                            onClick={() => {
+                              const statusLower = (
+                                keyword.status ||
+                                keyword.state ||
+                                "enabled"
+                              ).toLowerCase();
+                              const statusValue =
+                                statusLower === "enable" ||
+                                statusLower === "enabled"
+                                  ? "enabled"
+                                  : "paused";
+                              onEditStart?.(keyword.id, "status", statusValue);
+                            }}
+                          >
+                            <StatusBadge
+                              status={
+                                keyword.status || keyword.state || "Enabled"
+                              }
+                              uppercase={true}
+                            />
+                          </div>
+                        )}
                       </td>
 
                       {/* Ad Group ID */}

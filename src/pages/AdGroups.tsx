@@ -53,9 +53,9 @@ export const AdGroups: React.FC = () => {
     }>
   >([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAdgroups, setSelectedAdgroups] = useState<Set<number>>(
-    new Set()
-  );
+  const [selectedAdgroups, setSelectedAdgroups] = useState<
+    Set<string | number>
+  >(new Set());
   const [chartToggles, setChartToggles] = useState({
     sales: true,
     spend: true,
@@ -770,8 +770,14 @@ export const AdGroups: React.FC = () => {
 
     try {
       setBulkLoading(true);
+      // Get adGroupIds from selected adgroups - use adGroupId from the adgroup objects
+      const selectedAdgroupsData = getSelectedAdgroupsData();
+      const adgroupIds = selectedAdgroupsData
+        .map((ag) => ag.adGroupId || ag.id)
+        .filter(Boolean);
+
       await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-        adgroupIds: Array.from(selectedAdgroups),
+        adgroupIds: adgroupIds,
         action: "status",
         status: statusValue,
       });
@@ -893,7 +899,7 @@ export const AdGroups: React.FC = () => {
   };
 
   const getSelectedAdgroupsData = () => {
-    return adgroups.filter((ag) => selectedAdgroups.has(ag.id));
+    return adgroups.filter((ag) => selectedAdgroups.has(ag.adGroupId || ag.id));
   };
 
   // Generate chart data based on adgroups and date range
@@ -920,14 +926,14 @@ export const AdGroups: React.FC = () => {
 
   const handleSelectAllAdGroups = (checked: boolean) => {
     if (checked) {
-      const allIds = new Set(adgroups.map((ag) => ag.id));
+      const allIds = new Set(adgroups.map((ag) => ag.adGroupId || ag.id));
       setSelectedAdgroups(allIds);
     } else {
       setSelectedAdgroups(new Set());
     }
   };
 
-  const handleSelectAdGroup = (id: number, checked: boolean) => {
+  const handleSelectAdGroup = (id: string | number, checked: boolean) => {
     if (checked) {
       setSelectedAdgroups((prev) => {
         const newSet = new Set(prev);
@@ -1603,6 +1609,7 @@ export const AdGroups: React.FC = () => {
             <AdGroupsTable
               adgroups={adgroups}
               loading={loading}
+              campaignDetail={null}
               // campaignId not provided, so all columns including Campaign Name will show
               onSelectAll={handleSelectAllAdGroups}
               onSelect={handleSelectAdGroup}

@@ -11,8 +11,8 @@ interface AdGroupsTableProps {
   loading?: boolean;
   campaignId?: string | number; // Optional campaignId - when provided, hides Campaign Name column
   onSelectAll?: (checked: boolean) => void;
-  onSelect?: (id: number, checked: boolean) => void;
-  selectedIds?: Set<number>;
+  onSelect?: (id: string | number, checked: boolean) => void;
+  selectedIds?: Set<string | number>;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
@@ -141,14 +141,17 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
     );
   };
   const allSelected =
-    adgroups.length > 0 && adgroups.every((ag) => selectedIds.has(ag.id));
-  const someSelected = adgroups.some((ag) => selectedIds.has(ag.id));
+    adgroups.length > 0 &&
+    adgroups.every((ag) => selectedIds.has(ag.adGroupId || ag.id));
+  const someSelected = adgroups.some((ag) =>
+    selectedIds.has(ag.adGroupId || ag.id)
+  );
 
   const handleSelectAll = (checked: boolean) => {
     onSelectAll?.(checked);
   };
 
-  const handleSelect = (id: number, checked: boolean) => {
+  const handleSelect = (id: string | number, checked: boolean) => {
     onSelect?.(id, checked);
   };
 
@@ -418,9 +421,14 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       <td className="py-[10px] px-[10px]">
                         <div className="flex items-center justify-center">
                           <Checkbox
-                            checked={selectedIds.has(adgroup.id)}
+                            checked={selectedIds.has(
+                              adgroup.adGroupId || adgroup.id
+                            )}
                             onChange={(checked) =>
-                              handleSelect(adgroup.id, checked)
+                              handleSelect(
+                                adgroup.adGroupId || adgroup.id,
+                                checked
+                              )
                             }
                             size="small"
                           />

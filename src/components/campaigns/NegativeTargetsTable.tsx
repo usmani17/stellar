@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useRef } from "react";
 import { StatusBadge } from "../ui/StatusBadge";
+import { Dropdown } from "../ui/Dropdown";
+import { Checkbox } from "../ui/Checkbox";
 
 interface NegativeTarget {
   id: number;
@@ -24,18 +26,56 @@ interface NegativeTarget {
 interface NegativeTargetsTableProps {
   negativeTargets: NegativeTarget[];
   loading?: boolean;
+  onSelectAll?: (checked: boolean) => void;
+  onSelect?: (id: number, checked: boolean) => void;
+  selectedIds?: Set<number>;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
+  editingField?: {
+    id: number;
+    field: "status";
+  } | null;
+  editedValue?: string;
+  onEditStart?: (id: number, field: "status", currentValue: string) => void;
+  onEditChange?: (value: string) => void;
+  onEditEnd?: (value?: string) => void;
+  onEditCancel?: () => void;
+  inlineEditLoading?: Set<number>;
+  pendingChange?: {
+    id: number;
+    field: "status";
+    newValue: string;
+    oldValue: string;
+  } | null;
 }
 
 export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   negativeTargets,
   loading = false,
+  onSelectAll,
+  onSelect,
+  selectedIds = new Set(),
   sortBy = "id",
   sortOrder = "asc",
   onSort,
+  editingField = null,
+  editedValue = "",
+  onEditStart,
+  onEditChange,
+  onEditEnd,
+  onEditCancel,
+  inlineEditLoading = new Set(),
+  pendingChange = null,
 }) => {
+  const statusSelectionMadeRef = useRef<number | null>(null);
+  const allSelected =
+    negativeTargets.length > 0 &&
+    negativeTargets.every((ntg) => selectedIds.has(ntg.id));
+  const someSelected =
+    negativeTargets.length > 0 &&
+    negativeTargets.some((ntg) => selectedIds.has(ntg.id)) &&
+    !allSelected;
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
       return (
@@ -113,6 +153,16 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
             <table className="min-w-full">
               <thead className="sticky top-0 bg-[#fefefb] z-10">
                 <tr className="border-b border-[#e8e8e3]">
+                  {/* Checkbox Header */}
+                  {onSelectAll && (
+                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[50px]">
+                      <Checkbox
+                        checked={allSelected}
+                        indeterminate={someSelected && !allSelected}
+                        onChange={(checked) => onSelectAll(checked)}
+                      />
+                    </th>
+                  )}
                   {/* ID Header */}
                   <th
                     className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
@@ -230,6 +280,15 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } hover:bg-gray-50 transition-colors`}
                     >
+                      {/* Checkbox */}
+                      {onSelect && (
+                        <td className="py-[10px] px-[10px] w-[50px]">
+                          <Checkbox
+                            checked={selectedIds.has(target.id)}
+                            onChange={(checked) => onSelect(target.id, checked)}
+                          />
+                        </td>
+                      )}
                       {/* ID */}
                       <td className="py-[10px] px-[10px]">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -267,10 +326,55 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
 
                       {/* State */}
                       <td className="py-[10px] px-[10px] min-w-[115px]">
-                        <StatusBadge
-                          status={target.status || target.state || "Enabled"}
-                          uppercase={true}
-                        />
+                        {editingField?.id === target.id &&
+                        editingField?.field === "status" ? (
+                          <div className="relative">
+                            <Dropdown
+                              options={[
+                                { value: "ENABLED", label: "ENABLED" },
+                                { value: "PAUSED", label: "PAUSED" },
+                              ]}
+                              value={editedValue || target.state || "ENABLED"}
+                              onChange={(value) => {
+                                statusSelectionMadeRef.current = target.id;
+                                onEditChange?.(value);
+                                onEditEnd?.(value);
+                              }}
+                              onClose={() => {
+                                if (
+                                  statusSelectionMadeRef.current !== target.id
+                                ) {
+                                  onEditCancel?.();
+                                }
+                                statusSelectionMadeRef.current = null;
+                              }}
+                              defaultOpen={true}
+                              buttonClassName="w-full bg-[#FEFEFB] border border-gray-200"
+                              width="w-full"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1 transition-colors"
+                            onClick={() => {
+                              const currentState =
+                                target.status || target.state || "ENABLED";
+                              onEditStart?.(target.id, "status", currentState);
+                            }}
+                          >
+                            <StatusBadge
+                              status={
+                                target.status || target.state || "ENABLED"
+                              }
+                              uppercase={true}
+                            />
+                            {inlineEditLoading.has(target.id) && (
+                              <span className="ml-2 text-[11.2px] text-gray-500">
+                                Updating...
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
 
                       {/* Ad Group ID */}
