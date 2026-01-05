@@ -3277,4 +3277,66 @@ export const campaignsService = {
     const response = await api.get(url);
     return response.data;
   },
+
+  // TikTok Ad Groups
+  getTikTokAdGroups: async (
+    accountId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      campaign_id?: string;
+      advertiser_id?: string;
+      operation_status?: string;
+      optimization_goal?: string;
+      adgroup_name?: string;
+      adgroup_name__icontains?: string;
+    }
+  ): Promise<{
+    adgroups: any[];
+    summary?: {
+      total_adgroups: number;
+      total_spend: number;
+      total_impressions: number;
+      total_clicks: number;
+      total_conversions: number;
+      avg_ctr: number;
+      avg_cpc: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const filters: any = {};
+
+    if (params?.page) filters.page = params.page;
+    if (params?.page_size) filters.page_size = params.page_size;
+    if (params?.sort_by) filters.sort_by = params.sort_by;
+    if (params?.order) filters.order = params.order;
+    if (params?.start_date) filters.start_date = params.start_date;
+    if (params?.end_date) filters.end_date = params.end_date;
+    if (params?.campaign_id) filters.campaign_id = params.campaign_id;
+    if (params?.advertiser_id) filters.advertiser_id = params.advertiser_id;
+    if (params?.operation_status) filters.operation_status = params.operation_status;
+    if (params?.optimization_goal) filters.optimization_goal = params.optimization_goal;
+    if (params?.adgroup_name) filters.adgroup_name = params.adgroup_name;
+    if (params?.adgroup_name__icontains)
+      filters.adgroup_name__icontains = params.adgroup_name__icontains;
+
+    const response = await api.post(`/accounts/${accountId}/tiktok-adgroups/`, {
+      filters,
+    });
+    return response.data;
+  },
 };
