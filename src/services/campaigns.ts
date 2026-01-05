@@ -1582,6 +1582,84 @@ export const campaignsService = {
     return response.data;
   },
 
+  bulkDeleteKeywords: async (
+    accountId: number,
+    payload: {
+      keywordIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/keywords/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteNegativeKeywords: async (
+    accountId: number,
+    payload: {
+      negativeKeywordIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/negative-keywords/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteTargets: async (
+    accountId: number,
+    payload: {
+      targetIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/targets/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteAdGroups: async (
+    accountId: number,
+    payload: {
+      adGroupIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/adgroups/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteNegativeTargets: async (
+    accountId: number,
+    payload: {
+      negativeTargetIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/negative-targets/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteProductAds: async (
+    accountId: number,
+    payload: {
+      adIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/productads/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
   createAdGroups: async (
     accountId: number,
     campaignId: string | number,

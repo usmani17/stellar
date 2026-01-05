@@ -21,6 +21,7 @@ import {
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { logsService } from "../services/logs";
 
 export const Keywords: React.FC = () => {
   const navigate = useNavigate();
@@ -141,6 +142,12 @@ export const Keywords: React.FC = () => {
     "enable" | "pause" | "archive" | null
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [pendingDeleteAction, setPendingDeleteAction] = useState<{
+    type: "bulk" | "inline";
+    keywordId?: string | number;
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Inline edit state (matching adgroups pattern)
   const [editingKeywordField, setEditingKeywordField] = useState<{
@@ -935,6 +942,161 @@ export const Keywords: React.FC = () => {
     return keywords.filter((k) => selectedKeywords.has(k.keywordId || k.id));
   };
 
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (!accountId || selectedKeywords.size === 0 || !pendingDeleteAction)
+      return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setDeleteLoading(true);
+      const selectedKeywordsData = getSelectedKeywordsData();
+      const keywordIds = selectedKeywordsData
+        .map((k) => k.keywordId || k.id)
+        .filter(Boolean);
+
+      const response = await campaignsService.bulkDeleteKeywords(accountIdNum, {
+        keywordIdFilter: {
+          include: keywordIds,
+        },
+      });
+
+      // Log the delete operation
+      const keywordNames = selectedKeywordsData
+        .map((k) => k.name || "Unnamed Keyword")
+        .join(", ");
+      try {
+        await logsService.createLog(accountIdNum, {
+          entity: "keyword",
+          field: "delete",
+          old_value: keywordNames,
+          new_value: "",
+          method: "Bulk",
+        });
+      } catch (logError) {
+        console.error("Failed to log delete operation:", logError);
+      }
+
+      // Handle response with success/error arrays
+      if (response?.keywords) {
+        const errors = response.keywords.error || [];
+        const successes = response.keywords.success || [];
+
+        if (errors.length > 0) {
+          const errorMessages = errors
+            .map((err: any) => {
+              const errorDetails = err.errors?.[0]?.errorValue;
+              if (errorDetails) {
+                return Object.values(errorDetails)
+                  .map((e: any) => e?.message || "Unknown error")
+                  .join(", ");
+              }
+              return "Unknown error";
+            })
+            .join("; ");
+          setErrorModal({
+            isOpen: true,
+            message: `Some keywords could not be deleted: ${errorMessages}`,
+          });
+        }
+
+        if (successes.length > 0) {
+          await loadKeywords(accountIdNum);
+          setSelectedKeywords(new Set());
+        }
+      } else {
+        // If response format is different, just reload
+        await loadKeywords(accountIdNum);
+        setSelectedKeywords(new Set());
+      }
+
+      setShowDeleteConfirmation(false);
+      setPendingDeleteAction(null);
+    } catch (error: any) {
+      console.error("Failed to delete keywords", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete keywords. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Inline delete handler
+  const handleInlineDelete = async (
+    keywordId: string | number,
+    keywordName: string
+  ) => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setDeleteLoading(true);
+      const response = await campaignsService.bulkDeleteKeywords(accountIdNum, {
+        keywordIdFilter: {
+          include: [keywordId],
+        },
+      });
+
+      // Log the delete operation
+      try {
+        await logsService.createLog(accountIdNum, {
+          entity: "keyword",
+          field: "delete",
+          old_value: keywordName,
+          new_value: "",
+          method: "Inline",
+        });
+      } catch (logError) {
+        console.error("Failed to log delete operation:", logError);
+      }
+
+      // Handle response
+      if (response?.keywords) {
+        const errors = response.keywords.error || [];
+        const successes = response.keywords.success || [];
+
+        if (errors.length > 0) {
+          const errorDetails = errors[0]?.errors?.[0]?.errorValue;
+          const errorMessage = errorDetails
+            ? Object.values(errorDetails)
+                .map((e: any) => e?.message || "Unknown error")
+                .join(", ")
+            : "Failed to delete keyword";
+          setErrorModal({
+            isOpen: true,
+            message: errorMessage,
+          });
+        }
+
+        if (successes.length > 0) {
+          await loadKeywords(accountIdNum);
+        }
+      } else {
+        await loadKeywords(accountIdNum);
+      }
+    } catch (error: any) {
+      console.error("Failed to delete keyword", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete keyword. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   // Generate chart data based on keywords and date range
   const chartData = useMemo(() => {
     // Use chart data from API if available, otherwise generate from keywords
@@ -1105,6 +1267,7 @@ export const Keywords: React.FC = () => {
                         { value: "pause", label: "Paused" },
                         { value: "archive", label: "Archived" },
                         { value: "edit_bid", label: "Edit Keyword Bid" },
+                        { value: "delete", label: "Delete" },
                       ].map((opt) => (
                         <button
                           key={opt.value}
@@ -1116,6 +1279,10 @@ export const Keywords: React.FC = () => {
                             if (selectedKeywords.size === 0) return;
                             if (opt.value === "edit_bid") {
                               setShowBidPanel(true);
+                            } else if (opt.value === "delete") {
+                              setShowBidPanel(false);
+                              setPendingDeleteAction({ type: "bulk" });
+                              setShowDeleteConfirmation(true);
                             } else {
                               setShowBidPanel(false);
                               setPendingStatusAction(
@@ -1492,6 +1659,57 @@ export const Keywords: React.FC = () => {
                       className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
                     >
                       {bulkLoading ? "Updating..." : "Confirm"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirmation && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setShowDeleteConfirmation(false);
+                    setPendingDeleteAction(null);
+                  }
+                }}
+              >
+                <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 p-6">
+                  <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                    Confirm Delete
+                  </h3>
+                  <p className="text-[13.3px] text-[#556179] mb-6">
+                    {pendingDeleteAction?.type === "bulk"
+                      ? `Are you sure you want to delete ${
+                          selectedKeywords.size
+                        } selected keyword${
+                          selectedKeywords.size !== 1 ? "s" : ""
+                        }? This action cannot be undone.`
+                      : "Are you sure you want to delete this keyword? This action cannot be undone."}
+                  </p>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirmation(false);
+                        setPendingDeleteAction(null);
+                      }}
+                      disabled={deleteLoading}
+                      className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (pendingDeleteAction?.type === "bulk") {
+                          handleBulkDelete();
+                        }
+                      }}
+                      disabled={deleteLoading}
+                      className="px-4 py-2 text-[12.16px] text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {deleteLoading ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 </div>
@@ -1923,6 +2141,40 @@ export const Keywords: React.FC = () => {
                                   ? `${parseFloat(keyword.roas).toFixed(2)} x`
                                   : "0.00 x"}
                               </span>
+                            </td>
+
+                            {/* Delete Icon - Show on hover */}
+                            <td className="py-[10px] px-[10px] w-[40px] relative group">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const keywordId =
+                                    keyword.keywordId || keyword.id;
+                                  const keywordName =
+                                    keyword.name || "Unnamed Keyword";
+                                  if (keywordId) {
+                                    handleInlineDelete(keywordId, keywordName);
+                                  }
+                                }}
+                                disabled={deleteLoading}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded cursor-pointer disabled:opacity-50"
+                                title="Delete keyword"
+                              >
+                                <svg
+                                  className="w-4 h-4 text-red-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
                             </td>
                           </tr>
                         );
