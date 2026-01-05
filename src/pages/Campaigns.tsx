@@ -1277,6 +1277,237 @@ export const Campaigns: React.FC = () => {
         }
       }
 
+      // Check changes for SB campaigns
+      if (data.type === "SB") {
+        // 8. Check if tags changed (same logic as SP)
+        const normalizeTags = (tags: any): string[] => {
+          if (!tags) return [];
+          if (Array.isArray(tags)) {
+            return tags
+              .filter(
+                (tag) => tag && typeof tag === "object" && tag.key && tag.value
+              )
+              .sort((a, b) => a.key.localeCompare(b.key))
+              .map((tag) => `${tag.key}:${tag.value}`);
+          }
+          if (typeof tags === "object" && tags !== null) {
+            return Object.entries(tags)
+              .filter(([key, value]) => key && value)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([key, value]) => `${key}:${value}`);
+          }
+          return [];
+        };
+
+        const originalNormalized = normalizeTags(original.tags);
+        const newNormalized = normalizeTags(data.tags);
+        const tagsChanged =
+          JSON.stringify(originalNormalized) !== JSON.stringify(newNormalized);
+
+        if (tagsChanged) {
+          let tagsToSend: Array<{ key: string; value: string }> = [];
+          const newTagsRaw = data.tags;
+
+          if (Array.isArray(newTagsRaw)) {
+            tagsToSend = newTagsRaw.filter(
+              (tag) => tag && typeof tag === "object" && tag.key && tag.value
+            );
+          } else if (typeof newTagsRaw === "object" && newTagsRaw !== null) {
+            tagsToSend = Object.entries(newTagsRaw)
+              .filter(([key, value]) => key && value)
+              .map(([key, value]) => ({
+                key: String(key),
+                value: String(value),
+              }));
+          }
+          updatePayload.tags = tagsToSend;
+        }
+
+        // 9. Check if bidding changed (for SB campaigns, it's called "bidding" not "dynamicBidding")
+        const originalBidding = original.bidding || {};
+        const newBidding = data.bidding || {};
+
+        // First, do a quick check on raw data - if both are empty/undefined, no change
+        if (!originalBidding || Object.keys(originalBidding).length === 0) {
+          if (!newBidding || Object.keys(newBidding).length === 0) {
+            // Both empty, no change
+          } else if (
+            newBidding.bidAdjustmentsByPlacement &&
+            newBidding.bidAdjustmentsByPlacement.length > 0
+          ) {
+            // Original empty but new has placements - there's a change
+            updatePayload.bidding = newBidding;
+          }
+        } else if (!newBidding || Object.keys(newBidding).length === 0) {
+          // Original has data but new is empty - there's a change
+          updatePayload.bidding = newBidding;
+        } else {
+          // Both have data, normalize and compare
+          // Normalize bidding objects for comparison (same logic as SP)
+          const normalizeBidding = (bidding: any) => {
+            if (!bidding || typeof bidding !== "object") return {};
+
+            const normalized: any = {};
+
+            // Normalize bidOptimization
+            if (bidding.bidOptimization !== undefined) {
+              normalized.bidOptimization = Boolean(bidding.bidOptimization);
+            }
+
+            // Normalize bidAdjustmentsByPlacement - ensure all placements are included for accurate comparison
+            const allPlacements = [
+              "PLACEMENT_TOP",
+              "PLACEMENT_REST_OF_SEARCH",
+              "PLACEMENT_PRODUCT_PAGE",
+              "SITE_AMAZON_BUSINESS",
+            ];
+
+            if (
+              bidding.bidAdjustmentsByPlacement &&
+              Array.isArray(bidding.bidAdjustmentsByPlacement)
+            ) {
+              // Create a map of existing placements
+              const placementMap = new Map();
+              bidding.bidAdjustmentsByPlacement
+                .filter((adj: any) => adj && adj.placement)
+                .forEach((adj: any) => {
+                  placementMap.set(
+                    adj.placement,
+                    adj.percentage !== undefined && adj.percentage !== null
+                      ? Number(adj.percentage)
+                      : 0
+                  );
+                });
+
+              // Ensure all placements are included, defaulting to 0 if not present
+              const sorted = allPlacements
+                .map((placement) => ({
+                  placement,
+                  percentage: placementMap.get(placement) ?? 0,
+                }))
+                .sort((a, b) => a.placement.localeCompare(b.placement));
+
+              normalized.bidAdjustmentsByPlacement = sorted;
+            } else {
+              // If bidAdjustmentsByPlacement doesn't exist, create array with all placements at 0
+              normalized.bidAdjustmentsByPlacement = allPlacements
+                .map((placement) => ({ placement, percentage: 0 }))
+                .sort((a, b) => a.placement.localeCompare(b.placement));
+            }
+
+            // Normalize shopperCohortBidAdjustments - sort for consistent comparison
+            if (
+              bidding.shopperCohortBidAdjustments &&
+              Array.isArray(bidding.shopperCohortBidAdjustments)
+            ) {
+              const sorted = [...bidding.shopperCohortBidAdjustments]
+                .filter(
+                  (adj) =>
+                    adj &&
+                    adj.percentage !== undefined &&
+                    adj.percentage !== null
+                )
+                .sort((a, b) => {
+                  const aType = (a.shopperCohortType || "").localeCompare(
+                    b.shopperCohortType || ""
+                  );
+                  if (aType !== 0) return aType;
+                  return JSON.stringify(a.audienceSegments || []).localeCompare(
+                    JSON.stringify(b.audienceSegments || [])
+                  );
+                })
+                .map((adj) => ({
+                  percentage: Number(adj.percentage) || 0,
+                  shopperCohortType:
+                    adj.shopperCohortType || "AUDIENCE_SEGMENT",
+                  audienceSegments: Array.isArray(adj.audienceSegments)
+                    ? [...adj.audienceSegments].sort()
+                    : [],
+                }));
+              if (sorted.length > 0) {
+                normalized.shopperCohortBidAdjustments = sorted;
+              }
+            }
+
+            return normalized;
+          };
+
+          const normalizedOriginal = normalizeBidding(originalBidding);
+          const normalizedNew = normalizeBidding(newBidding);
+
+          // Compare placements more explicitly - check each placement individually
+          const originalPlacements =
+            normalizedOriginal.bidAdjustmentsByPlacement || [];
+          const newPlacements = normalizedNew.bidAdjustmentsByPlacement || [];
+
+          // Create maps for easier comparison
+          const originalPlacementMap = new Map(
+            originalPlacements.map((p: any) => [p.placement, p.percentage])
+          );
+          const newPlacementMap = new Map(
+            newPlacements.map((p: any) => [p.placement, p.percentage])
+          );
+
+          // Check if any placement percentage differs
+          let placementsChanged = false;
+          const allPlacements = [
+            "PLACEMENT_TOP",
+            "PLACEMENT_REST_OF_SEARCH",
+            "PLACEMENT_PRODUCT_PAGE",
+            "SITE_AMAZON_BUSINESS",
+          ];
+          for (const placement of allPlacements) {
+            const originalPct = originalPlacementMap.get(placement) ?? 0;
+            const newPct = newPlacementMap.get(placement) ?? 0;
+            if (originalPct !== newPct) {
+              placementsChanged = true;
+              break;
+            }
+          }
+
+          // Check if bidOptimization changed
+          const bidOptimizationChanged =
+            normalizedOriginal.bidOptimization !==
+            normalizedNew.bidOptimization;
+
+          // Check if shopper cohort adjustments changed
+          const originalCohorts =
+            normalizedOriginal.shopperCohortBidAdjustments || [];
+          const newCohorts = normalizedNew.shopperCohortBidAdjustments || [];
+          const cohortsChanged =
+            JSON.stringify(originalCohorts) !== JSON.stringify(newCohorts);
+
+          const biddingChanged =
+            placementsChanged || bidOptimizationChanged || cohortsChanged;
+
+          if (biddingChanged) {
+            updatePayload.bidding = newBidding;
+          }
+        }
+
+        // 10. Check if startDate changed (for SB campaigns)
+        const originalStartDate = original.startDate || "";
+        const newStartDate = data.startDate || "";
+
+        // Convert both to YYYYMMDD format for comparison
+        const normalizeStartDate = (dateStr: string): string => {
+          if (!dateStr) return "";
+          if (!dateStr.includes("-") && /^\d{8}$/.test(dateStr)) return dateStr;
+          if (dateStr.includes("-")) {
+            return dateStr.replace(/-/g, "");
+          }
+          return dateStr;
+        };
+
+        const originalStartDateNormalized =
+          normalizeStartDate(originalStartDate);
+        const newStartDateNormalized = normalizeStartDate(newStartDate);
+
+        if (originalStartDateNormalized !== newStartDateNormalized) {
+          updatePayload.startDate = newStartDateNormalized || null;
+        }
+      }
+
       // Execute single update if there are changes
       if (Object.keys(updatePayload).length === 0) {
         // No changes detected, show message but keep panel open
@@ -1381,7 +1612,7 @@ export const Campaigns: React.FC = () => {
         }
       }
 
-      // Map dynamicBidding from backend to frontend bidding structure
+      // Map dynamicBidding from backend to frontend bidding structure (for SP campaigns)
       const mapDynamicBidding = (dynamicBidding: any) => {
         if (!dynamicBidding) return undefined;
 
@@ -1441,6 +1672,61 @@ export const Campaigns: React.FC = () => {
         return bidding;
       };
 
+      // Map bidding from backend to frontend bidding structure (for SB campaigns)
+      const mapBidding = (bidding: any) => {
+        if (!bidding) return undefined;
+
+        // If bidding is a string, parse it as JSON
+        let parsedBidding = bidding;
+        if (typeof bidding === "string") {
+          try {
+            parsedBidding = JSON.parse(bidding);
+          } catch (e) {
+            console.error("Failed to parse bidding JSON:", e);
+            return undefined;
+          }
+        }
+
+        const biddingObj: any = {
+          bidOptimization: parsedBidding.bidOptimization ?? true, // Default value
+          shopperCohortBidAdjustments: [],
+          bidAdjustmentsByPlacement: [],
+        };
+
+        // Map bidAdjustmentsByPlacement (SB uses same field name)
+        if (
+          parsedBidding.bidAdjustmentsByPlacement &&
+          Array.isArray(parsedBidding.bidAdjustmentsByPlacement)
+        ) {
+          biddingObj.bidAdjustmentsByPlacement =
+            parsedBidding.bidAdjustmentsByPlacement.map((pb: any) => ({
+              percentage: pb.percentage || 0,
+              placement: pb.placement, // Already in correct format (PLACEMENT_TOP, etc.)
+            }));
+        }
+
+        // Map shopperCohortBidAdjustments (SB uses same field name)
+        if (
+          parsedBidding.shopperCohortBidAdjustments &&
+          Array.isArray(parsedBidding.shopperCohortBidAdjustments)
+        ) {
+          biddingObj.shopperCohortBidAdjustments =
+            parsedBidding.shopperCohortBidAdjustments.map((scb: any) => ({
+              percentage: scb.percentage || 0,
+              shopperCohortType: scb.shopperCohortType || "AUDIENCE_SEGMENT",
+              audienceSegments: scb.audienceSegments || [],
+            }));
+        }
+
+        console.log(
+          "Mapped bidding:",
+          parsedBidding,
+          "to bidding:",
+          biddingObj
+        );
+        return biddingObj;
+      };
+
       // Map siteRestrictions (could be array or string)
       const mapSiteRestrictions = (siteRestrictions: any) => {
         if (!siteRestrictions) return undefined;
@@ -1455,9 +1741,11 @@ export const Campaigns: React.FC = () => {
         return undefined;
       };
 
+      const campaignTypeUpper = (row.type?.toUpperCase() as any) || "SP";
+
       const initial: Partial<CreateCampaignData> = {
         campaign_name: campaign.name || row.campaign_name,
-        type: (row.type?.toUpperCase() as any) || "SP",
+        type: campaignTypeUpper,
         // Try to pre-select profile if we have it on the row
         profileId: (row as any).profile_id || undefined,
         // Pre-select portfolio if present in campaign detail
@@ -1472,15 +1760,28 @@ export const Campaigns: React.FC = () => {
           (campaign.budgetType as any) || (row.budgetType as any) || "DAILY",
         status: normalizedStatus || "Enabled",
         startDate: campaign.startDate || row.startDate,
-        endDate: campaign.endDate,
-        targetingType:
-          (campaign.targetingType as any) ||
-          (campaign.targeting_type as any) ||
-          undefined,
-        // Map dynamicBidding from backend to frontend bidding structure
-        bidding: mapDynamicBidding(
-          (campaign as any).dynamicBidding || (row as any).dynamicBidding
-        ),
+        // Only include endDate for non-SB campaigns
+        ...(campaignTypeUpper !== "SB" && { endDate: campaign.endDate }),
+        // Only include targetingType for SP campaigns
+        ...(campaignTypeUpper === "SP" && {
+          targetingType:
+            (campaign.targetingType as any) ||
+            (campaign.targeting_type as any) ||
+            undefined,
+        }),
+        // Map bidding based on campaign type
+        bidding:
+          campaignTypeUpper === "SB"
+            ? mapBidding((campaign as any).bidding || (row as any).bidding)
+            : mapDynamicBidding(
+                (campaign as any).dynamicBidding || (row as any).dynamicBidding
+              ),
+        // SB-specific fields
+        ...(campaignTypeUpper === "SB" && {
+          brandEntityId: (campaign as any).brandEntityId || undefined,
+          goal: (campaign as any).goal || "PAGE_VISIT",
+          productLocation: (campaign as any).productLocation || "",
+        }),
         // Map tags from object to array format
         tags: (() => {
           const tagsData = (campaign as any).tags || (row as any).tags;
