@@ -2095,7 +2095,7 @@ export const CampaignDetail: React.FC = () => {
 
   const handleSelectAllAdGroups = (checked: boolean) => {
     if (checked) {
-      setSelectedAdGroupIds(new Set(adgroups.map((ag) => ag.id)));
+      setSelectedAdGroupIds(new Set(adgroups.map((ag) => ag.adGroupId)));
     } else {
       setSelectedAdGroupIds(new Set());
     }

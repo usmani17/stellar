@@ -148,7 +148,20 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
     !allSelected;
 
   const handleSelectAll = (checked: boolean) => {
-    onSelectAll?.(checked);
+    console.log("handleSelectAll", checked);
+    console.log("onSelectAll type:", typeof onSelectAll);
+    console.log("onSelectAll value:", onSelectAll);
+    if (onSelectAll) {
+      console.log("Calling onSelectAll with:", checked);
+      try {
+        onSelectAll(checked);
+        console.log("onSelectAll called successfully");
+      } catch (error) {
+        console.error("Error calling onSelectAll:", error);
+      }
+    } else {
+      console.log("onSelectAll is falsy");
+    }
   };
 
   const handleSelect = (id: string | number, checked: boolean) => {
