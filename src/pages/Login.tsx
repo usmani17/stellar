@@ -122,7 +122,7 @@ export const Login: React.FC = () => {
               <span> </span>
               <Link
                 to="/signup"
-                className="text-forest-f60 font-semibold font-poppins uppercase leading-4 tracking-tight hover:text-forest-f50"
+                className="text-forest-f60 font-semibold font-poppins  leading-4 tracking-tight hover:text-forest-f50"
               >
                 Sign up
               </Link>

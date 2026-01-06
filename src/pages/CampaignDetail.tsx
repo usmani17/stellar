@@ -103,9 +103,9 @@ export const CampaignDetail: React.FC = () => {
   const [adgroups, setAdgroups] = useState<AdGroup[]>([]);
   const [allAdgroups, setAllAdgroups] = useState<AdGroup[]>([]);
   const [adgroupsLoading, setAdgroupsLoading] = useState(false);
-  const [selectedAdGroupIds, setSelectedAdGroupIds] = useState<Set<number>>(
-    new Set()
-  );
+  const [selectedAdGroupIds, setSelectedAdGroupIds] = useState<
+    Set<string | number>
+  >(new Set());
   const [adgroupsCurrentPage, setAdgroupsCurrentPage] = useState(1);
   const [adgroupsTotalPages, setAdgroupsTotalPages] = useState(0);
   const [adgroupsSortBy, setAdgroupsSortBy] = useState<string>("id");
@@ -163,6 +163,9 @@ export const CampaignDetail: React.FC = () => {
   const [showAdGroupsConfirmationModal, setShowAdGroupsConfirmationModal] =
     useState(false);
   const [adGroupsBulkLoading, setAdGroupsBulkLoading] = useState(false);
+  const [showAdGroupsDeleteConfirmation, setShowAdGroupsDeleteConfirmation] =
+    useState(false);
+  const [adGroupsDeleteLoading, setAdGroupsDeleteLoading] = useState(false);
   const [showKeywordsConfirmationModal, setShowKeywordsConfirmationModal] =
     useState(false);
   const [showKeywordsBulkActions, setShowKeywordsBulkActions] = useState(false);
@@ -170,6 +173,19 @@ export const CampaignDetail: React.FC = () => {
   const [pendingKeywordsStatusAction, setPendingKeywordsStatusAction] =
     useState<"enable" | "pause" | null>(null);
   const [keywordsBulkLoading, setKeywordsBulkLoading] = useState(false);
+  const [showKeywordsDeleteConfirmation, setShowKeywordsDeleteConfirmation] =
+    useState(false);
+  const [keywordsDeleteLoading, setKeywordsDeleteLoading] = useState(false);
+
+  // Product Ads bulk edit state
+  const [showProductAdsBulkActions, setShowProductAdsBulkActions] =
+    useState(false);
+  const [
+    showProductAdsDeleteConfirmation,
+    setShowProductAdsDeleteConfirmation,
+  ] = useState(false);
+  const [productAdsDeleteLoading, setProductAdsDeleteLoading] = useState(false);
+  const productAdsBulkActionsRef = useRef<HTMLDivElement>(null);
 
   // Target bulk edit state
   const [showTargetsBulkActions, setShowTargetsBulkActions] = useState(false);
@@ -178,6 +194,9 @@ export const CampaignDetail: React.FC = () => {
     "enable" | "pause" | null
   >(null);
   const [targetsBulkLoading, setTargetsBulkLoading] = useState(false);
+  const [showTargetsDeleteConfirmation, setShowTargetsDeleteConfirmation] =
+    useState(false);
+  const [targetsDeleteLoading, setTargetsDeleteLoading] = useState(false);
   const [targetsBidAction, setTargetsBidAction] = useState<
     "increase" | "decrease" | "set"
   >("increase");
@@ -297,6 +316,12 @@ export const CampaignDetail: React.FC = () => {
     setPendingNegativeTargetsStatusAction,
   ] = useState<"enable" | "pause" | null>(null);
   const [negativeTargetsBulkLoading, setNegativeTargetsBulkLoading] =
+    useState(false);
+  const [
+    showNegativeTargetsDeleteConfirmation,
+    setShowNegativeTargetsDeleteConfirmation,
+  ] = useState(false);
+  const [negativeTargetsDeleteLoading, setNegativeTargetsDeleteLoading] =
     useState(false);
   const negativeTargetsBulkActionsRef = useRef<HTMLDivElement>(null);
 
@@ -450,6 +475,12 @@ export const CampaignDetail: React.FC = () => {
     setPendingNegativeKeywordsStatusAction,
   ] = useState<"enable" | "pause" | null>(null);
   const [negativeKeywordsBulkLoading, setNegativeKeywordsBulkLoading] =
+    useState(false);
+  const [
+    showNegativeKeywordsDeleteConfirmation,
+    setShowNegativeKeywordsDeleteConfirmation,
+  ] = useState(false);
+  const [negativeKeywordsDeleteLoading, setNegativeKeywordsDeleteLoading] =
     useState(false);
   const negativeKeywordsBulkActionsRef = useRef<HTMLDivElement>(null);
 
@@ -2095,13 +2126,16 @@ export const CampaignDetail: React.FC = () => {
 
   const handleSelectAllAdGroups = (checked: boolean) => {
     if (checked) {
-      setSelectedAdGroupIds(new Set(adgroups.map((ag) => ag.id)));
+      const ids = adgroups
+        .map((ag) => ag.adGroupId || ag.id)
+        .filter((id): id is string | number => id !== undefined && id !== null);
+      setSelectedAdGroupIds(new Set(ids));
     } else {
       setSelectedAdGroupIds(new Set());
     }
   };
 
-  const handleSelectAdGroup = (id: number, checked: boolean) => {
+  const handleSelectAdGroup = (id: string | number, checked: boolean) => {
     setSelectedAdGroupIds((prev) => {
       const newSet = new Set(prev);
       if (checked) {
@@ -3694,6 +3728,462 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
+  const handleBulkKeywordsDelete = async () => {
+    if (!accountId || selectedKeywordIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setKeywordsDeleteLoading(true);
+      const selectedKeywordsData = keywords.filter((kw) =>
+        selectedKeywordIds.has(kw.id)
+      );
+      const keywordIds = selectedKeywordsData
+        .map((k) => k.keywordId || k.id)
+        .filter(Boolean) as Array<string | number>;
+
+      const response = await campaignsService.bulkDeleteKeywords(accountIdNum, {
+        keywordIdFilter: {
+          include: keywordIds,
+        },
+      });
+
+      // Handle response with success/error arrays
+      // Note: Log creation is handled by the backend
+      if (response?.keywords) {
+        const errors = response.keywords.error || [];
+        const successes = response.keywords.success || [];
+
+        if (errors.length > 0) {
+          const errorMessages = errors
+            .map((err: any) => {
+              const errorDetails = err.errors?.[0]?.errorValue;
+              if (errorDetails) {
+                return Object.values(errorDetails)
+                  .map((e: any) => e?.message || "Unknown error")
+                  .join(", ");
+              }
+              return "Unknown error";
+            })
+            .join("; ");
+          setErrorModal({
+            isOpen: true,
+            message: `Some keywords could not be deleted: ${errorMessages}`,
+          });
+        }
+
+        if (successes.length > 0) {
+          await loadKeywords();
+          setSelectedKeywordIds(new Set());
+        }
+      } else {
+        // If response format is different, just reload
+        await loadKeywords();
+        setSelectedKeywordIds(new Set());
+      }
+
+      setShowKeywordsDeleteConfirmation(false);
+    } catch (error: any) {
+      console.error("Failed to delete keywords", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete keywords. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setKeywordsDeleteLoading(false);
+    }
+  };
+
+  const handleBulkProductAdsDelete = async () => {
+    if (!accountId || selectedProductAdIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setProductAdsDeleteLoading(true);
+      const selectedProductAdsData = productads.filter((pa) =>
+        selectedProductAdIds.has(pa.id)
+      );
+      const adIds = selectedProductAdsData
+        .map((pa) => pa.adId || pa.id)
+        .filter(Boolean) as Array<string | number>;
+
+      const response = await campaignsService.bulkDeleteProductAds(
+        accountIdNum,
+        {
+          adIdFilter: {
+            include: adIds,
+          },
+        }
+      );
+
+      // Handle response with success/error arrays
+      // Note: Log creation is handled by the backend
+      if (response?.productAds) {
+        const errors = response.productAds.error || [];
+        const successes = response.productAds.success || [];
+
+        if (errors.length > 0) {
+          const errorMessages = errors
+            .map((err: any) => {
+              const errorDetails = err.errors?.[0]?.errorValue;
+              if (errorDetails) {
+                return Object.values(errorDetails)
+                  .map((e: any) => e?.message || "Unknown error")
+                  .join(", ");
+              }
+              return "Unknown error";
+            })
+            .join("; ");
+          setErrorModal({
+            isOpen: true,
+            message: `Some product ads could not be deleted: ${errorMessages}`,
+          });
+        }
+
+        if (successes.length > 0) {
+          await loadProductAds();
+          setSelectedProductAdIds(new Set());
+        }
+      } else {
+        // If response format is different, just reload
+        await loadProductAds();
+        setSelectedProductAdIds(new Set());
+      }
+
+      setShowProductAdsDeleteConfirmation(false);
+    } catch (error: any) {
+      console.error("Failed to delete product ads", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete product ads. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setProductAdsDeleteLoading(false);
+    }
+  };
+
+  const handleBulkAdGroupsDelete = async () => {
+    if (!accountId || selectedAdGroupIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setAdGroupsDeleteLoading(true);
+      // Filter adgroups by checking both id and adGroupId against selectedAdGroupIds
+      // The selectedAdGroupIds might contain either id or adGroupId values
+      const selectedAdGroupsData = adgroups.filter((ag) => {
+        const agId = ag.id;
+        const agAdGroupId = ag.adGroupId;
+        return (
+          selectedAdGroupIds.has(agId) ||
+          (agAdGroupId !== undefined &&
+            selectedAdGroupIds.has(agAdGroupId as number))
+        );
+      });
+
+      // Extract adGroupId values (prefer adGroupId over id for API call)
+      const adGroupIds = selectedAdGroupsData
+        .map((ag) => ag.adGroupId || ag.id)
+        .filter(Boolean) as Array<string | number>;
+
+      // If still no IDs found, the selectedAdGroupIds might already be adGroupIds
+      if (adGroupIds.length === 0 && selectedAdGroupIds.size > 0) {
+        // Use the selected IDs directly as they might already be adGroupIds
+        const directIds = Array.from(selectedAdGroupIds).filter(
+          (id): id is string | number => id !== undefined && id !== null
+        );
+        adGroupIds.push(...directIds);
+      }
+
+      if (adGroupIds.length === 0) {
+        console.error("No adGroup IDs found for deletion");
+        setAdGroupsDeleteLoading(false);
+        return;
+      }
+
+      const response = await campaignsService.bulkDeleteAdGroups(accountIdNum, {
+        adGroupIdFilter: {
+          include: adGroupIds,
+        },
+      });
+
+      // Handle response with success/error arrays
+      // Note: Log creation is handled by the backend
+      if (response?.adGroups || response?.adgroups) {
+        const adGroupsResponse = response.adGroups || response.adgroups;
+        const errors = adGroupsResponse.error || [];
+        const successes = adGroupsResponse.success || [];
+
+        if (errors.length > 0) {
+          const errorMessages = errors
+            .map((err: any) => {
+              const errorDetails = err.errors?.[0]?.errorValue;
+              if (errorDetails) {
+                return Object.values(errorDetails)
+                  .map((e: any) => e?.message || "Unknown error")
+                  .join(", ");
+              }
+              return "Unknown error";
+            })
+            .join("; ");
+          setErrorModal({
+            isOpen: true,
+            message: `Some ad groups could not be deleted: ${errorMessages}`,
+          });
+        }
+
+        if (successes.length > 0) {
+          await loadAdGroups();
+          setSelectedAdGroupIds(new Set());
+        }
+      } else {
+        await loadAdGroups();
+        setSelectedAdGroupIds(new Set());
+      }
+
+      setShowAdGroupsDeleteConfirmation(false);
+    } catch (error: any) {
+      console.error("Failed to delete ad groups", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete ad groups. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setAdGroupsDeleteLoading(false);
+    }
+  };
+
+  const handleBulkTargetsDelete = async () => {
+    if (!accountId || selectedTargetIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setTargetsDeleteLoading(true);
+      const selectedTargetsData = targets.filter((t) =>
+        selectedTargetIds.has(t.id)
+      );
+      const targetIds = selectedTargetsData
+        .map((t) => t.targetId || t.id)
+        .filter(Boolean) as Array<string | number>;
+
+      const response = await campaignsService.bulkDeleteTargets(accountIdNum, {
+        targetIdFilter: {
+          include: targetIds,
+        },
+      });
+
+      // Handle response with success/error arrays
+      // Note: Log creation is handled by the backend
+      if (response?.targets || response?.targetingClauses) {
+        const targetsResponse = response.targets || response.targetingClauses;
+        const errors = targetsResponse.error || [];
+        const successes = targetsResponse.success || [];
+
+        if (errors.length > 0) {
+          const errorMessages = errors
+            .map((err: any) => {
+              const errorDetails = err.errors?.[0]?.errorValue;
+              if (errorDetails) {
+                return Object.values(errorDetails)
+                  .map((e: any) => e?.message || "Unknown error")
+                  .join(", ");
+              }
+              return "Unknown error";
+            })
+            .join("; ");
+          setErrorModal({
+            isOpen: true,
+            message: `Some targets could not be deleted: ${errorMessages}`,
+          });
+        }
+
+        if (successes.length > 0) {
+          await loadTargets();
+          setSelectedTargetIds(new Set());
+        }
+      } else {
+        await loadTargets();
+        setSelectedTargetIds(new Set());
+      }
+
+      setShowTargetsDeleteConfirmation(false);
+    } catch (error: any) {
+      console.error("Failed to delete targets", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete targets. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setTargetsDeleteLoading(false);
+    }
+  };
+
+  const handleBulkNegativeKeywordsDelete = async () => {
+    if (!accountId || selectedNegativeKeywordIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setNegativeKeywordsDeleteLoading(true);
+      const selectedNegativeKeywordsData = negativeKeywords.filter((nk) =>
+        selectedNegativeKeywordIds.has(nk.id)
+      );
+      const negativeKeywordIds = selectedNegativeKeywordsData
+        .map((nk) => nk.keywordId || nk.id)
+        .filter(Boolean) as Array<string | number>;
+
+      const response = await campaignsService.bulkDeleteNegativeKeywords(
+        accountIdNum,
+        {
+          negativeKeywordIdFilter: {
+            include: negativeKeywordIds,
+          },
+        }
+      );
+
+      // Handle response with success/error arrays
+      // Note: Log creation is handled by the backend
+      if (response?.negativeKeywords || response?.negative_keywords) {
+        const negativeKeywordsResponse =
+          response.negativeKeywords || response.negative_keywords;
+        const errors = negativeKeywordsResponse.error || [];
+        const successes = negativeKeywordsResponse.success || [];
+
+        if (errors.length > 0) {
+          const errorMessages = errors
+            .map((err: any) => {
+              const errorDetails = err.errors?.[0]?.errorValue;
+              if (errorDetails) {
+                return Object.values(errorDetails)
+                  .map((e: any) => e?.message || "Unknown error")
+                  .join(", ");
+              }
+              return "Unknown error";
+            })
+            .join("; ");
+          setErrorModal({
+            isOpen: true,
+            message: `Some negative keywords could not be deleted: ${errorMessages}`,
+          });
+        }
+
+        if (successes.length > 0) {
+          await loadNegativeKeywords();
+          setSelectedNegativeKeywordIds(new Set());
+        }
+      } else {
+        await loadNegativeKeywords();
+        setSelectedNegativeKeywordIds(new Set());
+      }
+
+      setShowNegativeKeywordsDeleteConfirmation(false);
+    } catch (error: any) {
+      console.error("Failed to delete negative keywords", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete negative keywords. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setNegativeKeywordsDeleteLoading(false);
+    }
+  };
+
+  const handleBulkNegativeTargetsDelete = async () => {
+    if (!accountId || selectedNegativeTargetIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setNegativeTargetsDeleteLoading(true);
+      const selectedNegativeTargetsData = negativeTargets.filter((nt) =>
+        selectedNegativeTargetIds.has(nt.id)
+      );
+      const negativeTargetIds = selectedNegativeTargetsData
+        .map((nt) => nt.targetId || nt.id)
+        .filter(Boolean) as Array<string | number>;
+
+      const response = await campaignsService.bulkDeleteNegativeTargets(
+        accountIdNum,
+        {
+          negativeTargetIdFilter: {
+            include: negativeTargetIds,
+          },
+        }
+      );
+
+      // Handle response with success/error arrays
+      // Note: Log creation is handled by the backend
+      if (response?.negativeTargets || response?.negative_targets) {
+        const negativeTargetsResponse =
+          response.negativeTargets || response.negative_targets;
+        const errors = negativeTargetsResponse.error || [];
+        const successes = negativeTargetsResponse.success || [];
+
+        if (errors.length > 0) {
+          const errorMessages = errors
+            .map((err: any) => {
+              const errorDetails = err.errors?.[0]?.errorValue;
+              if (errorDetails) {
+                return Object.values(errorDetails)
+                  .map((e: any) => e?.message || "Unknown error")
+                  .join(", ");
+              }
+              return "Unknown error";
+            })
+            .join("; ");
+          setErrorModal({
+            isOpen: true,
+            message: `Some negative targets could not be deleted: ${errorMessages}`,
+          });
+        }
+
+        if (successes.length > 0) {
+          await loadNegativeTargets();
+          setSelectedNegativeTargetIds(new Set());
+        }
+      } else {
+        await loadNegativeTargets();
+        setSelectedNegativeTargetIds(new Set());
+      }
+
+      setShowNegativeTargetsDeleteConfirmation(false);
+    } catch (error: any) {
+      console.error("Failed to delete negative targets", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to delete negative targets. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setNegativeTargetsDeleteLoading(false);
+    }
+  };
+
   // Bulk action handlers for Ad Groups
   const handleBulkAdGroupsStatus = async (
     statusValue: "enable" | "pause" | "archive"
@@ -3860,6 +4350,12 @@ export const CampaignDetail: React.FC = () => {
       ) {
         setShowNegativeTargetsBulkActions(false);
       }
+      if (
+        productAdsBulkActionsRef.current &&
+        !productAdsBulkActionsRef.current.contains(event.target as Node)
+      ) {
+        setShowProductAdsBulkActions(false);
+      }
     };
 
     if (
@@ -3867,7 +4363,8 @@ export const CampaignDetail: React.FC = () => {
       showKeywordsBulkActions ||
       showTargetsBulkActions ||
       showNegativeKeywordsBulkActions ||
-      showNegativeTargetsBulkActions
+      showNegativeTargetsBulkActions ||
+      showProductAdsBulkActions
     ) {
       document.addEventListener("mousedown", handleClickOutside);
     }
@@ -3881,6 +4378,7 @@ export const CampaignDetail: React.FC = () => {
     showTargetsBulkActions,
     showNegativeKeywordsBulkActions,
     showNegativeTargetsBulkActions,
+    showProductAdsBulkActions,
   ]);
 
   return (
@@ -4571,6 +5069,7 @@ export const CampaignDetail: React.FC = () => {
                               { value: "pause", label: "Paused" },
                               { value: "archive", label: "Archived" },
                               { value: "edit_bid", label: "Edit Default Bid" },
+                              { value: "delete", label: "Delete" },
                             ].map((opt) => (
                               <button
                                 key={opt.value}
@@ -4582,6 +5081,9 @@ export const CampaignDetail: React.FC = () => {
                                   if (selectedAdGroupIds.size === 0) return;
                                   if (opt.value === "edit_bid") {
                                     setShowAdGroupsBidPanel(true);
+                                  } else if (opt.value === "delete") {
+                                    setShowAdGroupsBidPanel(false);
+                                    setShowAdGroupsDeleteConfirmation(true);
                                   } else {
                                     setShowAdGroupsBidPanel(false);
                                     setPendingAdGroupsStatusAction(
@@ -5013,6 +5515,7 @@ export const CampaignDetail: React.FC = () => {
                                 { value: "enable", label: "Enabled" },
                                 { value: "pause", label: "Paused" },
                                 { value: "edit_bid", label: "Edit Bid" },
+                                { value: "delete", label: "Delete" },
                               ].map((opt) => (
                                 <button
                                   key={opt.value}
@@ -5024,6 +5527,9 @@ export const CampaignDetail: React.FC = () => {
                                     if (selectedKeywordIds.size === 0) return;
                                     if (opt.value === "edit_bid") {
                                       setShowKeywordsBidPanel(true);
+                                    } else if (opt.value === "delete") {
+                                      setShowKeywordsBidPanel(false);
+                                      setShowKeywordsDeleteConfirmation(true);
                                     } else {
                                       setShowKeywordsBidPanel(false);
                                       setPendingKeywordsStatusAction(
@@ -5473,6 +5979,70 @@ export const CampaignDetail: React.FC = () => {
                         />
                       </svg>
                     </button>
+                    {/* Bulk Edit Button */}
+                    {selectedProductAdIds.size > 0 && (
+                      <div
+                        className="relative inline-flex justify-end"
+                        ref={productAdsBulkActionsRef}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowProductAdsBulkActions((prev) => !prev);
+                            setIsProductAdsFilterPanelOpen(false);
+                          }}
+                        >
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Edit
+                          </span>
+                        </Button>
+                        {showProductAdsBulkActions && (
+                          <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                            <div className="overflow-y-auto">
+                              {[{ value: "delete", label: "Delete" }].map(
+                                (opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                    disabled={selectedProductAdIds.size === 0}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (selectedProductAdIds.size === 0)
+                                        return;
+                                      if (opt.value === "delete") {
+                                        setShowProductAdsDeleteConfirmation(
+                                          true
+                                        );
+                                      }
+                                      setShowProductAdsBulkActions(false);
+                                    }}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* Add Filter Button */}
                     <button
                       onClick={() =>
@@ -5712,6 +6282,7 @@ export const CampaignDetail: React.FC = () => {
                                 { value: "enable", label: "Enabled" },
                                 { value: "pause", label: "Paused" },
                                 { value: "edit_bid", label: "Edit Bid" },
+                                { value: "delete", label: "Delete" },
                               ].map((opt) => (
                                 <button
                                   key={opt.value}
@@ -5723,6 +6294,9 @@ export const CampaignDetail: React.FC = () => {
                                     if (selectedTargetIds.size === 0) return;
                                     if (opt.value === "edit_bid") {
                                       setShowTargetsBidPanel(true);
+                                    } else if (opt.value === "delete") {
+                                      setShowTargetsBidPanel(false);
+                                      setShowTargetsDeleteConfirmation(true);
                                     } else {
                                       setShowTargetsBidPanel(false);
                                       setPendingTargetsStatusAction(
@@ -6168,6 +6742,7 @@ export const CampaignDetail: React.FC = () => {
                                 {[
                                   { value: "enable", label: "Enabled" },
                                   { value: "pause", label: "Paused" },
+                                  { value: "delete", label: "Delete" },
                                 ].map((opt) => (
                                   <button
                                     key={opt.value}
@@ -6180,12 +6755,18 @@ export const CampaignDetail: React.FC = () => {
                                       e.stopPropagation();
                                       if (selectedNegativeKeywordIds.size === 0)
                                         return;
-                                      setPendingNegativeKeywordsStatusAction(
-                                        opt.value as "enable" | "pause"
-                                      );
-                                      setShowNegativeKeywordsConfirmationModal(
-                                        true
-                                      );
+                                      if (opt.value === "delete") {
+                                        setShowNegativeKeywordsDeleteConfirmation(
+                                          true
+                                        );
+                                      } else {
+                                        setPendingNegativeKeywordsStatusAction(
+                                          opt.value as "enable" | "pause"
+                                        );
+                                        setShowNegativeKeywordsConfirmationModal(
+                                          true
+                                        );
+                                      }
                                       setShowNegativeKeywordsBulkActions(false);
                                     }}
                                   >
@@ -6501,6 +7082,7 @@ export const CampaignDetail: React.FC = () => {
                                   {[
                                     { value: "enable", label: "Enabled" },
                                     { value: "pause", label: "Paused" },
+                                    { value: "delete", label: "Delete" },
                                   ].map((opt) => (
                                     <button
                                       key={opt.value}
@@ -6515,12 +7097,18 @@ export const CampaignDetail: React.FC = () => {
                                           selectedNegativeTargetIds.size === 0
                                         )
                                           return;
-                                        setPendingNegativeTargetsStatusAction(
-                                          opt.value as "enable" | "pause"
-                                        );
-                                        setShowNegativeTargetsConfirmationModal(
-                                          true
-                                        );
+                                        if (opt.value === "delete") {
+                                          setShowNegativeTargetsDeleteConfirmation(
+                                            true
+                                          );
+                                        } else {
+                                          setPendingNegativeTargetsStatusAction(
+                                            opt.value as "enable" | "pause"
+                                          );
+                                          setShowNegativeTargetsConfirmationModal(
+                                            true
+                                          );
+                                        }
                                         setShowNegativeTargetsBulkActions(
                                           false
                                         );
@@ -6925,6 +7513,297 @@ export const CampaignDetail: React.FC = () => {
                   className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {keywordsBulkLoading ? "Processing..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal for Keywords */}
+      {showKeywordsDeleteConfirmation && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!keywordsDeleteLoading) {
+                setShowKeywordsDeleteConfirmation(false);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Delete
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  Are you sure you want to delete {selectedKeywordIds.size}{" "}
+                  selected keyword{selectedKeywordIds.size !== 1 ? "s" : ""}?
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowKeywordsDeleteConfirmation(false);
+                  }}
+                  disabled={keywordsDeleteLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkKeywordsDelete}
+                  disabled={keywordsDeleteLoading}
+                  className="px-4 py-2 bg-red-600 text-white text-[11.2px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {keywordsDeleteLoading ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal for Product Ads */}
+      {showProductAdsDeleteConfirmation && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!productAdsDeleteLoading) {
+                setShowProductAdsDeleteConfirmation(false);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Delete
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  Are you sure you want to delete {selectedProductAdIds.size}{" "}
+                  selected product ad
+                  {selectedProductAdIds.size !== 1 ? "s" : ""}? This action
+                  cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProductAdsDeleteConfirmation(false);
+                  }}
+                  disabled={productAdsDeleteLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkProductAdsDelete}
+                  disabled={productAdsDeleteLoading}
+                  className="px-4 py-2 bg-red-600 text-white text-[11.2px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {productAdsDeleteLoading ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal for Ad Groups */}
+      {showAdGroupsDeleteConfirmation && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!adGroupsDeleteLoading) {
+                setShowAdGroupsDeleteConfirmation(false);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Delete
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  Are you sure you want to delete {selectedAdGroupIds.size}{" "}
+                  selected ad group{selectedAdGroupIds.size !== 1 ? "s" : ""}?
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdGroupsDeleteConfirmation(false);
+                  }}
+                  disabled={adGroupsDeleteLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkAdGroupsDelete}
+                  disabled={adGroupsDeleteLoading}
+                  className="px-4 py-2 bg-red-600 text-white text-[11.2px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {adGroupsDeleteLoading ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal for Targets */}
+      {showTargetsDeleteConfirmation && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!targetsDeleteLoading) {
+                setShowTargetsDeleteConfirmation(false);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Delete
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  Are you sure you want to delete {selectedTargetIds.size}{" "}
+                  selected target{selectedTargetIds.size !== 1 ? "s" : ""}? This
+                  action cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTargetsDeleteConfirmation(false);
+                  }}
+                  disabled={targetsDeleteLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkTargetsDelete}
+                  disabled={targetsDeleteLoading}
+                  className="px-4 py-2 bg-red-600 text-white text-[11.2px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {targetsDeleteLoading ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal for Negative Keywords */}
+      {showNegativeKeywordsDeleteConfirmation && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!negativeKeywordsDeleteLoading) {
+                setShowNegativeKeywordsDeleteConfirmation(false);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Delete
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  Are you sure you want to delete{" "}
+                  {selectedNegativeKeywordIds.size} selected negative keyword
+                  {selectedNegativeKeywordIds.size !== 1 ? "s" : ""}? This
+                  action cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNegativeKeywordsDeleteConfirmation(false);
+                  }}
+                  disabled={negativeKeywordsDeleteLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkNegativeKeywordsDelete}
+                  disabled={negativeKeywordsDeleteLoading}
+                  className="px-4 py-2 bg-red-600 text-white text-[11.2px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {negativeKeywordsDeleteLoading ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal for Negative Targets */}
+      {showNegativeTargetsDeleteConfirmation && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+            onClick={() => {
+              if (!negativeTargetsDeleteLoading) {
+                setShowNegativeTargetsDeleteConfirmation(false);
+              }
+            }}
+          />
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+            <div className="p-6">
+              <div className="mb-4 text-center">
+                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                  Confirm Delete
+                </h3>
+                <p className="text-[14px] text-[#556179]">
+                  Are you sure you want to delete{" "}
+                  {selectedNegativeTargetIds.size} selected negative target
+                  {selectedNegativeTargetIds.size !== 1 ? "s" : ""}? This action
+                  cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNegativeTargetsDeleteConfirmation(false);
+                  }}
+                  disabled={negativeTargetsDeleteLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkNegativeTargetsDelete}
+                  disabled={negativeTargetsDeleteLoading}
+                  className="px-4 py-2 bg-red-600 text-white text-[11.2px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {negativeTargetsDeleteLoading ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </div>

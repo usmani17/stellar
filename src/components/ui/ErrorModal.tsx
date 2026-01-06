@@ -67,7 +67,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       {/* Modal */}
       <div
         className={`relative bg-white rounded-xl shadow-2xl ${
-          errorDetails && errorDetails.length > 0 ? "max-w-2xl" : "max-w-md"
+          needsLargeModal ? "max-w-2xl" : "max-w-md"
         } w-full mx-4 border border-[#E8E8E3]`}
       >
         <div className="p-6">

@@ -67,6 +67,7 @@ export interface CampaignsQueryParams {
   // State and Type filters
   state?: string;
   type?: string;
+  targeting_type?: string;
   // Profile name filters with operators
   profile_name?: string;
   profile_name__icontains?: string;
@@ -511,6 +512,9 @@ export const campaignsService = {
     if (params?.type) {
       filters.type = params.type;
     }
+    if (params?.targeting_type) {
+      filters.targeting_type = params.targeting_type;
+    }
     // Profile name filters
     if (params?.profile_name) {
       filters.profile_name = params.profile_name;
@@ -588,6 +592,9 @@ export const campaignsService = {
     }
     if (params?.type) {
       filters.type = params.type;
+    }
+    if (params?.targeting_type) {
+      filters.targeting_type = params.targeting_type;
     }
     // Profile name filters
     if (params?.profile_name) {
@@ -1616,6 +1623,84 @@ export const campaignsService = {
     }
   ) => {
     const url = `/accounts/${accountId}/keywords/bulk-update/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteKeywords: async (
+    accountId: number,
+    payload: {
+      keywordIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/keywords/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteNegativeKeywords: async (
+    accountId: number,
+    payload: {
+      negativeKeywordIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/negative-keywords/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteTargets: async (
+    accountId: number,
+    payload: {
+      targetIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/targets/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteAdGroups: async (
+    accountId: number,
+    payload: {
+      adGroupIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/adgroups/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteNegativeTargets: async (
+    accountId: number,
+    payload: {
+      negativeTargetIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/negative-targets/bulk-delete/`;
+    const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  bulkDeleteProductAds: async (
+    accountId: number,
+    payload: {
+      adIdFilter: {
+        include: Array<string | number>;
+      };
+    }
+  ) => {
+    const url = `/accounts/${accountId}/productads/bulk-delete/`;
     const response = await api.post(url, payload);
     return response.data;
   },

@@ -250,12 +250,13 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
             <tbody>
               {targets.map((target, index) => {
                 const isLastRow = index === targets.length - 1;
+                const isArchived = target.status?.toLowerCase() === "archived";
                 return (
                   <tr
                     key={target.id}
                     className={`${
                       !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                    } hover:bg-gray-50 transition-colors`}
+                    } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                   >
                     {/* Checkbox */}
                     <td className="py-[10px] px-[10px]">
@@ -401,16 +402,22 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                         </div>
                       ) : (
                         <div
-                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                          className={`text-[13.3px] leading-[1.26] ${
+                            isArchived
+                              ? "cursor-not-allowed opacity-60"
+                              : "cursor-pointer hover:underline"
+                          }`}
                           onClick={() => {
-                            const statusLower =
-                              target.status?.toLowerCase() || "enabled";
-                            const statusValue =
-                              statusLower === "enable" ||
-                              statusLower === "enabled"
-                                ? "enabled"
-                                : "paused";
-                            onEditStart?.(target.id, "status", statusValue);
+                            if (!isArchived) {
+                              const statusLower =
+                                target.status?.toLowerCase() || "enabled";
+                              const statusValue =
+                                statusLower === "enable" ||
+                                statusLower === "enabled"
+                                  ? "enabled"
+                                  : "paused";
+                              onEditStart?.(target.id, "status", statusValue);
+                            }
                           }}
                         >
                           <StatusBadge status={target.status} />
@@ -469,12 +476,18 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                         </div>
                       ) : (
                         <div
-                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                          className={`text-[13.3px] leading-[1.26] ${
+                            isArchived
+                              ? "text-gray-400 cursor-not-allowed"
+                              : "text-[#0b0f16] cursor-pointer hover:underline"
+                          }`}
                           onClick={() => {
-                            const currentBid = target.bid
-                              ? target.bid.replace(/[^0-9.]/g, "")
-                              : "0";
-                            onEditStart?.(target.id, "bid", currentBid);
+                            if (!isArchived) {
+                              const currentBid = target.bid
+                                ? target.bid.replace(/[^0-9.]/g, "")
+                                : "0";
+                              onEditStart?.(target.id, "bid", currentBid);
+                            }
                           }}
                         >
                           {target.bid || "$0.00"}
