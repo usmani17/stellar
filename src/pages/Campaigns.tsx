@@ -52,68 +52,73 @@ export const Campaigns: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const { startDate, endDate } = useDateRange();
   const { sidebarWidth } = useSidebar();
-
+  
   // Get account ID as number
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
-
+  
   // State for pagination, sorting, and filters
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filters, setFilters] = useState<FilterValues>([]);
-
+  const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
+  const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
+  
   // Build filter params helper
   const buildFilterParams = useCallback(
     (filterList: FilterValues): CampaignsQueryParams => {
-      const params: CampaignsQueryParams = {};
+    const params: CampaignsQueryParams = {};
 
-      filterList.forEach((filter) => {
-        if (filter.field === "campaign_name") {
-          if (filter.operator === "contains") {
-            params.campaign_name__icontains = filter.value;
-          } else if (filter.operator === "not_contains") {
-            params.campaign_name__not_icontains = filter.value;
-          } else if (filter.operator === "equals") {
-            params.campaign_name = filter.value;
-          }
-        } else if (filter.field === "budget") {
-          if (filter.operator === "lt") {
-            params.budget__lt = filter.value;
-          } else if (filter.operator === "gt") {
-            params.budget__gt = filter.value;
-          } else if (filter.operator === "eq") {
-            params.budget = filter.value;
-          } else if (filter.operator === "lte") {
-            params.budget__lte = filter.value;
-          } else if (filter.operator === "gte") {
-            params.budget__gte = filter.value;
-          }
-        } else if (filter.field === "state") {
-          params.state = filter.value;
-        } else if (filter.field === "type") {
-          params.type = filter.value;
-        } else if (filter.field === "targeting_type") {
-          params.targeting_type = filter.value;
-        } else if (filter.field === "profile_name") {
-          if (filter.operator === "contains") {
-            params.profile_name__icontains = filter.value;
-          } else if (filter.operator === "not_contains") {
-            params.profile_name__not_icontains = filter.value;
-          } else if (filter.operator === "equals") {
-            params.profile_name = filter.value;
-          }
+    filterList.forEach((filter) => {
+      if (filter.field === "campaign_name") {
+        if (filter.operator === "contains") {
+          params.campaign_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.campaign_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.campaign_name = filter.value;
         }
-      });
+      } else if (filter.field === "budget") {
+        if (filter.operator === "lt") {
+          params.budget__lt = filter.value;
+        } else if (filter.operator === "gt") {
+          params.budget__gt = filter.value;
+        } else if (filter.operator === "eq") {
+          params.budget = filter.value;
+        } else if (filter.operator === "lte") {
+          params.budget__lte = filter.value;
+        } else if (filter.operator === "gte") {
+          params.budget__gte = filter.value;
+        }
+      } else if (filter.field === "state") {
+        params.state = filter.value;
+      } else if (filter.field === "type") {
+        params.type = filter.value;
+      } else if (filter.field === "targeting_type") {
+        params.targeting_type = filter.value;
+      } else if (filter.field === "profile_name") {
+        if (filter.operator === "contains") {
+          params.profile_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.profile_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.profile_name = filter.value;
+        }
+      }
+    });
 
-      return params;
+    return params;
     },
     []
   );
-
+  
   // Build query params for React Query
   const queryParams = useMemo<CampaignsQueryParams>(() => {
     const params: CampaignsQueryParams = {
+      ...(apiSearchQuery && {
+        campaign_name__icontains: apiSearchQuery,
+      }),
       sort_by: sortBy,
       order: sortOrder,
       page: currentPage,
@@ -131,6 +136,7 @@ export const Campaigns: React.FC = () => {
     startDate,
     endDate,
     filters,
+    apiSearchQuery,
     buildFilterParams,
   ]);
 
@@ -142,10 +148,22 @@ export const Campaigns: React.FC = () => {
     refetch: refetchCampaigns,
   } = useCampaigns(accountIdNum, queryParams);
 
-  // Extract data from response
+  // Extract data from response and apply client-side filtering
   const campaigns = useMemo(() => {
-    return campaignsResponse?.campaigns || [];
-  }, [campaignsResponse]);
+    const allCampaigns = campaignsResponse?.campaigns || [];
+    
+    // Apply client-side filtering if searchQuery is different from apiSearchQuery
+    if (searchQuery && searchQuery !== apiSearchQuery) {
+      const query = searchQuery.toLowerCase().trim();
+      return allCampaigns.filter((campaign) => {
+        const campaignName = (campaign.campaign_name || "").toLowerCase();
+        const accountIdStr = accountId ? accountId.toString() : "";
+        return campaignName.includes(query) || accountIdStr.includes(query);
+      });
+    }
+    
+    return allCampaigns;
+  }, [campaignsResponse, searchQuery, apiSearchQuery, accountId]);
 
   const summary = useMemo(() => {
     return campaignsResponse?.summary || null;
@@ -164,7 +182,7 @@ export const Campaigns: React.FC = () => {
   const bulkDeleteMutation = useBulkDeleteCampaigns(accountIdNum || 0);
   const createCampaignMutation = useCreateCampaign(accountIdNum || 0);
   const updateCampaignMutation = useUpdateCampaign(accountIdNum || 0);
-
+  
   // Use mutation loading states
   const bulkLoading =
     bulkUpdateMutation.isPending || bulkDeleteMutation.isPending;
@@ -836,9 +854,9 @@ export const Campaigns: React.FC = () => {
 
       if (error?.response?.data) {
         // Parse standardized error format
-        if (error.response.data.field_errors) {
-          fieldErrors = error.response.data.field_errors;
-        }
+          if (error.response.data.field_errors) {
+            fieldErrors = error.response.data.field_errors;
+          }
 
         if (error.response.data.generic_errors) {
           genericErrors = Array.isArray(error.response.data.generic_errors)
@@ -847,10 +865,10 @@ export const Campaigns: React.FC = () => {
         }
 
         // Get summary error message
-        if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
         } else if (genericErrors.length > 0) {
           errorMessage = genericErrors[0];
         } else if (Object.keys(fieldErrors).length > 0) {
@@ -1045,7 +1063,7 @@ export const Campaigns: React.FC = () => {
           normalizeTargetingType(newTargetingType)
         ) {
           updatePayload.targetingType = newTargetingType.toUpperCase() as
-            | "AUTO"
+                | "AUTO"
             | "MANUAL";
         }
 
@@ -2097,7 +2115,7 @@ export const Campaigns: React.FC = () => {
             {/* Header with Filter and Create Campaign Buttons */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Campaign Manager
+                Campaigns Overview
               </h1>
               <div className="flex items-center gap-2">
                 <CreateCampaignSection
@@ -2183,8 +2201,53 @@ export const Campaigns: React.FC = () => {
               )}
             </div>
 
-            {/* Edit and Export Buttons - Above Table */}
+            {/* Search, Edit and Export Buttons - Above Table */}
             <div className="flex items-center justify-end gap-2">
+              {/* Search Box */}
+              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[8px] flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
+                <div className="relative shrink-0 size-[12px]">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M5.5 9.5C7.70914 9.5 9.5 7.70914 9.5 5.5C9.5 3.29086 7.70914 1.5 5.5 1.5C3.29086 1.5 1.5 3.29086 1.5 5.5C1.5 7.70914 3.29086 9.5 5.5 9.5Z"
+                      stroke="#556179"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10.5 10.5L8.5 8.5"
+                      stroke="#556179"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    // Don't reset page or call API while typing - only filter client-side
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      // Call backend API when Enter is pressed
+                      setApiSearchQuery(searchQuery);
+                      setCurrentPage(1); // Reset to first page when searching
+                    }
+                  }}
+                  placeholder="Search by Name or Account ID"
+                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
+                />
+              </div>
+              <div className="flex items-center gap-2">
               <div
                 className="relative inline-flex justify-end"
                 ref={dropdownRef}
@@ -2367,6 +2430,7 @@ export const Campaigns: React.FC = () => {
                     )}
                   </div>
                 )}
+              </div>
               </div>
             </div>
 
@@ -2880,7 +2944,7 @@ export const Campaigns: React.FC = () => {
                       <thead>
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={
@@ -2910,7 +2974,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Campaign Name Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px]"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"
                             onClick={() => handleSort("campaign_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3067,8 +3131,8 @@ export const Campaigns: React.FC = () => {
                         {/* Summary Row */}
                         {summary && (
                           <tr className="bg-[#f5f5f0] font-semibold">
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                               Total ({summary.total_campaigns})
                             </td>
                             <td className="py-[10px] px-[10px]"></td>
@@ -3108,7 +3172,7 @@ export const Campaigns: React.FC = () => {
                               } hover:bg-gray-100 transition-colors`}
                             >
                               {/* Checkbox */}
-                              <td className="py-[10px] px-[10px]">
+                              <td className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                 <div className="flex items-center justify-center">
                                   <Checkbox
                                     checked={selectedCampaigns.has(
@@ -3139,7 +3203,7 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Campaign Name (with edit icon) */}
-                              <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px]">
+                              <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"

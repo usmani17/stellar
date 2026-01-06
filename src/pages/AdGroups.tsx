@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buildMarketplaceRoute } from "../utils/urlHelpers";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
@@ -925,10 +931,18 @@ export const AdGroups: React.FC = () => {
   }, [chartDataFromApi]);
 
   const handleSelectAllAdGroups = (checked: boolean) => {
+    console.log(
+      "handleSelectAllAdGroups called",
+      checked,
+      "adgroups.length:",
+      adgroups.length
+    );
     if (checked) {
       const allIds = new Set(adgroups.map((ag) => ag.adGroupId || ag.id));
+      console.log("Selecting all - allIds:", Array.from(allIds));
       setSelectedAdgroups(allIds);
     } else {
+      console.log("Deselecting all");
       setSelectedAdgroups(new Set());
     }
   };
@@ -1611,7 +1625,14 @@ export const AdGroups: React.FC = () => {
               loading={loading}
               campaignDetail={null}
               // campaignId not provided, so all columns including Campaign Name will show
-              onSelectAll={handleSelectAllAdGroups}
+              onSelectAll={(checked) => {
+                console.log("Inline onSelectAll called with:", checked);
+                console.log(
+                  "handleSelectAllAdGroups function:",
+                  handleSelectAllAdGroups
+                );
+                handleSelectAllAdGroups(checked);
+              }}
               onSelect={handleSelectAdGroup}
               selectedIds={selectedAdgroups}
               sortBy={sortBy}

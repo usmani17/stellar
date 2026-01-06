@@ -223,12 +223,13 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
               <tbody>
                 {keywords.map((keyword, index) => {
                   const isLastRow = index === keywords.length - 1;
+                  const isArchived = keyword.status?.toLowerCase() === "archived";
                   return (
                     <tr
                       key={keyword.id}
                       className={`${
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
                       <td className="py-[10px] px-[10px]">
@@ -336,16 +337,22 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                            className={`text-[13.3px] leading-[1.26] ${
+                              isArchived
+                                ? "cursor-not-allowed opacity-60"
+                                : "cursor-pointer hover:underline"
+                            }`}
                             onClick={() => {
-                              const statusLower =
-                                keyword.status?.toLowerCase() || "enabled";
-                              const statusValue =
-                                statusLower === "enable" ||
-                                statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
-                              onEditStart?.(keyword.id, "status", statusValue);
+                              if (!isArchived) {
+                                const statusLower =
+                                  keyword.status?.toLowerCase() || "enabled";
+                                const statusValue =
+                                  statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                    ? "enabled"
+                                    : "paused";
+                                onEditStart?.(keyword.id, "status", statusValue);
+                              }
                             }}
                           >
                             <StatusBadge status={keyword.status} />
@@ -404,12 +411,18 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                           </div>
                         ) : (
                           <div
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                            className={`text-[13.3px] leading-[1.26] ${
+                              isArchived
+                                ? "text-gray-400 cursor-not-allowed"
+                                : "text-[#0b0f16] cursor-pointer hover:underline"
+                            }`}
                             onClick={() => {
-                              const currentBid = keyword.bid
-                                ? keyword.bid.replace(/[^0-9.]/g, "")
-                                : "0";
-                              onEditStart?.(keyword.id, "bid", currentBid);
+                              if (!isArchived) {
+                                const currentBid = keyword.bid
+                                  ? keyword.bid.replace(/[^0-9.]/g, "")
+                                  : "0";
+                                onEditStart?.(keyword.id, "bid", currentBid);
+                              }
                             }}
                           >
                             {keyword.bid || "$0.00"}
