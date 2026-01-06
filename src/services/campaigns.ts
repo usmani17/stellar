@@ -1328,7 +1328,7 @@ export const campaignsService = {
     payload: {
       adgroupIds: Array<string | number>;
       action: "status" | "default_bid" | "name";
-      status?: "enable" | "pause" | "archive";
+      status?: "ENABLED" | "PAUSED";
       value?: number;
       name?: string;
     }

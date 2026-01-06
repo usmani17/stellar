@@ -3,7 +3,7 @@ import { Dropdown } from "../ui/Dropdown";
 
 export interface AdGroupInput {
   name: string;
-  defaultBid: number;
+  defaultBid?: number; // Optional - not used for SB campaigns
   state: "ENABLED" | "PAUSED";
 }
 
@@ -113,7 +113,8 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
       newErrors.name = "Ad Group name is required";
     }
 
-    if (currentAdGroup.defaultBid <= 0) {
+    // Only validate defaultBid for SP campaigns (not SB)
+    if (campaignType !== "SB" && (currentAdGroup.defaultBid === undefined || currentAdGroup.defaultBid <= 0)) {
       newErrors.defaultBid = "Default bid must be greater than 0";
     }
 
@@ -325,30 +326,32 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
             )}
           </div>
 
-          {/* Default Bid */}
-          <div className="w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-              Default Bid *
-            </label>
-            <input
-              type="number"
-              value={currentAdGroup.defaultBid || ""}
-              onChange={(e) =>
-                handleChange("defaultBid", parseFloat(e.target.value) || 0)
-              }
-              placeholder="0.10"
-              min="0"
-              step="0.01"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                errors.defaultBid ? "border-red-500" : "border-gray-200"
-              }`}
-            />
-            {errors.defaultBid && (
-              <p className="text-[10px] text-red-500 mt-1">
-                {errors.defaultBid}
-              </p>
-            )}
-          </div>
+          {/* Default Bid - Only show for SP campaigns */}
+          {campaignType !== "SB" && (
+            <div className="w-[140px]">
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                Default Bid *
+              </label>
+              <input
+                type="number"
+                value={currentAdGroup.defaultBid || ""}
+                onChange={(e) =>
+                  handleChange("defaultBid", parseFloat(e.target.value) || 0)
+                }
+                placeholder="0.10"
+                min="0"
+                step="0.01"
+                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  errors.defaultBid ? "border-red-500" : "border-gray-200"
+                }`}
+              />
+              {errors.defaultBid && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.defaultBid}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* State */}
           <div className="w-[140px]">
@@ -393,9 +396,11 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                     <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Ad Group Name
                     </th>
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Default Bid
-                    </th>
+                    {campaignType !== "SB" && (
+                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        Default Bid
+                      </th>
+                    )}
                     <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       State
                     </th>
@@ -454,23 +459,25 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                               ))}
                           </div>
                         </td>
-                        <td className="py-[10px] px-[10px]">
-                          <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              ${adgroup.defaultBid.toFixed(2)}
-                            </span>
-                            {adGroupRowErrors
-                              .filter((e) => e.field === "defaultBid")
-                              .map((e, i) => (
-                                <span
-                                  key={i}
-                                  className="text-[10px] text-red-500 mt-1"
-                                >
-                                  {e.message}
-                                </span>
-                              ))}
-                          </div>
-                        </td>
+                        {campaignType !== "SB" && (
+                          <td className="py-[10px] px-[10px]">
+                            <div className="flex flex-col">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                ${(adgroup.defaultBid || 0).toFixed(2)}
+                              </span>
+                              {adGroupRowErrors
+                                .filter((e) => e.field === "defaultBid")
+                                .map((e, i) => (
+                                  <span
+                                    key={i}
+                                    className="text-[10px] text-red-500 mt-1"
+                                  >
+                                    {e.message}
+                                  </span>
+                                ))}
+                            </div>
+                          </td>
+                        )}
                         <td className="py-[10px] px-[10px]">
                           <div className="flex flex-col">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">

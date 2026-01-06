@@ -1330,11 +1330,17 @@ export const CampaignDetail: React.FC = () => {
       }
 
       const payload = {
-        adgroups: adgroups.map((ag) => ({
-          name: ag.name,
-          defaultBid: ag.defaultBid,
-          state: ag.state,
-        })),
+        adgroups: adgroups.map((ag) => {
+          const adgroupData: any = {
+            name: ag.name,
+            state: ag.state,
+          };
+          // Only include defaultBid for SP campaigns (not SB)
+          if (campaignType !== "SB" && ag.defaultBid !== undefined) {
+            adgroupData.defaultBid = ag.defaultBid;
+          }
+          return adgroupData;
+        }),
       };
 
       const response = await campaignsService.createAdGroups(
@@ -2693,14 +2699,15 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingAdGroupChange.field === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
-          enabled: "enable",
-          paused: "pause",
-          archived: "archive",
+        // Map status values to uppercase
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          enabled: "ENABLED",
+          paused: "PAUSED",
+          enable: "ENABLED",
+          pause: "PAUSED",
         };
         const statusValue =
-          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "enable";
+          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
         await campaignsService.bulkUpdateAdGroups(accountIdNum, {
           adgroupIds: [adgroup.adGroupId],
@@ -4201,10 +4208,19 @@ export const CampaignDetail: React.FC = () => {
         }
       );
 
+      // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
+      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+        enable: "ENABLED",
+        pause: "PAUSED",
+        enabled: "ENABLED",
+        paused: "PAUSED",
+      };
+      const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
+
       await campaignsService.bulkUpdateAdGroups(accountIdNum, {
         adgroupIds: selectedAdGroupIdsArray,
         action: "status",
-        status: statusValue,
+        status: apiStatus,
       });
 
       await loadAdGroups();
@@ -5067,8 +5083,16 @@ export const CampaignDetail: React.FC = () => {
                             {[
                               { value: "enable", label: "Enabled" },
                               { value: "pause", label: "Paused" },
-                              { value: "archive", label: "Archived" },
-                              { value: "edit_bid", label: "Edit Default Bid" },
+                              // Only show "Archived" and "Edit Default Bid" for SP campaigns
+                              ...(campaignType !== "SB"
+                                ? [
+                                    { value: "archive", label: "Archived" },
+                                    {
+                                      value: "edit_bid",
+                                      label: "Edit Default Bid",
+                                    },
+                                  ]
+                                : []),
                               { value: "delete", label: "Delete" },
                             ].map((opt) => (
                               <button
@@ -8022,7 +8046,9 @@ export const CampaignDetail: React.FC = () => {
                           ? "pause"
                           : "archive"
                       } ${selectedAdGroupIds.size} ad group(s)?`
-                    : `Are you sure you want to update the default bid for ${selectedAdGroupIds.size} ad group(s)?`}
+                    : campaignType !== "SB"
+                    ? `Are you sure you want to update the default bid for ${selectedAdGroupIds.size} ad group(s)?`
+                    : ""}
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 mt-6">
@@ -8044,7 +8070,8 @@ export const CampaignDetail: React.FC = () => {
                       await handleBulkAdGroupsStatus(
                         pendingAdGroupsStatusAction
                       );
-                    } else {
+                    } else if (campaignType !== "SB") {
+                      // Only allow default bid edit for non-SB campaigns
                       await handleBulkAdGroupsBid();
                     }
                   }}

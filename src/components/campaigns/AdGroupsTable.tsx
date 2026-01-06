@@ -18,7 +18,7 @@ interface AdGroupsTableProps {
   onSort?: (column: string) => void;
   editingField?: {
     id: number;
-    field: "status" | "default_bid" | "name";
+    field: "status" | "name";
   } | null;
   editedValue?: string;
   onEditStart?: (
@@ -32,7 +32,7 @@ interface AdGroupsTableProps {
   inlineEditLoading?: Set<number>;
   pendingChange?: {
     id: number;
-    field: "status" | "default_bid" | "name";
+    field: "status" | "name";
     newValue: string;
     oldValue: string;
   } | null;
@@ -256,11 +256,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       State
                       {getSortIcon("status")}
                     </div>
-                  </th>
-
-                  {/* Default Bid Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                    Default Bid
                   </th>
 
                   {/* CTR Header */}
@@ -669,79 +664,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                             }}
                           >
                             <StatusBadge status={adgroup.status} />
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Default Bid */}
-                      <td className="py-[10px] px-[10px]">
-                        {inlineEditLoading.has(adgroup.id) ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              $
-                              {parseFloat(
-                                pendingChange?.newValue || "0"
-                              ).toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </span>
-                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
-                          </div>
-                        ) : pendingChange?.id === adgroup.id &&
-                          pendingChange?.field === "default_bid" ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              $
-                              {parseFloat(
-                                pendingChange.newValue || "0"
-                              ).toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </span>
-                          </div>
-                        ) : editingField?.id === adgroup.id &&
-                          editingField?.field === "default_bid" ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max={campaignDetail?.campaign?.budget || 1000}
-                              value={editedValue}
-                              onChange={(e) => onEditChange?.(e.target.value)}
-                              className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
-                              autoFocus
-                              onBlur={() => onEditEnd?.()}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === "Escape") {
-                                  onEditEnd?.();
-                                }
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div
-                            className={`text-[13.3px] leading-[1.26] ${
-                              isArchived
-                                ? "text-gray-400 cursor-not-allowed"
-                                : "text-[#0b0f16] cursor-pointer hover:underline"
-                            }`}
-                            onClick={() => {
-                              if (!isArchived) {
-                                const bidValue = adgroup.default_bid
-                                  ? adgroup.default_bid.replace(/[^0-9.]/g, "")
-                                  : "0";
-                                onEditStart?.(
-                                  adgroup.id,
-                                  "default_bid",
-                                  bidValue
-                                );
-                              }
-                            }}
-                          >
-                            {adgroup.default_bid || "$0.00"}
                           </div>
                         )}
                       </td>
