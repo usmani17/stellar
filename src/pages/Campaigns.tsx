@@ -977,19 +977,27 @@ export const Campaigns: React.FC = () => {
       // 4. Check if budgetType changed
       const originalBudgetType = original.budgetType || "";
       const newBudgetType = data.budgetType || "";
-      const normalizeBudgetType = (bt: string) => bt.toUpperCase();
+      const normalizeBudgetType = (bt: string) => bt.toLowerCase();
       if (
         normalizeBudgetType(newBudgetType) !==
           normalizeBudgetType(originalBudgetType) &&
-        (newBudgetType === "DAILY" || newBudgetType === "LIFETIME")
+        (normalizeBudgetType(newBudgetType) === "daily" ||
+          normalizeBudgetType(newBudgetType) === "lifetime")
       ) {
-        updatePayload.budgetType = newBudgetType.toUpperCase() as
-          | "DAILY"
-          | "LIFETIME";
+        // For SD campaigns, use lowercase; for SP/SB, use uppercase
+        if (data.type === "SD") {
+          updatePayload.budgetType = normalizeBudgetType(newBudgetType) as
+            | "daily"
+            | "lifetime";
+        } else {
+          updatePayload.budgetType = newBudgetType.toUpperCase() as
+            | "DAILY"
+            | "LIFETIME";
+        }
       }
 
-      // 5. Check if endDate changed (for SP campaigns)
-      if (data.type === "SP") {
+      // 5. Check if endDate changed (for SP and SD campaigns)
+      if (data.type === "SP" || data.type === "SD") {
         const originalEndDate = original.endDate || "";
         const newEndDate = data.endDate || "";
 
@@ -1467,7 +1475,7 @@ export const Campaigns: React.FC = () => {
           }
         }
 
-        // 10. Check if startDate changed (for SB campaigns)
+        // 10. Check if startDate changed (for SB and SD campaigns)
         const originalStartDate = original.startDate || "";
         const newStartDate = data.startDate || "";
 
@@ -1487,6 +1495,29 @@ export const Campaigns: React.FC = () => {
 
         if (originalStartDateNormalized !== newStartDateNormalized) {
           updatePayload.startDate = newStartDateNormalized || null;
+        }
+      }
+
+      // Check changes for SD campaigns
+      if (data.type === "SD") {
+        // 11. Check if costType changed (for SD campaigns)
+        const originalCostType = original.costType || "";
+        const newCostType = data.costType || "";
+        if (
+          originalCostType !== newCostType &&
+          (newCostType === "cpc" || newCostType === "vcpm")
+        ) {
+          updatePayload.costType = newCostType;
+        }
+
+        // 12. Check if tactic changed (for SD campaigns)
+        const originalTactic = original.tactic || "";
+        const newTactic = data.tactic || "";
+        if (
+          originalTactic !== newTactic &&
+          (newTactic === "T00020" || newTactic === "T00030")
+        ) {
+          updatePayload.tactic = newTactic;
         }
       }
 
@@ -1738,8 +1769,26 @@ export const Campaigns: React.FC = () => {
           typeof campaign.budget === "number"
             ? campaign.budget
             : row.daily_budget || 0,
-        budgetType:
-          (campaign.budgetType as any) || (row.budgetType as any) || "DAILY",
+        budgetType: (() => {
+          const rawBudgetType =
+            (campaign.budgetType as any) || (row.budgetType as any);
+          if (!rawBudgetType) {
+            // Default based on campaign type
+            return campaignTypeUpper === "SD" ? "daily" : "DAILY";
+          }
+          // Normalize budgetType based on campaign type
+          if (campaignTypeUpper === "SD") {
+            // SD campaigns use lowercase
+            return String(rawBudgetType).toLowerCase() === "lifetime"
+              ? "lifetime"
+              : "daily";
+          } else {
+            // SP and SB campaigns use uppercase
+            return String(rawBudgetType).toUpperCase() === "LIFETIME"
+              ? "LIFETIME"
+              : "DAILY";
+          }
+        })(),
         status: normalizedStatus || "Enabled",
         startDate: campaign.startDate || row.startDate,
         // Only include endDate for non-SB campaigns
