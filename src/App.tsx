@@ -43,6 +43,7 @@ import { TikTokCampaigns } from "./pages/tiktok/TikTokCampaigns";
 import { TikTokCampaignDetail } from "./pages/tiktok/TikTokCampaignDetail";
 import { TikTokCreateCampaign } from "./pages/tiktok/TikTokCreateCampaign";
 import { TikTokAdGroups } from "./pages/tiktok/TikTokAdGroups";
+import { TikTokAds } from "./pages/tiktok/TikTokAds";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
 import { Dashboards } from "./pages/Dashboards";
@@ -430,6 +431,18 @@ function App() {
                         <AccountRequiredRoute>
                           <Layout>
                             <TikTokAdGroups />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/ads"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokAds />
                           </Layout>
                         </AccountRequiredRoute>
                       </ProtectedRoute>

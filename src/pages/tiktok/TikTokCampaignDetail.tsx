@@ -11,9 +11,12 @@ import type { FilterValues } from "../../components/filters/FilterPanel";
 import {
     TikTokOverviewTab,
     TikTokCampaignDetailAdGroupsTab,
+    TikTokCampaignDetailAdsTab,
     TikTokCampaignDetailLogsTab,
     type TikTokAdGroup,
+    type TikTokAd,
 } from "./components/tabs";
+import type { TikTokAdInput } from "../../components/tiktok/CreateTikTokAdPanel";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 
 interface TikTokCampaignDetailData {
@@ -75,6 +78,24 @@ export const TikTokCampaignDetail: React.FC = () => {
         conversions: false,
     });
 
+
+    // Ads State
+    const [ads, setAds] = useState<TikTokAd[]>([]);
+    const [adsLoading, setAdsLoading] = useState(false);
+    const [selectedAdIds, setSelectedAdIds] = useState<Set<string>>(new Set());
+    const [adsCurrentPage, setAdsCurrentPage] = useState(1);
+    const [adsTotalPages, setAdsTotalPages] = useState(0);
+    const [adsSortBy, setAdsSortBy] = useState<string>("spend"); // default sort
+    const [adsSortOrder, setAdsSortOrder] = useState<"asc" | "desc">("desc");
+    const [isAdsFilterPanelOpen, setIsAdsFilterPanelOpen] = useState(false);
+    const [adsFilters, setAdsFilters] = useState<FilterValues>([]);
+
+    // Create Ad Panel State
+    const [isCreateAdPanelOpen, setIsCreateAdPanelOpen] = useState(false);
+    const [selectedAdGroupForAd, setSelectedAdGroupForAd] = useState<string>("");
+    const [createAdLoading, setCreateAdLoading] = useState(false);
+    const [createAdError, setCreateAdError] = useState<string | null>(null);
+
     const tabs = ["Overview", "Ad Groups", "Ads", "Logs"];
 
     // Set Page Title
@@ -118,8 +139,14 @@ export const TikTokCampaignDetail: React.FC = () => {
     useEffect(() => {
         if (activeTab === "Ad Groups" && accountId && campaignId) {
             loadAdGroups();
+        } else if (activeTab === "Ads" && accountId && campaignId) {
+            loadAds();
+            // Also load ad groups so we have an adgroupId for Create Ad button
+            if (adgroups.length === 0) {
+                loadAdGroups();
+            }
         }
-    }, [activeTab, accountId, campaignId, startDate, endDate, adgroupsCurrentPage, adgroupsSortBy, adgroupsSortOrder, adgroupsFilters]);
+    }, [activeTab, accountId, campaignId, startDate, endDate, adgroupsCurrentPage, adgroupsSortBy, adgroupsSortOrder, adgroupsFilters, adsCurrentPage, adsSortBy, adsSortOrder, adsFilters]);
 
 
     const loadAdGroups = async () => {
@@ -128,18 +155,31 @@ export const TikTokCampaignDetail: React.FC = () => {
             const accountIdNum = parseInt(accountId!, 10);
             // Logic to build filters...
 
+            const params: any = {
+                campaign_id: campaignId,
+                page: adgroupsCurrentPage,
+                page_size: 10,
+                sort_by: adgroupsSortBy,
+                order: adgroupsSortOrder,
+                start_date: startDate?.toISOString().split('T')[0],
+                end_date: endDate?.toISOString().split('T')[0],
+            };
+
+            // Apply filters
+            adgroupsFilters.forEach((filter) => {
+                if (filter.field === "adgroup_name") {
+                    params.adgroup_name__icontains = filter.value;
+                } else if (filter.field === "state") {
+                    const val = String(filter.value).toUpperCase();
+                    if (val === "ENABLED") params.operation_status = "ENABLE";
+                    else if (val === "PAUSED") params.operation_status = "DISABLE";
+                    else params.operation_status = filter.value;
+                }
+            });
+
             const data = await campaignsService.getTikTokAdGroups(
                 accountIdNum,
-                {
-                    campaign_id: campaignId,
-                    page: adgroupsCurrentPage,
-                    page_size: 10,
-                    sort_by: adgroupsSortBy,
-                    order: adgroupsSortOrder,
-                    start_date: startDate?.toISOString().split('T')[0],
-                    end_date: endDate?.toISOString().split('T')[0],
-                    // Add other filters
-                }
+                params
             );
             setAdgroups(data.adgroups || []);
             setAdgroupsTotalPages(data.total_pages || 0);
@@ -151,6 +191,47 @@ export const TikTokCampaignDetail: React.FC = () => {
         }
     };
 
+    const loadAds = async () => {
+        try {
+            setAdsLoading(true);
+            const accountIdNum = parseInt(accountId!, 10);
+
+            const params: any = {
+                campaign_id: campaignId,
+                page: adsCurrentPage,
+                page_size: 10,
+                sort_by: adsSortBy,
+                order: adsSortOrder,
+                start_date: startDate?.toISOString().split('T')[0],
+                end_date: endDate?.toISOString().split('T')[0],
+            };
+
+            // Apply filters
+            adsFilters.forEach((filter) => {
+                if (filter.field === "ad_name") {
+                    params.ad_name__icontains = filter.value;
+                } else if (filter.field === "state") {
+                    const val = String(filter.value).toUpperCase();
+                    if (val === "ENABLED") params.operation_status = "ENABLE";
+                    else if (val === "PAUSED") params.operation_status = "DISABLE";
+                    else params.operation_status = filter.value;
+                }
+            });
+
+            const data = await campaignsService.getTikTokAds(
+                accountIdNum,
+                params
+            );
+            setAds(data.ads || []);
+            setAdsTotalPages(data.total_pages || 0);
+
+        } catch (error) {
+            console.error("Failed to load ads:", error);
+        } finally {
+            setAdsLoading(false);
+        }
+    };
+
 
     const handleSortAdGroups = (column: string) => {
         if (adgroupsSortBy === column) {
@@ -158,6 +239,34 @@ export const TikTokCampaignDetail: React.FC = () => {
         } else {
             setAdgroupsSortBy(column);
             setAdgroupsSortOrder("desc");
+        }
+    };
+
+    const handleSortAds = (column: string) => {
+        if (adsSortBy === column) {
+            setAdsSortOrder(adsSortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setAdsSortBy(column);
+            setAdsSortOrder("desc");
+        }
+    };
+
+    const handleCreateAd = async (data: TikTokAdInput) => {
+        if (!accountId) return;
+
+        setCreateAdLoading(true);
+        setCreateAdError(null);
+
+        try {
+            await campaignsService.createTikTokAd(parseInt(accountId), data);
+            setIsCreateAdPanelOpen(false);
+            // Refresh ads list
+            loadAds();
+        } catch (error: any) {
+            console.error("Failed to create ad:", error);
+            setCreateAdError(error.message || "Failed to create ad");
+        } finally {
+            setCreateAdLoading(false);
         }
     };
 
@@ -208,7 +317,6 @@ export const TikTokCampaignDetail: React.FC = () => {
                             </div>
 
                             {/* Campaign ID */}
-                            {/* Campaign ID */}
                             <div className="flex flex-col gap-1">
                                 <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                                     Campaign ID
@@ -218,7 +326,6 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Status */}
                             {/* Status */}
                             <div className="flex flex-col gap-1">
                                 <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
@@ -230,7 +337,6 @@ export const TikTokCampaignDetail: React.FC = () => {
                             </div>
 
                             {/* Budget */}
-                            {/* Budget */}
                             <div className="flex flex-col gap-1">
                                 <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                                     Budget
@@ -240,7 +346,6 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Start Date */}
                             {/* Start Date */}
                             <div className="flex flex-col gap-1">
                                 <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
@@ -254,7 +359,6 @@ export const TikTokCampaignDetail: React.FC = () => {
                             </div>
 
                             {/* Objective Type */}
-                            {/* Objective Type */}
                             <div className="flex flex-col gap-1">
                                 <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                                     Objective Type
@@ -264,7 +368,6 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Budget Type */}
                             {/* Budget Type */}
                             <div className="flex flex-col gap-1">
                                 <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
@@ -373,6 +476,43 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 filters={adgroupsFilters}
                                 onApplyFilters={setAdgroupsFilters}
                                 onRefresh={loadAdGroups}
+                            />
+                        )}
+
+                        {activeTab === "Ads" && (
+                            <TikTokCampaignDetailAdsTab
+                                ads={ads}
+                                loading={adsLoading}
+                                selectedAdIds={selectedAdIds}
+                                onSelectAll={(checked) => {
+                                    if (checked) setSelectedAdIds(new Set(ads.map(ad => ad.ad_id)));
+                                    else setSelectedAdIds(new Set());
+                                }}
+                                onSelectAd={(id, checked) => {
+                                    const newSet = new Set(selectedAdIds);
+                                    if (checked) newSet.add(id);
+                                    else newSet.delete(id);
+                                    setSelectedAdIds(newSet);
+                                }}
+                                sortBy={adsSortBy}
+                                sortOrder={adsSortOrder}
+                                onSort={handleSortAds}
+                                currentPage={adsCurrentPage}
+                                totalPages={adsTotalPages}
+                                onPageChange={setAdsCurrentPage}
+                                isFilterPanelOpen={isAdsFilterPanelOpen}
+                                onToggleFilterPanel={() => setIsAdsFilterPanelOpen(!isAdsFilterPanelOpen)}
+                                filters={adsFilters}
+                                onApplyFilters={setAdsFilters}
+                                // Create Ad Panel props
+                                isCreateAdPanelOpen={isCreateAdPanelOpen}
+                                onToggleCreateAdPanel={() => setIsCreateAdPanelOpen(!isCreateAdPanelOpen)}
+                                adgroupId={selectedAdGroupForAd || (adgroups.length > 0 ? adgroups[0].adgroup_id : "")}
+                                adgroups={adgroups.map(g => ({ adgroup_id: g.adgroup_id, adgroup_name: g.adgroup_name }))}
+                                onAdGroupChange={setSelectedAdGroupForAd}
+                                onCreateAd={handleCreateAd}
+                                createAdLoading={createAdLoading}
+                                createAdError={createAdError}
                             />
                         )}
 

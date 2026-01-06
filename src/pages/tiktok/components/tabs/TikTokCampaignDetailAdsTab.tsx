@@ -1,7 +1,7 @@
-import React from "react";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import { CreateTikTokAdPanel, type TikTokAdInput, type AdGroupOption } from "../../../../components/tiktok/CreateTikTokAdPanel";
 import type { TikTokAd } from "./types";
 
 interface TikTokCampaignDetailAdsTabProps {
@@ -23,6 +23,15 @@ interface TikTokCampaignDetailAdsTabProps {
     onApplyFilters: (filters: FilterValues) => void;
     syncing?: boolean;
     onSync?: () => void;
+    // Create Ad Panel
+    isCreateAdPanelOpen?: boolean;
+    onToggleCreateAdPanel?: () => void;
+    adgroupId?: string;
+    adgroups?: AdGroupOption[];
+    onAdGroupChange?: (id: string) => void;
+    onCreateAd?: (data: TikTokAdInput) => void;
+    createAdLoading?: boolean;
+    createAdError?: string | null;
 }
 
 export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProps> = ({
@@ -43,6 +52,14 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
     onApplyFilters,
     syncing,
     onSync,
+    isCreateAdPanelOpen,
+    onToggleCreateAdPanel,
+    adgroupId,
+    adgroups,
+    onAdGroupChange,
+    onCreateAd,
+    createAdLoading,
+    createAdError,
 }) => {
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat("en-US", {
@@ -113,6 +130,25 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
         <>
             {/* Header Actions (Filter/Sync) */}
             <div className="flex items-center justify-end mb-4 gap-3">
+                {onToggleCreateAdPanel && adgroupId && (
+                    <button
+                        onClick={onToggleCreateAdPanel}
+                        className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors"
+                    >
+                        <svg className="w-5 h-5 !text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="text-[10.64px] text-white font-normal">Create Ad</span>
+                        <svg
+                            className={`w-4 h-4 !text-white transition-transform ${isCreateAdPanelOpen ? "rotate-180" : ""}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                )}
                 <button
                     onClick={onToggleFilterPanel}
                     className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
@@ -140,6 +176,22 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                     </button>
                 )}
             </div>
+
+            {/* Create Ad Panel */}
+            {isCreateAdPanelOpen && adgroupId && onCreateAd && (
+                <div className="mb-4">
+                    <CreateTikTokAdPanel
+                        isOpen={isCreateAdPanelOpen}
+                        onClose={onToggleCreateAdPanel!}
+                        onSubmit={onCreateAd}
+                        adgroupId={adgroupId}
+                        adgroups={adgroups}
+                        onAdGroupChange={onAdGroupChange}
+                        loading={createAdLoading}
+                        submitError={createAdError}
+                    />
+                </div>
+            )}
 
             {/* Filter Panel */}
             {isFilterPanelOpen && (

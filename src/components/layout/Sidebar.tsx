@@ -172,6 +172,9 @@ export const Sidebar: React.FC = () => {
     if (path === "/tiktok/adgroups") {
       return location.pathname.includes("/tiktok/adgroups");
     }
+    if (path === "/tiktok/ads") {
+      return location.pathname.includes("/tiktok/ads");
+    }
 
     if (path === "/google/adgroups") {
       return location.pathname.includes("/google/adgroups");
@@ -182,6 +185,11 @@ export const Sidebar: React.FC = () => {
     if (path === "/google/ads") {
       return location.pathname.includes("/google/ads");
     }
+    if (path === "/google/targets") {
+      return location.pathname.includes("/google/targets");
+    }
+
+    // Generic paths for Amazon (exclude google and tiktok paths)
     if (path === "/adgroups") {
       return location.pathname.includes("/adgroups");
     }
@@ -835,6 +843,41 @@ export const Sidebar: React.FC = () => {
                       }`}
                   >
                     Ad Groups
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/tiktok/ads`
+                    : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId
+                      ? `/accounts/${accountId}/tiktok/ads`
+                      : null
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${isActive("/tiktok/ads") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/tiktok/ads")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                title={isCollapsed ? "TikTok Ads" : undefined}
+              >
+                <img
+                  src={ProductTargetIcon}
+                  alt=""
+                  className={`w-5 h-5 ${isActive("/tiktok/ads") ? "brightness-0 invert" : ""
+                    }`}
+                />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/tiktok/ads") ? "!text-white" : ""
+                      }`}
+                  >
+                    Ads
                   </span>
                 )}
               </Link>

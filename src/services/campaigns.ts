@@ -3500,4 +3500,104 @@ export const campaignsService = {
     return response.data;
   },
 
+  // TikTok Ads
+  getTikTokAds: async (
+    accountId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      ad_id?: string;
+      adgroup_id?: string;
+      campaign_id?: string;
+      advertiser_id?: string;
+      operation_status?: string;
+      ad_format?: string;
+      ad_name?: string;
+      ad_name__icontains?: string;
+      adgroup_name__icontains?: string;
+      campaign_name__icontains?: string;
+      filters?: any;
+    }
+  ): Promise<{
+    ads: any[];
+    summary?: {
+      total_ads: number;
+      total_spend: number;
+      total_impressions: number;
+      total_clicks: number;
+      total_conversions: number;
+      avg_ctr: number;
+      avg_cpc: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const filters: any = {};
+
+    if (params?.page) filters.page = params.page;
+    if (params?.page_size) filters.page_size = params.page_size;
+    if (params?.sort_by) filters.sort_by = params.sort_by;
+    if (params?.order) filters.order = params.order;
+    if (params?.start_date) filters.start_date = params.start_date;
+    if (params?.end_date) filters.end_date = params.end_date;
+    if (params?.ad_id) filters.ad_id = params.ad_id;
+    if (params?.adgroup_id) filters.adgroup_id = params.adgroup_id;
+    if (params?.campaign_id) filters.campaign_id = params.campaign_id;
+    if (params?.advertiser_id) filters.advertiser_id = params.advertiser_id;
+    if (params?.operation_status) filters.operation_status = params.operation_status;
+    if (params?.ad_format) filters.ad_format = params.ad_format;
+    if (params?.ad_name) filters.ad_name = params.ad_name;
+    if (params?.ad_name__icontains)
+      filters.ad_name__icontains = params.ad_name__icontains;
+    if (params?.adgroup_name__icontains)
+      filters.adgroup_name__icontains = params.adgroup_name__icontains;
+    if (params?.campaign_name__icontains)
+      filters.campaign_name__icontains = params.campaign_name__icontains;
+
+    // Merge any additional filters from params.filters
+    if (params?.filters) {
+      Object.assign(filters, params.filters);
+    }
+
+    const response = await api.post(`/accounts/${accountId}/tiktok-ads/`, {
+      filters,
+    });
+    return response.data;
+  },
+
+  createTikTokAd: async (
+    accountId: number,
+    data: {
+      adgroup_id: string;
+      ad_name: string;
+      ad_format: string;
+      ad_text: string;
+      identity_id: string;
+      video_id?: string;
+      image_ids?: string[];
+      landing_page_url?: string;
+      call_to_action?: string;
+      deeplink?: string;
+      tracking_pixel_id?: string;
+      advertiser_id?: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-ads/create/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
 };
