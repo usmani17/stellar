@@ -154,7 +154,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
 
                                     {/* Ad Name */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[200px] cursor-pointer hover:bg-gray-50"
+                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                                         onClick={() => onSort("ad_name")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -165,7 +165,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
 
                                     {/* Ad Group Name */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[180px] cursor-pointer hover:bg-gray-50"
+                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                                         onClick={() => onSort("adgroup_name")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -176,7 +176,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
 
                                     {/* Campaign Name */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[180px] cursor-pointer hover:bg-gray-50"
+                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                                         onClick={() => onSort("campaign_name")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -187,7 +187,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
 
                                     {/* Ad Format */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[140px] cursor-pointer hover:bg-gray-50"
+                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                                         onClick={() => onSort("ad_format")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -198,7 +198,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
 
                                     {/* Status */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[115px] cursor-pointer hover:bg-gray-50"
+                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
                                         onClick={() => onSort("operation_status")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -307,15 +307,12 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                     </tr>
                                 )}
 
-                                {ads.map((item, index) => {
-                                    const isLastRow = index === ads.length - 1;
+                                {ads.map((item) => {
                                     const isSelected = selectedIds.has(item.ad_id);
                                     return (
                                         <tr
                                             key={item.ad_id}
-                                            className={`group ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                                                } hover:bg-gray-100 transition-colors ${isSelected ? "bg-gray-50" : ""
-                                                }`}
+                                            className="group border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
                                         >
                                             <td className="py-[10px] px-[10px]">
                                                 <div className="flex items-center justify-center">
@@ -327,18 +324,18 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                     />
                                                 </div>
                                             </td>
-                                            <td className="py-[10px] px-[10px] min-w-[200px]">
-                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-medium text-left truncate block w-full whitespace-nowrap">
+                                            <td className="py-[10px] px-[10px]">
+                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-medium text-left">
                                                     {item.ad_name}
                                                 </div>
                                             </td>
-                                            <td className="py-[10px] px-[10px] min-w-[180px]">
-                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full whitespace-nowrap">
+                                            <td className="py-[10px] px-[10px]">
+                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left">
                                                     {item.adgroup_name}
                                                 </div>
                                             </td>
-                                            <td className="py-[10px] px-[10px] min-w-[180px]">
-                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full whitespace-nowrap">
+                                            <td className="py-[10px] px-[10px]">
+                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left">
                                                     {item.campaign_id ? (
                                                         <Link to={`/accounts/${1}/tiktok/campaigns/${item.campaign_id}`} className="hover:underline hover:text-[#136D6D]">
                                                             {item.campaign_name}
@@ -348,12 +345,12 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="py-[10px] px-[10px] min-w-[140px]">
+                                            <td className="py-[10px] px-[10px]">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {item.ad_format}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px] min-w-[115px]">
+                                            <td className="py-[10px] px-[10px]">
                                                 <StatusBadge status={item.operation_status} />
                                             </td>
                                             <td className="py-[10px] px-[10px]">

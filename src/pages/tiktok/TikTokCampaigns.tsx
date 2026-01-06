@@ -361,8 +361,8 @@ export const TikTokCampaigns: React.FC = () => {
                             campaigns={filteredCampaignsItems}
                             loading={loading}
                             onSort={handleSort}
-                            sortColumn={sortColumn}
-                            sortDirection={sortDirection}
+                            sortBy={sortColumn}
+                            sortOrder={sortDirection}
                         />
 
                         {/* Pagination */}

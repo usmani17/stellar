@@ -20,8 +20,8 @@ interface TikTokCampaignsTableProps {
     campaigns: TikTokCampaign[];
     loading: boolean;
     onSort?: (column: string) => void;
-    sortColumn?: string;
-    sortDirection?: "asc" | "desc";
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
     selectedCampaigns?: Set<string | number>;
     onSelectCampaign?: (campaignId: string | number) => void;
     onSelectAll?: () => void;
@@ -31,8 +31,8 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     campaigns,
     loading,
     onSort,
-    sortColumn,
-    sortDirection,
+    sortBy,
+    sortOrder,
     selectedCampaigns = new Set(),
     onSelectCampaign,
     onSelectAll,
@@ -85,18 +85,51 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     };
 
     const getSortIcon = (column: string) => {
-        if (sortColumn !== column) {
+        if (sortBy !== column) {
             return (
-                <div className="flex flex-col -gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg className="w-2 h-2 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4l-8 8h16z" /></svg>
-                    <svg className="w-2 h-2 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 20l8-8H4z" /></svg>
-                </div>
+                <svg
+                    className="w-4 h-4 ml-1 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                    />
+                </svg>
             );
         }
-        return sortDirection === "asc" ? (
-            <svg className="w-2 h-2 text-[#136D6D]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4l-8 8h16z" /></svg>
+        return sortOrder === "asc" ? (
+            <svg
+                className="w-4 h-4 ml-1 text-[#136D6D]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 15l7-7 7 7"
+                />
+            </svg>
         ) : (
-            <svg className="w-2 h-2 text-[#136D6D]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 20l8-8H4z" /></svg>
+            <svg
+                className="w-4 h-4 ml-1 text-[#136D6D]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                />
+            </svg>
         );
     };
 
@@ -117,13 +150,15 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
         );
     }
 
+
+
     return (
         <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
             <div className="overflow-x-auto w-full">
-                <table className="min-w-[1000px] w-full border-collapse">
+                <table className="min-w-[1200px] w-full">
                     <thead>
-                        <tr className="border-b border-[#e8e8e3]">
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                        <tr className="border-b border-[#e8e8e3] bg-[#f5f5f0]">
+                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                                 <div className="flex items-center justify-center">
                                     <Checkbox
                                         checked={campaigns.length > 0 && selectedCampaigns.size === campaigns.length}
@@ -133,7 +168,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px]"
+                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"
                                 onClick={() => onSort?.("campaign_name")}
                             >
                                 <div className="flex items-center gap-1">
@@ -141,8 +176,11 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                     {getSortIcon("campaign_name")}
                                 </div>
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[150px]">
-                                Type
+                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50" onClick={() => onSort?.("objective_type")}>
+                                <div className="flex items-center gap-1">
+                                    Type
+                                    {getSortIcon("objective_type")}
+                                </div>
                             </th>
                             <th
                                 className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[115px]"
@@ -179,8 +217,8 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                     <tbody>
                         {/* Summary Row */}
                         <tr className="border-b border-[#e8e8e3] bg-[#f5f5f0]">
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] font-semibold text-[#0b0f16] leading-[1.26]">
+                            <td className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] font-semibold text-[#0b0f16] leading-[1.26] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                                 Total ({campaigns.length})
                             </td>
                             <td className="py-[10px] px-[10px]" colSpan={3}></td>
@@ -207,7 +245,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                     onClick={() => handleCampaignClick(campaign.campaign_id)}
                                 >
                                     <td
-                                        className="py-[10px] px-[10px]"
+                                        className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]"
                                         onClick={(e) => e.stopPropagation()}
                                     >
                                         <div className="flex items-center justify-center">
@@ -218,7 +256,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             />
                                         </div>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] max-w-[400px]">
+                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                         <div className="flex items-center gap-2">
                                             <button className="opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
