@@ -3345,13 +3345,17 @@ export const campaignsService = {
       page_size?: number;
       operation_status?: string;
       advertiser_id?: string;
+      start_date?: string;
+      end_date?: string;
     }
-  ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number }> => {
+  ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number; chart_data?: Array<{ date: string; spend: number; impressions: number; clicks: number; conversions: number }> }> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", String(params.page));
     if (params?.page_size) queryParams.append("page_size", String(params.page_size));
     if (params?.operation_status) queryParams.append("operation_status", params.operation_status);
     if (params?.advertiser_id) queryParams.append("advertiser_id", params.advertiser_id);
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
 
     const url = `/accounts/${accountId}/tiktok-campaigns/?${queryParams.toString()}`;
     const response = await api.get(url);
@@ -3392,6 +3396,35 @@ export const campaignsService = {
     }
   ): Promise<any> => {
     const url = `/accounts/${accountId}/tiktok-campaigns/create/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  updateTikTokCampaign: async (
+    accountId: number,
+    campaignId: string | number,
+    data: {
+      campaign_name?: string;
+      budget?: number;
+      special_industries?: string[];
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-campaigns/${campaignId}/update/`;
+    const response = await api.put(url, data);
+    return response.data;
+  },
+
+  // TikTok Campaign Status Update
+  updateTikTokCampaignStatus: async (
+    accountId: number,
+    data: {
+      campaign_ids: Array<string | number>;
+      operation_status: "ENABLE" | "DISABLE" | "DELETE";
+      advertiser_id?: string;
+      postback_window_mode?: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-campaigns/status/update/`;
     const response = await api.post(url, data);
     return response.data;
   },

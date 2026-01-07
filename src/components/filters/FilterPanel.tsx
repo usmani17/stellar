@@ -7,30 +7,6 @@ import { accountsService } from "../../services/accounts";
 export interface FilterItem {
   id: string;
   field:
-<<<<<<< HEAD
-  | "campaign_name"
-  | "state"
-  | "budget"
-  | "type"
-  | "targeting_type"
-  | "profile_name"
-  | "status"
-  | "advertising_channel_type"
-  | "account_name"
-  | "name"
-  | "default_bid"
-  | "spends"
-  | "sales"
-  | "ctr"
-  | "bid"
-  | "adgroup_name"
-  | "sku"
-  | "adId"
-  | "asin"
-  | "adGroupId";
-  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId
-  value: string | number;
-=======
     | "campaign_name"
     | "state"
     | "budget"
@@ -55,7 +31,6 @@ export interface FilterItem {
     | "expression";
   operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, expression
   value: string | number | string[]; // Support arrays for multi-select fields (type, state, profile_name)
->>>>>>> 8f8b44c00db5abbd10ccc70e4160264f84036a6f
 }
 
 export type FilterValues = FilterItem[];
@@ -68,6 +43,7 @@ interface FilterPanelProps {
   filterFields?: Array<{ value: string; label: string }>;
   accountId?: string;
   channelType?: "amazon" | "google" | "walmart" | "tiktok";
+  useUppercaseState?: boolean;
 }
 
 const DEFAULT_FILTER_FIELDS = [
@@ -362,26 +338,16 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       field: selectedField as FilterItem["field"],
       // For profile dropdown, use "equals" operator implicitly (don't show it to user)
       operator: isProfileDropdown ? "equals" : selectedOperator || undefined,
-<<<<<<< HEAD
-      value:
-        selectedField === "budget" ||
-=======
       value: isMultiSelectField
         ? selectedMultiValues // Store array for multi-select fields
         : selectedField === "budget" ||
->>>>>>> 8f8b44c00db5abbd10ccc70e4160264f84036a6f
           selectedField === "default_bid" ||
           selectedField === "spends" ||
           selectedField === "sales" ||
           selectedField === "ctr" ||
           selectedField === "bid"
-<<<<<<< HEAD
-          ? parseFloat(filterValue) || 0
-          : filterValue,
-=======
         ? parseFloat(filterValue) || 0
         : filterValue,
->>>>>>> 8f8b44c00db5abbd10ccc70e4160264f84036a6f
     };
 
     setActiveFilters([...activeFilters, newFilter]);
@@ -732,29 +698,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   )}
                 </div>
               ) : isStateOrType ? (
-<<<<<<< HEAD
-                <Dropdown<string>
-                  options={(selectedField === "state"
-                    ? STATE_OPTIONS
-                    : channelType === "tiktok" ? TIKTOK_TYPE_OPTIONS : TYPE_OPTIONS
-                  ).map((opt) => ({
-                    value: opt,
-                    label: opt,
-                  }))}
-                  value={filterValue || undefined}
-                  placeholder={`Select ${
-                    selectedField === "state" ? "State" : "Type"
-                    }`}
-                  onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full bg-[#FEFEFB]"
-                />
-=======
                 <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
                   {(selectedField === "state"
                     ? useUppercaseState
                       ? STATUS_OPTIONS
                       : STATE_OPTIONS
-                    : TYPE_OPTIONS
+                    : channelType === "tiktok" ? TIKTOK_TYPE_OPTIONS : TYPE_OPTIONS
                   ).map((opt) => (
                     <div
                       key={opt}
@@ -801,7 +750,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     </div>
                   ))}
                 </div>
->>>>>>> 8f8b44c00db5abbd10ccc70e4160264f84036a6f
               ) : isTargetingType ? (
                 <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
                   {TARGETING_TYPE_OPTIONS.map((opt) => (

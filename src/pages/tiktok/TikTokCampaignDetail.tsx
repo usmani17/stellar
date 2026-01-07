@@ -382,38 +382,53 @@ export const TikTokCampaignDetail: React.FC = () => {
                     </div>
 
                     {/* KPI Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {campaignDetail.kpi_cards?.map((card, idx) => (
-                            <KPICard
-                                key={idx}
-                                label={card.label}
-                                value={card.value}
-                                change={card.change}
-                                isPositive={card.isPositive}
-                            />
-                        ))}
-                    </div>
+                    {loading ? (
+                        <div className="flex flex-col gap-4 mb-4">
+                            <div className="text-center py-8">Loading campaign data...</div>
+                        </div>
+                    ) : campaignDetail ? (
+                        <div className="flex flex-col gap-4 mb-4">
+                            <div className="flex flex-wrap gap-4 md:gap-7">
+                                {campaignDetail.kpi_cards?.map((card, idx) => (
+                                    <KPICard
+                                        key={idx}
+                                        label={card.label}
+                                        value={card.value}
+                                        change={card.change}
+                                        isPositive={card.isPositive}
+                                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-4 mb-4">
+                            <div className="text-center py-8 text-red-500">
+                                Campaign not found
+                            </div>
+                        </div>
+                    )}
 
-                    {/* Tabs Navigation */}
-                    <div className="bg-[#fefefb] border-b border-[#e8e8e3]">
-                        <div className="flex gap-6 px-6">
+                    {/* Tab Navigation & Content Section */}
+                    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
+                        {/* Tabs */}
+                        <div className="flex items-center gap-2 mb-8 border-b border-[#E6E6E6]">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`py-4 text-[13.3px] font-medium border-b-2 transition-colors ${activeTab === tab
-                                        ? "border-[#136D6D] text-[#136D6D]"
-                                        : "border-transparent text-[#556179] hover:text-[#29303f]"
-                                        }`}
+                                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
+                                        activeTab === tab
+                                            ? "border-[#136D6D] text-[#136D6D]"
+                                            : "border-transparent text-[#556179] hover:text-[#072929]"
+                                    }`}
                                 >
                                     {tab}
                                 </button>
                             ))}
                         </div>
-                    </div>
 
-                    {/* Tab Content */}
-                    <div className="mt-6">
+                        {/* Tab Content */}
                         {activeTab === "Overview" && (
                             <TikTokOverviewTab
                                 chartData={campaignDetail.chart_data || []}
@@ -425,19 +440,19 @@ export const TikTokCampaignDetail: React.FC = () => {
                                     {
                                         key: "spend",
                                         label: "Spend",
-                                        color: "#136D6D",
+                                        color: "#506766",
                                         tooltipFormatter: (val) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val)
                                     },
                                     {
                                         key: "impressions",
                                         label: "Impressions",
-                                        color: "#F59E0B",
+                                        color: "#7C3AED",
                                         tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
                                     },
                                     {
                                         key: "clicks",
                                         label: "Clicks",
-                                        color: "#3B82F6",
+                                        color: "#169aa3",
                                         tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
                                     },
                                     {

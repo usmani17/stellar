@@ -23,8 +23,8 @@ interface TikTokCampaignsTableProps {
     sortBy?: string;
     sortOrder?: "asc" | "desc";
     selectedCampaigns?: Set<string | number>;
-    onSelectCampaign?: (campaignId: string | number) => void;
-    onSelectAll?: () => void;
+    onSelectionChange?: (selected: Set<string | number>) => void;
+    onEditCampaign?: (campaign: TikTokCampaign) => void;
 }
 
 export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
@@ -34,9 +34,32 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     sortBy,
     sortOrder,
     selectedCampaigns = new Set(),
-    onSelectCampaign,
-    onSelectAll,
+    onSelectionChange,
+    onEditCampaign,
 }) => {
+    const handleSelectCampaign = (campaignId: string | number, checked: boolean) => {
+        if (!onSelectionChange) return;
+        const newSelected = new Set(selectedCampaigns);
+        if (checked) {
+            newSelected.add(campaignId);
+        } else {
+            newSelected.delete(campaignId);
+        }
+        onSelectionChange(newSelected);
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (!onSelectionChange) return;
+        if (checked) {
+            const allIds = new Set(campaigns.map(c => c.campaign_id));
+            onSelectionChange(allIds);
+        } else {
+            onSelectionChange(new Set());
+        }
+    };
+
+    const allSelected = campaigns.length > 0 && campaigns.every(c => selectedCampaigns.has(c.campaign_id));
+    const someSelected = campaigns.some(c => selectedCampaigns.has(c.campaign_id));
     const navigate = useNavigate();
     const { accountId } = useParams<{ accountId: string }>();
 
@@ -135,7 +158,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     if (loading) {
         return (
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#136D6D] mb-4"></div>
                 <p className="text-[13.3px] text-[#556179]">Loading campaigns...</p>
             </div>
@@ -144,7 +167,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     if (campaigns.length === 0) {
         return (
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
                 <p className="text-[13.3px] text-[#556179]">No campaigns found.</p>
             </div>
         );
@@ -153,16 +176,17 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
 
     return (
-        <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+        <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
             <div className="overflow-x-auto w-full">
-                <table className="min-w-[1200px] w-full">
+                <table className="min-w-full w-full">
                     <thead>
                         <tr className="border-b border-[#e8e8e3] bg-[#f5f5f0]">
                             <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                                 <div className="flex items-center justify-center">
                                     <Checkbox
-                                        checked={campaigns.length > 0 && selectedCampaigns.size === campaigns.length}
-                                        onChange={() => onSelectAll?.()}
+                                        checked={allSelected}
+                                        indeterminate={someSelected && !allSelected}
+                                        onChange={(checked) => handleSelectAll(checked)}
                                         size="small"
                                     />
                                 </div>
@@ -200,30 +224,58 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                     {getSortIcon("budget")}
                                 </div>
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                Spends
+                            <th
+                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                onClick={() => onSort?.("spends")}
+                            >
+                                <div className="flex items-center gap-1">
+                                    Spends
+                                    {getSortIcon("spends")}
+                                </div>
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                Conversions
+                            <th
+                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                onClick={() => onSort?.("conversions")}
+                            >
+                                <div className="flex items-center gap-1">
+                                    Conversions
+                                    {getSortIcon("conversions")}
+                                </div>
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                CPA
+                            <th
+                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                onClick={() => onSort?.("cpa")}
+                            >
+                                <div className="flex items-center gap-1">
+                                    CPA
+                                    {getSortIcon("cpa")}
+                                </div>
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                ROAS
+                            <th
+                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                onClick={() => onSort?.("roas")}
+                            >
+                                <div className="flex items-center gap-1">
+                                    ROAS
+                                    {getSortIcon("roas")}
+                                </div>
                             </th>
                         </tr>
                     </thead>
                     <tbody>
                         {/* Summary Row */}
-                        <tr className="border-b border-[#e8e8e3] bg-[#f5f5f0]">
+                        <tr className="bg-[#f5f5f0] font-semibold">
                             <td className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] font-semibold text-[#0b0f16] leading-[1.26] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                                 Total ({campaigns.length})
                             </td>
-                            <td className="py-[10px] px-[10px]" colSpan={3}></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {formatCurrency(campaigns.reduce((sum, c) => sum + (c.budget || 0), 0))}
+                            </td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                —
                             </td>
                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 —
@@ -240,9 +292,9 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                             return (
                                 <tr
                                     key={campaign.id}
-                                    className={`group ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                                        } hover:bg-gray-100 transition-colors cursor-pointer`}
-                                    onClick={() => handleCampaignClick(campaign.campaign_id)}
+                                    className={`group ${
+                                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                                    } hover:bg-gray-100 transition-colors`}
                                 >
                                     <td
                                         className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]"
@@ -251,43 +303,80 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                         <div className="flex items-center justify-center">
                                             <Checkbox
                                                 checked={selectedCampaigns.has(campaign.campaign_id)}
-                                                onChange={() => onSelectCampaign?.(campaign.campaign_id)}
+                                                onChange={(checked) => handleSelectCampaign(campaign.campaign_id, checked)}
                                                 size="small"
                                             />
                                         </div>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                                    <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                         <div className="flex items-center gap-2">
-                                            <button className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onEditCampaign) {
+                                                        onEditCampaign(campaign);
+                                                    }
+                                                }}
+                                                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60"
+                                                title="Edit campaign"
+                                            >
+                                                <svg
+                                                    className="w-4 h-4 text-[#556179]"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                    />
                                                 </svg>
                                             </button>
-                                            <span className="truncate hover:underline">{campaign.campaign_name}</span>
+                                            <button
+                                                onClick={() => handleCampaignClick(campaign.campaign_id)}
+                                                className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
+                                            >
+                                                {campaign.campaign_name || "Unnamed Campaign"}
+                                            </button>
                                         </div>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                        {getObjectiveLabel(campaign.objective_type)}
-                                    </td>
                                     <td className="py-[10px] px-[10px]">
+                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            {getObjectiveLabel(campaign.objective_type)}
+                                        </span>
+                                    </td>
+                                    <td className="py-[10px] px-[10px] min-w-[115px]">
                                         <StatusBadge
                                             status={normalizeStatus(campaign.operation_status).toUpperCase() as any}
                                         />
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                        {formatCurrency(campaign.budget)}
+                                    <td className="py-[10px] px-[10px]">
+                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            {formatCurrency(campaign.budget)}
+                                        </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                        {formatCurrency(campaign.budget)}
+                                    <td className="py-[10px] px-[10px]">
+                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            —
+                                        </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                        —
+                                    <td className="py-[10px] px-[10px]">
+                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            —
+                                        </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                        —
+                                    <td className="py-[10px] px-[10px]">
+                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            —
+                                        </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                        —
+                                    <td className="py-[10px] px-[10px]">
+                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                            —
+                                        </span>
                                     </td>
                                 </tr>
                             );
