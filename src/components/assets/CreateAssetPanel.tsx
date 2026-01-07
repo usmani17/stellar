@@ -26,9 +26,7 @@ interface CreateAssetPanelProps {
   fieldErrors?: Record<string, string>;
 }
 
-const MEDIA_TYPE_OPTIONS = [
-  { value: "brandLogo", label: "Brand Logo" },
-];
+const MEDIA_TYPE_OPTIONS = [{ value: "brandLogo", label: "Brand Logo" }];
 
 export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
   isOpen,
@@ -60,14 +58,18 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
   const loadBrandEntities = async () => {
     if (!accountId) return;
-    
+
     try {
       setLoadingBrandEntities(true);
-      const accountIdNum = typeof accountId === 'string' ? parseInt(accountId, 10) : accountId;
+      const accountIdNum =
+        typeof accountId === "string" ? parseInt(accountId, 10) : accountId;
       if (isNaN(accountIdNum)) return;
-      
+
       // Pass profileId to filter brand entities by the campaign's profile
-      const entities = await accountsService.getBrandEntities(accountIdNum, profileId);
+      const entities = await accountsService.getBrandEntities(
+        accountIdNum,
+        profileId
+      );
       // Transform to match BrandEntity interface
       const transformedEntities = entities.map((entity) => ({
         id: entity.brandEntityId,
@@ -288,7 +290,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                   />
                   {assetData.file && (
                     <p className="text-[10px] text-gray-500 mt-2 text-center">
-                      {assetData.file.name} ({(assetData.file.size / 1024).toFixed(2)} KB)
+                      {assetData.file.name} (
+                      {(assetData.file.size / 1024).toFixed(2)} KB)
                     </p>
                   )}
                 </div>
@@ -326,4 +329,3 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     </div>
   );
 };
-

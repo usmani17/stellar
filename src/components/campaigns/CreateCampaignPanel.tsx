@@ -542,8 +542,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       );
       const options =
         brandEntities?.map((be) => ({
-          value: be.id,
-          label: `${be.name} (${be.id})`,
+          value: be.brandEntityId,
+          label: `${be.brandRegistryName} (${be.brandEntityId})`,
         })) || [];
       setBrandEntityOptions(options);
       // Clear brandEntityId if it's no longer in the options
