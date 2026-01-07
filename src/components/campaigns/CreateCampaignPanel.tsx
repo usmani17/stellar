@@ -18,7 +18,7 @@ export interface CreateCampaignData {
   campaign_name: string;
   type: "SP" | "SB" | "SD" | "";
   budget: number;
-  budgetType: "DAILY" | "LIFETIME" | "daily";
+  budgetType: "DAILY" | "LIFETIME" | "daily" | "lifetime";
   status: "Enabled" | "Paused" | "enabled" | "ENABLED" | "PAUSED";
   startDate?: string;
   endDate?: string;
@@ -31,7 +31,7 @@ export interface CreateCampaignData {
     | "NOT_SOLD_ON_AMAZON"
     | "SOLD_ON_DTC"
     | "";
-  costType?: string;
+  costType?: "cpc" | "vcpm" | "CPC" | "VCPM" | "FIXED_PRICE"; // SD: cpc/vcpm, SB: CPC/VCPM/FIXED_PRICE
   portfolioId?: string;
   targetedPGDealId?: string;
   tags?: Array<{ key: string; value: string }>;
@@ -63,7 +63,7 @@ export interface CreateCampaignData {
     }>;
   };
   // SD (Sponsored Display) specific fields
-  tactic?: string;
+  tactic?: "T00020" | "T00030";
   // Targeting Type (for SP campaigns)
   targetingType?: "AUTO" | "MANUAL";
   // Site Restrictions (for SP campaigns)
@@ -152,13 +152,13 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     brandEntityId: "",
     goal: "PAGE_VISIT", // Default to Page visit
     productLocation: "",
-    costType: "CPC",
+    costType: "cpc",
     portfolioId: "",
     targetedPGDealId: "",
     tags: [],
     smartDefault: undefined,
     // SD fields
-    tactic: "",
+    tactic: undefined,
     // Targeting Type
     targetingType: "AUTO",
     // Site Restrictions
@@ -298,11 +298,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         type: (initialData.type as any) || "",
         // Convert endDate from YYYYMMDD to YYYY-MM-DD format if needed
         endDate: convertDateToInputFormat(initialData.endDate),
-        // Ensure SP campaigns always have DAILY budget type
-        budgetType:
-          initialData.type === "SP"
-            ? "DAILY"
-            : initialData.budgetType || "DAILY",
+        // Normalize budgetType based on campaign type
+        budgetType: ((): "DAILY" | "LIFETIME" | "daily" | "lifetime" => {
+          const rawBudgetType = initialData.budgetType;
+          if (!rawBudgetType) {
+            // Default based on campaign type
+            return initialData.type === "SD" ? "daily" : "DAILY";
+          }
+          // Normalize budgetType based on campaign type
+          if (initialData.type === "SD") {
+            // SD campaigns use lowercase
+            return String(rawBudgetType).toLowerCase() === "lifetime"
+              ? "lifetime"
+              : "daily";
+          } else {
+            // SP and SB campaigns use uppercase
+            return String(rawBudgetType).toUpperCase() === "LIFETIME"
+              ? "LIFETIME"
+              : "DAILY";
+          }
+        })(),
         // Populate bidding from initialData (mapped from dynamicBidding)
         bidding: initialData.bidding || {
           bidOptimization: true,
@@ -727,8 +742,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     }
 
     // SD specific validation
-    if (formData.type === "SD" && !formData.tactic?.trim()) {
-      newErrors.tactic = "Tactic is required for Sponsored Display campaigns";
+    if (formData.type === "SD") {
+      if (
+        !formData.tactic ||
+        (formData.tactic !== "T00020" && formData.tactic !== "T00030")
+      ) {
+        newErrors.tactic =
+          "Tactic is required for Sponsored Display campaigns. Please select T00020 or T00030.";
+      }
     }
 
     // SP specific: strategy is required if dynamicBidding (bidding) is provided (only for create mode)
@@ -975,12 +996,12 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       brandEntityId: "",
       goal: undefined,
       productLocation: "",
-      costType: "CPC",
+      costType: "cpc",
       portfolioId: "",
       targetedPGDealId: "",
       tags: [],
       smartDefault: undefined,
-      tactic: "",
+      tactic: undefined,
       // Targeting Type
       targetingType: "AUTO",
       // Site Restrictions
@@ -1272,7 +1293,22 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Budget Type
                       </label>
                       <Dropdown<string>
-                        options={BUDGET_TYPES}
+                        options={(() => {
+                          const campaignType: string = formData.type;
+                          if (campaignType === "SD") {
+                            return [
+                              { value: "daily", label: "DAILY" },
+                              // Note: SD campaigns only support "daily" budget type per Amazon API
+                            ];
+                          } else if (campaignType === "SP") {
+                            return [
+                              { value: "DAILY", label: "DAILY" },
+                              // SP campaigns only support DAILY
+                            ];
+                          } else {
+                            return BUDGET_TYPES;
+                          }
+                        })()}
                         value={formData.budgetType}
                         onChange={(value) => handleChange("budgetType", value)}
                         placeholder="Select"
@@ -1408,7 +1444,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       Budget Type
                     </label>
                     <Dropdown<string>
-                      options={BUDGET_TYPES}
+                      options={
+                        formData.type === "SD"
+                          ? [
+                              { value: "daily", label: "DAILY" },
+                              // Note: SD campaigns only support "daily" budget type per Amazon API
+                            ]
+                          : BUDGET_TYPES
+                      }
                       value={formData.budgetType}
                       onChange={(value) => handleChange("budgetType", value)}
                       placeholder="Select budget type"
@@ -2388,17 +2431,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                         Tactic *
                       </label>
-                      <input
-                        type="text"
+                      <Dropdown<string>
+                        options={[
+                          {
+                            value: "T00020",
+                            label:
+                              "T00020 - Contextual targeting (Choose individual products to show your ads in placements related to those products. Choose individual categories to show your ads in placements related to those categories on and off Amazon.)",
+                          },
+                          {
+                            value: "T00030",
+                            label:
+                              "T00030 - Audiences or Contextual Targeting (Select individual products, categories, refined categories, or audiences to show your ads.)",
+                          },
+                        ]}
                         value={formData.tactic || ""}
-                        onChange={(e) => handleChange("tactic", e.target.value)}
-                        placeholder="Enter tactic (e.g., T00030)"
+                        onChange={(value) =>
+                          handleChange("tactic", value as "T00020" | "T00030")
+                        }
+                        placeholder="Select tactic"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                         disabled={mode === "edit"}
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          errors.tactic ? "border-red-500" : "border-gray-200"
-                        } ${
-                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                        }`}
                       />
                       {mode === "edit" && (
                         <p className="text-[10px] text-[#556179] mt-1 italic">
@@ -2417,23 +2469,27 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                         Cost Type
                       </label>
-                      <input
-                        type="text"
-                        value={formData.costType || ""}
-                        onChange={(e) =>
-                          handleChange("costType", e.target.value)
+                      <Dropdown<string>
+                        options={[
+                          {
+                            value: "cpc",
+                            label:
+                              "CPC - Cost per click (Default) - The performance of this campaign is measured by the clicks triggered by the ad.",
+                          },
+                          {
+                            value: "vcpm",
+                            label:
+                              "VCPM - Cost per 1000 viewable impressions - The performance of this campaign is measured by the viewed impressions triggered by the ad.",
+                          },
+                        ]}
+                        value={formData.costType || "cpc"}
+                        onChange={(value) =>
+                          handleChange("costType", value as "cpc" | "vcpm")
                         }
-                        placeholder="Enter cost type (e.g., cpc)"
-                        disabled={mode === "edit"}
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                        }`}
+                        placeholder="Select cost type"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        disabled={false} // costType is editable in edit mode
                       />
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
                     </div>
 
                     {/* Portfolio ID */}
@@ -2604,7 +2660,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               "FIXED_PRICE - Sale price for a specific ad placement (requires targetedPGDealId)",
                           },
                         ]}
-                        value={formData.costType || "CPC"}
+                        value={formData.costType || "cpc"}
                         onChange={(value) => handleChange("costType", value)}
                         placeholder="Select cost type"
                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"

@@ -64,14 +64,18 @@ export interface CampaignsQueryParams {
   budget__gt?: number | string;
   budget__lte?: number | string;
   budget__gte?: number | string;
-  // State and Type filters
+  // State and Type filters (support arrays for multi-select)
   state?: string;
+  state__in?: string[]; // For multi-select state filter
   type?: string;
+  type__in?: string[]; // For multi-select type filter
   targeting_type?: string;
+  targeting_type__in?: string[]; // For multi-select targeting_type filter
   // Profile name filters with operators
   profile_name?: string;
   profile_name__icontains?: string;
   profile_name__not_icontains?: string;
+  profile_name__in?: string[]; // For multi-select profile filter
 }
 
 export interface CampaignDetail {
@@ -505,18 +509,26 @@ export const campaignsService = {
     if (params?.budget__gte !== undefined) {
       filters.budget__gte = params.budget__gte;
     }
-    // State and Type filters
-    if (params?.state) {
+    // State and Type filters (support arrays for multi-select)
+    if (params?.state__in) {
+      filters.state__in = params.state__in;
+    } else if (params?.state) {
       filters.state = params.state;
     }
-    if (params?.type) {
+    if (params?.type__in) {
+      filters.type__in = params.type__in;
+    } else if (params?.type) {
       filters.type = params.type;
     }
-    if (params?.targeting_type) {
+    if (params?.targeting_type__in) {
+      filters.targeting_type__in = params.targeting_type__in;
+    } else if (params?.targeting_type) {
       filters.targeting_type = params.targeting_type;
     }
-    // Profile name filters
-    if (params?.profile_name) {
+    // Profile name filters (support arrays for multi-select)
+    if (params?.profile_name__in) {
+      filters.profile_name__in = params.profile_name__in;
+    } else if (params?.profile_name) {
       filters.profile_name = params.profile_name;
     }
     if (params?.profile_name__icontains) {
@@ -593,7 +605,9 @@ export const campaignsService = {
     if (params?.type) {
       filters.type = params.type;
     }
-    if (params?.targeting_type) {
+    if (params?.targeting_type__in) {
+      filters.targeting_type__in = params.targeting_type__in;
+    } else if (params?.targeting_type) {
       filters.targeting_type = params.targeting_type;
     }
     // Profile name filters
