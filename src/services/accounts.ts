@@ -179,9 +179,9 @@ export const accountsService = {
   },
 
   // Amazon Brand Entities (per account, optionally filtered by profileId)
-  getBrandEntities: async (accountId: number, profileId?: string): Promise<Array<{ id: string; name: string }>> => {
+  getBrandEntities: async (accountId: number, profileId?: string): Promise<Array<{ brandEntityId: string; brandRegistryName: string }>> => {
     const params = profileId ? { profileId } : {};
-    const response = await api.get<{ brandEntities: Array<{ id: string; name: string }> }>(
+    const response = await api.get<{ brandEntities: Array<{ brandEntityId: string; brandRegistryName: string }> }>(
       `/accounts/${accountId}/brand-entities/`,
       { params }
     );
