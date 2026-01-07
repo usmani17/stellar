@@ -52,10 +52,10 @@ export const Campaigns: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const { startDate, endDate } = useDateRange();
   const { sidebarWidth } = useSidebar();
-  
+
   // Get account ID as number
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
-  
+
   // State for pagination, sorting, and filters
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, _setItemsPerPage] = useState(10);
@@ -64,55 +64,79 @@ export const Campaigns: React.FC = () => {
   const [filters, setFilters] = useState<FilterValues>([]);
   const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
   const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
-  
+
   // Build filter params helper
   const buildFilterParams = useCallback(
     (filterList: FilterValues): CampaignsQueryParams => {
-    const params: CampaignsQueryParams = {};
+      const params: CampaignsQueryParams = {};
 
-    filterList.forEach((filter) => {
-      if (filter.field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
+      filterList.forEach((filter) => {
+        if (filter.field === "campaign_name") {
+          if (typeof filter.value === "string") {
+            if (filter.operator === "contains") {
+              params.campaign_name__icontains = filter.value;
+            } else if (filter.operator === "not_contains") {
+              params.campaign_name__not_icontains = filter.value;
+            } else if (filter.operator === "equals") {
+              params.campaign_name = filter.value;
+            }
+          }
+        } else if (filter.field === "budget") {
+          if (typeof filter.value === "number") {
+            if (filter.operator === "lt") {
+              params.budget__lt = filter.value;
+            } else if (filter.operator === "gt") {
+              params.budget__gt = filter.value;
+            } else if (filter.operator === "eq") {
+              params.budget = filter.value;
+            } else if (filter.operator === "lte") {
+              params.budget__lte = filter.value;
+            } else if (filter.operator === "gte") {
+              params.budget__gte = filter.value;
+            }
+          }
+        } else if (filter.field === "state") {
+          // Handle array values for multi-select
+          if (Array.isArray(filter.value)) {
+            params.state__in = filter.value;
+          } else if (typeof filter.value === "string") {
+            params.state = filter.value;
+          }
+        } else if (filter.field === "type") {
+          // Handle array values for multi-select
+          if (Array.isArray(filter.value)) {
+            params.type__in = filter.value;
+          } else if (typeof filter.value === "string") {
+            params.type = filter.value;
+          }
+        } else if (filter.field === "targeting_type") {
+          // Handle array values for multi-select
+          if (Array.isArray(filter.value)) {
+            params.targeting_type__in = filter.value;
+          } else if (typeof filter.value === "string") {
+            params.targeting_type = filter.value;
+          }
+        } else if (filter.field === "profile_name") {
+          // Handle array values for multi-select (when profile_name is used as dropdown)
+          if (Array.isArray(filter.value)) {
+            params.profile_name__in = filter.value;
+          } else if (typeof filter.value === "string") {
+            if (filter.operator === "contains") {
+              params.profile_name__icontains = filter.value;
+            } else if (filter.operator === "not_contains") {
+              params.profile_name__not_icontains = filter.value;
+            } else if (filter.operator === "equals") {
+              params.profile_name = filter.value;
+            }
+          }
         }
-      } else if (filter.field === "budget") {
-        if (filter.operator === "lt") {
-          params.budget__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.budget__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.budget = filter.value;
-        } else if (filter.operator === "lte") {
-          params.budget__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.budget__gte = filter.value;
-        }
-      } else if (filter.field === "state") {
-        params.state = filter.value;
-      } else if (filter.field === "type") {
-        params.type = filter.value;
-      } else if (filter.field === "targeting_type") {
-        params.targeting_type = filter.value;
-      } else if (filter.field === "profile_name") {
-        if (filter.operator === "contains") {
-          params.profile_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.profile_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.profile_name = filter.value;
-        }
-      }
-    });
+      });
 
-    return params;
+      return params;
     },
     []
   );
-  
+
   // Build query params for React Query
   const queryParams = useMemo<CampaignsQueryParams>(() => {
     const params: CampaignsQueryParams = {
@@ -151,7 +175,7 @@ export const Campaigns: React.FC = () => {
   // Extract data from response and apply client-side filtering
   const campaigns = useMemo(() => {
     const allCampaigns = campaignsResponse?.campaigns || [];
-    
+
     // Apply client-side filtering if searchQuery is different from apiSearchQuery
     if (searchQuery && searchQuery !== apiSearchQuery) {
       const query = searchQuery.toLowerCase().trim();
@@ -161,7 +185,7 @@ export const Campaigns: React.FC = () => {
         return campaignName.includes(query) || accountIdStr.includes(query);
       });
     }
-    
+
     return allCampaigns;
   }, [campaignsResponse, searchQuery, apiSearchQuery, accountId]);
 
@@ -182,7 +206,7 @@ export const Campaigns: React.FC = () => {
   const bulkDeleteMutation = useBulkDeleteCampaigns(accountIdNum || 0);
   const createCampaignMutation = useCreateCampaign(accountIdNum || 0);
   const updateCampaignMutation = useUpdateCampaign(accountIdNum || 0);
-  
+
   // Use mutation loading states
   const bulkLoading =
     bulkUpdateMutation.isPending || bulkDeleteMutation.isPending;
@@ -854,9 +878,9 @@ export const Campaigns: React.FC = () => {
 
       if (error?.response?.data) {
         // Parse standardized error format
-          if (error.response.data.field_errors) {
-            fieldErrors = error.response.data.field_errors;
-          }
+        if (error.response.data.field_errors) {
+          fieldErrors = error.response.data.field_errors;
+        }
 
         if (error.response.data.generic_errors) {
           genericErrors = Array.isArray(error.response.data.generic_errors)
@@ -865,10 +889,10 @@ export const Campaigns: React.FC = () => {
         }
 
         // Get summary error message
-          if (error.response.data.error) {
-            errorMessage = error.response.data.error;
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
         } else if (genericErrors.length > 0) {
           errorMessage = genericErrors[0];
         } else if (Object.keys(fieldErrors).length > 0) {
@@ -1063,7 +1087,7 @@ export const Campaigns: React.FC = () => {
           normalizeTargetingType(newTargetingType)
         ) {
           updatePayload.targetingType = newTargetingType.toUpperCase() as
-                | "AUTO"
+            | "AUTO"
             | "MANUAL";
         }
 
@@ -2248,189 +2272,189 @@ export const Campaigns: React.FC = () => {
                 />
               </div>
               <div className="flex items-center gap-2">
-              <div
-                className="relative inline-flex justify-end"
-                ref={dropdownRef}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowBulkActions((prev) => !prev);
-                    setShowBudgetPanel(false);
-                    setShowExportDropdown(false);
-                  }}
+                <div
+                  className="relative inline-flex justify-end"
+                  ref={dropdownRef}
                 >
-                  <svg
-                    className="w-5 h-5 text-[#072929]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                  <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
-                  </span>
-                </Button>
-                {showBulkActions && (
-                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    <div className="overflow-y-auto">
-                      {[
-                        { value: "enable", label: "Enabled" },
-                        { value: "pause", label: "Pause" },
-                        { value: "edit_budget", label: "Edit Budget" },
-                        { value: "delete", label: "Delete" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          disabled={selectedCampaigns.size === 0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedCampaigns.size === 0) return;
-                            if (opt.value === "edit_budget") {
-                              setShowBudgetPanel(true);
-                            } else if (opt.value === "delete") {
-                              setShowBudgetPanel(false);
-                              setShowDeleteModal(true);
-                            } else {
-                              setShowBudgetPanel(false);
-                              setPendingStatusAction(
-                                opt.value as "enable" | "pause"
-                              );
-                              setIsBudgetChange(false);
-                              setShowConfirmationModal(true);
-                            }
-                            setShowBulkActions(false);
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div
-                className="relative inline-flex justify-end"
-                ref={exportDropdownRef}
-              >
-                <div className="relative">
                   <Button
                     type="button"
                     variant="ghost"
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
                     onClick={(e) => {
-                      if (exportLoading) return;
                       e.stopPropagation();
-                      setShowExportDropdown((prev) => !prev);
-                      setShowBulkActions(false);
+                      setShowBulkActions((prev) => !prev);
                       setShowBudgetPanel(false);
+                      setShowExportDropdown(false);
                     }}
-                    disabled={exportLoading}
                   >
-                    {exportLoading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                      </div>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-5 h-5 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Export
-                        </span>
-                      </>
-                    )}
+                    <svg
+                      className="w-5 h-5 text-[#072929]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                      />
+                    </svg>
+                    <span className="text-[10.64px] text-[#072929] font-normal">
+                      Edit
+                    </span>
                   </Button>
-                </div>
-                {(showExportDropdown || exportLoading) && (
-                  <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    {exportLoading ? (
-                      <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
-                        <p className="text-[13px] text-[#072929] font-medium">
-                          Exporting...
-                        </p>
-                        <p className="text-[11px] text-[#556179] text-center px-2">
-                          Please wait while we prepare your file
-                        </p>
-                      </div>
-                    ) : (
+                  {showBulkActions && (
+                    <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                       <div className="overflow-y-auto">
                         {[
-                          { value: "bulk_export", label: "Export All" },
-                          {
-                            value: "current_view",
-                            label: "Export Current View",
-                          },
+                          { value: "enable", label: "Enabled" },
+                          { value: "pause", label: "Pause" },
+                          { value: "edit_budget", label: "Edit Budget" },
+                          { value: "delete", label: "Delete" },
                         ].map((opt) => (
                           <button
                             key={opt.value}
                             type="button"
-                            className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
-                            onClick={async (e) => {
+                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            disabled={selectedCampaigns.size === 0}
+                            onClick={(e) => {
                               e.stopPropagation();
-                              e.preventDefault();
-                              const exportType =
-                                opt.value === "bulk_export"
-                                  ? "all_data"
-                                  : "current_view";
-                              // Keep dropdown open during export
-                              await handleExport(exportType);
+                              if (selectedCampaigns.size === 0) return;
+                              if (opt.value === "edit_budget") {
+                                setShowBudgetPanel(true);
+                              } else if (opt.value === "delete") {
+                                setShowBudgetPanel(false);
+                                setShowDeleteModal(true);
+                              } else {
+                                setShowBudgetPanel(false);
+                                setPendingStatusAction(
+                                  opt.value as "enable" | "pause"
+                                );
+                                setIsBudgetChange(false);
+                                setShowConfirmationModal(true);
+                              }
+                              setShowBulkActions(false);
                             }}
-                            disabled={exportLoading}
                           >
-                            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                              <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 20 20"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <rect
-                                  width="20"
-                                  height="20"
-                                  rx="3.2"
-                                  fill="#072929"
-                                />
-                                <path
-                                  d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
-                                  stroke="#F9F9F6"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </div>
-                            <span className="font-normal">{opt.label}</span>
+                            {opt.label}
                           </button>
                         ))}
                       </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+                <div
+                  className="relative inline-flex justify-end"
+                  ref={exportDropdownRef}
+                >
+                  <div className="relative">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={(e) => {
+                        if (exportLoading) return;
+                        e.stopPropagation();
+                        setShowExportDropdown((prev) => !prev);
+                        setShowBulkActions(false);
+                        setShowBudgetPanel(false);
+                      }}
+                      disabled={exportLoading}
+                    >
+                      {exportLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        </div>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-5 h-5 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Export
+                          </span>
+                        </>
+                      )}
+                    </Button>
                   </div>
-                )}
-              </div>
+                  {(showExportDropdown || exportLoading) && (
+                    <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                      {exportLoading ? (
+                        <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                          <p className="text-[13px] text-[#072929] font-medium">
+                            Exporting...
+                          </p>
+                          <p className="text-[11px] text-[#556179] text-center px-2">
+                            Please wait while we prepare your file
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="overflow-y-auto">
+                          {[
+                            { value: "bulk_export", label: "Export All" },
+                            {
+                              value: "current_view",
+                              label: "Export Current View",
+                            },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const exportType =
+                                  opt.value === "bulk_export"
+                                    ? "all_data"
+                                    : "current_view";
+                                // Keep dropdown open during export
+                                await handleExport(exportType);
+                              }}
+                              disabled={exportLoading}
+                            >
+                              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                <svg
+                                  width="20"
+                                  height="20"
+                                  viewBox="0 0 20 20"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <rect
+                                    width="20"
+                                    height="20"
+                                    rx="3.2"
+                                    fill="#072929"
+                                  />
+                                  <path
+                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                    stroke="#F9F9F6"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </div>
+                              <span className="font-normal">{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

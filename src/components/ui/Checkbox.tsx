@@ -122,7 +122,13 @@ export const Checkbox: React.FC<CheckboxProps> = ({
             "text-h400 font-body text-n-900 cursor-pointer select-none",
             disabled && "text-n-300 cursor-not-allowed"
           )}
-          onClick={!disabled ? handleClick : undefined}
+          onClick={(e) => {
+            // Prevent htmlFor from triggering button click when we have our own handler
+            e.preventDefault();
+            if (!disabled && handleClick) {
+              handleClick();
+            }
+          }}
         >
           {label}
         </label>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Dropdown, type DropdownOption } from "../ui/Dropdown";
 import { Chip } from "../ui/Chip";
+import { Checkbox } from "../ui/Checkbox";
 import { accountsService } from "../../services/accounts";
 
 export interface FilterItem {
@@ -29,7 +30,7 @@ export interface FilterItem {
     | "keywordText"
     | "expression";
   operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, expression
-  value: string | number;
+  value: string | number | string[]; // Support arrays for multi-select fields (type, state, profile_name)
 }
 
 export type FilterValues = FilterItem[];
@@ -50,6 +51,7 @@ const DEFAULT_FILTER_FIELDS = [
   { value: "state", label: "State" },
   { value: "budget", label: "Budget" },
   { value: "type", label: "Type" },
+  { value: "targeting_type", label: "Targeting Type" },
   { value: "profile_name", label: "Profile" },
 ] as const;
 
@@ -113,6 +115,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const [selectedField, setSelectedField] = useState<string>("");
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
+  const [selectedMultiValues, setSelectedMultiValues] = useState<string[]>([]); // For multi-select fields (type, state, profile_name)
   const [expressionType, setExpressionType] = useState<string>("ASIN_SAME_AS");
   const [profileOptions, setProfileOptions] = useState<
     Array<{ value: string; label: string }>
@@ -209,6 +212,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const FILTER_FIELDS = filterFields || DEFAULT_FILTER_FIELDS;
 
   // Get next available filter field that hasn't been used
+  // Multi-select fields (type, state, targeting_type, profile_name) can't be added again once applied
   const getNextAvailableField = (): string => {
     const usedFields = new Set(activeFilters.map((f) => f.field));
     const availableField = FILTER_FIELDS.find(
@@ -270,7 +274,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   }, [isOpen]);
 
   const handleAddFilter = () => {
-    if (!selectedField || !filterValue) return;
+    // Check if this is a multi-select field
+    const isMultiSelectField =
+      selectedField === "type" ||
+      selectedField === "state" ||
+      selectedField === "targeting_type" ||
+      (selectedField === "profile_name" &&
+        channelType === "amazon" &&
+        profileOptions.length > 0);
+
+    // For multi-select fields, check if at least one value is selected
+    if (isMultiSelectField) {
+      if (selectedMultiValues.length === 0) return;
+    } else {
+      // For regular fields, check if filterValue is provided
+      if (!selectedField || !filterValue) return;
+    }
 
     // For profile dropdown, use "equals" operator implicitly (don't store it)
     const isProfileDropdown =
@@ -278,9 +297,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       channelType === "amazon" &&
       profileOptions.length > 0;
 
-    // For fields that require operators, ensure operator is selected (unless it's a profile dropdown)
+    // For fields that require operators, ensure operator is selected (unless it's a profile dropdown or multi-select)
     if (
       !isProfileDropdown &&
+      !isMultiSelectField &&
       (selectedField === "campaign_name" ||
         selectedField === "budget" ||
         selectedField === "profile_name" ||
@@ -308,15 +328,16 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       field: selectedField as FilterItem["field"],
       // For profile dropdown, use "equals" operator implicitly (don't show it to user)
       operator: isProfileDropdown ? "equals" : selectedOperator || undefined,
-      value:
-        selectedField === "budget" ||
-        selectedField === "default_bid" ||
-        selectedField === "spends" ||
-        selectedField === "sales" ||
-        selectedField === "ctr" ||
-        selectedField === "bid"
-          ? parseFloat(filterValue) || 0
-          : filterValue,
+      value: isMultiSelectField
+        ? selectedMultiValues // Store array for multi-select fields
+        : selectedField === "budget" ||
+          selectedField === "default_bid" ||
+          selectedField === "spends" ||
+          selectedField === "sales" ||
+          selectedField === "ctr" ||
+          selectedField === "bid"
+        ? parseFloat(filterValue) || 0
+        : filterValue,
     };
 
     setActiveFilters([...activeFilters, newFilter]);
@@ -382,6 +403,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       setExpressionType("ASIN_SAME_AS");
     }
     setFilterValue("");
+    setSelectedMultiValues([]); // Reset multi-select values
   };
 
   const handleRemoveFilter = (filterId: string) => {
@@ -412,8 +434,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   };
 
   const getFilterDisplayValue = (filter: FilterItem) => {
+    // Handle array values for multi-select fields
+    if (Array.isArray(filter.value)) {
+      return filter.value.length > 0 ? filter.value.join(", ") : "";
+    }
     if (filter.field === "state" || filter.field === "type") {
-      return filter.value;
+      return filter.value.toString();
     }
     if (filter.operator) {
       return `${getOperatorLabel(filter.operator)} ${filter.value}`;
@@ -466,14 +492,34 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     >
       {/* Filter Builder */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-end gap-2">
+        <div className="flex items-start gap-2">
           {/* Field Dropdown */}
           <div className="w-[200px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Filter
             </label>
             <Dropdown<string>
-              options={FILTER_FIELDS.map((f) => ({
+              options={FILTER_FIELDS.filter((f) => {
+                // Exclude multi-select fields that are already applied (they support multiple selections)
+                const usedFields = new Set(
+                  activeFilters.map((filter) => filter.field)
+                );
+                const multiSelectFields = new Set([
+                  "type",
+                  "state",
+                  "targeting_type",
+                  ...(channelType === "amazon" ? ["profile_name"] : []),
+                ]);
+                const fieldValue = f.value as FilterItem["field"];
+                // If it's a multi-select field and already used, exclude it
+                if (
+                  multiSelectFields.has(fieldValue as string) &&
+                  usedFields.has(fieldValue)
+                ) {
+                  return false;
+                }
+                return true;
+              }).map((f) => ({
                 value: f.value,
                 label: f.label,
               }))}
@@ -482,14 +528,23 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               onChange={(value) => {
                 setSelectedField(value);
                 setFilterValue("");
+                setSelectedMultiValues([]); // Reset multi-select values
 
                 // Check if this is a profile dropdown
                 const isProfileDropdown =
                   value === "profile_name" && channelType === "amazon";
 
-                // Auto-select first operator if field needs operator (not for profile dropdown)
+                // Check if this is a multi-select field
+                const isMultiSelectField =
+                  value === "type" ||
+                  value === "state" ||
+                  value === "targeting_type" ||
+                  isProfileDropdown;
+
+                // Auto-select first operator if field needs operator (not for profile dropdown or multi-select)
                 const needsOp =
                   !isProfileDropdown &&
+                  !isMultiSelectField &&
                   needsOperatorFields.includes(value as string);
 
                 if (needsOp) {
@@ -570,45 +625,171 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 </label>
               )}
               {isProfileDropdown ? (
-                <Dropdown<string>
-                  options={profileOptions}
-                  value={filterValue || undefined}
-                  placeholder={
-                    loadingProfiles ? "Loading profiles..." : "Select Profile"
-                  }
-                  onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full bg-[#FEFEFB]"
-                  disabled={loadingProfiles}
-                />
+                <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
+                  {loadingProfiles ? (
+                    <div className="text-[11.2px] text-[#556179] py-2">
+                      Loading profiles...
+                    </div>
+                  ) : profileOptions.length === 0 ? (
+                    <div className="text-[11.2px] text-[#556179] py-2">
+                      No profiles available
+                    </div>
+                  ) : (
+                    profileOptions.map((option) => (
+                      <div
+                        key={option.value}
+                        className="py-1.5 px-2 hover:bg-gray-100 rounded cursor-pointer"
+                        onClick={(e) => {
+                          const target = e.target as HTMLElement;
+                          // Skip if clicking on checkbox button or label - let Checkbox handle those
+                          if (
+                            target.closest('button[role="checkbox"]') ||
+                            target.tagName === "LABEL" ||
+                            target.closest("label")
+                          ) {
+                            return;
+                          }
+                          // Handle clicks on empty space only
+                          if (selectedMultiValues.includes(option.value)) {
+                            setSelectedMultiValues(
+                              selectedMultiValues.filter(
+                                (v) => v !== option.value
+                              )
+                            );
+                          } else {
+                            setSelectedMultiValues([
+                              ...selectedMultiValues,
+                              option.value,
+                            ]);
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedMultiValues.includes(option.value)}
+                          onChange={(checked) => {
+                            // Handle checkbox button clicks
+                            if (checked) {
+                              setSelectedMultiValues([
+                                ...selectedMultiValues,
+                                option.value,
+                              ]);
+                            } else {
+                              setSelectedMultiValues(
+                                selectedMultiValues.filter(
+                                  (v) => v !== option.value
+                                )
+                              );
+                            }
+                          }}
+                          label={option.label}
+                          size="small"
+                          className="w-full [&_label]:text-[10px]"
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
               ) : isStateOrType ? (
-                <Dropdown<string>
-                  options={(selectedField === "state"
+                <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
+                  {(selectedField === "state"
                     ? useUppercaseState
                       ? STATUS_OPTIONS
                       : STATE_OPTIONS
                     : TYPE_OPTIONS
-                  ).map((opt) => ({
-                    value: opt,
-                    label: opt,
-                  }))}
-                  value={filterValue || undefined}
-                  placeholder={`Select ${
-                    selectedField === "state" ? "State" : "Type"
-                  }`}
-                  onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full bg-[#FEFEFB]"
-                />
+                  ).map((opt) => (
+                    <div
+                      key={opt}
+                      className="py-1.5 px-2 hover:bg-gray-100 rounded cursor-pointer"
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        // Skip if clicking on checkbox button or label - let Checkbox handle those
+                        if (
+                          target.closest('button[role="checkbox"]') ||
+                          target.tagName === "LABEL" ||
+                          target.closest("label")
+                        ) {
+                          return;
+                        }
+                        // Handle clicks on empty space only
+                        if (selectedMultiValues.includes(opt)) {
+                          setSelectedMultiValues(
+                            selectedMultiValues.filter((v) => v !== opt)
+                          );
+                        } else {
+                          setSelectedMultiValues([...selectedMultiValues, opt]);
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={selectedMultiValues.includes(opt)}
+                        onChange={(checked) => {
+                          // Handle checkbox button clicks directly
+                          if (checked) {
+                            setSelectedMultiValues([
+                              ...selectedMultiValues,
+                              opt,
+                            ]);
+                          } else {
+                            setSelectedMultiValues(
+                              selectedMultiValues.filter((v) => v !== opt)
+                            );
+                          }
+                        }}
+                        label={opt}
+                        size="small"
+                        className="w-full [&_label]:text-[10px]"
+                      />
+                    </div>
+                  ))}
+                </div>
               ) : isTargetingType ? (
-                <Dropdown<string>
-                  options={TARGETING_TYPE_OPTIONS.map((opt) => ({
-                    value: opt,
-                    label: opt,
-                  }))}
-                  value={filterValue || undefined}
-                  placeholder="Select Targeting Type"
-                  onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full bg-[#FEFEFB]"
-                />
+                <div className="max-h-[200px] overflow-y-auto border border-gray-200 rounded-lg bg-[#FEFEFB] p-2">
+                  {TARGETING_TYPE_OPTIONS.map((opt) => (
+                    <div
+                      key={opt}
+                      className="py-1.5 px-2 hover:bg-gray-100 rounded cursor-pointer"
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        // Skip if clicking on checkbox button or label - let Checkbox handle those
+                        if (
+                          target.closest('button[role="checkbox"]') ||
+                          target.tagName === "LABEL" ||
+                          target.closest("label")
+                        ) {
+                          return;
+                        }
+                        // Handle clicks on empty space only
+                        if (selectedMultiValues.includes(opt)) {
+                          setSelectedMultiValues(
+                            selectedMultiValues.filter((v) => v !== opt)
+                          );
+                        } else {
+                          setSelectedMultiValues([...selectedMultiValues, opt]);
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={selectedMultiValues.includes(opt)}
+                        onChange={(checked) => {
+                          // Handle checkbox button clicks directly
+                          if (checked) {
+                            setSelectedMultiValues([
+                              ...selectedMultiValues,
+                              opt,
+                            ]);
+                          } else {
+                            setSelectedMultiValues(
+                              selectedMultiValues.filter((v) => v !== opt)
+                            );
+                          }
+                        }}
+                        label={opt}
+                        size="small"
+                        className="w-full [&_label]:text-[10px]"
+                      />
+                    </div>
+                  ))}
+                </div>
               ) : isStatusOrChannelType ? (
                 <Dropdown<string>
                   options={(selectedField === "status"
@@ -690,17 +871,35 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           )}
 
           {/* Add Filter Button */}
-          <button
-            onClick={handleAddFilter}
-            disabled={
-              !selectedField ||
-              !filterValue ||
-              (needsOperator && !selectedOperator && !isProfileDropdown)
-            }
-            className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            Add Filter
-          </button>
+          <div className="flex flex-col">
+            {/* Empty placeholder to match label height (text-[11.2px] + mb-2) */}
+            <div className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase invisible">
+              &nbsp;
+            </div>
+            <button
+              onClick={handleAddFilter}
+              disabled={
+                !selectedField ||
+                (selectedField === "type" ||
+                selectedField === "state" ||
+                selectedField === "targeting_type" ||
+                (selectedField === "profile_name" &&
+                  channelType === "amazon" &&
+                  profileOptions.length > 0)
+                  ? selectedMultiValues.length === 0
+                  : !filterValue) ||
+                (needsOperator &&
+                  !selectedOperator &&
+                  !isProfileDropdown &&
+                  selectedField !== "type" &&
+                  selectedField !== "state" &&
+                  selectedField !== "targeting_type")
+              }
+              className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              Add Filter
+            </button>
+          </div>
         </div>
       </div>
 
