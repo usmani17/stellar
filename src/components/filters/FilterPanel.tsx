@@ -599,22 +599,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Dropdown<string>
                 options={
                   selectedField === "campaign_name" ||
-                    selectedField === "profile_name" ||
-                    selectedField === "account_name" ||
-                    selectedField === "name" ||
-                    selectedField === "adgroup_name" ||
-                    selectedField === "sku" ||
-                    selectedField === "adId" ||
-                    selectedField === "asin" ||
-                    selectedField === "adGroupId"
+                  selectedField === "profile_name" ||
+                  selectedField === "account_name" ||
+                  selectedField === "name" ||
+                  selectedField === "adgroup_name" ||
+                  selectedField === "sku" ||
+                  selectedField === "adId" ||
+                  selectedField === "asin" ||
+                  selectedField === "adGroupId"
                     ? STRING_OPERATORS.map((op) => ({
-                      value: op.value,
-                      label: op.label,
-                    }))
+                        value: op.value,
+                        label: op.label,
+                      }))
                     : NUMERIC_OPERATORS.map((op) => ({
-                      value: op.value,
-                      label: op.label,
-                    }))
+                        value: op.value,
+                        label: op.label,
+                      }))
                 }
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
@@ -808,8 +808,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     label: opt,
                   }))}
                   value={filterValue || undefined}
-                  placeholder={`Select ${selectedField === "status" ? "Status" : "Channel Type"
-                    }`}
+                  placeholder={`Select ${
+                    selectedField === "status" ? "Status" : "Channel Type"
+                  }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"
                 />
