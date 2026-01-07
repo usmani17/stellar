@@ -117,19 +117,28 @@ export const TikTokCampaignDetail: React.FC = () => {
         try {
             setLoading(true);
             const accountIdNum = parseInt(accountId!, 10);
-            const campaignIdNum = parseInt(campaignId!, 10); // Check if backend expects string or num
 
             if (isNaN(accountIdNum) || !campaignId) return;
 
+            // campaignId is a string (TikTok campaign IDs are strings, not numbers)
             const data = await campaignsService.getTikTokCampaignDetail(
                 accountIdNum,
-                campaignIdNum, // Assuming service handles number/string conversion if needed
+                campaignId, // Pass as string, not parsed as number
                 startDate?.toISOString().split('T')[0],
                 endDate?.toISOString().split('T')[0]
             );
             setCampaignDetail(data);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to load TikTok campaign detail:", error);
+            const errorMessage = error?.response?.data?.error || error?.response?.data?.message || error?.message || "Failed to load campaign";
+            console.error("Error details:", {
+                status: error?.response?.status,
+                error: errorMessage,
+                campaignId,
+                accountId
+            });
+            // Set campaign detail to null to show "Campaign not found" message
+            setCampaignDetail(null);
         } finally {
             setLoading(false);
         }

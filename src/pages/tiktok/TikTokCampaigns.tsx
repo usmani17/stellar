@@ -303,10 +303,10 @@ export const TikTokCampaigns: React.FC = () => {
                     try {
                         const dateObj = new Date(item.date);
                         if (!isNaN(dateObj.getTime())) {
-                            formattedDate = dateObj.toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                            });
+                            // Format to match Amazon: "Jan 01" (zero-padded day)
+                            const month = dateObj.toLocaleDateString("en-US", { month: "short" });
+                            const day = dateObj.getDate().toString().padStart(2, "0");
+                            formattedDate = `${month} ${day}`;
                         }
                     } catch (e) {
                         // Keep original date if parsing fails
@@ -338,13 +338,17 @@ export const TikTokCampaigns: React.FC = () => {
         const data = [];
         const dateStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const dateEnd = endDate || new Date();
+        const dataPoints = Math.min(days, 60); // Limit to 60 data points for readability
 
-        for (let i = 0; i < days; i++) {
+        for (let i = 0; i < dataPoints; i++) {
             const date = new Date(dateStart);
-            date.setDate(date.getDate() + i);
+            date.setDate(date.getDate() + Math.floor((i * days) / dataPoints));
             // Only add dates up to endDate
             if (date > dateEnd) break;
-            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            // Format to match Amazon: "Jan 01" (zero-padded day)
+            const month = date.toLocaleDateString('en-US', { month: 'short' });
+            const day = date.getDate().toString().padStart(2, '0');
+            const dateStr = `${month} ${day}`;
 
             // Generate realistic-looking sample data
             const baseSpend = 3000 + Math.random() * 2000;

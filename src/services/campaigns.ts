@@ -3345,17 +3345,13 @@ export const campaignsService = {
       page_size?: number;
       operation_status?: string;
       advertiser_id?: string;
-      start_date?: string;
-      end_date?: string;
     }
-  ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number; chart_data?: Array<{ date: string; spend: number; impressions: number; clicks: number; conversions: number }> }> => {
+  ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number }> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", String(params.page));
     if (params?.page_size) queryParams.append("page_size", String(params.page_size));
     if (params?.operation_status) queryParams.append("operation_status", params.operation_status);
     if (params?.advertiser_id) queryParams.append("advertiser_id", params.advertiser_id);
-    if (params?.start_date) queryParams.append("start_date", params.start_date);
-    if (params?.end_date) queryParams.append("end_date", params.end_date);
 
     const url = `/accounts/${accountId}/tiktok-campaigns/?${queryParams.toString()}`;
     const response = await api.get(url);
