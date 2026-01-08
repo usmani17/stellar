@@ -29,6 +29,16 @@ export interface TikTokAdGroupInput {
     // App Retargeting fields
     optimization_event?: string;
     optimization_event_window?: number;
+    // Lead Generation fields
+    promotion_target_type?: string; // INSTANT_PAGE or EXTERNAL_WEBSITE (replaces lead_form_id)
+    // Product Sales fields
+    catalog_id?: string; // API uses catalog_id, not product_catalog_id
+    product_source?: string; // CATALOG, STORE, or SHOWCASE
+    shopping_ads_type?: string; // VIDEO, LIVE, or PRODUCT_SHOPPING_ADS (required for PRODUCT_SALES)
+    store_id?: string; // TikTok Shop ID (when product_source is STORE)
+    catalog_authorized_bc_id?: string; // Business Center ID for catalog
+    store_authorized_bc_id?: string; // Business Center ID for store
+    // Note: sales_destination is campaign-level only, not ad group level
 }
 
 interface AdGroupFormData {
@@ -133,6 +143,114 @@ const APP_OPTIMIZATION_GOALS = [
     { value: "CONVERSION", label: "Conversion" },
 ];
 
+// Traffic-specific optimization goals
+const TRAFFIC_OPTIMIZATION_GOALS = [
+    { value: "CLICK", label: "Click" },
+    { value: "LANDING_PAGE_VIEW", label: "Landing Page View" },
+    { value: "CONVERSION", label: "Conversion" },
+];
+
+// Traffic-specific billing events
+const TRAFFIC_BILLING_EVENTS = [
+    { value: "CPC", label: "CPC (Cost Per Click)" },
+    { value: "OCPM", label: "OCPM (Optimized Cost Per Mille)" },
+];
+
+// Reach-specific optimization goals
+const REACH_OPTIMIZATION_GOALS = [
+    { value: "REACH", label: "Reach" },
+    { value: "SHOW", label: "Show" },
+];
+
+// Reach-specific billing events
+const REACH_BILLING_EVENTS = [
+    { value: "CPM", label: "CPM (Cost Per Mille)" },
+];
+
+// Lead Generation-specific optimization goals
+const LEAD_GENERATION_OPTIMIZATION_GOALS = [
+    { value: "LEAD_GENERATION", label: "Lead Generation" },
+];
+
+// Lead Generation-specific billing events
+const LEAD_GENERATION_BILLING_EVENTS = [
+    { value: "CPC", label: "CPC (Cost Per Click)" },
+    { value: "OCPM", label: "OCPM (Optimized Cost Per Mille)" },
+];
+
+// Engagement-specific optimization goals
+const ENGAGEMENT_OPTIMIZATION_GOALS = [
+    { value: "ENGAGEMENT", label: "Engagement" },
+    { value: "CLICK", label: "Click" },
+    { value: "PROFILE_VIEW", label: "Profile View" },
+    { value: "FOLLOW", label: "Follow" },
+];
+
+// Engagement-specific billing events
+const ENGAGEMENT_BILLING_EVENTS = [
+    { value: "CPC", label: "CPC (Cost Per Click)" },
+    { value: "CPM", label: "CPM (Cost Per Mille)" },
+    { value: "OCPM", label: "OCPM (Optimized Cost Per Mille)" },
+];
+
+// Product Sales-specific optimization goals
+const PRODUCT_SALES_OPTIMIZATION_GOALS = [
+    { value: "CONVERSION", label: "Conversion" },
+    { value: "VALUE", label: "Value" },
+    { value: "CLICK", label: "Click" },
+];
+
+// Product Sales-specific billing events
+const PRODUCT_SALES_BILLING_EVENTS = [
+    { value: "CPC", label: "CPC (Cost Per Click)" },
+    { value: "OCPM", label: "OCPM (Optimized Cost Per Mille)" },
+];
+
+// Product Sources (per TikTok API: CATALOG, STORE, SHOWCASE)
+const PRODUCT_SOURCES = [
+    { value: "STORE", label: "TikTok Shop" },
+    { value: "CATALOG", label: "Product Catalog" },
+    { value: "SHOWCASE", label: "TikTok Showcase" },
+];
+
+// Shopping Ads Types (required for PRODUCT_SALES)
+const SHOPPING_ADS_TYPES = [
+    { value: "VIDEO", label: "Video Shopping Ads" },
+    { value: "LIVE", label: "Live Shopping Ads" },
+    { value: "PRODUCT_SHOPPING_ADS", label: "Product Shopping Ads" },
+];
+
+// Promotion Target Types (for LEAD_GENERATION)
+const PROMOTION_TARGET_TYPES = [
+    { value: "INSTANT_PAGE", label: "Instant Form" },
+    { value: "EXTERNAL_WEBSITE", label: "Website Form" },
+];
+
+// Sales Merged-specific optimization goals (same as Product Sales)
+const SALES_MERGED_OPTIMIZATION_GOALS = [
+    { value: "CONVERSION", label: "Conversion" },
+    { value: "VALUE", label: "Value" },
+    { value: "CLICK", label: "Click" },
+];
+
+// Sales Merged-specific billing events (same as Product Sales)
+const SALES_MERGED_BILLING_EVENTS = [
+    { value: "CPC", label: "CPC (Cost Per Click)" },
+    { value: "OCPM", label: "OCPM (Optimized Cost Per Mille)" },
+];
+
+// Note: sales_destination is campaign-level only, not ad group level
+
+// RF Reach-specific optimization goals
+const RF_REACH_OPTIMIZATION_GOALS = [
+    { value: "REACH", label: "Reach" },
+];
+
+// RF Reach-specific billing events
+const RF_REACH_BILLING_EVENTS = [
+    { value: "CPM", label: "CPM (Cost Per Mille)" },
+];
+
 // Retargeting Events (for APP_RETARGETING)
 const RETARGETING_EVENTS = [
     { value: "INSTALL", label: "Install" },
@@ -153,6 +271,13 @@ const LOOKBACK_WINDOW_OPTIONS = [
     { value: "90", label: "90 Days" },
 ];
 
+// Helper function to normalize objective type for comparison
+const normalizeObjectiveType = (objType: string | undefined): string => {
+    if (!objType) return "";
+    // Normalize to uppercase and replace underscores with spaces for comparison
+    return objType.toUpperCase().replace(/_/g, " ").trim();
+};
+
 export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> = ({
     isOpen,
     onClose,
@@ -170,6 +295,9 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
     // Use external loading/error if provided, otherwise use internal
     const loading = externalLoading || internalLoading;
     const error = externalSubmitError || internalError;
+    
+    // Normalize objective type for consistent comparison
+    const normalizedObjectiveType = normalizeObjectiveType(objectiveType);
 
     // Form State for current ad group being created
     const [adgroupName, setAdgroupName] = useState("");
@@ -197,6 +325,16 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
     // App Retargeting specific fields
     const [retargetingEvent, setRetargetingEvent] = useState("INSTALL");
     const [lookbackWindow, setLookbackWindow] = useState("30");
+    // Lead Generation specific fields (API uses promotion_target_type, not lead_form_id)
+    const [promotionTargetType, setPromotionTargetType] = useState("INSTANT_PAGE");
+    // Product Sales specific fields
+    const [catalogId, setCatalogId] = useState(""); // API uses catalog_id, not product_catalog_id
+    const [productSource, setProductSource] = useState("STORE"); // STORE, CATALOG, or SHOWCASE
+    const [shoppingAdsType, setShoppingAdsType] = useState("VIDEO"); // VIDEO, LIVE, or PRODUCT_SHOPPING_ADS
+    const [storeId, setStoreId] = useState(""); // TikTok Shop ID (when product_source is STORE)
+    const [catalogAuthorizedBcId, setCatalogAuthorizedBcId] = useState(""); // Business Center ID for catalog
+    const [storeAuthorizedBcId, setStoreAuthorizedBcId] = useState(""); // Business Center ID for store
+    // Note: sales_destination is campaign-level only, not ad group level
 
     // Ad Groups list (for "Add more" functionality)
     const [adGroups, setAdGroups] = useState<AdGroupFormData[]>([]);
@@ -204,13 +342,54 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
 
     // Update default optimization goal based on objective type
     useEffect(() => {
-        const isAppPromotion = objectiveType === "App Promotion" || objectiveType === "APP_PROMOTION";
+        const normalizedObjType = normalizeObjectiveType(objectiveType);
+        const isAppPromotion = normalizedObjType === "APP PROMOTION" || 
+                               normalizedObjType === "APP_PROMOTION" ||
+                               objectiveType === "App Promotion";
+        const isVideoViews = normalizedObjType === "VIDEO VIEWS" || 
+                             normalizedObjType === "VIDEO_VIEWS" ||
+                             objectiveType === "Video Views";
+        const isTrafficObj = normalizedObjType === "TRAFFIC" ||
+                             objectiveType === "Traffic";
+        const isReachObj = normalizedObjType === "REACH" ||
+                           objectiveType === "Reach";
+        const isLeadGenObj = normalizedObjType === "LEAD GENERATION" ||
+                             normalizedObjType === "LEAD_GENERATION" ||
+                             objectiveType === "Lead Generation";
+        const isEngagementObj = normalizedObjType === "ENGAGEMENT" ||
+                                 objectiveType === "Engagement";
+        const isProductSalesObj = normalizedObjType === "PRODUCT SALES" ||
+                                  normalizedObjType === "PRODUCT_SALES" ||
+                                  objectiveType === "Product Sales";
+        const isSalesMergedObj = normalizedObjType === "SALES MERGED" ||
+                                  normalizedObjType === "SALES_MERGED" ||
+                                  objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
+        const isRFReachObj = normalizedObjType === "RF REACH" ||
+                             normalizedObjType === "RF_REACH" ||
+                             objectiveType === "RF_REACH";
+        
         if (isAppPromotion && optimizationGoal === "CONVERSION") {
             setOptimizationGoal("INSTALL");
-        } else if (!isAppPromotion && optimizationGoal === "INSTALL") {
+        } else if (isVideoViews && optimizationGoal !== "VIDEO_VIEW") {
+            setOptimizationGoal("VIDEO_VIEW");
+        } else if (isTrafficObj && !["CLICK", "LANDING_PAGE_VIEW", "CONVERSION"].includes(optimizationGoal)) {
+            setOptimizationGoal("CLICK");
+        } else if (isReachObj && !["REACH", "SHOW"].includes(optimizationGoal)) {
+            setOptimizationGoal("REACH");
+        } else if (isLeadGenObj && optimizationGoal !== "LEAD_GENERATION") {
+            setOptimizationGoal("LEAD_GENERATION");
+        } else if (isEngagementObj && !["ENGAGEMENT", "CLICK", "PROFILE_VIEW", "FOLLOW"].includes(optimizationGoal)) {
+            setOptimizationGoal("ENGAGEMENT");
+        } else if (isProductSalesObj && !["CONVERSION", "VALUE", "CLICK"].includes(optimizationGoal)) {
+            setOptimizationGoal("CONVERSION");
+        } else if (isSalesMergedObj && !["CONVERSION", "VALUE", "CLICK"].includes(optimizationGoal)) {
+            setOptimizationGoal("CONVERSION");
+        } else if (isRFReachObj && optimizationGoal !== "REACH") {
+            setOptimizationGoal("REACH");
+        } else if (!isAppPromotion && !isVideoViews && !isTrafficObj && !isReachObj && !isLeadGenObj && !isEngagementObj && !isProductSalesObj && !isSalesMergedObj && !isRFReachObj && optimizationGoal === "INSTALL") {
             setOptimizationGoal("CONVERSION");
         }
-    }, [objectiveType]);
+    }, [objectiveType, optimizationGoal]);
 
     const handleAddMore = () => {
         if (!adgroupName.trim()) {
@@ -318,6 +497,16 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     schedule_end_time: scheduleType === "SCHEDULE_START_END" && endDate ? formatDateForAPI(endDate, true) : undefined,
                     optimization_goal: isAppPromotion 
                         ? (APP_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "INSTALL")
+                        : isVideoViews
+                        ? (OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "VIDEO_VIEW")
+                        : isTraffic
+                        ? (TRAFFIC_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CLICK")
+                        : isReach
+                        ? (REACH_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "REACH")
+                        : isEngagement
+                        ? (ENGAGEMENT_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "ENGAGEMENT")
+                        : isProductSales
+                        ? (PRODUCT_SALES_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CONVERSION")
                         : (OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CONVERSION"),
                     billing_event: billingEvent,
                     location_ids: [], // Location should be set per ad group if needed
@@ -348,6 +537,35 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     }
                 }
 
+                // Add video views fields for VIDEO_VIEWS objective
+                const normalizedObjType = normalizeObjectiveType(objectiveType);
+                const currentIsVideoViews = normalizedObjType === "VIDEO VIEWS" || 
+                                            normalizedObjType === "VIDEO_VIEWS" ||
+                                            objectiveType === "Video Views";
+                if (currentIsVideoViews) {
+                    // App-related fields for Video Views
+                    if (appId && appId.trim() !== "") {
+                        baseData.app_id = appId.trim();
+                    }
+                    if (appStore) {
+                        baseData.app_type = appStore;
+                    }
+                    if (smartPerformance !== undefined) {
+                        baseData.is_smart_performance_campaign = smartPerformance;
+                    }
+                    if (optimizeProfile) {
+                        baseData.creative_material_mode = optimizeProfile ? "PROFILE" : undefined;
+                    }
+                    // For Video Views, always use SCHEDULE_START_END when dates are provided
+                    if (group.startDate) {
+                        baseData.schedule_type = "SCHEDULE_START_END";
+                        baseData.schedule_start_time = formatDateForAPI(group.startDate, false);
+                    }
+                    if (endDate) {
+                        baseData.schedule_end_time = formatDateForAPI(endDate, true);
+                    }
+                }
+
                 // Add app promotion fields for APP_PROMOTION objective
                 const currentIsAppPromotion = objectiveType === "App Promotion" || objectiveType === "APP_PROMOTION";
                 if (currentIsAppPromotion) {
@@ -373,6 +591,84 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                         if (lookbackWindow) {
                             baseData.optimization_event_window = parseInt(lookbackWindow);
                         }
+                    }
+                }
+
+                // Add lead generation fields for LEAD_GENERATION objective
+                const currentIsLeadGeneration = normalizedObjectiveType === "LEAD GENERATION" ||
+                                                normalizedObjectiveType === "LEAD_GENERATION" ||
+                                                objectiveType === "Lead Generation";
+                if (currentIsLeadGeneration) {
+                    // API uses promotion_target_type, not lead_form_id
+                    if (promotionTargetType) {
+                        baseData.promotion_target_type = promotionTargetType;
+                    }
+                }
+
+                // Add product sales fields for PRODUCT_SALES objective
+                const currentIsProductSales = normalizedObjectiveType === "PRODUCT SALES" ||
+                                              normalizedObjectiveType === "PRODUCT_SALES" ||
+                                              objectiveType === "Product Sales";
+                if (currentIsProductSales) {
+                    // shopping_ads_type is REQUIRED for PRODUCT_SALES
+                    if (shoppingAdsType) {
+                        baseData.shopping_ads_type = shoppingAdsType;
+                    }
+                    // API uses catalog_id, not product_catalog_id
+                    if (catalogId && catalogId.trim() !== "") {
+                        baseData.catalog_id = catalogId.trim();
+                    }
+                    if (productSource) {
+                        baseData.product_source = productSource;
+                    }
+                    // Store ID is required when product_source is STORE
+                    if (productSource === "STORE" && storeId && storeId.trim() !== "") {
+                        baseData.store_id = storeId.trim();
+                    }
+                    // Business Center IDs
+                    if (catalogAuthorizedBcId && catalogAuthorizedBcId.trim() !== "") {
+                        baseData.catalog_authorized_bc_id = catalogAuthorizedBcId.trim();
+                    }
+                    if (storeId && storeAuthorizedBcId && storeAuthorizedBcId.trim() !== "") {
+                        baseData.store_authorized_bc_id = storeAuthorizedBcId.trim();
+                    }
+                    // Add pixel_id and optimization_event for CATALOG source (website/app catalogs)
+                    if (productSource === "CATALOG") {
+                        if (trackingPixel && trackingPixel.trim() !== "") {
+                            baseData.pixel_id = trackingPixel.trim();
+                        }
+                        if (conversionEvent && conversionEvent.trim() !== "") {
+                            baseData.optimization_event = conversionEvent;
+                        }
+                    }
+                }
+
+                // Note: sales_destination is campaign-level only, not ad group level
+                // For SALES_MERGED, when sales_destination is WEB_AND_APP at campaign level,
+                // ad groups use app_config instead. We'll handle this if needed.
+                // For now, SALES_MERGED ad groups follow similar logic to PRODUCT_SALES
+                const currentIsSalesMerged = normalizedObjectiveType === "SALES MERGED" ||
+                                              normalizedObjectiveType === "SALES_MERGED" ||
+                                              objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
+                if (currentIsSalesMerged) {
+                    // Similar to PRODUCT_SALES, but sales_destination is set at campaign level
+                    // Ad groups may need catalog_id, app_id, pixel_id based on campaign settings
+                    // This would need to be determined from campaign data, not ad group form
+                    // For now, we'll support basic fields that might be needed
+                    if (catalogId && catalogId.trim() !== "") {
+                        baseData.catalog_id = catalogId.trim();
+                    }
+                    if (appId && appId.trim() !== "") {
+                        baseData.app_id = appId.trim();
+                    }
+                    if (appStore) {
+                        baseData.app_type = appStore;
+                    }
+                    if (trackingPixel && trackingPixel.trim() !== "") {
+                        baseData.pixel_id = trackingPixel.trim();
+                    }
+                    if (conversionEvent && conversionEvent.trim() !== "") {
+                        baseData.optimization_event = conversionEvent;
                     }
                 }
 
@@ -416,6 +712,16 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 schedule_end_time: scheduleType === "SCHEDULE_START_END" && endDate ? formatDateForAPI(endDate, true) : undefined,
                 optimization_goal: isAppPromotion 
                     ? (APP_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "INSTALL")
+                    : isVideoViews
+                    ? (OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "VIDEO_VIEW")
+                    : isTraffic
+                    ? (TRAFFIC_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "CLICK")
+                    : isReach
+                    ? (REACH_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "REACH")
+                    : (normalizedObjectiveType === "LEAD GENERATION" || normalizedObjectiveType === "LEAD_GENERATION" || objectiveType === "Lead Generation")
+                    ? (LEAD_GENERATION_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "LEAD_GENERATION")
+                    : isEngagement
+                    ? (ENGAGEMENT_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "ENGAGEMENT")
                     : optimizationGoal,
                 billing_event: billingEvent,
                 location_ids: [],
@@ -446,6 +752,35 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 }
             }
 
+            // Add video views fields for VIDEO_VIEWS objective
+            const normalizedObjTypeForSubmit = normalizeObjectiveType(objectiveType);
+            const isVideoViewsForSubmit = normalizedObjTypeForSubmit === "VIDEO VIEWS" || 
+                                         normalizedObjTypeForSubmit === "VIDEO_VIEWS" ||
+                                         objectiveType === "Video Views";
+            if (isVideoViewsForSubmit) {
+                // App-related fields for Video Views
+                if (appId && appId.trim() !== "") {
+                    adGroupData.app_id = appId.trim();
+                }
+                if (appStore) {
+                    adGroupData.app_type = appStore;
+                }
+                if (smartPerformance !== undefined) {
+                    adGroupData.is_smart_performance_campaign = smartPerformance;
+                }
+                if (optimizeProfile) {
+                    adGroupData.creative_material_mode = optimizeProfile ? "PROFILE" : undefined;
+                }
+                // For Video Views, always use SCHEDULE_START_END when dates are provided
+                if (startDate) {
+                    adGroupData.schedule_type = "SCHEDULE_START_END";
+                    adGroupData.schedule_start_time = formatDateForAPI(startDate, false);
+                }
+                if (endDate) {
+                    adGroupData.schedule_end_time = formatDateForAPI(endDate, true);
+                }
+            }
+
             // Add app promotion fields for APP_PROMOTION objective
             if (isAppPromotion) {
                 if (appId && appId.trim() !== "") {
@@ -468,6 +803,55 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     }
                     if (lookbackWindow) {
                         adGroupData.optimization_event_window = parseInt(lookbackWindow);
+                    }
+                }
+            }
+
+            // Add lead generation fields for LEAD_GENERATION objective
+            const currentIsLeadGeneration = normalizedObjTypeForSubmit === "LEAD GENERATION" ||
+                                            normalizedObjTypeForSubmit === "LEAD_GENERATION" ||
+                                            objectiveType === "Lead Generation";
+            if (currentIsLeadGeneration) {
+                // API uses promotion_target_type, not lead_form_id
+                if (promotionTargetType) {
+                    adGroupData.promotion_target_type = promotionTargetType;
+                }
+            }
+
+            // Add product sales fields for PRODUCT_SALES objective
+            const currentIsProductSales = normalizedObjTypeForSubmit === "PRODUCT SALES" ||
+                                          normalizedObjTypeForSubmit === "PRODUCT_SALES" ||
+                                          objectiveType === "Product Sales";
+            if (currentIsProductSales) {
+                // shopping_ads_type is REQUIRED for PRODUCT_SALES
+                if (shoppingAdsType) {
+                    adGroupData.shopping_ads_type = shoppingAdsType;
+                }
+                // API uses catalog_id, not product_catalog_id
+                if (catalogId && catalogId.trim() !== "") {
+                    adGroupData.catalog_id = catalogId.trim();
+                }
+                if (productSource) {
+                    adGroupData.product_source = productSource;
+                }
+                // Store ID is required when product_source is STORE
+                if (productSource === "STORE" && storeId && storeId.trim() !== "") {
+                    adGroupData.store_id = storeId.trim();
+                }
+                // Business Center IDs
+                if (catalogAuthorizedBcId && catalogAuthorizedBcId.trim() !== "") {
+                    adGroupData.catalog_authorized_bc_id = catalogAuthorizedBcId.trim();
+                }
+                if (storeId && storeAuthorizedBcId && storeAuthorizedBcId.trim() !== "") {
+                    adGroupData.store_authorized_bc_id = storeAuthorizedBcId.trim();
+                }
+                // Add pixel_id and optimization_event for CATALOG source
+                if (productSource === "CATALOG") {
+                    if (trackingPixel && trackingPixel.trim() !== "") {
+                        adGroupData.pixel_id = trackingPixel.trim();
+                    }
+                    if (conversionEvent && conversionEvent.trim() !== "") {
+                        adGroupData.optimization_event = conversionEvent;
                     }
                 }
             }
@@ -514,6 +898,13 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
         // Reset App Promotion fields
         setAppPromotionType("APP_INSTALL");
         setAppStore("IOS");
+        setPromotionTargetType("INSTANT_PAGE");
+        setCatalogId("");
+        setProductSource("STORE");
+        setShoppingAdsType("VIDEO");
+        setStoreId("");
+        setCatalogAuthorizedBcId("");
+        setStoreAuthorizedBcId("");
         setAppId("");
         setOptimizeProfile(false);
         setSmartPerformance(true);
@@ -533,7 +924,38 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
     if (!isOpen) return null;
 
     // Check if objective is App Promotion (handle both display name and API value)
-    const isAppPromotion = objectiveType === "App Promotion" || objectiveType === "APP_PROMOTION";
+    const isAppPromotion = normalizedObjectiveType === "APP PROMOTION" || 
+                           normalizedObjectiveType === "APP_PROMOTION" ||
+                           objectiveType === "App Promotion";
+    // Check if objective is Video Views (handle various formats)
+    const isVideoViews = normalizedObjectiveType === "VIDEO VIEWS" || 
+                         normalizedObjectiveType === "VIDEO_VIEWS" ||
+                         objectiveType === "Video Views";
+    // Check if objective is Traffic
+    const isTraffic = normalizedObjectiveType === "TRAFFIC" ||
+                      objectiveType === "Traffic";
+    // Check if objective is Reach
+    const isReach = normalizedObjectiveType === "REACH" ||
+                    objectiveType === "Reach";
+    // Check if objective is Lead Generation
+    const isLeadGeneration = normalizedObjectiveType === "LEAD GENERATION" ||
+                             normalizedObjectiveType === "LEAD_GENERATION" ||
+                             objectiveType === "Lead Generation";
+    // Check if objective is Engagement
+    const isEngagement = normalizedObjectiveType === "ENGAGEMENT" ||
+                         objectiveType === "Engagement";
+    // Check if objective is Product Sales
+    const isProductSales = normalizedObjectiveType === "PRODUCT SALES" ||
+                           normalizedObjectiveType === "PRODUCT_SALES" ||
+                           objectiveType === "Product Sales";
+    // Check if objective is Sales Merged
+    const isSalesMerged = normalizedObjectiveType === "SALES MERGED" ||
+                          normalizedObjectiveType === "SALES_MERGED" ||
+                          objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
+    // Check if objective is RF Reach
+    const isRFReach = normalizedObjectiveType === "RF REACH" ||
+                      normalizedObjectiveType === "RF_REACH" ||
+                      objectiveType === "RF_REACH";
 
     // Toggle Component
     const Toggle = ({ enabled, setEnabled, label }: { enabled: boolean; setEnabled: (val: boolean) => void; label: string }) => (
@@ -544,6 +966,47 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
             <span className="text-teal-950 text-base font-medium">{label}</span>
         </div>
     );
+
+    // Helper function to format date for display (MM-DD-YYYY)
+    const formatDateForDisplay = (dateStr: string): string => {
+        if (!dateStr) return "";
+        try {
+            // If already in MM-DD-YYYY format, return as is
+            if (dateStr.includes('-') && dateStr.split('-').length === 3) {
+                const parts = dateStr.split('-');
+                if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                    return dateStr;
+                }
+            }
+            // Handle YYYY-MM-DD format (from date input)
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${month}-${day}-${year}`;
+        } catch {
+            return dateStr;
+        }
+    };
+
+    // Helper function to convert MM-DD-YYYY to YYYY-MM-DD for date input
+    const convertToDateInputFormat = (dateStr: string): string => {
+        if (!dateStr) return "";
+        try {
+            // If in MM-DD-YYYY format, convert to YYYY-MM-DD
+            if (dateStr.includes('-') && dateStr.split('-').length === 3) {
+                const parts = dateStr.split('-');
+                if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                    const [month, day, year] = parts;
+                    return `${year}-${month}-${day}`;
+                }
+            }
+            return dateStr;
+        } catch {
+            return dateStr;
+        }
+    };
 
     const InputField = ({ 
         label, 
@@ -568,43 +1031,74 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
             <label className="self-stretch pb-1 text-base font-medium text-[#072929] mb-2">
                 {label}
             </label>
-            <div className={`relative w-full h-12 px-3 py-2 rounded-xl border ${
-                disabled ? 'bg-[#F0F0ED] border-[#D1D1C7]' : 'bg-white border-[#E3E3E3]'
-            } flex items-center`}>
-                {type === 'select' && options ? (
-                    <select
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        disabled={disabled}
-                        className={`flex-1 text-sm ${
-                            disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
-                        } bg-transparent outline-none appearance-none`}
-                    >
-                        {options.map(option => (
-                            <option key={option.value} value={option.value}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
-                ) : (
+            {type === 'date' ? (
+                <div className="relative w-full h-12 px-3 py-2 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-neutral-200 inline-flex justify-start items-center gap-2">
+                    <div className={`flex-1 h-5 justify-start text-sm font-normal ${
+                        value ? 'text-teal-950' : 'text-stone-400'
+                    }`}>
+                        {value ? formatDateForDisplay(value) : (placeholder || "MM-DD-YYYY")}
+                    </div>
                     <input
-                        type={type}
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        placeholder={placeholder}
-                        disabled={disabled}
-                        className={`flex-1 text-sm ${
-                            disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
-                        } ${placeholder && !value ? 'text-[#BFBFBF]' : ''} bg-transparent outline-none`}
+                        type="date"
+                        value={convertToDateInputFormat(value)}
+                        onChange={(e) => {
+                            const dateValue = e.target.value;
+                            if (dateValue) {
+                                const formatted = formatDateForDisplay(dateValue);
+                                onChange(formatted);
+                            } else {
+                                onChange("");
+                            }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                )}
-                {!disabled && type === 'select' && options && (
-                    <ChevronDown className="w-5 h-5 text-slate-600 rotate-0" />
-                )}
-                {type === 'date' && (
-                    <Calendar className="w-5 h-5 text-[#136D6D]" />
-                )}
-            </div>
+                    <div className="w-5 h-5 relative flex-shrink-0">
+                        <Calendar className="w-5 h-5 text-[#136D6D]" />
+                    </div>
+                </div>
+            ) : (
+                <div className={`relative w-full ${
+                    type === 'select' ? 'h-[38px]' : 'h-12'
+                } ${type === 'select' ? 'px-4 py-2.5' : 'px-3 py-2'} ${
+                    type === 'select' ? 'rounded-lg' : 'rounded-xl'
+                } border ${
+                    disabled ? 'bg-[#F0F0ED] border-[#D1D1C7]' : 
+                    type === 'select' ? 'bg-[#FEFEFB] border-gray-200' : 'bg-white border-[#E3E3E3]'
+                } flex items-center`}>
+                    {type === 'select' && options ? (
+                        <>
+                            <select
+                                value={value}
+                                onChange={(e) => onChange(e.target.value)}
+                                disabled={disabled}
+                                className={`flex-1 text-[14px] ${
+                                    disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
+                                } bg-transparent outline-none appearance-none`}
+                            >
+                                {options.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            {!disabled && (
+                                <ChevronDown className="w-4 h-4 text-[#072929] rotate-0 flex-shrink-0 transition-transform" />
+                            )}
+                        </>
+                    ) : (
+                        <input
+                            type={type}
+                            value={value}
+                            onChange={(e) => onChange(e.target.value)}
+                            placeholder={placeholder}
+                            disabled={disabled}
+                            className={`flex-1 text-sm ${
+                                disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
+                            } ${placeholder && !value ? 'text-[#BFBFBF]' : ''} bg-transparent outline-none`}
+                        />
+                    )}
+                </div>
+            )}
         </div>
     );
 
@@ -624,8 +1118,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 )}
 
                 {/* Row 1: Campaign, Ad Group Name, Objective, State */}
-                <div className="flex justify-start items-center gap-4">
-                    <div className="w-96">
+                <div className="flex flex-wrap gap-4 items-center">
+                    <div className="w-full md:w-96">
                         <InputField
                             label="Campaign"
                             value={campaignName || campaignId}
@@ -633,7 +1127,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                             disabled={true}
                         />
                     </div>
-                    <div className="w-96">
+                    <div className="w-full md:w-96">
                         <InputField
                             label="Ad Group Name"
                             value={adgroupName}
@@ -641,7 +1135,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                             placeholder="Enter ad group name"
                         />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-[200px]">
                         <InputField
                             label="Objective"
                             value={objectiveType}
@@ -649,7 +1143,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                             disabled={true}
                         />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-[200px]">
                         <InputField
                             label="State"
                             value={state}
@@ -661,7 +1155,365 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 </div>
 
                 {/* Row 2: Conditional based on objective type */}
-                {isAppPromotion ? (
+                {isSalesMerged ? (
+                    // Sales Merged Row 2: Note - sales_destination is campaign-level only
+                    // Ad groups may need catalog_id, app_id, pixel_id based on campaign settings
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Catalog ID"
+                                value={catalogId}
+                                onChange={setCatalogId}
+                                placeholder="Enter Catalog ID (if needed)"
+                            />
+                        </div>
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="App Store / OS"
+                                value={appStore}
+                                onChange={setAppStore}
+                                type="select"
+                                options={APP_STORES}
+                            />
+                        </div>
+                        <div className="w-full md:w-96">
+                            <div className="flex flex-col justify-start items-start">
+                                <label className="self-stretch pb-1 text-base font-medium text-[#072929] mb-2">
+                                    App ID
+                                </label>
+                                <div className="relative w-full h-12 px-3 py-2 rounded-xl border bg-white border-[#E3E3E3] flex items-center">
+                                    <input
+                                        type="text"
+                                        value={appId}
+                                        onChange={(e) => setAppId(e.target.value)}
+                                        placeholder="Enter App ID (if needed)"
+                                        className="flex-1 text-sm text-[#072929] bg-transparent outline-none"
+                                    />
+                                    <Search className="w-5 h-5 text-[#136D6D]" />
+                                </div>
+                            </div>
+                        </div>
+                        {false && (
+                            <>
+                                <div className="w-full md:w-96">
+                                    <InputField
+                                        label="App Store / OS"
+                                        value={appStore}
+                                        onChange={setAppStore}
+                                        type="select"
+                                        options={APP_STORES}
+                                    />
+                                </div>
+                                <div className="w-full md:w-96">
+                                    <div className="flex flex-col justify-start items-start">
+                                        <label className="self-stretch pb-1 text-base font-medium text-[#072929] mb-2">
+                                            App ID
+                                        </label>
+                                        <div className="relative w-full h-12 px-3 py-2 rounded-xl border bg-white border-[#E3E3E3] flex items-center">
+                                            <input
+                                                type="text"
+                                                value={appId}
+                                                onChange={(e) => setAppId(e.target.value)}
+                                                placeholder="Enter App ID"
+                                                className="flex-1 text-sm text-[#072929] bg-transparent outline-none"
+                                            />
+                                            <Search className="w-5 h-5 text-[#136D6D]" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Placement Type"
+                                value={placementType}
+                                onChange={setPlacementType}
+                                type="select"
+                                options={PLACEMENT_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget Type"
+                                value={budgetType}
+                                onChange={setBudgetType}
+                                type="select"
+                                options={BUDGET_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget"
+                                value={budget}
+                                onChange={setBudget}
+                                placeholder="Enter Budget"
+                            />
+                        </div>
+                    </div>
+                ) : isRFReach ? (
+                    // RF Reach Row 2: Placement Type, Budget Type, Budget
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Placement Type"
+                                value={placementType}
+                                onChange={setPlacementType}
+                                type="select"
+                                options={PLACEMENT_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget Type"
+                                value={budgetType}
+                                onChange={setBudgetType}
+                                type="select"
+                                options={BUDGET_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget"
+                                value={budget}
+                                onChange={setBudget}
+                                placeholder="Enter Budget"
+                            />
+                        </div>
+                    </div>
+                ) : isProductSales ? (
+                    // Product Sales Row 2: Shopping Ads Type, Product Source, Catalog ID, Store ID (conditional), Placement Type, Budget Type, Budget
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Shopping Ads Type"
+                                value={shoppingAdsType}
+                                onChange={setShoppingAdsType}
+                                type="select"
+                                options={SHOPPING_ADS_TYPES}
+                            />
+                        </div>
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Product Source"
+                                value={productSource}
+                                onChange={setProductSource}
+                                type="select"
+                                options={PRODUCT_SOURCES}
+                            />
+                        </div>
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Catalog ID"
+                                value={catalogId}
+                                onChange={setCatalogId}
+                                placeholder="Enter Catalog ID"
+                            />
+                        </div>
+                        {productSource === "STORE" && (
+                            <div className="w-full md:w-96">
+                                <InputField
+                                    label="TikTok Shop ID"
+                                    value={storeId}
+                                    onChange={setStoreId}
+                                    placeholder="Enter TikTok Shop ID"
+                                />
+                            </div>
+                        )}
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Placement Type"
+                                value={placementType}
+                                onChange={setPlacementType}
+                                type="select"
+                                options={PLACEMENT_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget Type"
+                                value={budgetType}
+                                onChange={setBudgetType}
+                                type="select"
+                                options={BUDGET_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget"
+                                value={budget}
+                                onChange={setBudget}
+                                placeholder="Enter Budget"
+                            />
+                        </div>
+                    </div>
+                ) : isLeadGeneration ? (
+                    // Lead Generation Row 2: Promotion Target Type, Placement Type, Budget Type, Budget
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Promotion Target Type"
+                                value={promotionTargetType}
+                                onChange={setPromotionTargetType}
+                                type="select"
+                                options={PROMOTION_TARGET_TYPES}
+                            />
+                        </div>
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Placement Type"
+                                value={placementType}
+                                onChange={setPlacementType}
+                                type="select"
+                                options={PLACEMENT_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget Type"
+                                value={budgetType}
+                                onChange={setBudgetType}
+                                type="select"
+                                options={BUDGET_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget"
+                                value={budget}
+                                onChange={setBudget}
+                                placeholder="Enter Budget"
+                            />
+                        </div>
+                    </div>
+                ) : isEngagement ? (
+                    // Engagement Row 2: Placement Type, Budget Type, Budget
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Placement Type"
+                                value={placementType}
+                                onChange={setPlacementType}
+                                type="select"
+                                options={PLACEMENT_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget Type"
+                                value={budgetType}
+                                onChange={setBudgetType}
+                                type="select"
+                                options={BUDGET_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget"
+                                value={budget}
+                                onChange={setBudget}
+                                placeholder="Enter Budget"
+                            />
+                        </div>
+                    </div>
+                ) : isReach ? (
+                    // Reach Row 2: Placement Type, Budget Type, Budget
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Placement Type"
+                                value={placementType}
+                                onChange={setPlacementType}
+                                type="select"
+                                options={PLACEMENT_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget Type"
+                                value={budgetType}
+                                onChange={setBudgetType}
+                                type="select"
+                                options={BUDGET_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget"
+                                value={budget}
+                                onChange={setBudget}
+                                placeholder="Enter Budget"
+                            />
+                        </div>
+                    </div>
+                ) : isTraffic ? (
+                    // Traffic Row 2: Placement Type, Budget Type, Budget
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Placement Type"
+                                value={placementType}
+                                onChange={setPlacementType}
+                                type="select"
+                                options={PLACEMENT_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget Type"
+                                value={budgetType}
+                                onChange={setBudgetType}
+                                type="select"
+                                options={BUDGET_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Budget"
+                                value={budget}
+                                onChange={setBudget}
+                                placeholder="Enter Budget"
+                            />
+                        </div>
+                    </div>
+                ) : isVideoViews ? (
+                    // Video Views Row 2: App Promotion Type (readOnly), App Store/OS, App ID
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="App Promotion Type"
+                                value={APP_PROMOTION_TYPES.find(apt => apt.value === appPromotionType)?.label || "App Install"}
+                                onChange={() => {}}
+                                disabled={true}
+                            />
+                        </div>
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="App Store / OS"
+                                value={appStore}
+                                onChange={setAppStore}
+                                type="select"
+                                options={APP_STORES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <div className="flex flex-col justify-start items-start">
+                                <label className="self-stretch pb-1 text-base font-medium text-[#072929] mb-2">
+                                    App ID
+                                </label>
+                                <div className="relative w-full h-12 px-3 py-2 rounded-xl border bg-white border-[#E3E3E3] flex items-center">
+                                    <input
+                                        type="text"
+                                        value={appId}
+                                        onChange={(e) => setAppId(e.target.value)}
+                                        placeholder="Enter App ID"
+                                        className="flex-1 text-sm text-[#072929] bg-transparent outline-none"
+                                    />
+                                    <ChevronDown className="w-4 h-4 text-slate-600" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : isAppPromotion ? (
                     <>
                         {/* App Promotion Row 2: App Promotion Type, App Store/OS, App ID */}
                         <div className="flex justify-start items-center gap-4">
@@ -766,7 +1618,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     </div>
                 )}
 
-                {/* Row 2b: Budget fields for App Promotion */}
+                {/* Row 2b: Budget fields for App Promotion only */}
                 {isAppPromotion && (
                     <div className="flex justify-start items-center gap-4">
                         <div className="flex-1">
@@ -790,7 +1642,317 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 )}
 
                 {/* Row 3: Conditional based on objective type */}
-                {isAppPromotion ? (
+                {isSalesMerged ? (
+                    // Sales Merged Row 3: Schedule Type, Start Date, End Date, and conditional Pixel/Event fields
+                    <>
+                        <div className="flex flex-wrap gap-4 items-center">
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="Schedule Type"
+                                    value={scheduleType}
+                                    onChange={setScheduleType}
+                                    type="select"
+                                    options={SCHEDULE_TYPES}
+                                />
+                            </div>
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="Start Date"
+                                    value={startDate}
+                                    onChange={setStartDate}
+                                    type="date"
+                                />
+                            </div>
+                            {scheduleType === "SCHEDULE_START_END" && (
+                                <div className="flex-1 min-w-[200px]">
+                                    <InputField
+                                        label="End Date"
+                                        value={endDate}
+                                        onChange={setEndDate}
+                                        type="date"
+                                        placeholder="MM-DD-YYYY"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        {/* Show Pixel and Conversion Event only for WEBSITE destination */}
+                        {false && (
+                            <div className="flex flex-wrap gap-4 items-center mt-4">
+                                <div className="w-96">
+                                    <InputField
+                                        label="Tracking Pixel"
+                                        value={trackingPixel}
+                                        onChange={setTrackingPixel}
+                                        type="select"
+                                        options={TRACKING_PIXELS}
+                                        placeholder="Select Pixel"
+                                    />
+                                </div>
+                                <div className="w-96">
+                                    <InputField
+                                        label="Conversion Event"
+                                        value={conversionEvent}
+                                        onChange={setConversionEvent}
+                                        type="select"
+                                        options={CONVERSION_EVENTS}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </>
+                ) : isRFReach ? (
+                    // RF Reach Row 3: Schedule Type, Start Date, End Date
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Schedule Type"
+                                value={scheduleType}
+                                onChange={setScheduleType}
+                                type="select"
+                                options={SCHEDULE_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Start Date"
+                                value={startDate}
+                                onChange={setStartDate}
+                                type="date"
+                            />
+                        </div>
+                        {scheduleType === "SCHEDULE_START_END" && (
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="End Date"
+                                    value={endDate}
+                                    onChange={setEndDate}
+                                    type="date"
+                                    placeholder="MM-DD-YYYY"
+                                />
+                            </div>
+                        )}
+                    </div>
+                ) : isProductSales ? (
+                    // Product Sales Row 3: Schedule Type, Start Date, End Date, and conditional Pixel/Event fields
+                    <>
+                        <div className="flex flex-wrap gap-4 items-center">
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="Schedule Type"
+                                    value={scheduleType}
+                                    onChange={setScheduleType}
+                                    type="select"
+                                    options={SCHEDULE_TYPES}
+                                />
+                            </div>
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="Start Date"
+                                    value={startDate}
+                                    onChange={setStartDate}
+                                    type="date"
+                                />
+                            </div>
+                            {scheduleType === "SCHEDULE_START_END" && (
+                                <div className="flex-1 min-w-[200px]">
+                                    <InputField
+                                        label="End Date"
+                                        value={endDate}
+                                        onChange={setEndDate}
+                                        type="date"
+                                        placeholder="MM-DD-YYYY"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        {/* Show Pixel and Conversion Event only for Website/App catalogs */}
+                        {(productSource === "PRODUCT_CATALOG_WEBSITE" || productSource === "PRODUCT_CATALOG_APP") && (
+                            <div className="flex flex-wrap gap-4 items-center mt-4">
+                                <div className="w-96">
+                                    <InputField
+                                        label="Tracking Pixel"
+                                        value={trackingPixel}
+                                        onChange={setTrackingPixel}
+                                        type="select"
+                                        options={TRACKING_PIXELS}
+                                        placeholder="Select Pixel"
+                                    />
+                                </div>
+                                <div className="w-96">
+                                    <InputField
+                                        label="Conversion Event"
+                                        value={conversionEvent}
+                                        onChange={setConversionEvent}
+                                        type="select"
+                                        options={CONVERSION_EVENTS}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </>
+                ) : isEngagement ? (
+                    // Engagement Row 3: Schedule Type, Start Date, End Date
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Schedule Type"
+                                value={scheduleType}
+                                onChange={setScheduleType}
+                                type="select"
+                                options={SCHEDULE_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Start Date"
+                                value={startDate}
+                                onChange={setStartDate}
+                                type="date"
+                            />
+                        </div>
+                        {scheduleType === "SCHEDULE_START_END" && (
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="End Date"
+                                    value={endDate}
+                                    onChange={setEndDate}
+                                    type="date"
+                                    placeholder="MM-DD-YYYY"
+                                />
+                            </div>
+                        )}
+                    </div>
+                ) : isLeadGeneration ? (
+                    // Lead Generation Row 3: Schedule Type, Start Date, End Date
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Schedule Type"
+                                value={scheduleType}
+                                onChange={setScheduleType}
+                                type="select"
+                                options={SCHEDULE_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Start Date"
+                                value={startDate}
+                                onChange={setStartDate}
+                                type="date"
+                            />
+                        </div>
+                        {scheduleType === "SCHEDULE_START_END" && (
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="End Date"
+                                    value={endDate}
+                                    onChange={setEndDate}
+                                    type="date"
+                                    placeholder="MM-DD-YYYY"
+                                />
+                            </div>
+                        )}
+                    </div>
+                ) : isReach ? (
+                    // Reach Row 3: Schedule Type, Start Date, End Date
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Schedule Type"
+                                value={scheduleType}
+                                onChange={setScheduleType}
+                                type="select"
+                                options={SCHEDULE_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Start Date"
+                                value={startDate}
+                                onChange={setStartDate}
+                                type="date"
+                            />
+                        </div>
+                        {scheduleType === "SCHEDULE_START_END" && (
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="End Date"
+                                    value={endDate}
+                                    onChange={setEndDate}
+                                    type="date"
+                                    placeholder="MM-DD-YYYY"
+                                />
+                            </div>
+                        )}
+                    </div>
+                ) : isTraffic ? (
+                    // Traffic Row 3: Schedule Type, Start Date, End Date
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Schedule Type"
+                                value={scheduleType}
+                                onChange={setScheduleType}
+                                type="select"
+                                options={SCHEDULE_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Start Date"
+                                value={startDate}
+                                onChange={setStartDate}
+                                type="date"
+                            />
+                        </div>
+                        {scheduleType === "SCHEDULE_START_END" && (
+                            <div className="flex-1 min-w-[200px]">
+                                <InputField
+                                    label="End Date"
+                                    value={endDate}
+                                    onChange={setEndDate}
+                                    type="date"
+                                    placeholder="MM-DD-YYYY"
+                                />
+                            </div>
+                        )}
+                    </div>
+                ) : isVideoViews ? (
+                    // Video Views Row 3: Toggles (Optimize via App Profile Page, Smart+), Placement Type, Dates
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="w-full md:w-96 flex flex-col gap-4">
+                            <Toggle enabled={optimizeProfile} setEnabled={setOptimizeProfile} label="Optimize via App Profile Page" />
+                            <Toggle enabled={smartPerformance} setEnabled={setSmartPerformance} label="Smart+ / Smart Performance" />
+                        </div>
+                        <div className="w-full md:w-96">
+                            <InputField
+                                label="Placement Type"
+                                value={placementType}
+                                onChange={setPlacementType}
+                                type="select"
+                                options={PLACEMENT_TYPES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Start Date"
+                                value={startDate}
+                                onChange={setStartDate}
+                                type="date"
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="End Date"
+                                value={endDate}
+                                onChange={setEndDate}
+                                type="date"
+                                placeholder="MM-DD-YYYY"
+                            />
+                        </div>
+                    </div>
+                ) : isAppPromotion ? (
                     // App Promotion Row 3: Toggles, Placement Type, Dates
                     <div className="flex justify-start items-center gap-6">
                         <div className="w-96 flex flex-col gap-4">
@@ -876,7 +2038,318 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 )}
 
                 {/* Row 4: Conditional based on objective type */}
-                {isAppPromotion ? (
+                {isSalesMerged ? (
+                    // Sales Merged Row 4: Optimization Goal, Bid Strategy, Billing Event, Delivery Pacing
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Optimization Goal"
+                                value={optimizationGoal}
+                                onChange={setOptimizationGoal}
+                                type="select"
+                                options={SALES_MERGED_OPTIMIZATION_GOALS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Bid Strategy"
+                                value={bidStrategy}
+                                onChange={setBidStrategy}
+                                type="select"
+                                options={BID_STRATEGIES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Billing Event"
+                                value={billingEvent}
+                                onChange={setBillingEvent}
+                                type="select"
+                                options={SALES_MERGED_BILLING_EVENTS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Delivery Pacing"
+                                value={deliveryPacing}
+                                onChange={setDeliveryPacing}
+                                type="select"
+                                options={DELIVERY_PACING}
+                            />
+                        </div>
+                    </div>
+                ) : isRFReach ? (
+                    // RF Reach Row 4: Optimization Goal, Bid Strategy, Billing Event, Delivery Pacing
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Optimization Goal"
+                                value={optimizationGoal}
+                                onChange={setOptimizationGoal}
+                                type="select"
+                                options={RF_REACH_OPTIMIZATION_GOALS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Bid Strategy"
+                                value={bidStrategy}
+                                onChange={setBidStrategy}
+                                type="select"
+                                options={BID_STRATEGIES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Billing Event"
+                                value={billingEvent}
+                                onChange={setBillingEvent}
+                                type="select"
+                                options={RF_REACH_BILLING_EVENTS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Delivery Pacing"
+                                value={deliveryPacing}
+                                onChange={setDeliveryPacing}
+                                type="select"
+                                options={DELIVERY_PACING}
+                            />
+                        </div>
+                    </div>
+                ) : isProductSales ? (
+                    // Product Sales Row 4: Optimization Goal, Bid Strategy, Billing Event, Delivery Pacing
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Optimization Goal"
+                                value={optimizationGoal}
+                                onChange={setOptimizationGoal}
+                                type="select"
+                                options={PRODUCT_SALES_OPTIMIZATION_GOALS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Bid Strategy"
+                                value={bidStrategy}
+                                onChange={setBidStrategy}
+                                type="select"
+                                options={BID_STRATEGIES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Billing Event"
+                                value={billingEvent}
+                                onChange={setBillingEvent}
+                                type="select"
+                                options={PRODUCT_SALES_BILLING_EVENTS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Delivery Pacing"
+                                value={deliveryPacing}
+                                onChange={setDeliveryPacing}
+                                type="select"
+                                options={DELIVERY_PACING}
+                            />
+                        </div>
+                    </div>
+                ) : isEngagement ? (
+                    // Engagement Row 4: Optimization Goal, Bid Strategy, Billing Event, Delivery Pacing
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Optimization Goal"
+                                value={optimizationGoal}
+                                onChange={setOptimizationGoal}
+                                type="select"
+                                options={ENGAGEMENT_OPTIMIZATION_GOALS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Bid Strategy"
+                                value={bidStrategy}
+                                onChange={setBidStrategy}
+                                type="select"
+                                options={BID_STRATEGIES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Billing Event"
+                                value={billingEvent}
+                                onChange={setBillingEvent}
+                                type="select"
+                                options={ENGAGEMENT_BILLING_EVENTS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Delivery Pacing"
+                                value={deliveryPacing}
+                                onChange={setDeliveryPacing}
+                                type="select"
+                                options={DELIVERY_PACING}
+                            />
+                        </div>
+                    </div>
+                ) : isLeadGeneration ? (
+                    // Lead Generation Row 4: Optimization Goal, Bid Strategy, Billing Event, Delivery Pacing
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Optimization Goal"
+                                value={optimizationGoal}
+                                onChange={setOptimizationGoal}
+                                type="select"
+                                options={LEAD_GENERATION_OPTIMIZATION_GOALS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Bid Strategy"
+                                value={bidStrategy}
+                                onChange={setBidStrategy}
+                                type="select"
+                                options={BID_STRATEGIES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Billing Event"
+                                value={billingEvent}
+                                onChange={setBillingEvent}
+                                type="select"
+                                options={LEAD_GENERATION_BILLING_EVENTS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Delivery Pacing"
+                                value={deliveryPacing}
+                                onChange={setDeliveryPacing}
+                                type="select"
+                                options={DELIVERY_PACING}
+                            />
+                        </div>
+                    </div>
+                ) : isReach ? (
+                    // Reach Row 4: Optimization Goal, Bid Strategy, Billing Event, Delivery Pacing
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Optimization Goal"
+                                value={optimizationGoal}
+                                onChange={setOptimizationGoal}
+                                type="select"
+                                options={REACH_OPTIMIZATION_GOALS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Bid Strategy"
+                                value={bidStrategy}
+                                onChange={setBidStrategy}
+                                type="select"
+                                options={BID_STRATEGIES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Billing Event"
+                                value={billingEvent}
+                                onChange={setBillingEvent}
+                                type="select"
+                                options={REACH_BILLING_EVENTS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Delivery Pacing"
+                                value={deliveryPacing}
+                                onChange={setDeliveryPacing}
+                                type="select"
+                                options={DELIVERY_PACING}
+                            />
+                        </div>
+                    </div>
+                ) : isTraffic ? (
+                    // Traffic Row 4: Optimization Goal, Bid Strategy, Billing Event, Delivery Pacing
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Optimization Goal"
+                                value={optimizationGoal}
+                                onChange={setOptimizationGoal}
+                                type="select"
+                                options={TRAFFIC_OPTIMIZATION_GOALS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Bid Strategy"
+                                value={bidStrategy}
+                                onChange={setBidStrategy}
+                                type="select"
+                                options={BID_STRATEGIES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Billing Event"
+                                value={billingEvent}
+                                onChange={setBillingEvent}
+                                type="select"
+                                options={TRAFFIC_BILLING_EVENTS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Delivery Pacing"
+                                value={deliveryPacing}
+                                onChange={setDeliveryPacing}
+                                type="select"
+                                options={DELIVERY_PACING}
+                            />
+                        </div>
+                    </div>
+                ) : isVideoViews ? (
+                    // Video Views Row 4: Optimization Goal, Bid Strategy, Delivery Pacing
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Optimization Goal"
+                                value={optimizationGoal}
+                                onChange={setOptimizationGoal}
+                                type="select"
+                                options={OPTIMIZATION_GOALS}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Bid Strategy"
+                                value={bidStrategy}
+                                onChange={setBidStrategy}
+                                type="select"
+                                options={BID_STRATEGIES}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <InputField
+                                label="Delivery Pacing"
+                                value={deliveryPacing}
+                                onChange={setDeliveryPacing}
+                                type="select"
+                                options={DELIVERY_PACING}
+                            />
+                        </div>
+                    </div>
+                ) : isAppPromotion ? (
                     // App Promotion Row 4: Optimization Goal, Bid Strategy, Delivery Pacing
                     <div className="flex justify-start items-center gap-4">
                         <div className="flex-1">
