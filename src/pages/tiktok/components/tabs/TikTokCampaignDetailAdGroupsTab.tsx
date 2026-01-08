@@ -42,6 +42,8 @@ interface TikTokCampaignDetailAdGroupsTabProps {
     syncing?: boolean;
     onSync?: () => void;
     onRefresh?: () => void;
+    campaignName?: string;
+    objectiveType?: string;
 }
 
 export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGroupsTabProps> = ({
@@ -63,6 +65,8 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
     syncing,
     onSync,
     onRefresh,
+    campaignName,
+    objectiveType,
 }) => {
     const { accountId, campaignId } = useParams<{ accountId: string; campaignId: string }>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -221,17 +225,22 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
                 campaignId={campaignId!}
-                onSubmit={async (data) => {
+                campaignName={campaignName}
+                objectiveType={objectiveType}
+                onSubmit={async (dataArray) => {
                     try {
                         if (!accountId) return;
-                        await campaignsService.createTikTokAdGroup(parseInt(accountId), {
-                            ...data,
-                            schedule_start_time: data.schedule_start_time || "",
-                        });
+                        // Create all ad groups in the array
+                        for (const data of dataArray) {
+                            await campaignsService.createTikTokAdGroup(parseInt(accountId), {
+                                ...data,
+                                schedule_start_time: data.schedule_start_time || "",
+                            });
+                        }
                         if (onRefresh) onRefresh();
                         setIsCreateModalOpen(false);
                     } catch (error) {
-                        console.error("Failed to create ad group:", error);
+                        console.error("Failed to create ad groups:", error);
                     }
                 }}
             />

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
-import { KPICard } from "../../components/ui/KPICard";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { KPICard } from "../../components/ui/KPICard";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
@@ -30,6 +30,8 @@ interface TikTokCampaignDetailData {
         create_time?: string;
         budget_mode?: string;
         start_time?: string;
+        start_date?: string;
+        end_date?: string;
     };
     chart_data?: Array<{
         date: string;
@@ -37,12 +39,28 @@ interface TikTokCampaignDetailData {
         impressions: number;
         clicks: number;
         conversions: number;
+        sales?: number;
     }>;
     kpi_cards?: Array<{
         label: string;
         value: string;
         change?: string;
         isPositive?: boolean;
+    }>;
+    top_ads?: Array<{
+        ad_name: string;
+        ad_id: string;
+        spends: string;
+        sales: string;
+        clicks: number;
+        impressions: number;
+        ctr: string;
+        status: string;
+    }>;
+    top_products?: Array<{
+        name: string;
+        asin?: string;
+        sales: string;
     }>;
 }
 
@@ -72,10 +90,10 @@ export const TikTokCampaignDetail: React.FC = () => {
 
     // Chart State
     const [chartToggles, setChartToggles] = useState({
+        sales: true,
         spend: true,
-        impressions: true,
+        impressions: false,
         clicks: false,
-        conversions: false,
     });
 
 
@@ -308,85 +326,116 @@ export const TikTokCampaignDetail: React.FC = () => {
                         </h1>
                     </div>
 
-                    {/* Campaign Info Block - Amazon Style Ref */}
-                    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 mb-6">
-                        <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
+                    {/* Campaign Info Block - Amazon Style */}
+                    <div className="h-64 p-6 bg-[#F9F9F6] rounded-2xl border border-[#E3E3E3] flex flex-col justify-start items-start gap-4 mb-6">
+                        {/* Title */}
+                        <div className="self-stretch text-teal-950 text-2xl font-medium">
                             Campaign Information
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        </div>
 
-                            {/* Campaign Name */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Campaign Name
-                                </label>
-                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate" title={campaignDetail.campaign.campaign_name}>
-                                    {campaignDetail.campaign.campaign_name}
+                        {/* Three Column Layout */}
+                        <div className="self-stretch flex-1 flex justify-start items-start gap-32">
+                            {/* Column 1 */}
+                            <div className="flex flex-col justify-start items-start gap-4">
+                                {/* Campaign Name */}
+                                <div className="h-11 flex flex-col justify-start items-start gap-1">
+                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
+                                        Campaign Name
+                                    </div>
+                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
+                                        {campaignDetail.campaign.campaign_name}
+                                    </div>
+                                </div>
+
+                                {/* Budget */}
+                                <div className="h-11 flex flex-col justify-start items-start gap-1">
+                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
+                                        Budget
+                                    </div>
+                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
+                                        {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(campaignDetail.campaign.budget || 0)}
+                                    </div>
+                                </div>
+
+                                {/* Budget Type */}
+                                <div className="h-11 flex flex-col justify-start items-start gap-1">
+                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
+                                        Budget Type
+                                    </div>
+                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
+                                        {campaignDetail.campaign.budget_mode 
+                                            ? campaignDetail.campaign.budget_mode.replace(/_/g, " ").replace("BUDGET MODE ", "").replace("DYNAMIC DAILY BUDGET", "Daily").replace("TOTAL", "Lifetime").replace("DAY", "Daily")
+                                            : "Daily"}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Campaign ID */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Campaign ID
-                                </label>
-                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-mono">
-                                    {campaignDetail.campaign.campaign_id}
+                            {/* Column 2 */}
+                            <div className="flex-1 flex flex-col justify-start items-start gap-4">
+                                {/* Campaign ID */}
+                                <div className="h-11 flex flex-col justify-start items-start gap-1">
+                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
+                                        Campaign ID
+                                    </div>
+                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
+                                        {campaignDetail.campaign.campaign_id}
+                                    </div>
+                                </div>
+
+                                {/* Start Date */}
+                                <div className="h-11 flex flex-col justify-start items-start gap-1">
+                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
+                                        Start Date
+                                    </div>
+                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
+                                        {campaignDetail.campaign.start_date
+                                            ? new Date(campaignDetail.campaign.start_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                                            : (campaignDetail.campaign.create_time 
+                                                ? new Date(campaignDetail.campaign.create_time).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                                                : "-")}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Status */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Status
-                                </label>
-                                <div>
-                                    <StatusBadge status={campaignDetail.campaign.operation_status} />
+                            {/* Column 3 */}
+                            <div className="flex-1 flex flex-col justify-start items-start gap-4">
+                                {/* Status */}
+                                <div className="h-11 flex flex-col justify-start items-start gap-1">
+                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
+                                        Status
+                                    </div>
+                                    <div 
+                                        data-campaign-status={campaignDetail.campaign.operation_status}
+                                        className={`h-5 px-2 py-0.5 rounded-full inline-flex justify-center items-center gap-2.5 ${
+                                            campaignDetail.campaign.operation_status === 'ENABLE' || campaignDetail.campaign.operation_status === 'ENABLED'
+                                                ? 'bg-zinc-200 text-teal-900'
+                                                : campaignDetail.campaign.operation_status === 'DISABLE' || campaignDetail.campaign.operation_status === 'PAUSED'
+                                                ? 'bg-gray-300 text-gray-700'
+                                                : 'bg-zinc-200 text-teal-900'
+                                        }`}
+                                    >
+                                        <div className="text-xs font-medium leading-4 tracking-tight">
+                                            {campaignDetail.campaign.operation_status === 'ENABLE' || campaignDetail.campaign.operation_status === 'ENABLED' 
+                                                ? 'Enable' 
+                                                : campaignDetail.campaign.operation_status === 'DISABLE' || campaignDetail.campaign.operation_status === 'PAUSED'
+                                                ? 'Pause'
+                                                : campaignDetail.campaign.operation_status}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Objective Type */}
+                                <div className="h-11 flex flex-col justify-start items-start gap-1">
+                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
+                                        Objective Type
+                                    </div>
+                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
+                                        {campaignDetail.campaign.objective_type 
+                                            ? campaignDetail.campaign.objective_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
+                                            : "-"}
+                                    </div>
                                 </div>
                             </div>
-
-                            {/* Budget */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Budget
-                                </label>
-                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                    {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(campaignDetail.campaign.budget)}
-                                </div>
-                            </div>
-
-                            {/* Start Date */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Start Date
-                                </label>
-                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                    {campaignDetail.campaign.start_time
-                                        ? new Date(campaignDetail.campaign.start_time).toLocaleDateString()
-                                        : (campaignDetail.campaign.create_time ? new Date(campaignDetail.campaign.create_time).toLocaleDateString() : "-")}
-                                </div>
-                            </div>
-
-                            {/* Objective Type */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Objective Type
-                                </label>
-                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] capitalize">
-                                    {campaignDetail.campaign.objective_type?.replace(/_/g, " ").toLowerCase() || "-"}
-                                </div>
-                            </div>
-
-                            {/* Budget Type */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Budget Type
-                                </label>
-                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] capitalize">
-                                    {campaignDetail.campaign.budget_mode?.replace(/_/g, " ").toLowerCase() || "Daily"}
-                                </div>
-                            </div>
-
                         </div>
                     </div>
 
@@ -447,6 +496,12 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 }
                                 metrics={[
                                     {
+                                        key: "sales",
+                                        label: "Sales",
+                                        color: "#136D6D",
+                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val)
+                                    },
+                                    {
                                         key: "spend",
                                         label: "Spend",
                                         color: "#506766",
@@ -464,13 +519,10 @@ export const TikTokCampaignDetail: React.FC = () => {
                                         color: "#169aa3",
                                         tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
                                     },
-                                    {
-                                        key: "conversions",
-                                        label: "Conversions",
-                                        color: "#10B981",
-                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
-                                    },
                                 ]}
+                                topAds={campaignDetail.top_ads || []}
+                                topProducts={campaignDetail.top_products || []}
+                                loading={loading}
                             />
                         )}
 
@@ -500,6 +552,8 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 filters={adgroupsFilters}
                                 onApplyFilters={setAdgroupsFilters}
                                 onRefresh={loadAdGroups}
+                                campaignName={campaignDetail?.campaign?.campaign_name}
+                                objectiveType={campaignDetail?.campaign?.objective_type ? campaignDetail.campaign.objective_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "Website Conversions"}
                             />
                         )}
 
