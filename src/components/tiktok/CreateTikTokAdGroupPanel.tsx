@@ -29,15 +29,11 @@ export interface TikTokAdGroupInput {
     // App Retargeting fields
     optimization_event?: string;
     optimization_event_window?: number;
-    // Lead Generation fields
-    promotion_target_type?: string; // INSTANT_PAGE or EXTERNAL_WEBSITE (replaces lead_form_id)
-    // Product Sales fields
-    catalog_id?: string; // API uses catalog_id, not product_catalog_id
+    // Product Sales fields (only fields that exist in DB)
     product_source?: string; // CATALOG, STORE, or SHOWCASE
     shopping_ads_type?: string; // VIDEO, LIVE, or PRODUCT_SHOPPING_ADS (required for PRODUCT_SALES)
-    store_id?: string; // TikTok Shop ID (when product_source is STORE)
-    catalog_authorized_bc_id?: string; // Business Center ID for catalog
-    store_authorized_bc_id?: string; // Business Center ID for store
+    // Note: catalog_id, promotion_target_type, store_id, catalog_authorized_bc_id, store_authorized_bc_id
+    // are not stored in DB yet (ETL dependent) - removed from frontend
     // Note: sales_destination is campaign-level only, not ad group level
 }
 
@@ -221,10 +217,7 @@ const SHOPPING_ADS_TYPES = [
 ];
 
 // Promotion Target Types (for LEAD_GENERATION)
-const PROMOTION_TARGET_TYPES = [
-    { value: "INSTANT_PAGE", label: "Instant Form" },
-    { value: "EXTERNAL_WEBSITE", label: "Website Form" },
-];
+// Note: PROMOTION_TARGET_TYPES removed - promotion_target_type field not in DB yet (ETL dependent)
 
 // Sales Merged-specific optimization goals (same as Product Sales)
 const SALES_MERGED_OPTIMIZATION_GOALS = [
@@ -325,16 +318,11 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
     // App Retargeting specific fields
     const [retargetingEvent, setRetargetingEvent] = useState("INSTALL");
     const [lookbackWindow, setLookbackWindow] = useState("30");
-    // Lead Generation specific fields (API uses promotion_target_type, not lead_form_id)
-    const [promotionTargetType, setPromotionTargetType] = useState("INSTANT_PAGE");
-    // Product Sales specific fields
-    const [catalogId, setCatalogId] = useState(""); // API uses catalog_id, not product_catalog_id
+    // Product Sales specific fields (only fields that exist in DB)
     const [productSource, setProductSource] = useState("STORE"); // STORE, CATALOG, or SHOWCASE
     const [shoppingAdsType, setShoppingAdsType] = useState("VIDEO"); // VIDEO, LIVE, or PRODUCT_SHOPPING_ADS
-    const [storeId, setStoreId] = useState(""); // TikTok Shop ID (when product_source is STORE)
-    const [catalogAuthorizedBcId, setCatalogAuthorizedBcId] = useState(""); // Business Center ID for catalog
-    const [storeAuthorizedBcId, setStoreAuthorizedBcId] = useState(""); // Business Center ID for store
-    // Note: sales_destination is campaign-level only, not ad group level
+    // Note: catalog_id, promotion_target_type, store_id, catalog_authorized_bc_id, store_authorized_bc_id
+    // are not stored in DB yet (ETL dependent) - removed from frontend
 
     // Ad Groups list (for "Add more" functionality)
     const [adGroups, setAdGroups] = useState<AdGroupFormData[]>([]);
@@ -595,15 +583,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 }
 
                 // Add lead generation fields for LEAD_GENERATION objective
-                const currentIsLeadGeneration = normalizedObjectiveType === "LEAD GENERATION" ||
-                                                normalizedObjectiveType === "LEAD_GENERATION" ||
-                                                objectiveType === "Lead Generation";
-                if (currentIsLeadGeneration) {
-                    // API uses promotion_target_type, not lead_form_id
-                    if (promotionTargetType) {
-                        baseData.promotion_target_type = promotionTargetType;
-                    }
-                }
+                // Note: promotion_target_type removed - field not in DB yet (ETL dependent)
+                // Lead Generation ad groups will use default TikTok API behavior
 
                 // Add product sales fields for PRODUCT_SALES objective
                 const currentIsProductSales = normalizedObjectiveType === "PRODUCT SALES" ||
@@ -614,24 +595,11 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     if (shoppingAdsType) {
                         baseData.shopping_ads_type = shoppingAdsType;
                     }
-                    // API uses catalog_id, not product_catalog_id
-                    if (catalogId && catalogId.trim() !== "") {
-                        baseData.catalog_id = catalogId.trim();
-                    }
                     if (productSource) {
                         baseData.product_source = productSource;
                     }
-                    // Store ID is required when product_source is STORE
-                    if (productSource === "STORE" && storeId && storeId.trim() !== "") {
-                        baseData.store_id = storeId.trim();
-                    }
-                    // Business Center IDs
-                    if (catalogAuthorizedBcId && catalogAuthorizedBcId.trim() !== "") {
-                        baseData.catalog_authorized_bc_id = catalogAuthorizedBcId.trim();
-                    }
-                    if (storeId && storeAuthorizedBcId && storeAuthorizedBcId.trim() !== "") {
-                        baseData.store_authorized_bc_id = storeAuthorizedBcId.trim();
-                    }
+                    // Note: catalog_id, store_id, catalog_authorized_bc_id, store_authorized_bc_id
+                    // removed - fields not in DB yet (ETL dependent)
                     // Add pixel_id and optimization_event for CATALOG source (website/app catalogs)
                     if (productSource === "CATALOG") {
                         if (trackingPixel && trackingPixel.trim() !== "") {
@@ -652,12 +620,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                                               objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
                 if (currentIsSalesMerged) {
                     // Similar to PRODUCT_SALES, but sales_destination is set at campaign level
-                    // Ad groups may need catalog_id, app_id, pixel_id based on campaign settings
-                    // This would need to be determined from campaign data, not ad group form
-                    // For now, we'll support basic fields that might be needed
-                    if (catalogId && catalogId.trim() !== "") {
-                        baseData.catalog_id = catalogId.trim();
-                    }
+                    // Ad groups may need app_id, pixel_id based on campaign settings
+                    // Note: catalog_id removed - field not in DB yet (ETL dependent)
                     if (appId && appId.trim() !== "") {
                         baseData.app_id = appId.trim();
                     }
@@ -807,16 +771,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 }
             }
 
-            // Add lead generation fields for LEAD_GENERATION objective
-            const currentIsLeadGeneration = normalizedObjTypeForSubmit === "LEAD GENERATION" ||
-                                            normalizedObjTypeForSubmit === "LEAD_GENERATION" ||
-                                            objectiveType === "Lead Generation";
-            if (currentIsLeadGeneration) {
-                // API uses promotion_target_type, not lead_form_id
-                if (promotionTargetType) {
-                    adGroupData.promotion_target_type = promotionTargetType;
-                }
-            }
+            // Note: promotion_target_type removed - field not in DB yet (ETL dependent)
+            // Lead Generation ad groups will use default TikTok API behavior
 
             // Add product sales fields for PRODUCT_SALES objective
             const currentIsProductSales = normalizedObjTypeForSubmit === "PRODUCT SALES" ||
@@ -827,24 +783,11 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 if (shoppingAdsType) {
                     adGroupData.shopping_ads_type = shoppingAdsType;
                 }
-                // API uses catalog_id, not product_catalog_id
-                if (catalogId && catalogId.trim() !== "") {
-                    adGroupData.catalog_id = catalogId.trim();
-                }
                 if (productSource) {
                     adGroupData.product_source = productSource;
                 }
-                // Store ID is required when product_source is STORE
-                if (productSource === "STORE" && storeId && storeId.trim() !== "") {
-                    adGroupData.store_id = storeId.trim();
-                }
-                // Business Center IDs
-                if (catalogAuthorizedBcId && catalogAuthorizedBcId.trim() !== "") {
-                    adGroupData.catalog_authorized_bc_id = catalogAuthorizedBcId.trim();
-                }
-                if (storeId && storeAuthorizedBcId && storeAuthorizedBcId.trim() !== "") {
-                    adGroupData.store_authorized_bc_id = storeAuthorizedBcId.trim();
-                }
+                // Note: catalog_id, store_id, catalog_authorized_bc_id, store_authorized_bc_id
+                // removed - fields not in DB yet (ETL dependent)
                 // Add pixel_id and optimization_event for CATALOG source
                 if (productSource === "CATALOG") {
                     if (trackingPixel && trackingPixel.trim() !== "") {
@@ -898,13 +841,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
         // Reset App Promotion fields
         setAppPromotionType("APP_INSTALL");
         setAppStore("IOS");
-        setPromotionTargetType("INSTANT_PAGE");
-        setCatalogId("");
         setProductSource("STORE");
         setShoppingAdsType("VIDEO");
-        setStoreId("");
-        setCatalogAuthorizedBcId("");
-        setStoreAuthorizedBcId("");
         setAppId("");
         setOptimizeProfile(false);
         setSmartPerformance(true);
@@ -1157,16 +1095,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 {/* Row 2: Conditional based on objective type */}
                 {isSalesMerged ? (
                     // Sales Merged Row 2: Note - sales_destination is campaign-level only
-                    // Ad groups may need catalog_id, app_id, pixel_id based on campaign settings
+                    // Ad groups may need app_id, pixel_id based on campaign settings
                     <div className="flex flex-wrap gap-4 items-center">
-                        <div className="w-full md:w-96">
-                            <InputField
-                                label="Catalog ID"
-                                value={catalogId}
-                                onChange={setCatalogId}
-                                placeholder="Enter Catalog ID (if needed)"
-                            />
-                        </div>
                         <div className="w-full md:w-96">
                             <InputField
                                 label="App Store / OS"
@@ -1193,36 +1123,6 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                                 </div>
                             </div>
                         </div>
-                        {false && (
-                            <>
-                                <div className="w-full md:w-96">
-                                    <InputField
-                                        label="App Store / OS"
-                                        value={appStore}
-                                        onChange={setAppStore}
-                                        type="select"
-                                        options={APP_STORES}
-                                    />
-                                </div>
-                                <div className="w-full md:w-96">
-                                    <div className="flex flex-col justify-start items-start">
-                                        <label className="self-stretch pb-1 text-base font-medium text-[#072929] mb-2">
-                                            App ID
-                                        </label>
-                                        <div className="relative w-full h-12 px-3 py-2 rounded-xl border bg-white border-[#E3E3E3] flex items-center">
-                                            <input
-                                                type="text"
-                                                value={appId}
-                                                onChange={(e) => setAppId(e.target.value)}
-                                                placeholder="Enter App ID"
-                                                className="flex-1 text-sm text-[#072929] bg-transparent outline-none"
-                                            />
-                                            <Search className="w-5 h-5 text-[#136D6D]" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </>
-                        )}
                         <div className="w-full md:w-96">
                             <InputField
                                 label="Placement Type"
@@ -1281,7 +1181,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                         </div>
                     </div>
                 ) : isProductSales ? (
-                    // Product Sales Row 2: Shopping Ads Type, Product Source, Catalog ID, Store ID (conditional), Placement Type, Budget Type, Budget
+                    // Product Sales Row 2: Shopping Ads Type, Product Source, Placement Type, Budget Type, Budget
                     <div className="flex flex-wrap gap-4 items-center">
                         <div className="w-full md:w-96">
                             <InputField
@@ -1301,24 +1201,6 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                                 options={PRODUCT_SOURCES}
                             />
                         </div>
-                        <div className="w-full md:w-96">
-                            <InputField
-                                label="Catalog ID"
-                                value={catalogId}
-                                onChange={setCatalogId}
-                                placeholder="Enter Catalog ID"
-                            />
-                        </div>
-                        {productSource === "STORE" && (
-                            <div className="w-full md:w-96">
-                                <InputField
-                                    label="TikTok Shop ID"
-                                    value={storeId}
-                                    onChange={setStoreId}
-                                    placeholder="Enter TikTok Shop ID"
-                                />
-                            </div>
-                        )}
                         <div className="w-full md:w-96">
                             <InputField
                                 label="Placement Type"
@@ -1347,17 +1229,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                         </div>
                     </div>
                 ) : isLeadGeneration ? (
-                    // Lead Generation Row 2: Promotion Target Type, Placement Type, Budget Type, Budget
+                    // Lead Generation Row 2: Placement Type, Budget Type, Budget
                     <div className="flex flex-wrap gap-4 items-center">
-                        <div className="w-full md:w-96">
-                            <InputField
-                                label="Promotion Target Type"
-                                value={promotionTargetType}
-                                onChange={setPromotionTargetType}
-                                type="select"
-                                options={PROMOTION_TARGET_TYPES}
-                            />
-                        </div>
                         <div className="w-full md:w-96">
                             <InputField
                                 label="Placement Type"
