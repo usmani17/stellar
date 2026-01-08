@@ -764,6 +764,12 @@ export const CampaignDetail: React.FC = () => {
     }
   }, [activeTab, startDate, endDate, targetsFilters]);
 
+  useEffect(() => {
+    if (activeTab === "Ads Collection") {
+      setSbAdsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, sbAdsFilters]);
+
   const buildKeywordsFilterParams = (filterList: FilterValues) => {
     const params: any = {};
 
@@ -1209,6 +1215,22 @@ export const CampaignDetail: React.FC = () => {
     targetsSortBy,
     targetsSortOrder,
     targetsFilters,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Ads Collection") {
+      loadSBAds();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    sbAdsCurrentPage,
+    sbAdsSortBy,
+    sbAdsSortOrder,
+    sbAdsFilters,
   ]);
 
   // Load negative keywords for auto campaigns
@@ -8344,6 +8366,7 @@ export const CampaignDetail: React.FC = () => {
               activeTab !== "Ad Groups" &&
               activeTab !== "Keywords" &&
               activeTab !== "Product Ads" &&
+              activeTab !== "Ads Collection" &&
               activeTab !== "Targets" &&
               activeTab !== "Negative Keywords" &&
               activeTab !== "Negative Targets" &&

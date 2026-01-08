@@ -4,15 +4,20 @@ import { StatusBadge } from "../ui/StatusBadge";
 
 export interface SBAd {
   id: number;
+  profileId?: string;
   adId?: string | number;
   name?: string;
   state?: string;
   status?: string;
   adGroupId?: string | number;
   campaignId?: string | number;
-  landingPage?: any;
-  creative?: any;
+  landingPage?: string | any; // Can be JSON string or object
+  creative?: string | any; // Can be JSON string or object
   servingStatus?: string;
+  servingStatusDetails?: string | string[]; // Can be JSON string or array
+  creationDateTime?: string | null;
+  lastUpdateDateTime?: string | null;
+  last_updated?: string;
 }
 
 interface SBAdsTableProps {
@@ -85,7 +90,8 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
     );
   };
 
-  const allSelected = ads.length > 0 && ads.every((ad) => selectedIds.has(ad.id));
+  const allSelected =
+    ads.length > 0 && ads.every((ad) => selectedIds.has(ad.id));
   const someSelected = ads.some((ad) => selectedIds.has(ad.id));
 
   const handleSelectAll = (checked: boolean) => {
@@ -156,8 +162,35 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                     {getSortIcon("adGroupId")}
                   </div>
                 </th>
+                <th
+                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => onSort?.("campaignId")}
+                >
+                  <div className="flex items-center">
+                    Campaign ID
+                    {getSortIcon("campaignId")}
+                  </div>
+                </th>
                 <th className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left">
                   Serving Status
+                </th>
+                <th
+                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => onSort?.("creationDateTime")}
+                >
+                  <div className="flex items-center">
+                    Creation Date
+                    {getSortIcon("creationDateTime")}
+                  </div>
+                </th>
+                <th
+                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => onSort?.("lastUpdateDateTime")}
+                >
+                  <div className="flex items-center">
+                    Last Update Date
+                    {getSortIcon("lastUpdateDateTime")}
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -165,7 +198,53 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
               {ads.map((ad) => {
                 const statusValue = ad.status || ad.state || "";
                 const isArchived = statusValue?.toLowerCase() === "archived";
-                
+
+                // Parse landingPage if it's a JSON string
+                let landingPageObj: any = null;
+                if (ad.landingPage) {
+                  try {
+                    landingPageObj =
+                      typeof ad.landingPage === "string"
+                        ? JSON.parse(ad.landingPage)
+                        : ad.landingPage;
+                  } catch (e) {
+                    // If parsing fails, use as is
+                    landingPageObj = ad.landingPage;
+                  }
+                }
+
+                // Parse creative if it's a JSON string
+                let creativeObj: any = null;
+                if (ad.creative) {
+                  try {
+                    creativeObj =
+                      typeof ad.creative === "string"
+                        ? JSON.parse(ad.creative)
+                        : ad.creative;
+                  } catch (e) {
+                    // If parsing fails, use as is
+                    creativeObj = ad.creative;
+                  }
+                }
+
+                // Format dates
+                const formatDate = (dateStr: string | null | undefined) => {
+                  if (!dateStr) return "—";
+                  try {
+                    const date = new Date(dateStr);
+                    return (
+                      date.toLocaleDateString() +
+                      " " +
+                      date.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    );
+                  } catch (e) {
+                    return dateStr;
+                  }
+                };
+
                 return (
                   <tr
                     key={ad.id}
@@ -191,10 +270,23 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                       <StatusBadge status={statusValue} />
                     </td>
                     <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                      {ad.adGroupId || "—"}
+                      {ad.adGroupId != null && ad.adGroupId !== ""
+                        ? String(ad.adGroupId)
+                        : "—"}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {ad.campaignId != null && ad.campaignId !== ""
+                        ? String(ad.campaignId)
+                        : "—"}
                     </td>
                     <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {ad.servingStatus || "—"}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {formatDate(ad.creationDateTime)}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {formatDate(ad.lastUpdateDateTime)}
                     </td>
                   </tr>
                 );
@@ -206,4 +298,3 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
     </div>
   );
 };
-
