@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { ChevronDown, Calendar, Search, Plus } from "lucide-react";
 import { campaignsService } from "../../services/campaigns";
+import { Dropdown } from "../ui/Dropdown";
 
 export interface TikTokAdGroupInput {
     campaign_id: string;
@@ -994,47 +995,29 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                         <Calendar className="w-5 h-5 text-[#136D6D]" />
                     </div>
                 </div>
+            ) : type === 'select' && options ? (
+                <Dropdown<string>
+                    options={options}
+                    value={value}
+                    onChange={(val) => onChange(val)}
+                    placeholder={placeholder || `Select ${label.toLowerCase()}`}
+                    disabled={disabled}
+                    buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                />
             ) : (
-                <div className={`relative w-full ${
-                    type === 'select' ? 'h-[38px]' : 'h-12'
-                } ${type === 'select' ? 'px-4 py-2.5' : 'px-3 py-2'} ${
-                    type === 'select' ? 'rounded-lg' : 'rounded-xl'
-                } border ${
-                    disabled ? 'bg-[#F0F0ED] border-[#D1D1C7]' : 
-                    type === 'select' ? 'bg-[#FEFEFB] border-gray-200' : 'bg-white border-[#E3E3E3]'
+                <div className={`relative w-full h-12 px-3 py-2 rounded-xl border ${
+                    disabled ? 'bg-[#F0F0ED] border-[#D1D1C7]' : 'bg-white border-[#E3E3E3]'
                 } flex items-center`}>
-                    {type === 'select' && options ? (
-                        <>
-                            <select
-                                value={value}
-                                onChange={(e) => onChange(e.target.value)}
-                                disabled={disabled}
-                                className={`flex-1 text-[14px] ${
-                                    disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
-                                } bg-transparent outline-none appearance-none`}
-                            >
-                                {options.map(option => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            {!disabled && (
-                                <ChevronDown className="w-4 h-4 text-[#072929] rotate-0 flex-shrink-0 transition-transform" />
-                            )}
-                        </>
-                    ) : (
-                        <input
-                            type={type}
-                            value={value}
-                            onChange={(e) => onChange(e.target.value)}
-                            placeholder={placeholder}
-                            disabled={disabled}
-                            className={`flex-1 text-sm ${
-                                disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
-                            } ${placeholder && !value ? 'text-[#BFBFBF]' : ''} bg-transparent outline-none`}
-                        />
-                    )}
+                    <input
+                        type={type}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder={placeholder}
+                        disabled={disabled}
+                        className={`flex-1 text-sm ${
+                            disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
+                        } ${placeholder && !value ? 'text-[#BFBFBF]' : ''} bg-transparent outline-none`}
+                    />
                 </div>
             )}
         </div>
