@@ -1633,8 +1633,8 @@ export const campaignsService = {
     accountId: number,
     payload: {
       keywordIds: Array<string | number>;
-      action: "status" | "bid";
-      status?: "enable" | "pause" | "archive";
+      action: "status" | "bid" | "archive";
+      status?: "enable" | "pause";
       bid?: number;
     }
   ) => {
@@ -1662,6 +1662,8 @@ export const campaignsService = {
       negativeKeywordIdFilter: {
         include: Array<string | number>;
       };
+      campaignType?: string;
+      campaignId?: string | number;
     }
   ) => {
     const url = `/accounts/${accountId}/negative-keywords/bulk-delete/`;

@@ -291,6 +291,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               options={[
                                 { value: "enabled", label: "Enabled" },
                                 { value: "paused", label: "Paused" },
+                                { value: "archive", label: "Archive" },
                               ]}
                               value={(() => {
                                 if (editedValue) return editedValue;

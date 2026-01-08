@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
@@ -73,6 +73,7 @@ export const CampaignDetail: React.FC = () => {
     accountId: string;
     campaignTypeAndId: string;
   }>();
+  const [searchParams] = useSearchParams();
   const { startDate, endDate } = useDateRange();
   const { sidebarWidth } = useSidebar();
 
@@ -590,14 +591,18 @@ export const CampaignDetail: React.FC = () => {
     }
 
     // Show Ads Collection only for SB campaigns, Product Ads only for SP campaigns
+    // Show Assets only for SB campaigns
     if (campaignType === "SB") {
       filteredTabs = filteredTabs.filter((tab) => tab !== "Product Ads");
     } else if (campaignType === "SP") {
-      filteredTabs = filteredTabs.filter((tab) => tab !== "Ads Collection");
-    } else {
-      // SD campaigns - hide both
       filteredTabs = filteredTabs.filter(
-        (tab) => tab !== "Product Ads" && tab !== "Ads Collection"
+        (tab) => tab !== "Ads Collection" && tab !== "Assets"
+      );
+    } else {
+      // SD campaigns - hide Ads Collection, Product Ads, and Assets
+      filteredTabs = filteredTabs.filter(
+        (tab) =>
+          tab !== "Product Ads" && tab !== "Ads Collection" && tab !== "Assets"
       );
     }
 
@@ -621,8 +626,20 @@ export const CampaignDetail: React.FC = () => {
           );
         }
       }
+    } else if (campaignType === "SB") {
+      // For SB campaigns, show Negative Keywords and Negative Targets tabs
+      // Insert Negative Keywords right after Keywords if not already present
+      const keywordsIndex = filteredTabs.indexOf("Keywords");
+      if (keywordsIndex !== -1 && !filteredTabs.includes("Negative Keywords")) {
+        filteredTabs.splice(keywordsIndex + 1, 0, "Negative Keywords");
+      }
+      // Insert Negative Targets right after Negative Keywords if not already present
+      const negativeKeywordsIndex = filteredTabs.indexOf("Negative Keywords");
+      if (negativeKeywordsIndex !== -1 && !filteredTabs.includes("Negative Targets")) {
+        filteredTabs.splice(negativeKeywordsIndex + 1, 0, "Negative Targets");
+      }
     } else {
-      // For non-auto campaigns, hide Negative Keywords and Negative Targets
+      // For non-auto SP campaigns and other types, hide Negative Keywords and Negative Targets
       filteredTabs = filteredTabs.filter(
         (tab) => tab !== "Negative Keywords" && tab !== "Negative Targets"
       );
@@ -630,6 +647,52 @@ export const CampaignDetail: React.FC = () => {
 
     return filteredTabs;
   }, [campaignType, isAutoCampaign]);
+
+  // Read tab from query parameter on mount (one-directional: URL → tab, not tab → URL)
+  // Use a ref to track if we've read the query param for this campaign
+  const hasReadTabParam = useRef<string | null>(null);
+  useEffect(() => {
+    // Reset ref when campaign changes
+    const campaignKey = `${accountId}-${campaignId}`;
+    if (hasReadTabParam.current !== campaignKey) {
+      hasReadTabParam.current = null; // Reset to allow reading for new campaign
+    }
+
+    // Only read query parameter once per campaign
+    if (hasReadTabParam.current === campaignKey) return;
+
+    const tabParam = searchParams.get("tab");
+    if (tabParam && tabs.length > 0) {
+      // Map query parameter to tab name (e.g., "keywords" -> "Keywords")
+      const tabNameMap: Record<string, string> = {
+        overview: "Overview",
+        "ad-groups": "Ad Groups",
+        keywords: "Keywords",
+        "product-ads": "Product Ads",
+        "ads-collection": "Ads Collection",
+        targets: "Targets",
+        "negative-keywords": "Negative Keywords",
+        "negative-targets": "Negative Targets",
+        assets: "Assets",
+        logs: "Logs",
+      };
+
+      // Also support direct tab names (case-insensitive)
+      const normalizedParam = tabParam.toLowerCase();
+      const mappedTab =
+        tabNameMap[normalizedParam] ||
+        tabParam.charAt(0).toUpperCase() + tabParam.slice(1); // Capitalize first letter
+
+      // Only set tab if it exists in the available tabs list
+      if (tabs.includes(mappedTab)) {
+        setActiveTab(mappedTab);
+      }
+      hasReadTabParam.current = campaignKey;
+    } else if (!tabParam) {
+      // If no tab param, mark as read to avoid re-checking
+      hasReadTabParam.current = campaignKey;
+    }
+  }, [accountId, campaignId, searchParams, tabs]); // Run when campaign changes, tabs are computed, or searchParams change
 
   // Switch away from Keywords tab if campaign type is SD
   useEffect(() => {
@@ -1172,13 +1235,15 @@ export const CampaignDetail: React.FC = () => {
     keywordsFilters,
   ]);
 
+  // Load assets when Assets tab is active (only for SB campaigns)
   useEffect(() => {
-    if (accountId && activeTab === "Assets") {
+    if (accountId && activeTab === "Assets" && campaignType === "SB") {
       loadAssets();
     }
   }, [
     accountId,
     activeTab,
+    campaignType,
     assetsCurrentPage,
     assetsSortBy,
     assetsSortOrder,
@@ -1233,14 +1298,14 @@ export const CampaignDetail: React.FC = () => {
     sbAdsFilters,
   ]);
 
-  // Load negative keywords for auto campaigns
+  // Load negative keywords for auto campaigns and SB campaigns
   useEffect(() => {
     if (
       accountId &&
       campaignId &&
       activeTab === "Negative Keywords" &&
-      isAutoCampaign &&
-      campaignType
+      campaignType &&
+      ((campaignType === "SP" && isAutoCampaign) || campaignType === "SB")
     ) {
       loadNegativeKeywords();
     }
@@ -1256,14 +1321,14 @@ export const CampaignDetail: React.FC = () => {
     negativeKeywordsFilters,
   ]);
 
-  // Load negative targets for auto campaigns
+  // Load negative targets for auto campaigns and SB campaigns
   useEffect(() => {
     if (
       accountId &&
       campaignId &&
       activeTab === "Negative Targets" &&
-      isAutoCampaign &&
-      campaignType
+      campaignType &&
+      ((campaignType === "SP" && isAutoCampaign) || campaignType === "SB")
     ) {
       loadNegativeTargets();
     }
@@ -1278,14 +1343,14 @@ export const CampaignDetail: React.FC = () => {
     campaignType,
   ]);
 
-  // Load negative targets for auto campaigns
+  // Load negative targets for auto campaigns and SB campaigns (with filters)
   useEffect(() => {
     if (
       accountId &&
       campaignId &&
       activeTab === "Negative Targets" &&
-      isAutoCampaign &&
-      campaignType
+      campaignType &&
+      ((campaignType === "SP" && isAutoCampaign) || campaignType === "SB")
     ) {
       loadNegativeTargets();
     }
@@ -1753,7 +1818,7 @@ export const CampaignDetail: React.FC = () => {
   const [failedTargets, setFailedTargets] = useState<any[]>([]);
 
   const handleCreateTargets = async (targets: TargetInput[]) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (!accountId || !campaignId || (campaignType !== "SP" && campaignType !== "SB")) return;
 
     setCreateTargetLoading(true);
     setCreateTargetError(null);
@@ -1768,11 +1833,24 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.createTargets(
-        accountIdNum,
-        campaignId,
-        {
-          targets: targets.map((tgt) => ({
+      // Format targets based on campaign type
+      const formattedTargets = targets.map((tgt) => {
+        if (campaignType === "SB") {
+          // SB: use expressions (plural), no expressionType, no state at creation
+          return {
+            adGroupId: tgt.adGroupId,
+            campaignId: campaignId,
+            bid: tgt.bid,
+            expressions: [
+              {
+                type: tgt.expressionType,
+                value: tgt.expressionValue,
+              },
+            ],
+          };
+        } else {
+          // SP: use expression (singular), include expressionType and state
+          return {
             adGroupId: tgt.adGroupId,
             campaignId: campaignId,
             bid: tgt.bid,
@@ -1784,7 +1862,15 @@ export const CampaignDetail: React.FC = () => {
             ],
             expressionType: "MANUAL",
             state: tgt.state,
-          })),
+          };
+        }
+      });
+
+      const response = await campaignsService.createTargets(
+        accountIdNum,
+        campaignId,
+        {
+          targets: formattedTargets,
         }
       );
 
@@ -1864,15 +1950,30 @@ export const CampaignDetail: React.FC = () => {
       // Extract error message and field errors
       let errorMessage = "Failed to create targets. Please try again.";
       let fieldErrors: Record<string, string> = {};
+      let failedTargetsData: any[] = [];
 
       if (error?.response?.data) {
-        if (error.response.data.field_errors) {
-          fieldErrors = error.response.data.field_errors;
-          errorMessage = error.response.data.error || errorMessage;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
+        const errorData = error.response.data;
+        
+        // Check for field errors first
+        if (errorData.field_errors) {
+          fieldErrors = errorData.field_errors;
+        }
+        
+        // Check for errors array (plural) - this contains the actual error messages
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          // Use the first error message from the array
+          errorMessage = errorData.errors[0];
+        } else if (errorData.error) {
+          // Fallback to error (singular) if errors array is not present
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        // Extract failed targets if available
+        if (errorData.failed_targets && Array.isArray(errorData.failed_targets)) {
+          failedTargetsData = errorData.failed_targets;
         }
       } else if (error?.message) {
         errorMessage = error.message;
@@ -1881,7 +1982,7 @@ export const CampaignDetail: React.FC = () => {
       setCreateTargetError(errorMessage);
       setCreateTargetFieldErrors(fieldErrors);
       setFailedTargetCount(targets.length); // All failed
-      setFailedTargets([]); // No specific failed targets data in error case
+      setFailedTargets(failedTargetsData); // Use failed targets from response if available
       // Don't close panel on error - let user fix and resubmit
     } finally {
       setCreateTargetLoading(false);
@@ -1891,7 +1992,12 @@ export const CampaignDetail: React.FC = () => {
   const handleCreateNegativeKeywords = async (
     negativeKeywords: NegativeKeywordInput[]
   ) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (
+      !accountId ||
+      !campaignId ||
+      (campaignType !== "SP" && campaignType !== "SB")
+    )
+      return;
 
     setCreateNegativeKeywordLoading(true);
     setCreateNegativeKeywordError(null);
@@ -3255,19 +3361,28 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingKeywordChange.field === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause"> = {
-          enabled: "enable",
-          paused: "pause",
-        };
-        const statusValue =
-          statusMap[pendingKeywordChange.newValue.toLowerCase()] || "enable";
+        const newValueLower = pendingKeywordChange.newValue.toLowerCase();
 
-        await campaignsService.bulkUpdateKeywords(accountIdNum, {
-          keywordIds: [keyword.keywordId],
-          action: "status",
-          status: statusValue,
-        });
+        // Handle archive separately (uses DELETE endpoint)
+        if (newValueLower === "archive") {
+          await campaignsService.bulkUpdateKeywords(accountIdNum, {
+            keywordIds: [keyword.keywordId],
+            action: "archive",
+          });
+        } else {
+          // Map status values for enable/pause
+          const statusMap: Record<string, "enable" | "pause"> = {
+            enabled: "enable",
+            paused: "pause",
+          };
+          const statusValue = statusMap[newValueLower] || "enable";
+
+          await campaignsService.bulkUpdateKeywords(accountIdNum, {
+            keywordIds: [keyword.keywordId],
+            action: "status",
+            status: statusValue,
+          });
+        }
       } else if (pendingKeywordChange.field === "bid") {
         // Extract numeric value
         const bidValue = parseFloat(pendingKeywordChange.newValue);
@@ -3381,14 +3496,34 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const confirmTargetChange = async () => {
-    if (!pendingTargetChange || !accountId) return;
+    if (!pendingTargetChange || !accountId) {
+      console.error("confirmTargetChange: Missing pendingTargetChange or accountId", {
+        pendingTargetChange,
+        accountId,
+      });
+      return;
+    }
 
     const target = targets.find((tgt) => tgt.id === pendingTargetChange.id);
     if (!target || !target.targetId) {
-      alert("Target ID not found");
+      console.error("confirmTargetChange: Target not found", {
+        targetId: pendingTargetChange.id,
+        target,
+      });
+      setErrorModal({
+        isOpen: true,
+        message: "Target ID not found",
+      });
       setPendingTargetChange(null);
+      setShowTargetsConfirmationModal(false);
       return;
     }
+
+    console.log("confirmTargetChange: Starting update", {
+      targetId: target.targetId,
+      field: pendingTargetChange.field,
+      newValue: pendingTargetChange.newValue,
+    });
 
     setTargetEditLoading((prev) => new Set(prev).add(pendingTargetChange.id));
     try {
@@ -3406,17 +3541,30 @@ export const CampaignDetail: React.FC = () => {
         const statusValue =
           statusMap[pendingTargetChange.newValue.toLowerCase()] || "enable";
 
+        console.log("confirmTargetChange: Updating status", {
+          targetId: target.targetId,
+          statusValue,
+        });
+
         await campaignsService.bulkUpdateTargets(accountIdNum, {
           targetIds: [String(target.targetId)],
           action: "status",
           status: statusValue,
         });
       } else if (pendingTargetChange.field === "bid") {
-        // Extract numeric value
-        const bidValue = parseFloat(pendingTargetChange.newValue);
-        if (isNaN(bidValue)) {
+        // Extract numeric value - clean any formatting
+        const cleanedValue = pendingTargetChange.newValue.replace(/[^0-9.]/g, "");
+        const bidValue = parseFloat(cleanedValue);
+        if (isNaN(bidValue) || bidValue < 0) {
           throw new Error("Invalid bid value");
         }
+
+        console.log("confirmTargetChange: Updating bid", {
+          targetId: target.targetId,
+          bidValue,
+          originalValue: pendingTargetChange.newValue,
+          cleanedValue,
+        });
 
         await campaignsService.bulkUpdateTargets(accountIdNum, {
           targetIds: [String(target.targetId)],
@@ -3425,6 +3573,7 @@ export const CampaignDetail: React.FC = () => {
         });
       }
 
+      console.log("confirmTargetChange: Update successful, reloading targets");
       // Reload targets
       await loadTargets();
       setPendingTargetChange(null);
@@ -3783,11 +3932,12 @@ export const CampaignDetail: React.FC = () => {
   const handleCreateNegativeTargets = async (
     negativeTargets: Array<{
       adGroupId: string;
-      expression: Array<{ type: string; value: string }>;
+      expression?: Array<{ type: string; value: string }>;
+      expressions?: Array<{ type: string; value: string }>;
       state?: "ENABLED" | "PAUSED";
     }>
   ) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (!accountId || !campaignId || (campaignType !== "SP" && campaignType !== "SB")) return;
 
     setCreateNegativeTargetLoading(true);
     setCreateNegativeTargetError(null);
@@ -3802,15 +3952,29 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      // Format negative targets based on campaign type
+      const formattedNegativeTargets = negativeTargets.map((ntg) => {
+        if (campaignType === "SB") {
+          // SB: use expressions (plural), no state at creation
+          return {
+            adGroupId: ntg.adGroupId,
+            expressions: ntg.expressions || ntg.expression || [],
+          };
+        } else {
+          // SP: use expression (singular), include state
+          return {
+            adGroupId: ntg.adGroupId,
+            expression: ntg.expression || [],
+            state: ntg.state || "ENABLED",
+          };
+        }
+      });
+
       const response = await campaignsService.createNegativeTargets(
         accountIdNum,
         campaignId,
         {
-          negativeTargetingClauses: negativeTargets.map((ntg) => ({
-            adGroupId: ntg.adGroupId,
-            expression: ntg.expression,
-            state: ntg.state || "ENABLED",
-          })),
+          negativeTargetingClauses: formattedNegativeTargets,
         }
       );
 
@@ -4140,7 +4304,7 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
-  const handleBulkKeywordsDelete = async () => {
+  const handleBulkKeywordsArchive = async () => {
     if (!accountId || selectedKeywordIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
@@ -4154,37 +4318,25 @@ export const CampaignDetail: React.FC = () => {
         .map((k) => k.keywordId || k.id)
         .filter(Boolean) as Array<string | number>;
 
-      const response = await campaignsService.bulkDeleteKeywords(accountIdNum, {
-        keywordIdFilter: {
-          include: keywordIds,
-        },
+      // Use bulkUpdateKeywords with archive action
+      const response = await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        keywordIds: keywordIds,
+        action: "archive",
       });
 
-      // Handle response with success/error arrays
-      // Note: Log creation is handled by the backend
-      if (response?.keywords) {
-        const errors = response.keywords.error || [];
-        const successes = response.keywords.success || [];
-
-        if (errors.length > 0) {
-          const errorMessages = errors
-            .map((err: any) => {
-              const errorDetails = err.errors?.[0]?.errorValue;
-              if (errorDetails) {
-                return Object.values(errorDetails)
-                  .map((e: any) => e?.message || "Unknown error")
-                  .join(", ");
-              }
-              return "Unknown error";
-            })
-            .join("; ");
+      // Handle response - archive returns updated/failed counts
+      if (response?.updated !== undefined) {
+        if (response.failed > 0 && response.errors) {
+          const errorMessages = Array.isArray(response.errors)
+            ? response.errors.join("; ")
+            : response.errors;
           setErrorModal({
             isOpen: true,
-            message: `Some keywords could not be deleted: ${errorMessages}`,
+            message: `Some keywords could not be archived: ${errorMessages}`,
           });
         }
 
-        if (successes.length > 0) {
+        if (response.updated > 0) {
           await loadKeywords();
           setSelectedKeywordIds(new Set());
         }
@@ -4196,11 +4348,11 @@ export const CampaignDetail: React.FC = () => {
 
       setShowKeywordsDeleteConfirmation(false);
     } catch (error: any) {
-      console.error("Failed to delete keywords", error);
+      console.error("Failed to archive keywords", error);
       const errorMessage =
         error?.response?.data?.error ||
         error?.message ||
-        "Failed to delete keywords. Please try again.";
+        "Failed to archive keywords. Please try again.";
       setErrorModal({
         isOpen: true,
         message: errorMessage,
@@ -4515,6 +4667,8 @@ export const CampaignDetail: React.FC = () => {
           negativeKeywordIdFilter: {
             include: negativeKeywordIds,
           },
+          ...(campaignType && { campaignType }),
+          ...(campaignId && { campaignId }),
         }
       );
 
@@ -5991,7 +6145,7 @@ export const CampaignDetail: React.FC = () => {
                                 { value: "enable", label: "Enabled" },
                                 { value: "pause", label: "Paused" },
                                 { value: "edit_bid", label: "Edit Bid" },
-                                { value: "delete", label: "Delete" },
+                                { value: "archive", label: "Archive" },
                               ].map((opt) => (
                                 <button
                                   key={opt.value}
@@ -6003,7 +6157,7 @@ export const CampaignDetail: React.FC = () => {
                                     if (selectedKeywordIds.size === 0) return;
                                     if (opt.value === "edit_bid") {
                                       setShowKeywordsBidPanel(true);
-                                    } else if (opt.value === "delete") {
+                                    } else if (opt.value === "archive") {
                                       setShowKeywordsBidPanel(false);
                                       setShowKeywordsDeleteConfirmation(true);
                                     } else {
@@ -7166,6 +7320,7 @@ export const CampaignDetail: React.FC = () => {
                 {isCreateTargetPanelOpen && (
                   <CreateTargetPanel
                     isOpen={isCreateTargetPanelOpen}
+                    campaignType={campaignType}
                     onClose={() => {
                       setIsCreateTargetPanelOpen(false);
                       // Reset error states when closing
@@ -7674,6 +7829,7 @@ export const CampaignDetail: React.FC = () => {
                         name: ag.name,
                       }))}
                       campaignId={campaignId || ""}
+                      campaignType={campaignType || undefined}
                       loading={createNegativeKeywordLoading}
                       submitError={createNegativeKeywordError}
                       fieldErrors={createNegativeKeywordFieldErrors}
@@ -7997,6 +8153,7 @@ export const CampaignDetail: React.FC = () => {
                   {isCreateNegativeTargetPanelOpen && (
                     <CreateNegativeTargetPanel
                       isOpen={isCreateNegativeTargetPanelOpen}
+                      campaignType={campaignType}
                       onClose={() => {
                         setIsCreateNegativeTargetPanelOpen(false);
                         // Reset error states when closing
@@ -8435,66 +8592,69 @@ export const CampaignDetail: React.FC = () => {
       />
 
       {/* Confirmation Modal for Keywords Bulk Actions */}
-      {showKeywordsConfirmationModal && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
-            onClick={() => {
-              if (!keywordsBulkLoading) {
-                setShowKeywordsConfirmationModal(false);
-                setPendingKeywordsStatusAction(null);
-              }
-            }}
-          />
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
-            <div className="p-6">
-              <div className="mb-4 text-center">
-                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                  Confirm Action
-                </h3>
-                <p className="text-[14px] text-[#556179]">
-                  {pendingKeywordsStatusAction
-                    ? `Are you sure you want to ${
-                        pendingKeywordsStatusAction === "enable"
-                          ? "enable"
-                          : "pause"
-                      } ${selectedKeywordIds.size} keyword(s)?`
-                    : `Are you sure you want to update the bid for ${selectedKeywordIds.size} keyword(s)?`}
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowKeywordsConfirmationModal(false);
-                    setPendingKeywordsStatusAction(null);
-                  }}
-                  disabled={keywordsBulkLoading}
-                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (pendingKeywordsStatusAction) {
-                      await handleBulkKeywordsStatus(
-                        pendingKeywordsStatusAction
-                      );
-                    } else {
-                      await handleBulkKeywordsBid();
-                    }
-                  }}
-                  disabled={keywordsBulkLoading}
-                  className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {keywordsBulkLoading ? "Processing..." : "Confirm"}
-                </button>
+      {/* Bulk Actions Confirmation Modal - Only show when NOT doing inline edit */}
+      {showKeywordsConfirmationModal &&
+        !pendingKeywordChange &&
+        (pendingKeywordsStatusAction || selectedKeywordIds.size > 0) && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+              onClick={() => {
+                if (!keywordsBulkLoading) {
+                  setShowKeywordsConfirmationModal(false);
+                  setPendingKeywordsStatusAction(null);
+                }
+              }}
+            />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+              <div className="p-6">
+                <div className="mb-4 text-center">
+                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                    Confirm Action
+                  </h3>
+                  <p className="text-[14px] text-[#556179]">
+                    {pendingKeywordsStatusAction
+                      ? `Are you sure you want to ${
+                          pendingKeywordsStatusAction === "enable"
+                            ? "enable"
+                            : "pause"
+                        } ${selectedKeywordIds.size} keyword(s)?`
+                      : `Are you sure you want to update the bid for ${selectedKeywordIds.size} keyword(s)?`}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowKeywordsConfirmationModal(false);
+                      setPendingKeywordsStatusAction(null);
+                    }}
+                    disabled={keywordsBulkLoading}
+                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (pendingKeywordsStatusAction) {
+                        await handleBulkKeywordsStatus(
+                          pendingKeywordsStatusAction
+                        );
+                      } else {
+                        await handleBulkKeywordsBid();
+                      }
+                    }}
+                    disabled={keywordsBulkLoading}
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {keywordsBulkLoading ? "Processing..." : "Confirm"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Delete Confirmation Modal for Keywords */}
       {showKeywordsDeleteConfirmation && (
@@ -8514,9 +8674,9 @@ export const CampaignDetail: React.FC = () => {
                   Confirm Delete
                 </h3>
                 <p className="text-[14px] text-[#556179]">
-                  Are you sure you want to delete {selectedKeywordIds.size}{" "}
+                  Are you sure you want to archive {selectedKeywordIds.size}{" "}
                   selected keyword{selectedKeywordIds.size !== 1 ? "s" : ""}?
-                  This action cannot be undone.
+                  This action is permanent and cannot be undone.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 mt-6">
@@ -8532,11 +8692,11 @@ export const CampaignDetail: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={handleBulkKeywordsDelete}
+                  onClick={handleBulkKeywordsArchive}
                   disabled={keywordsDeleteLoading}
                   className="px-4 py-2 bg-red-600 text-white text-[11.2px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {keywordsDeleteLoading ? "Deleting..." : "Delete"}
+                  {keywordsDeleteLoading ? "Archiving..." : "Archive"}
                 </button>
               </div>
             </div>
@@ -8788,7 +8948,9 @@ export const CampaignDetail: React.FC = () => {
       )}
 
       {/* Confirmation Modal for Targets Bulk Actions */}
-      {showTargetsConfirmationModal && (
+      {showTargetsConfirmationModal && 
+       !pendingTargetChange && 
+       (pendingTargetsStatusAction || selectedTargetIds.size > 0) && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
@@ -9211,11 +9373,14 @@ export const CampaignDetail: React.FC = () => {
               maximumFractionDigits: 2,
             })}`;
           } else if (pendingKeywordChange.field === "status") {
+            const newValueLower = pendingKeywordChange.newValue.toLowerCase();
             newValueDisplay =
-              pendingKeywordChange.newValue === "enabled"
+              newValueLower === "enabled"
                 ? "Enabled"
-                : pendingKeywordChange.newValue === "paused"
+                : newValueLower === "paused"
                 ? "Paused"
+                : newValueLower === "archive"
+                ? "Archived"
                 : "Archived";
           }
 

@@ -159,6 +159,24 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                   Ad Group
                 </th>
 
+                {/* State Header */}
+                <th
+                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[115px] ${
+                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                  }`}
+                  onClick={() => onSort?.("status")}
+                >
+                  <div className="flex items-center gap-1">
+                    State
+                    {getSortIcon("status")}
+                  </div>
+                </th>
+
+                {/* Bid Header */}
+                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  Bid
+                </th>
+
                 {/* Profile Name Header */}
                 <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                   Profile
@@ -187,24 +205,6 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                 {/* Targeting Header */}
                 <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                   Targeting
-                </th>
-
-                {/* State Header */}
-                <th
-                  className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[115px] ${
-                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                  onClick={() => onSort?.("status")}
-                >
-                  <div className="flex items-center gap-1">
-                    State
-                    {getSortIcon("status")}
-                  </div>
-                </th>
-
-                {/* Bid Header */}
-                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                  Bid
                 </th>
 
                 {/* CTR Header */}
@@ -282,48 +282,6 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                     <td className="py-[10px] px-[10px]">
                       <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                         {target.adgroup_name || "—"}
-                      </span>
-                    </td>
-
-                    {/* Profile Name */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {target.profile_name || "—"}
-                      </span>
-                    </td>
-
-                    {/* Keyword */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {target.keyword || "—"}
-                      </span>
-                    </td>
-
-                    {/* Keyword Type */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {target.keyword_type || "—"}
-                      </span>
-                    </td>
-
-                    {/* Keyword Bid */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {target.keyword_bid || "$0.00"}
-                      </span>
-                    </td>
-
-                    {/* Match Type */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {target.match_type || "—"}
-                      </span>
-                    </td>
-
-                    {/* Targeting */}
-                    <td className="py-[10px] px-[10px]">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                        {target.targeting || "—"}
                       </span>
                     </td>
 
@@ -493,6 +451,48 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                           {target.bid || "$0.00"}
                         </div>
                       )}
+                    </td>
+
+                    {/* Profile Name */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {target.profile_name || "—"}
+                      </span>
+                    </td>
+
+                    {/* Keyword */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {target.keyword || "—"}
+                      </span>
+                    </td>
+
+                    {/* Keyword Type */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {target.keyword_type || "—"}
+                      </span>
+                    </td>
+
+                    {/* Keyword Bid */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {target.keyword_bid || "$0.00"}
+                      </span>
+                    </td>
+
+                    {/* Match Type */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {target.match_type || "—"}
+                      </span>
+                    </td>
+
+                    {/* Targeting */}
+                    <td className="py-[10px] px-[10px]">
+                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        {target.targeting || "—"}
+                      </span>
                     </td>
 
                     {/* CTR */}
