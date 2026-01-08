@@ -6528,6 +6528,7 @@ export const CampaignDetail: React.FC = () => {
                 {isCreateSBAdPanelOpen && (
                   <CreateSBAdPanel
                     isOpen={isCreateSBAdPanelOpen}
+                    accountId={parseInt(accountId || "0", 10)}
                     onClose={() => {
                       setIsCreateSBAdPanelOpen(false);
                       setCreateSBAdError(null);

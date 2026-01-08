@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { campaignsService } from "../../services/campaigns";
+import type { Asset } from "../campaigns/AssetsTable";
 
 export interface SBAdInput {
   name: string;
@@ -42,6 +44,7 @@ interface CreateSBAdPanelProps {
   onSubmit: (ads: SBAdInput[]) => void;
   adgroups: Array<{ adGroupId: string; name: string }>;
   campaignId: string;
+  accountId?: number;
   loading?: boolean;
   submitError?: string | null;
   fieldErrors?: Record<string, string>;
@@ -72,6 +75,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   onClose,
   onSubmit,
   adgroups,
+  accountId,
   loading = false,
   submitError = null,
   fieldErrors = {},
@@ -79,6 +83,33 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   failedCount = 0,
   failedAds = [],
 }) => {
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+
+  // Fetch assets when component opens
+  useEffect(() => {
+    if (isOpen && accountId) {
+      loadAssets();
+    }
+  }, [isOpen, accountId]);
+
+  const loadAssets = async () => {
+    if (!accountId) return;
+    
+    try {
+      setAssetsLoading(true);
+      const data = await campaignsService.getAssets(accountId, {
+        page: 1,
+        page_size: 100, // Get all assets for dropdown
+      });
+      setAssets(data.assets || []);
+    } catch (error) {
+      console.error("Failed to load assets:", error);
+      setAssets([]);
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
   const [currentAd, setCurrentAd] = useState<SBAdInput>({
     name: "",
     state: "ENABLED",
@@ -462,45 +493,31 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   };
 
   const handleFillTestData = () => {
-    // Get a random adgroup from the list
-    const randomAdGroup =
-      adgroups.length > 0
-        ? adgroups[Math.floor(Math.random() * adgroups.length)]
-        : null;
-
-    // Generate a unique ad name with timestamp
-    const timestamp = new Date().toLocaleString();
-    const adName = `Test SB Ad - ${timestamp}`;
-
-    // Fill in the form with test data
-    // Note: landingPage.url and landingPage.asins are mutually exclusive
-    // Using asins for PRODUCT_LIST pageType (requires 3-100 ASINs)
-    setCurrentAd({
-      name: adName,
-      state: "ENABLED",
-      adGroupId: randomAdGroup?.adGroupId || adgroups[0]?.adGroupId || "",
+    // Use exact test data as provided (matches Postman working request)
+    const testData = {
+      name: "Test SB Ad - 1/6/2026, 3:54:53 PM",
+      state: "ENABLED" as const,
+      adGroupId: "345267636818439",
       landingPage: {
-        // API requires 3-100 ASINs for PRODUCT_LIST pageType
-        asins: ["B09PVMBNT4", "B09PVMBNT5", "B09PVMBNT6"],
-        pageType: "PRODUCT_LIST",
-        // url is not included when asins is present (mutually exclusive)
+        pageType: "PRODUCT_LIST" as const,
+        asins: ["B09PVMBNT4", "B09PVMBNT4", "B09PVMBNT4"],
       },
       creative: {
         brandLogoCrop: {
           top: 0,
           left: 0,
-          width: 100,
-          height: 100,
+          width: 401,
+          height: 401,
         },
         asins: ["B09PVMBNT4"],
         brandName: "Test Brand",
-        brandLogoAssetID: "TEST_LOGO_ASSET_123",
+        brandLogoAssetID: "amzn1.assetlibrary.asset1.c5c3fd754ca1c4d389d9bbbd7348ac10",
         headline: "Shop Our Best Products",
         consentToTranslate: true,
         creativePropertiesToOptimize: ["HEADLINE"],
         customImages: [
           {
-            assetId: "TEST_ASSET_123",
+            assetId: "amzn1.assetlibrary.asset1.c5c3fd754ca1c4d389d9bbbd7348ac10",
             url: "https://example.com/test-image.png",
             crop: {
               top: 5,
@@ -511,6 +528,18 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           },
         ],
       },
+    };
+
+    // Use provided adGroupId if it exists in the list, otherwise use first available
+    const adGroupId = adgroups.find(
+      (ag) => ag.adGroupId === testData.adGroupId
+    )
+      ? testData.adGroupId
+      : adgroups[0]?.adGroupId || "";
+
+    setCurrentAd({
+      ...testData,
+      adGroupId,
     });
 
     // Clear any errors
@@ -770,15 +799,34 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Brand Logo Asset ID
               </label>
-              <input
-                type="text"
-                value={currentAd.creative?.brandLogoAssetID || ""}
-                onChange={(e) =>
-                  handleChange("creative.brandLogoAssetID", e.target.value)
-                }
-                placeholder="LOGOASSET123"
-                className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={currentAd.creative?.brandLogoAssetID || ""}
+                  onChange={(e) =>
+                    handleChange("creative.brandLogoAssetID", e.target.value)
+                  }
+                  placeholder="amzn1.assetlibrary.asset1..."
+                  className="flex-1 bg-white px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                />
+                <Dropdown<string>
+                  options={assets
+                    .filter((asset) => asset.assetId) // Only show assets with assetId
+                    .map((asset) => ({
+                      value: asset.assetId || "",
+                      label: asset.fileName
+                        ? `${asset.fileName} (${asset.assetId})`
+                        : asset.assetId || `Asset ${asset.id}`,
+                    }))}
+                  value={currentAd.creative?.brandLogoAssetID || ""}
+                  onChange={(value) =>
+                    handleChange("creative.brandLogoAssetID", value)
+                  }
+                  placeholder={assetsLoading ? "Loading..." : "Select Asset"}
+                  buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 whitespace-nowrap min-w-[140px]"
+                  disabled={assetsLoading || assets.length === 0}
+                />
+              </div>
             </div>
             <div className="md:col-span-2">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
@@ -912,15 +960,34 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     <label className="block text-[10px] text-gray-600 mb-1">
                       Asset ID
                     </label>
-                    <input
-                      type="text"
-                      value={image.assetId || ""}
-                      onChange={(e) =>
-                        handleCustomImageChange(index, "assetId", e.target.value)
-                      }
-                      placeholder="ASSET123"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={image.assetId || ""}
+                        onChange={(e) =>
+                          handleCustomImageChange(index, "assetId", e.target.value)
+                        }
+                        placeholder="amzn1.assetlibrary.asset1..."
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                      />
+                      <Dropdown<string>
+                        options={assets
+                          .filter((asset) => asset.assetId) // Only show assets with assetId
+                          .map((asset) => ({
+                            value: asset.assetId || "",
+                            label: asset.fileName
+                              ? `${asset.fileName} (${asset.assetId})`
+                              : asset.assetId || `Asset ${asset.id}`,
+                          }))}
+                        value={image.assetId || ""}
+                        onChange={(value) =>
+                          handleCustomImageChange(index, "assetId", value)
+                        }
+                        placeholder={assetsLoading ? "Loading..." : "Select Asset"}
+                        buttonClassName="px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 whitespace-nowrap min-w-[140px]"
+                        disabled={assetsLoading || assets.length === 0}
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-[10px] text-gray-600 mb-1">
