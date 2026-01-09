@@ -2625,10 +2625,64 @@ export const CampaignDetail: React.FC = () => {
       }
 
       const formData = new FormData();
+      
+      // Required fields
+      formData.append("assetName", asset.assetName);
+      formData.append("assetType", asset.assetType);
+      // For arrays, use repeated keys without brackets - Django QueryDict handles this
+      asset.assetSubTypeList.forEach((subType) => {
+        formData.append("assetSubTypeList", subType);
+      });
       formData.append("brandEntityId", asset.brandEntityId);
-      formData.append("mediaType", asset.mediaType);
+      
+      // Optional fields - only append if provided
+      if (asset.asinList && asset.asinList.length > 0) {
+        asset.asinList.forEach((asin) => {
+          formData.append("asinList", asin);
+        });
+      }
+      
+      if (asset.tags && asset.tags.length > 0) {
+        asset.tags.forEach((tag) => {
+          formData.append("tags", tag);
+        });
+      }
+      
+      if (asset.versionInfo) {
+        formData.append("versionInfo[linkedAssetId]", asset.versionInfo.linkedAssetId);
+        if (asset.versionInfo.versionNotes) {
+          formData.append("versionInfo[versionNotes]", asset.versionInfo.versionNotes);
+        }
+      }
+      
+      if (asset.registrationContext) {
+        formData.append(
+          "registrationContext[associatedPrograms][0][programName]",
+          asset.registrationContext.associatedPrograms[0]?.programName || "A_PLUS"
+        );
+        if (asset.registrationContext.associatedPrograms[0]?.metadata?.dspAdvertiserId) {
+          formData.append(
+            "registrationContext[associatedPrograms][0][metadata][dspAdvertiserId]",
+            asset.registrationContext.associatedPrograms[0].metadata.dspAdvertiserId
+          );
+        }
+      }
+      
+      if (asset.skipAssetSubTypesDetection !== undefined) {
+        formData.append("skipAssetSubTypesDetection", asset.skipAssetSubTypesDetection.toString());
+      }
+      
+      if (asset.url) {
+        formData.append("url", asset.url);
+      }
+
       if (asset.file) {
         formData.append("file", asset.file);
+      }
+
+      // Backward compatibility - include mediaType if provided
+      if (asset.mediaType) {
+        formData.append("mediaType", asset.mediaType);
       }
 
       const response = await campaignsService.createAsset(
