@@ -8527,6 +8527,7 @@ export const CampaignDetail: React.FC = () => {
               activeTab !== "Targets" &&
               activeTab !== "Negative Keywords" &&
               activeTab !== "Negative Targets" &&
+              activeTab !== "Assets" &&
               activeTab !== "Logs" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
