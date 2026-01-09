@@ -135,6 +135,14 @@ function App() {
                     }
                   />
                   <Route
+                    path="/channels/:channelId/select-tiktok-profiles"
+                    element={
+                      <ProtectedRoute>
+                        <SelectTikTokProfiles />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/channels/:channelId/list-profiles"
                     element={
                       <ProtectedRoute>
