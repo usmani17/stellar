@@ -1790,6 +1790,19 @@ export const campaignsService = {
     return response.data;
   },
 
+  createSBVideoAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { ads: any[] }
+  ): Promise<any> => {
+    // Add adType parameter to indicate this is a video ad request
+    const response = await api.post(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-video-ads/create/`,
+      { ...data, adType: 'VIDEO' }
+    );
+    return response.data;
+  },
+
   getAssets: async (
     accountId: number,
     params?: {

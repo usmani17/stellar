@@ -2757,11 +2757,37 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.createSBAds(
-        accountIdNum,
-        campaignId,
-        { ads }
-      );
+      // Separate image and video ads
+      const imageAds = ads.filter((ad) => !ad.adType || ad.adType === "IMAGE");
+      const videoAds = ads.filter((ad) => ad.adType === "VIDEO");
+
+      let response: any = { created: 0, failed: 0, ads: [], failed_ads: [] };
+
+      // Create image ads if any
+      if (imageAds.length > 0) {
+        const imageResponse = await campaignsService.createSBAds(
+          accountIdNum,
+          campaignId,
+          { ads: imageAds }
+        );
+        response.created += imageResponse.created || 0;
+        response.failed += imageResponse.failed || 0;
+        response.ads = [...(response.ads || []), ...(imageResponse.ads || [])];
+        response.failed_ads = [...(response.failed_ads || []), ...(imageResponse.failed_ads || [])];
+      }
+
+      // Create video ads if any
+      if (videoAds.length > 0) {
+        const videoResponse = await campaignsService.createSBVideoAds(
+          accountIdNum,
+          campaignId,
+          { ads: videoAds }
+        );
+        response.created += videoResponse.created || 0;
+        response.failed += videoResponse.failed || 0;
+        response.ads = [...(response.ads || []), ...(videoResponse.ads || [])];
+        response.failed_ads = [...(response.failed_ads || []), ...(videoResponse.failed_ads || [])];
+      }
 
       // Check for partial success
       const created = response.created || 0;
