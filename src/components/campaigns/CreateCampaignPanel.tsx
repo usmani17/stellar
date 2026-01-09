@@ -1755,7 +1755,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 return updated;
                               });
                             }}
-                            className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
+                            className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                           />
                           <span className="text-[13.3px] font-medium text-[#072929]">
                             Automatic placement optimization
@@ -2780,7 +2780,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 return updated;
                               });
                             }}
-                            className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
+                            className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                           />
                           <span className="text-[13.3px] font-medium text-[#072929]">
                             Automatic placement optimization

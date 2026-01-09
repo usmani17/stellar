@@ -885,7 +885,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 onChange={(e) =>
                   handleChange("creative.consentToTranslate", e.target.checked)
                 }
-                className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D]"
+                className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
               />
               <span className="text-[11.2px] text-[#556179]">
                 Consent to Translate
@@ -923,7 +923,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         );
                       }
                     }}
-                    className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D]"
+                    className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                   />
                   <span className="text-[11.2px] text-[#556179]">
                     {option.label}

@@ -9,7 +9,7 @@ export interface AssetInput {
   assetSubTypeList: string[];
   brandEntityId: string; // Required for sellers
   file: File | null;
-  
+
   // Optional fields
   asinList?: string[];
   tags?: string[];
@@ -26,7 +26,7 @@ export interface AssetInput {
     }>;
   };
   skipAssetSubTypesDetection?: boolean;
-  
+
   // Backward compatibility
   mediaType?: string; // Deprecated
   url?: string; // Pre-existing URL if upload handled upstream
@@ -67,9 +67,7 @@ const VIDEO_SUBTYPE_OPTIONS = [
   { value: "BACKGROUND_VIDEO", label: "Background Video" },
 ];
 
-const PROGRAM_OPTIONS = [
-  { value: "A_PLUS", label: "A+ Content" },
-];
+const PROGRAM_OPTIONS = [{ value: "A_PLUS", label: "A+ Content" }];
 
 export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
   isOpen,
@@ -141,7 +139,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
   const handleChange = (field: keyof AssetInput, value: any) => {
     setAssetData((prev) => {
       const updated = { ...prev, [field]: value };
-      
+
       // When assetType changes, update assetSubTypeList to valid options
       if (field === "assetType") {
         if (value === "IMAGE") {
@@ -150,7 +148,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
           updated.assetSubTypeList = ["BACKGROUND_VIDEO"]; // Default for VIDEO
         }
       }
-      
+
       return updated;
     });
     // Clear error for this field
@@ -162,7 +160,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       });
     }
   };
-  
+
   const handleAssetSubTypeChange = (selectedValues: string[]) => {
     setAssetData((prev) => ({ ...prev, assetSubTypeList: selectedValues }));
     if (errors.assetSubTypeList) {
@@ -173,7 +171,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       });
     }
   };
-  
+
   const handleAddAsin = () => {
     const asin = asinInput.trim().toUpperCase();
     if (asin && asin.match(/^[A-Z0-9]+$/) && !asinList.includes(asin)) {
@@ -200,11 +198,11 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       }));
     }
   };
-  
+
   const handleRemoveAsin = (asin: string) => {
     setAsinList(asinList.filter((a) => a !== asin));
   };
-  
+
   const handleAddTag = () => {
     const tag = tagInput.trim();
     if (tag && !tags.includes(tag)) {
@@ -212,12 +210,15 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       setTagInput("");
     }
   };
-  
+
   const handleRemoveTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
   };
-  
-  const handleVersionInfoChange = (field: "linkedAssetId" | "versionNotes", value: string) => {
+
+  const handleVersionInfoChange = (
+    field: "linkedAssetId" | "versionNotes",
+    value: string
+  ) => {
     setAssetData((prev) => ({
       ...prev,
       versionInfo: {
@@ -233,7 +234,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       });
     }
   };
-  
+
   const handleProgramChange = (programName: string) => {
     setAssetData((prev) => ({
       ...prev,
@@ -247,14 +248,16 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       },
     }));
   };
-  
+
   const handleDspAdvertiserIdChange = (dspAdvertiserId: string) => {
     setAssetData((prev) => ({
       ...prev,
       registrationContext: {
         associatedPrograms: [
           {
-            programName: prev.registrationContext?.associatedPrograms?.[0]?.programName || "A_PLUS",
+            programName:
+              prev.registrationContext?.associatedPrograms?.[0]?.programName ||
+              "A_PLUS",
             metadata: {
               dspAdvertiserId,
             },
@@ -269,15 +272,37 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     if (!file) return;
 
     // Validate file
-    const maxSize = 1024 * 1024; // 1MB
-    const allowedImageTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
-    const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo"];
+    const allowedImageTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/gif",
+    ];
+    const allowedVideoTypes = [
+      "video/mp4",
+      "video/quicktime",
+      "video/x-msvideo",
+    ];
     const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
 
-    if (file.size > maxSize) {
+    // Different size limits for images vs videos
+    const isImage = allowedImageTypes.includes(file.type);
+    const isVideo = allowedVideoTypes.includes(file.type);
+    const maxImageSize = 2 * 1024 * 1024; // 2MB for images
+    const maxVideoSize = 10 * 1024 * 1024; // 10MB for videos
+
+    if (isImage && file.size > maxImageSize) {
       setErrors((prev) => ({
         ...prev,
-        file: "File size must be less than 1MB",
+        file: "Image file size must be less than 2MB",
+      }));
+      return;
+    }
+
+    if (isVideo && file.size > maxVideoSize) {
+      setErrors((prev) => ({
+        ...prev,
+        file: "Video file size must be less than 10MB",
       }));
       return;
     }
@@ -291,15 +316,21 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     }
 
     // Validate asset type matches file type
-    if (assetData.assetType === "IMAGE" && !allowedImageTypes.includes(file.type)) {
+    if (
+      assetData.assetType === "IMAGE" &&
+      !allowedImageTypes.includes(file.type)
+    ) {
       setErrors((prev) => ({
         ...prev,
         file: "Selected file is not an image. Please select IMAGE as asset type or choose an image file.",
       }));
       return;
     }
-    
-    if (assetData.assetType === "VIDEO" && !allowedVideoTypes.includes(file.type)) {
+
+    if (
+      assetData.assetType === "VIDEO" &&
+      !allowedVideoTypes.includes(file.type)
+    ) {
       setErrors((prev) => ({
         ...prev,
         file: "Selected file is not a video. Please select VIDEO as asset type or choose a video file.",
@@ -349,7 +380,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
         delete newErrors.file;
         return newErrors;
       });
-      
+
       // Create video preview
       const videoUrl = URL.createObjectURL(file);
       setFilePreview(videoUrl);
@@ -368,29 +399,42 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       newErrors.assetType = "Asset Type is required";
     }
 
-    if (!assetData.assetSubTypeList || assetData.assetSubTypeList.length === 0) {
+    if (
+      !assetData.assetSubTypeList ||
+      assetData.assetSubTypeList.length === 0
+    ) {
       newErrors.assetSubTypeList = "At least one Asset Sub Type is required";
     } else if (assetData.assetSubTypeList.length > 10) {
       newErrors.assetSubTypeList = "Maximum 10 Asset Sub Types allowed";
     }
 
     // Validate assetType/assetSubTypeList combinations
-    const validImageSubtypes = ["LOGO", "PRODUCT_IMAGE", "AUTHOR_IMAGE", "LIFESTYLE_IMAGE", "OTHER_IMAGE"];
+    const validImageSubtypes = [
+      "LOGO",
+      "PRODUCT_IMAGE",
+      "AUTHOR_IMAGE",
+      "LIFESTYLE_IMAGE",
+      "OTHER_IMAGE",
+    ];
     const validVideoSubtypes = ["BACKGROUND_VIDEO"];
-    
+
     if (assetData.assetType === "IMAGE") {
       const invalidSubtypes = assetData.assetSubTypeList.filter(
         (st) => !validImageSubtypes.includes(st)
       );
       if (invalidSubtypes.length > 0) {
-        newErrors.assetSubTypeList = `For IMAGE type, valid sub-types are: ${validImageSubtypes.join(", ")}`;
+        newErrors.assetSubTypeList = `For IMAGE type, valid sub-types are: ${validImageSubtypes.join(
+          ", "
+        )}`;
       }
     } else if (assetData.assetType === "VIDEO") {
       const invalidSubtypes = assetData.assetSubTypeList.filter(
         (st) => !validVideoSubtypes.includes(st)
       );
       if (invalidSubtypes.length > 0) {
-        newErrors.assetSubTypeList = `For VIDEO type, valid sub-types are: ${validVideoSubtypes.join(", ")}`;
+        newErrors.assetSubTypeList = `For VIDEO type, valid sub-types are: ${validVideoSubtypes.join(
+          ", "
+        )}`;
       }
     }
 
@@ -406,7 +450,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     if (asinList.length > 100) {
       newErrors.asinList = "Maximum 100 ASINs allowed";
     }
-    
+
     for (const asin of asinList) {
       if (!asin.match(/^[A-Z0-9]+$/)) {
         newErrors.asinList = "All ASINs must be uppercase alphanumeric";
@@ -417,10 +461,15 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     // Validate versioning fields if enabled
     if (enableVersioning) {
       if (!assetData.versionInfo?.linkedAssetId?.trim()) {
-        newErrors["versionInfo.linkedAssetId"] = "Linked Asset ID is required when versioning";
+        newErrors["versionInfo.linkedAssetId"] =
+          "Linked Asset ID is required when versioning";
       }
-      if (assetData.versionInfo?.versionNotes && assetData.versionInfo.versionNotes.length > 1000) {
-        newErrors["versionInfo.versionNotes"] = "Version Notes must be max 1000 characters";
+      if (
+        assetData.versionInfo?.versionNotes &&
+        assetData.versionInfo.versionNotes.length > 1000
+      ) {
+        newErrors["versionInfo.versionNotes"] =
+          "Version Notes must be max 1000 characters";
       }
     }
 
@@ -439,7 +488,9 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
       asinList: asinList.length > 0 ? asinList : undefined,
       tags: tags.length > 0 ? tags : undefined,
       versionInfo: enableVersioning ? assetData.versionInfo : undefined,
-      registrationContext: showProgramAssociation ? assetData.registrationContext : undefined,
+      registrationContext: showProgramAssociation
+        ? assetData.registrationContext
+        : undefined,
     };
 
     await onSubmit(finalAssetData);
@@ -491,10 +542,14 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               }`}
             />
             {errors.assetName && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.assetName}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.assetName}
+              </p>
             )}
             {fieldErrors.assetName && (
-              <p className="text-[10px] text-red-500 mt-1">{fieldErrors.assetName}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {fieldErrors.assetName}
+              </p>
             )}
           </div>
 
@@ -506,12 +561,16 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
             <Dropdown<string>
               options={ASSET_TYPE_OPTIONS}
               value={assetData.assetType}
-              onChange={(value) => handleChange("assetType", value as "IMAGE" | "VIDEO")}
+              onChange={(value) =>
+                handleChange("assetType", value as "IMAGE" | "VIDEO")
+              }
               placeholder="Select asset type"
               buttonClassName="w-full"
             />
             {errors.assetType && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.assetType}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.assetType}
+              </p>
             )}
           </div>
 
@@ -521,40 +580,59 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               Asset Sub Type * (1-10 items)
             </label>
             <div className="space-y-2">
-              {(assetData.assetType === "IMAGE" ? IMAGE_SUBTYPE_OPTIONS : VIDEO_SUBTYPE_OPTIONS).map((option) => (
-                <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
+              {(assetData.assetType === "IMAGE"
+                ? IMAGE_SUBTYPE_OPTIONS
+                : VIDEO_SUBTYPE_OPTIONS
+              ).map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     checked={assetData.assetSubTypeList.includes(option.value)}
                     onChange={(e) => {
                       if (e.target.checked) {
                         if (assetData.assetSubTypeList.length < 10) {
-                          handleAssetSubTypeChange([...assetData.assetSubTypeList, option.value]);
+                          handleAssetSubTypeChange([
+                            ...assetData.assetSubTypeList,
+                            option.value,
+                          ]);
                         }
                       } else {
                         // Prevent unchecking if it's the only item remaining
                         if (assetData.assetSubTypeList.length > 1) {
                           handleAssetSubTypeChange(
-                            assetData.assetSubTypeList.filter((v) => v !== option.value)
+                            assetData.assetSubTypeList.filter(
+                              (v) => v !== option.value
+                            )
                           );
                         }
                       }
                     }}
                     disabled={
-                      (assetData.assetSubTypeList.includes(option.value) && assetData.assetSubTypeList.length === 1) ||
-                      (!assetData.assetSubTypeList.includes(option.value) && assetData.assetSubTypeList.length >= 10)
+                      (assetData.assetSubTypeList.includes(option.value) &&
+                        assetData.assetSubTypeList.length === 1) ||
+                      (!assetData.assetSubTypeList.includes(option.value) &&
+                        assetData.assetSubTypeList.length >= 10)
                     }
-                    className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D]"
+                    className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                   />
-                  <span className="text-[11.2px] text-[#0b0f16]">{option.label}</span>
+                  <span className="text-[11.2px] text-[#0b0f16]">
+                    {option.label}
+                  </span>
                 </label>
               ))}
             </div>
             {errors.assetSubTypeList && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.assetSubTypeList}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {errors.assetSubTypeList}
+              </p>
             )}
             {fieldErrors.assetSubTypeList && (
-              <p className="text-[10px] text-red-500 mt-1">{fieldErrors.assetSubTypeList}</p>
+              <p className="text-[10px] text-red-500 mt-1">
+                {fieldErrors.assetSubTypeList}
+              </p>
             )}
           </div>
 
@@ -580,10 +658,14 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                   buttonClassName="w-full"
                 />
                 {errors.brandEntityId && (
-                  <p className="text-[10px] text-red-500 mt-1">{errors.brandEntityId}</p>
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.brandEntityId}
+                  </p>
                 )}
                 {fieldErrors.brandEntityId && (
-                  <p className="text-[10px] text-red-500 mt-1">{fieldErrors.brandEntityId}</p>
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {fieldErrors.brandEntityId}
+                  </p>
                 )}
               </>
             )}
@@ -638,7 +720,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                 </div>
               )}
               <p className="text-[10px] text-gray-500">
-                Used for asset discoverability and Sponsored Brand search. Max 100 ASINs.
+                Used for asset discoverability and Sponsored Brand search. Max
+                100 ASINs.
               </p>
               {errors.asinList && (
                 <p className="text-[10px] text-red-500">{errors.asinList}</p>
@@ -716,8 +799,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               />
               <p className="text-[10px] text-gray-500">
                 {assetData.assetType === "IMAGE"
-                  ? "Requirements: PNG, JPEG, or GIF • Max 1MB • Min 400x400 pixels"
-                  : "Requirements: MP4, MOV, or AVI • Max 1MB"}
+                  ? "Requirements: PNG, JPEG, or GIF • Max 2MB • Min 400x400 pixels"
+                  : "Requirements: MP4, MOV, or AVI • Max 10MB"}
               </p>
               {errors.file && (
                 <p className="text-[10px] text-red-500">{errors.file}</p>
@@ -767,7 +850,9 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
             >
               <span>Advanced Options</span>
               <svg
-                className={`w-4 h-4 transition-transform ${showAdvancedOptions ? "rotate-180" : ""}`}
+                className={`w-4 h-4 transition-transform ${
+                  showAdvancedOptions ? "rotate-180" : ""
+                }`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -788,8 +873,13 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                   <input
                     type="checkbox"
                     checked={assetData.skipAssetSubTypesDetection || false}
-                    onChange={(e) => handleChange("skipAssetSubTypesDetection", e.target.checked)}
-                    className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D]"
+                    onChange={(e) =>
+                      handleChange(
+                        "skipAssetSubTypesDetection",
+                        e.target.checked
+                      )
+                    }
+                    className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                   />
                   <label className="text-[11.2px] text-[#0b0f16]">
                     Skip Asset Sub-Type Detection
@@ -811,7 +901,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                           });
                         }
                       }}
-                      className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D]"
+                      className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                     />
                     <label className="text-[11.2px] font-semibold text-[#556179] uppercase">
                       Version Existing Asset
@@ -828,11 +918,16 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                           type="text"
                           value={assetData.versionInfo?.linkedAssetId || ""}
                           onChange={(e) =>
-                            handleVersionInfoChange("linkedAssetId", e.target.value)
+                            handleVersionInfoChange(
+                              "linkedAssetId",
+                              e.target.value
+                            )
                           }
                           placeholder="Enter linked asset ID"
                           className={`bg-white w-full px-3 py-2 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                            errors["versionInfo.linkedAssetId"] ? "border-red-500" : "border-gray-200"
+                            errors["versionInfo.linkedAssetId"]
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                         />
                         {errors["versionInfo.linkedAssetId"] && (
@@ -848,17 +943,23 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                         <textarea
                           value={assetData.versionInfo?.versionNotes || ""}
                           onChange={(e) =>
-                            handleVersionInfoChange("versionNotes", e.target.value)
+                            handleVersionInfoChange(
+                              "versionNotes",
+                              e.target.value
+                            )
                           }
                           placeholder="Enter version notes"
                           maxLength={1000}
                           rows={3}
                           className={`bg-white w-full px-3 py-2 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                            errors["versionInfo.versionNotes"] ? "border-red-500" : "border-gray-200"
+                            errors["versionInfo.versionNotes"]
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                         />
                         <p className="text-[9px] text-gray-500 mt-1">
-                          {assetData.versionInfo?.versionNotes?.length || 0} / 1000 characters
+                          {assetData.versionInfo?.versionNotes?.length || 0} /
+                          1000 characters
                         </p>
                         {errors["versionInfo.versionNotes"] && (
                           <p className="text-[10px] text-red-500 mt-1">
@@ -878,7 +979,10 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                       checked={showProgramAssociation}
                       onChange={(e) => {
                         setShowProgramAssociation(e.target.checked);
-                        if (e.target.checked && !assetData.registrationContext) {
+                        if (
+                          e.target.checked &&
+                          !assetData.registrationContext
+                        ) {
                           handleChange("registrationContext", {
                             associatedPrograms: [
                               {
@@ -889,7 +993,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                           });
                         }
                       }}
-                      className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D]"
+                      className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                     />
                     <label className="text-[11.2px] font-semibold text-[#556179] uppercase">
                       Program Association (A+ Content)
@@ -904,7 +1008,10 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                         </label>
                         <Dropdown<string>
                           options={PROGRAM_OPTIONS}
-                          value={assetData.registrationContext?.associatedPrograms?.[0]?.programName || "A_PLUS"}
+                          value={
+                            assetData.registrationContext
+                              ?.associatedPrograms?.[0]?.programName || "A_PLUS"
+                          }
                           onChange={(value) => handleProgramChange(value)}
                           placeholder="Select program"
                           buttonClassName="w-full"
@@ -917,9 +1024,13 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                         <input
                           type="text"
                           value={
-                            assetData.registrationContext?.associatedPrograms?.[0]?.metadata?.dspAdvertiserId || ""
+                            assetData.registrationContext
+                              ?.associatedPrograms?.[0]?.metadata
+                              ?.dspAdvertiserId || ""
                           }
-                          onChange={(e) => handleDspAdvertiserIdChange(e.target.value)}
+                          onChange={(e) =>
+                            handleDspAdvertiserIdChange(e.target.value)
+                          }
                           placeholder="Enter DSP advertiser ID"
                           className="bg-white w-full px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                         />
