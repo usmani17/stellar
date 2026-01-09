@@ -31,6 +31,7 @@ import { GoogleOAuthCallback } from "./pages/GoogleOAuthCallback";
 import { TikTokOAuthCallback } from "./pages/TikTokOAuthCallback";
 import { ConnectTikTok } from "./pages/ConnectTikTok";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
+import { SelectTikTokProfiles } from "./pages/SelectTikTokProfiles";
 import { ListAmazonProfiles } from "./pages/ListAmazonProfiles";
 import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
 import { GoogleCampaigns } from "./pages/google/GoogleCampaigns";
@@ -450,7 +451,6 @@ function App() {
                   />
                   {/* Legacy routes for backward compatibility - redirect to new structure */}
 
-
                   <Route
                     path="/accounts/:accountId/campaigns"
                     element={
@@ -495,7 +495,9 @@ function App() {
                   />
                 </Routes>
               </Router>
-              {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+              {import.meta.env.DEV && (
+                <ReactQueryDevtools initialIsOpen={false} />
+              )}
             </SidebarProvider>
           </GlobalStateProvider>
         </AccountsProvider>

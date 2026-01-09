@@ -122,8 +122,10 @@ export const accountsService = {
   },
 
   handleTikTokOAuthCallback: async (code: string, state?: string): Promise<Channel> => {
+    // TikTok sends auth_code, send it as auth_code to backend for clarity
+    // Backend accepts both 'code' and 'auth_code' for compatibility
     const response = await api.post<Channel>('/accounts/tiktok-oauth/callback/', {
-      code,
+      auth_code: code, // Send as auth_code since that's what TikTok provides
       state,
     });
     console.log('TikTok OAuth callback service response:', response.data);
@@ -162,6 +164,25 @@ export const accountsService = {
 
   saveProfiles: async (channelId: number, profileIds: string[], profiles?: any[]): Promise<any> => {
     const response = await api.post(`/accounts/channels/${channelId}/profiles/save/`, {
+      profile_ids: profileIds,
+      profiles: profiles || [],
+    });
+    return response.data;
+  },
+
+  // TikTok Profiles (using channel_id)
+  getTikTokProfiles: async (channelId: number): Promise<{ profiles: any[]; total: number; selected: number }> => {
+    const response = await api.get<{ profiles: any[]; total: number; selected: number }>(`/accounts/channels/${channelId}/tiktok-profiles/`);
+    return response.data;
+  },
+
+  fetchTikTokProfiles: async (channelId: number): Promise<any[]> => {
+    const response = await api.get<{ profiles: any[] }>(`/accounts/channels/${channelId}/tiktok-profiles/fetch/`);
+    return response.data.profiles || [];
+  },
+
+  saveTikTokProfiles: async (channelId: number, profileIds: string[], profiles?: any[]): Promise<any> => {
+    const response = await api.post(`/accounts/channels/${channelId}/tiktok-profiles/save/`, {
       profile_ids: profileIds,
       profiles: profiles || [],
     });
