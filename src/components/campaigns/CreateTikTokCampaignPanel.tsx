@@ -134,6 +134,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
     const [selectedProfile, setSelectedProfile] = useState<string>("");
     const [objectiveType, setObjectiveType] = useState<string>("");
     const [campaignName, setCampaignName] = useState<string>("");
+    const [errors, setErrors] = useState<Partial<Record<keyof CreateTikTokCampaignData, string>>>({});
     const [appPromotionType, setAppPromotionType] = useState<string>("UNSET");
     const [appPlatform, setAppPlatform] = useState<string>("");
     const [appSelection, setAppSelection] = useState<string>("");
@@ -184,11 +185,90 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
         }
     }, [isOpen, mode, initialData]);
 
+    const validate = (): boolean => {
+        const newErrors: Partial<Record<keyof CreateTikTokCampaignData, string>> = {};
+
+        // In edit mode, only validate editable fields
+        if (mode === "edit") {
+            if (!campaignName.trim()) {
+                newErrors.campaign_name = "Campaign name is required";
+            } else if (campaignName.length > 512) {
+                newErrors.campaign_name = "Campaign name must be 512 characters or less";
+            }
+
+            if (budgetMode !== "BUDGET_MODE_INFINITE") {
+                const budgetValue = budget ? parseFloat(budget) : 0;
+                if (budgetValue <= 0) {
+                    newErrors.budget = "Budget must be greater than 0";
+                } else if (budgetValue < 0.01) {
+                    newErrors.budget = "Budget must be at least 0.01";
+                }
+            }
+
+            setErrors(newErrors);
+            return Object.keys(newErrors).length === 0;
+        }
+
+        // Create mode - full validation
+        if (!campaignName.trim()) {
+            newErrors.campaign_name = "Campaign name is required";
+        } else if (campaignName.length > 512) {
+            newErrors.campaign_name = "Campaign name must be 512 characters or less";
+        }
+
+        if (!objectiveType) {
+            newErrors.objective_type = "Campaign objective is required";
+        }
+
+        // Budget validation
+        if (budgetMode !== "BUDGET_MODE_INFINITE") {
+            if (!budget || budget.trim() === "") {
+                newErrors.budget = "Budget is required when budget mode is not 'No Limit'";
+            } else {
+                const budgetValue = parseFloat(budget);
+                if (isNaN(budgetValue)) {
+                    newErrors.budget = "Budget must be a valid number";
+                } else if (budgetValue < 0) {
+                    newErrors.budget = "Budget must be greater than or equal to 0";
+                } else if (budgetValue > 0 && budgetValue < 0.01) {
+                    newErrors.budget = "Budget must be at least 0.01";
+                }
+            }
+        }
+
+        // Conditionally required fields based on objective_type
+        if (objectiveType === "APP_PROMOTION") {
+            if (!appPromotionType || appPromotionType === "UNSET") {
+                newErrors.app_promotion_type = "App promotion type is required for App Promotion objective";
+            }
+        }
+
+        if (objectiveType === "PRODUCT_SALES") {
+            if (!productSource) {
+                newErrors.campaign_product_source = "Product source is required for Product Sales objective";
+            }
+        }
+
+        if (objectiveType === "SALES_MERGED") {
+            if (!salesDestination) {
+                newErrors.sales_destination = "Sales destination is required for Sales (Merged) objective";
+            }
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = async () => {
+        // Validate before submitting
+        if (!validate()) {
+            return;
+        }
+
         if (mode === "edit") {
             // In edit mode, only send updatable fields (campaign_name, budget)
             const data: CreateTikTokCampaignData = {
-                campaign_name: campaignName,
+                campaign_name: campaignName.trim(),
                 budget: budget ? parseFloat(budget) : undefined,
             };
             await onSubmit(data);
@@ -196,10 +276,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
         }
 
         // Create mode - full validation and data
-        if (!objectiveType) {
-            alert("Please select a campaign objective");
-            return;
-        }
 
         const data: CreateTikTokCampaignData = {
             campaign_name: campaignName || `Campaign ${new Date().toLocaleDateString()}`,
@@ -386,11 +462,21 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                             <Dropdown
                                 options={OBJECTIVE_TYPES}
                                 value={objectiveType}
-                                onChange={(val) => setObjectiveType(val as string)}
+                                onChange={(val) => {
+                                    setObjectiveType(val as string);
+                                    if (errors.objective_type) {
+                                        setErrors({ ...errors, objective_type: undefined });
+                                    }
+                                }}
                                 placeholder="Select Campaign Objective Type"
-                                buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${mode === "edit" ? "opacity-60 cursor-not-allowed" : ""}`}
+                                buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${mode === "edit" ? "opacity-60 cursor-not-allowed" : ""} ${
+                                    errors.objective_type ? 'border-red-500' : ''
+                                }`}
                                 disabled={mode === "edit"}
                             />
+                            {errors.objective_type && (
+                                <p className="mt-1 text-[12px] text-red-600">{errors.objective_type}</p>
+                            )}
                         </div>
                     </div>
 
@@ -409,10 +495,20 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             <input
                                                 type="text"
                                                 value={campaignName}
-                                                onChange={(e) => setCampaignName(e.target.value)}
+                                                onChange={(e) => {
+                                                    setCampaignName(e.target.value);
+                                                    if (errors.campaign_name) {
+                                                        setErrors({ ...errors, campaign_name: undefined });
+                                                    }
+                                                }}
                                                 placeholder="Some - TikTok - 22/12/2025"
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                                className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                                    errors.campaign_name ? 'border-red-500' : 'border-gray-200'
+                                                }`}
                                             />
+                                            {errors.campaign_name && (
+                                                <p className="mt-1 text-[12px] text-red-600">{errors.campaign_name}</p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -439,10 +535,20 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             <input
                                                 type="text"
                                                 value={budget}
-                                                onChange={(e) => setBudget(e.target.value)}
+                                                onChange={(e) => {
+                                                    setBudget(e.target.value);
+                                                    if (errors.budget) {
+                                                        setErrors({ ...errors, budget: undefined });
+                                                    }
+                                                }}
                                                 placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET" ? "Enter Dynamic Daily Budget" : "Enter Budget"}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                                className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                                    errors.budget ? 'border-red-500' : 'border-gray-200'
+                                                }`}
                                             />
+                                            {errors.budget && (
+                                                <p className="mt-1 text-[12px] text-red-600">{errors.budget}</p>
+                                            )}
                                         </div>
                                     </div>
                                 </>
@@ -457,10 +563,20 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             <input
                                                 type="text"
                                                 value={campaignName}
-                                                onChange={(e) => setCampaignName(e.target.value)}
+                                                onChange={(e) => {
+                                                    setCampaignName(e.target.value);
+                                                    if (errors.campaign_name) {
+                                                        setErrors({ ...errors, campaign_name: undefined });
+                                                    }
+                                                }}
                                                 placeholder="Some - TikTok - 22/12/2025"
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                                className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                                    errors.campaign_name ? 'border-red-500' : 'border-gray-200'
+                                                }`}
                                             />
+                                            {errors.campaign_name && (
+                                                <p className="mt-1 text-[12px] text-red-600">{errors.campaign_name}</p>
+                                            )}
                                         </div>
 
                                         <div>

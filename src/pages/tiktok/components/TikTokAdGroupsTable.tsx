@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { Checkbox } from "../../../components/ui/Checkbox";
+import { Dropdown } from "../../../components/ui/Dropdown";
 
 export interface TikTokAdGroup {
     adgroup_id: string; // Using string as per interface, though API might return number
@@ -38,6 +39,10 @@ interface TikTokAdGroupsTableProps {
         avg_ctr: number;
         avg_cpc: number;
     } | null;
+    // Inline Edit Props (optional)
+    onUpdateAdGroupName?: (adgroup_id: string, newName: string) => Promise<void>;
+    onUpdateAdGroupStatus?: (adgroup_id: string, newStatus: string) => Promise<void>;
+    onUpdateAdGroupBudget?: (adgroup_id: string, newBudget: number) => Promise<void>;
 }
 
 export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
@@ -50,7 +55,18 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
     onSelect,
     onSelectAll,
     summary,
+    onUpdateAdGroupName,
+    onUpdateAdGroupStatus,
+    onUpdateAdGroupBudget,
 }) => {
+    // Inline edit state
+    const [editingCell, setEditingCell] = useState<{
+        adgroup_id: string;
+        field: "adgroup_name" | "operation_status" | "budget";
+    } | null>(null);
+    const [editedValue, setEditedValue] = useState<string>("");
+    const [isCancelling, setIsCancelling] = useState(false);
+    const isStartingEditRef = useRef(false);
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat("en-US", {
             style: "currency",
@@ -66,6 +82,132 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
     const formatPercentage = (value: number) => {
         return `${value.toFixed(2)}%`;
     };
+
+    // Inline edit handlers
+    const startInlineEdit = (
+        adgroup: TikTokAdGroup,
+        field: "adgroup_name" | "operation_status" | "budget"
+    ) => {
+        isStartingEditRef.current = true;
+        setEditingCell({ adgroup_id: adgroup.adgroup_id, field });
+        if (field === "adgroup_name") {
+            setEditedValue(adgroup.adgroup_name || "");
+        } else if (field === "operation_status") {
+            setEditedValue(adgroup.operation_status || "ENABLE");
+        } else if (field === "budget") {
+            setEditedValue((adgroup.budget || 0).toString());
+        }
+        setTimeout(() => {
+            isStartingEditRef.current = false;
+        }, 300);
+    };
+
+    const cancelInlineEdit = () => {
+        setIsCancelling(true);
+        setEditingCell(null);
+        setEditedValue("");
+        setTimeout(() => {
+            setIsCancelling(false);
+        }, 100);
+    };
+
+    const handleInlineEditChange = (value: string) => {
+        setEditedValue(value);
+    };
+
+    const confirmInlineEdit = async (newValueOverride?: string) => {
+        if (!editingCell || isCancelling) return;
+
+        const adgroup = adgroups.find(
+            (ag) => ag.adgroup_id === editingCell.adgroup_id
+        );
+        if (!adgroup) return;
+
+        const valueToCheck =
+            newValueOverride !== undefined ? newValueOverride : editedValue;
+
+        // Check if value actually changed
+        let hasChanged = false;
+        if (editingCell.field === "budget") {
+            const newBudgetStr = valueToCheck.trim();
+            const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
+            const oldBudget = adgroup.budget || 0;
+
+            if (isNaN(newBudget)) {
+                cancelInlineEdit();
+                return;
+            }
+            hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
+        } else if (editingCell.field === "operation_status") {
+            const oldValue = (adgroup.operation_status || "ENABLE").trim();
+            const newValue = valueToCheck.trim();
+            hasChanged = newValue !== oldValue;
+        } else if (editingCell.field === "adgroup_name") {
+            const oldValue = (adgroup.adgroup_name || "").trim();
+            const newValue = valueToCheck.trim();
+            hasChanged = newValue !== oldValue && newValue.length > 0;
+        }
+
+        if (!hasChanged) {
+            cancelInlineEdit();
+            return;
+        }
+
+        // Call the appropriate update handler
+        try {
+            if (editingCell.field === "adgroup_name" && onUpdateAdGroupName) {
+                await onUpdateAdGroupName(editingCell.adgroup_id, valueToCheck.trim());
+            } else if (editingCell.field === "operation_status" && onUpdateAdGroupStatus) {
+                await onUpdateAdGroupStatus(editingCell.adgroup_id, valueToCheck.trim());
+            } else if (editingCell.field === "budget" && onUpdateAdGroupBudget) {
+                const budgetValue = parseFloat(valueToCheck.trim()) || 0;
+                await onUpdateAdGroupBudget(editingCell.adgroup_id, budgetValue);
+            }
+            setEditingCell(null);
+            setEditedValue("");
+        } catch (error) {
+            console.error("Error updating ad group:", error);
+            cancelInlineEdit();
+        }
+    };
+
+    // Cancel inline edit when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (isStartingEditRef.current) {
+                return;
+            }
+
+            if (editingCell) {
+                const target = event.target as HTMLElement;
+                const isDropdownMenu =
+                    target.closest('[class*="z-50"]') ||
+                    target.closest('[class*="shadow-lg"]') ||
+                    target.closest('button[type="button"]');
+                const isInput = target.closest("input");
+                const isModal = target.closest('[class*="fixed"]');
+
+                if (!isInput && !isDropdownMenu && !isModal) {
+                    setTimeout(() => {
+                        if (editingCell && !isCancelling) {
+                            cancelInlineEdit();
+                        }
+                    }, 150);
+                }
+            }
+        };
+
+        if (editingCell) {
+            const timeout = setTimeout(() => {
+                document.addEventListener("mousedown", handleClickOutside);
+            }, 300);
+
+            return () => {
+                clearTimeout(timeout);
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }
+    }, [editingCell, isCancelling]);
 
     const getSortIcon = (column: string) => {
         if (sortBy !== column) {
@@ -309,10 +451,51 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     />
                                                 </div>
                                             </td>
+                                            {/* Ad Group Name - Editable */}
                                             <td className="py-[10px] px-[10px]">
-                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-medium text-left">
-                                                    {item.adgroup_name}
-                                                </div>
+                                                {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "adgroup_name" ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editedValue}
+                                                        onChange={(e) => handleInlineEditChange(e.target.value)}
+                                                        onBlur={(e) => {
+                                                            if (isCancelling) return;
+                                                            const inputValue = e.target.value;
+                                                            if (inputValue === item.adgroup_name || inputValue === "") {
+                                                                cancelInlineEdit();
+                                                            } else {
+                                                                confirmInlineEdit(inputValue);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") {
+                                                                e.currentTarget.blur();
+                                                            } else if (e.key === "Escape") {
+                                                                cancelInlineEdit();
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                        maxLength={512}
+                                                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
+                                                            false // isArchived - add this check if needed
+                                                                ? "text-gray-400 cursor-not-allowed"
+                                                                : "text-[#0b0f16] cursor-pointer hover:underline"
+                                                        }`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (onUpdateAdGroupName) {
+                                                                startInlineEdit(item, "adgroup_name");
+                                                            }
+                                                        }}
+                                                        title={item.adgroup_name}
+                                                    >
+                                                        {item.adgroup_name}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-[10px] px-[10px]">
                                                 <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left">
@@ -326,13 +509,90 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     )}
                                                 </div>
                                             </td>
+                                            {/* Status - Editable */}
                                             <td className="py-[10px] px-[10px]">
-                                                <StatusBadge status={item.operation_status} />
+                                                {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "operation_status" ? (
+                                                    <div className="dropdown-container">
+                                                        <Dropdown
+                                                            options={[
+                                                                { value: "ENABLE", label: "Enable" },
+                                                                { value: "DISABLE", label: "Disable" },
+                                                                { value: "DELETE", label: "Delete" },
+                                                            ]}
+                                                            value={editedValue}
+                                                            onChange={(value) => {
+                                                                handleInlineEditChange(value);
+                                                                confirmInlineEdit(value);
+                                                            }}
+                                                            defaultOpen={true}
+                                                            closeOnSelect={true}
+                                                            buttonClassName="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className={`text-[13.3px] leading-[1.26] ${
+                                                            false // isArchived - add this check if needed
+                                                                ? "cursor-not-allowed opacity-60"
+                                                                : onUpdateAdGroupStatus ? "cursor-pointer hover:underline" : ""
+                                                        }`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (onUpdateAdGroupStatus) {
+                                                                startInlineEdit(item, "operation_status");
+                                                            }
+                                                        }}
+                                                    >
+                                                        <StatusBadge status={item.operation_status} />
+                                                    </div>
+                                                )}
                                             </td>
+                                            {/* Budget - Editable */}
                                             <td className="py-[10px] px-[10px]">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                                    {formatCurrency(item.budget)}
-                                                </span>
+                                                {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "budget" ? (
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        value={editedValue}
+                                                        onChange={(e) => handleInlineEditChange(e.target.value)}
+                                                        onBlur={(e) => {
+                                                            if (isCancelling) return;
+                                                            const inputValue = e.target.value;
+                                                            const oldValue = (item.budget || 0).toString();
+                                                            if (inputValue === oldValue || inputValue === "") {
+                                                                cancelInlineEdit();
+                                                            } else {
+                                                                confirmInlineEdit(inputValue);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") {
+                                                                e.currentTarget.blur();
+                                                            } else if (e.key === "Escape") {
+                                                                cancelInlineEdit();
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
+                                                            false // isArchived - add this check if needed
+                                                                ? "text-gray-400 cursor-not-allowed"
+                                                                : onUpdateAdGroupBudget ? "text-[#0b0f16] cursor-pointer hover:underline" : "text-[#0b0f16]"
+                                                        }`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (onUpdateAdGroupBudget) {
+                                                                startInlineEdit(item, "budget");
+                                                            }
+                                                        }}
+                                                    >
+                                                        {formatCurrency(item.budget)}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-[10px] px-[10px]">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">

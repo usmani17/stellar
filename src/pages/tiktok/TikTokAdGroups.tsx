@@ -44,6 +44,9 @@ export const TikTokAdGroups: React.FC = () => {
     const exportDropdownRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [exportLoading, setExportLoading] = useState(false);
+    const [bulkStatusLoading, setBulkStatusLoading] = useState(false);
+    const [showBidPanel, setShowBidPanel] = useState(false);
+    const [bidValue, setBidValue] = useState<string>("");
 
     // Filter State
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -126,6 +129,7 @@ export const TikTokAdGroups: React.FC = () => {
                 !dropdownRef.current.contains(event.target as Node)
             ) {
                 setShowBulkActions(false);
+                setShowBidPanel(false);
             }
             if (
                 exportDropdownRef.current &&
@@ -135,14 +139,114 @@ export const TikTokAdGroups: React.FC = () => {
             }
         };
 
-        if (showBulkActions || showExportDropdown) {
+        if (showBulkActions || showExportDropdown || showBidPanel) {
             document.addEventListener("mousedown", handleClickOutside);
         }
 
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, [showBulkActions, showExportDropdown]);
+    }, [showBulkActions, showExportDropdown, showBidPanel]);
+
+    // Bulk status update handler
+    const handleBulkStatusUpdate = async (operationStatus: "ENABLE" | "DISABLE" | "DELETE") => {
+        if (!accountId || selectedAdgroups.size === 0) {
+            alert("Please select at least one ad group to update.");
+            return;
+        }
+
+        const accountIdNum = parseInt(accountId, 10);
+        if (isNaN(accountIdNum)) {
+            alert("Invalid account ID.");
+            return;
+        }
+
+        const selectedIds = Array.from(selectedAdgroups);
+        const statusLabel = operationStatus === "ENABLE" ? "enable" : operationStatus === "DISABLE" ? "pause" : "delete";
+        
+        // Show confirmation
+        const confirmMessage = `Are you sure you want to ${statusLabel} ${selectedIds.length} ad group(s)?`;
+        if (!window.confirm(confirmMessage)) {
+            return;
+        }
+
+        setBulkStatusLoading(true);
+        setShowBulkActions(false);
+
+        try {
+            await campaignsService.updateTikTokAdGroupStatus(accountIdNum, {
+                adgroup_ids: selectedIds,
+                operation_status: operationStatus,
+            });
+
+            // Clear selection and refresh
+            setSelectedAdgroups(new Set());
+            await loadAdGroups();
+        } catch (error: any) {
+            console.error("Failed to update ad group status:", error);
+            const errorMessage =
+                error?.response?.data?.error ||
+                error?.message ||
+                "Failed to update ad group status. Please try again.";
+            alert(errorMessage);
+        } finally {
+            setBulkStatusLoading(false);
+        }
+    };
+
+    // Bulk budget update handler
+    const handleBulkBudgetUpdate = async () => {
+        if (!accountId || selectedAdgroups.size === 0) {
+            alert("Please select at least one ad group to update.");
+            return;
+        }
+
+        const budgetValue = parseFloat(bidValue);
+        if (isNaN(budgetValue) || budgetValue <= 0) {
+            alert("Please enter a valid budget amount.");
+            return;
+        }
+
+        const accountIdNum = parseInt(accountId, 10);
+        if (isNaN(accountIdNum)) {
+            alert("Invalid account ID.");
+            return;
+        }
+
+        const selectedIds = Array.from(selectedAdgroups);
+        
+        // Show confirmation
+        const confirmMessage = `Are you sure you want to update budget to $${budgetValue.toFixed(2)} for ${selectedIds.length} ad group(s)?`;
+        if (!window.confirm(confirmMessage)) {
+            return;
+        }
+
+        setBulkStatusLoading(true);
+        setShowBidPanel(false);
+        setBidValue("");
+
+        try {
+            await campaignsService.updateTikTokAdGroupBudget(accountIdNum, {
+                budget: selectedIds.map(id => ({
+                    adgroup_id: id,
+                    budget: budgetValue
+                }))
+            });
+
+            // Clear selection and refresh
+            setSelectedAdgroups(new Set());
+            await loadAdGroups();
+        } catch (error: any) {
+            console.error("Failed to update ad group budget:", error);
+            const errorMessage =
+                error?.response?.data?.error ||
+                error?.message ||
+                "Failed to update ad group budget. Please try again.";
+            alert(errorMessage);
+        } finally {
+            setBulkStatusLoading(false);
+        }
+    };
 
     const loadAdGroups = async () => {
         if (!accountId) return;
@@ -307,6 +411,55 @@ export const TikTokAdGroups: React.FC = () => {
                             metrics={metrics}
                         />
 
+                        {/* Budget editor panel */}
+                        {selectedAdgroups.size > 0 && showBidPanel && (
+                            <div className="mb-4">
+                                <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
+                                    <div className="flex flex-wrap items-end gap-3 justify-between">
+                                        <div className="w-[160px]">
+                                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                                                Budget
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={bidValue}
+                                                    onChange={(e) => setBidValue(e.target.value)}
+                                                    className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                                    placeholder="0.00"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                                                    $
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleBulkBudgetUpdate}
+                                                disabled={bulkStatusLoading || !bidValue || parseFloat(bidValue) <= 0}
+                                                className="px-4 py-2.5 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[10.64px] font-medium"
+                                            >
+                                                {bulkStatusLoading ? "Updating..." : "Update"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowBidPanel(false);
+                                                    setBidValue("");
+                                                }}
+                                                className="px-4 py-2.5 bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[10.64px] text-[#556179] font-medium"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Table Header Actions (Edit/Export) */}
                         <div className="flex items-center justify-end gap-2">
                             {/* Bulk Actions Dropdown */}
@@ -314,30 +467,65 @@ export const TikTokAdGroups: React.FC = () => {
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                                    disabled={bulkStatusLoading}
+                                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowBulkActions(prev => !prev);
                                         setShowExportDropdown(false);
+                                        setShowBidPanel(false);
                                     }}
                                 >
                                     <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
                                     </svg>
-                                    <span className="text-[10.64px] text-[#072929] font-normal">Edit</span>
+                                    <span className="text-[10.64px] text-[#072929] font-normal">
+                                        {bulkStatusLoading ? "Updating..." : "Edit"}
+                                    </span>
                                 </Button>
                                 {showBulkActions && (
                                     <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                                         <div className="overflow-y-auto">
-                                            {['Enable', 'Pause', 'Archive', 'Edit Budget'].map((label) => (
-                                                <button
-                                                    key={label}
-                                                    className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                                    disabled={selectedAdgroups.size === 0}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
+                                            <button
+                                                onClick={() => {
+                                                    setShowBulkActions(false);
+                                                    handleBulkStatusUpdate("ENABLE");
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                disabled={selectedAdgroups.size === 0 || bulkStatusLoading}
+                                            >
+                                                Enable
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowBulkActions(false);
+                                                    handleBulkStatusUpdate("DISABLE");
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                disabled={selectedAdgroups.size === 0 || bulkStatusLoading}
+                                            >
+                                                Disable
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowBulkActions(false);
+                                                    handleBulkStatusUpdate("DELETE");
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-[10.64px] text-red-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                disabled={selectedAdgroups.size === 0 || bulkStatusLoading}
+                                            >
+                                                Delete
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowBidPanel(true);
+                                                    setShowBulkActions(false);
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                disabled={selectedAdgroups.size === 0 || bulkStatusLoading}
+                                            >
+                                                Edit Budget
+                                            </button>
                                         </div>
                                     </div>
                                 )}
@@ -353,6 +541,7 @@ export const TikTokAdGroups: React.FC = () => {
                                         e.stopPropagation();
                                         setShowExportDropdown(prev => !prev);
                                         setShowBulkActions(false);
+                                        setShowBidPanel(false);
                                     }}
                                     disabled={exportLoading}
                                 >

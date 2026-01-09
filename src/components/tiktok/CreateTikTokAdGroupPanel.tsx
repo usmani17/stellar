@@ -999,10 +999,11 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 <Dropdown<string>
                     options={options}
                     value={value}
-                    onChange={(val) => onChange(val)}
+                    onChange={(val: string) => onChange(val)}
                     placeholder={placeholder || `Select ${label.toLowerCase()}`}
                     disabled={disabled}
                     buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className="w-full"
                 />
             ) : (
                 <div className={`relative w-full h-12 px-3 py-2 rounded-xl border ${
@@ -1445,13 +1446,17 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                                 disabled={true}
                             />
                         </div>
-                        <div className="w-96">
-                            <InputField
-                                label="Placement Type"
-                                value={placementType}
-                                onChange={setPlacementType}
-                                type="select"
+                        <div className="w-96 flex flex-col justify-start items-start">
+                            <label className="self-stretch pb-1 text-base font-medium text-[#072929] mb-2">
+                                Placement Type
+                            </label>
+                            <Dropdown<string>
                                 options={PLACEMENT_TYPES}
+                                value={placementType}
+                                onChange={(val: string) => setPlacementType(val)}
+                                placeholder="Select Placement Type"
+                                buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                                className="w-full"
                             />
                         </div>
                         <div className="flex-1">
@@ -2376,23 +2381,17 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     <button
                         type="button"
                         onClick={handleCancel}
-                        className="w-20 min-w-20 h-10 px-4 bg-[#F9F9F6] rounded-lg border border-[#E3E3E3] flex justify-center items-center"
+                        className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
                     >
-                        <span className="text-sm font-medium text-[#072929] leading-5">Cancel</span>
+                        Cancel
                     </button>
                     <button
                         type="button"
                         onClick={handleSubmit}
                         disabled={loading || (adGroups.length === 0 && !adgroupName.trim())}
-                        className={`h-10 px-4 py-2.5 rounded-lg shadow-sm flex justify-center items-center ${
-                            loading || (adGroups.length === 0 && !adgroupName.trim())
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-teal-700 hover:bg-teal-800'
-                        }`}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <span className="text-sm font-medium text-white leading-5">
-                            {loading ? "Creating..." : adGroups.length > 0 ? "Add All Groups" : "Create Ad Group"}
-                        </span>
+                        {loading ? "Creating..." : adGroups.length > 0 ? "Add All Ad Groups" : "Add Ad Group"}
                     </button>
                 </div>
             </div>

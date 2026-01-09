@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { Dropdown } from "../../../components/ui/Dropdown";
 import { Checkbox } from "../../../components/ui/Checkbox";
 
 export interface TikTokCampaign {
@@ -14,6 +15,11 @@ export interface TikTokCampaign {
     operation_status: string;
     create_time?: string;
     modify_time?: string;
+    spend?: number;
+    conversions?: number;
+    cpa?: number;
+    roas?: number;
+    profile_name?: string;
 }
 
 interface TikTokCampaignsTableProps {
@@ -25,6 +31,15 @@ interface TikTokCampaignsTableProps {
     selectedCampaigns?: Set<string | number>;
     onSelectionChange?: (selected: Set<string | number>) => void;
     onEditCampaign?: (campaign: TikTokCampaign) => void;
+    editingCell?: {
+        campaign_id: string;
+        field: "operation_status" | "budget";
+    } | null;
+    editedValue?: string;
+    onStartInlineEdit?: (campaign: TikTokCampaign, field: "operation_status" | "budget") => void;
+    onCancelInlineEdit?: () => void;
+    onInlineEditChange?: (value: string) => void;
+    onConfirmInlineEdit?: (newValueOverride?: string) => void;
 }
 
 export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
@@ -36,6 +51,12 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     selectedCampaigns = new Set(),
     onSelectionChange,
     onEditCampaign,
+    editingCell,
+    editedValue = "",
+    onStartInlineEdit,
+    onCancelInlineEdit,
+    onInlineEditChange,
+    onConfirmInlineEdit,
 }) => {
     const handleSelectCampaign = (campaignId: string | number, checked: boolean) => {
         if (!onSelectionChange) return;
@@ -107,6 +128,22 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
         return status || "Enabled";
     };
 
+    const formatBudgetType = (budgetMode?: string): string => {
+        if (!budgetMode) return "—";
+        const mode = budgetMode.toUpperCase();
+        if (mode === "BUDGET_MODE_DAY" || mode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET") {
+            return "DAILY";
+        }
+        if (mode === "BUDGET_MODE_TOTAL") {
+            return "LIFETIME";
+        }
+        if (mode === "BUDGET_MODE_INFINITE") {
+            return "UNLIMITED";
+        }
+        // Fallback: format the mode string
+        return mode.replace("BUDGET_MODE_", "").replace(/_/g, " ");
+    };
+
     const getSortIcon = (column: string) => {
         if (sortBy !== column) {
             return (
@@ -127,7 +164,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
         }
         return sortOrder === "asc" ? (
             <svg
-                className="w-4 h-4 ml-1 text-[#136D6D]"
+                className="w-4 h-4 ml-1 text-[#556179]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -141,7 +178,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
             </svg>
         ) : (
             <svg
-                className="w-4 h-4 ml-1 text-[#136D6D]"
+                className="w-4 h-4 ml-1 text-[#556179]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -158,7 +195,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     if (loading) {
         return (
-            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#136D6D] mb-4"></div>
                 <p className="text-[13.3px] text-[#556179]">Loading campaigns...</p>
             </div>
@@ -167,7 +204,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     if (campaigns.length === 0) {
         return (
-            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
                 <p className="text-[13.3px] text-[#556179]">No campaigns found.</p>
             </div>
         );
@@ -176,11 +213,12 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
 
     return (
-        <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+        <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
             <div className="overflow-x-auto w-full">
-                <table className="min-w-full w-full">
+                <table className="min-w-[1200px] w-full">
                     <thead>
-                        <tr className="border-b border-[#e8e8e3] bg-[#f5f5f0]">
+                        <tr className="border-b border-[#e8e8e3]">
+                            {/* Checkbox Header */}
                             <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                                 <div className="flex items-center justify-center">
                                     <Checkbox
@@ -192,7 +230,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"
+                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"
                                 onClick={() => onSort?.("campaign_name")}
                             >
                                 <div className="flex items-center gap-1">
@@ -200,7 +238,16 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                     {getSortIcon("campaign_name")}
                                 </div>
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50" onClick={() => onSort?.("objective_type")}>
+                            <th
+                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
+                                onClick={() => onSort?.("profile_name")}
+                            >
+                                <div className="flex items-center gap-1">
+                                    Profile
+                                    {getSortIcon("profile_name")}
+                                </div>
+                            </th>
+                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[60px] whitespace-nowrap" onClick={() => onSort?.("objective_type")}>
                                 <div className="flex items-center gap-1">
                                     Type
                                     {getSortIcon("objective_type")}
@@ -222,6 +269,18 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 <div className="flex items-center gap-1">
                                     Budget
                                     {getSortIcon("budget")}
+                                </div>
+                            </th>
+                            <th
+                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                onClick={() => onSort?.("budgetType")}
+                            >
+                                <div className="flex items-center gap-1">
+                                    <div className="flex flex-col">
+                                        <span>Budget</span>
+                                        <span>Type</span>
+                                    </div>
+                                    {getSortIcon("budgetType")}
                                 </div>
                             </th>
                             <th
@@ -271,21 +330,13 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                             </td>
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                {formatCurrency(campaigns.reduce((sum, c) => sum + (c.budget || 0), 0))}
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                —
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                —
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                —
-                            </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                —
-                            </td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="py-[10px] px-[10px]"></td>
                         </tr>
                         {campaigns.map((campaign, index) => {
                             const isLastRow = index === campaigns.length - 1;
@@ -308,7 +359,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             />
                                         </div>
                                     </td>
-                                    <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                                    <td className="py-[10px] px-[10px] w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                         <div className="flex items-center gap-2">
                                             <button
                                                 type="button"
@@ -343,39 +394,138 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             </button>
                                         </div>
                                     </td>
-                                    <td className="py-[10px] px-[10px]">
+                                    <td className="py-[10px] px-[10px] min-w-[200px] text-left">
+                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                            {campaign.profile_name && campaign.profile_name.trim() !== ""
+                                                ? campaign.profile_name
+                                                : "—"}
+                                        </span>
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-left">
                                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                             {getObjectiveLabel(campaign.objective_type)}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] min-w-[115px]">
-                                        <StatusBadge
-                                            status={normalizeStatus(campaign.operation_status).toUpperCase() as any}
-                                        />
+                                    <td className="py-[10px] px-[10px] min-w-[115px] text-left">
+                                        {editingCell?.campaign_id === campaign.campaign_id && editingCell?.field === "operation_status" ? (
+                                            <div className="dropdown-container" onClick={(e) => e.stopPropagation()}>
+                                                <Dropdown
+                                                    options={[
+                                                        { value: "ENABLE", label: "Enable" },
+                                                        { value: "DISABLE", label: "Disable (Pause)" },
+                                                        { value: "DELETE", label: "Delete" },
+                                                    ]}
+                                                    value={editedValue}
+                                                    onChange={(val) => {
+                                                        const newValue = val as string;
+                                                        if (onInlineEditChange) {
+                                                            onInlineEditChange(newValue);
+                                                        }
+                                                        setTimeout(() => {
+                                                            if (onConfirmInlineEdit) {
+                                                                onConfirmInlineEdit(newValue);
+                                                            }
+                                                        }, 100);
+                                                    }}
+                                                    onClose={() => {
+                                                        if (onCancelInlineEdit) {
+                                                            onCancelInlineEdit();
+                                                        }
+                                                    }}
+                                                    defaultOpen={true}
+                                                    closeOnSelect={true}
+                                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                                    width="w-full"
+                                                    align="center"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="rounded px-2 py-1 cursor-pointer hover:bg-gray-50"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onStartInlineEdit) {
+                                                        onStartInlineEdit(campaign, "operation_status");
+                                                    }
+                                                }}
+                                            >
+                                                <StatusBadge
+                                                    status={normalizeStatus(campaign.operation_status).toUpperCase() as any}
+                                                />
+                                            </div>
+                                        )}
                                     </td>
-                                    <td className="py-[10px] px-[10px]">
+                                    <td className="py-[10px] px-[10px] text-left">
+                                        {editingCell?.campaign_id === campaign.campaign_id && editingCell?.field === "budget" ? (
+                                            <div className="flex items-center justify-center">
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={editedValue}
+                                                    onChange={(e) => {
+                                                        e.stopPropagation();
+                                                        if (onInlineEditChange) {
+                                                            onInlineEditChange(e.target.value);
+                                                        }
+                                                    }}
+                                                    onBlur={(e) => {
+                                                        const inputValue = e.target.value;
+                                                        if (onConfirmInlineEdit) {
+                                                            onConfirmInlineEdit(inputValue);
+                                                        }
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") {
+                                                            e.currentTarget.blur();
+                                                        } else if (e.key === "Escape") {
+                                                            if (onCancelInlineEdit) {
+                                                                onCancelInlineEdit();
+                                                            }
+                                                        }
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    autoFocus
+                                                    className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <p
+                                                className="text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 cursor-pointer hover:bg-gray-50"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onStartInlineEdit) {
+                                                        onStartInlineEdit(campaign, "budget");
+                                                    }
+                                                }}
+                                            >
+                                                {formatCurrency(campaign.budget)}
+                                            </p>
+                                        )}
+                                    </td>
+                                    <td className="py-[10px] px-[10px] text-left">
                                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            {formatCurrency(campaign.budget)}
+                                            {formatBudgetType(campaign.budget_mode)}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px]">
+                                    <td className="py-[10px] px-[10px] text-left">
                                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            —
+                                            {campaign.spend !== undefined && campaign.spend !== null ? formatCurrency(campaign.spend) : "—"}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px]">
+                                    <td className="py-[10px] px-[10px] text-left">
                                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            —
+                                            {campaign.conversions !== undefined && campaign.conversions !== null ? campaign.conversions.toLocaleString() : "—"}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px]">
+                                    <td className="py-[10px] px-[10px] text-left">
                                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            —
+                                            {campaign.cpa !== undefined && campaign.cpa !== null && campaign.cpa > 0 ? formatCurrency(campaign.cpa) : "—"}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px]">
+                                    <td className="py-[10px] px-[10px] text-left">
                                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            —
+                                            {campaign.roas !== undefined && campaign.roas !== null && campaign.roas > 0 ? campaign.roas.toFixed(2) : "—"}
                                         </span>
                                     </td>
                                 </tr>

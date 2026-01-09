@@ -2734,6 +2734,87 @@ export const campaignsService = {
     window.URL.revokeObjectURL(url);
   },
 
+  exportTikTokCampaigns: async (
+    accountId: number,
+    params?: {
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      page?: number;
+      page_size?: number;
+      campaign_name?: string;
+      operation_status?: string;
+      objective_type?: string;
+      advertiser_id?: string;
+      export_type?: "all_data" | "current_view";
+    }
+  ): Promise<void> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+
+    if (params?.sort_by) {
+      filters.sort_by = params.sort_by;
+    }
+    if (params?.order) {
+      filters.order = params.order;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+    if (params?.campaign_name) {
+      filters.campaign_name = params.campaign_name;
+    }
+    if (params?.operation_status) {
+      filters.operation_status = params.operation_status;
+    }
+    if (params?.objective_type) {
+      filters.objective_type = params.objective_type;
+    }
+    if (params?.advertiser_id) {
+      filters.advertiser_id = params.advertiser_id;
+    }
+
+    // Make request with responseType blob to handle CSV file
+    const response = await api.post(
+      `/accounts/${accountId}/tiktok-campaigns/export/`,
+      { filters, export_type: params?.export_type || "all_data" },
+      {
+        responseType: "blob",
+      }
+    );
+
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = "tiktok_campaigns_export.csv";
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 
   exportGoogleAdGroups: async (
     accountId: number,
@@ -3539,6 +3620,50 @@ export const campaignsService = {
     }
   ): Promise<any> => {
     const url = `/accounts/${accountId}/tiktok-adgroups/create/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  // TikTok Ad Group Update
+  updateTikTokAdGroup: async (
+    accountId: number,
+    adgroupId: string | number,
+    data: {
+      adgroup_name?: string;
+      operation_status?: "ENABLE" | "DISABLE" | "DELETE";
+      budget?: number;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-adgroups/${adgroupId}/update/`;
+    const response = await api.put(url, data);
+    return response.data;
+  },
+
+  // TikTok Ad Group Status Update
+  updateTikTokAdGroupStatus: async (
+    accountId: number,
+    data: {
+      adgroup_ids: Array<string | number>;
+      operation_status: "ENABLE" | "DISABLE" | "DELETE";
+      advertiser_id?: string;
+      allow_partial_success?: boolean;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-adgroups/status/update/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  // TikTok Ad Group Budget Update
+  updateTikTokAdGroupBudget: async (
+    accountId: number,
+    data: {
+      budget?: Array<{ adgroup_id: string | number; budget: number }>;
+      scheduled_budget?: Array<{ adgroup_id: string | number; scheduled_budget: number }>;
+      advertiser_id?: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-adgroups/budget/update/`;
     const response = await api.post(url, data);
     return response.data;
   },

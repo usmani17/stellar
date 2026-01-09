@@ -71,6 +71,28 @@ export const TikTokCampaigns: React.FC = () => {
     const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    // Export state
+    const [showExportDropdown, setShowExportDropdown] = useState(false);
+    const exportDropdownRef = useRef<HTMLDivElement>(null);
+    const [exportLoading, setExportLoading] = useState(false);
+
+    // Inline edit state
+    const [editingCell, setEditingCell] = useState<{
+        campaign_id: string;
+        field: "operation_status" | "budget";
+    } | null>(null);
+    const [editedValue, setEditedValue] = useState<string>("");
+    const [isCancelling, setIsCancelling] = useState(false);
+    const isStartingEditRef = useRef(false);
+
+    // Inline edit confirmation modal state
+    const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+    const [inlineEditCampaign, setInlineEditCampaign] = useState<TikTokCampaign | null>(null);
+    const [inlineEditField, setInlineEditField] = useState<"operation_status" | "budget" | null>(null);
+    const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+    const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+    const [inlineEditLoading, setInlineEditLoading] = useState(false);
+
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -214,6 +236,58 @@ export const TikTokCampaigns: React.FC = () => {
         }
     };
 
+    const handleExport = async (exportType: "all_data" | "current_view") => {
+        if (!accountId) return;
+
+        // Keep dropdown open and show loading
+        setShowExportDropdown(true);
+        setExportLoading(true);
+        try {
+            const accountIdNum = parseInt(accountId, 10);
+            if (isNaN(accountIdNum)) {
+                throw new Error("Invalid account ID");
+            }
+
+            // Build params from current filters, sorting, and pagination
+            const params: any = {
+                sort_by: sortColumn,
+                order: sortDirection,
+                start_date: startDate.toISOString().split("T")[0],
+                end_date: endDate.toISOString().split("T")[0],
+            };
+
+            // Add pagination for current_view
+            if (exportType === "current_view") {
+                params.page = page;
+                params.page_size = pageSize;
+            }
+
+            // Call export API (handles download automatically)
+            await campaignsService.exportTikTokCampaigns(accountIdNum, {
+                ...params,
+                export_type: exportType,
+            });
+
+            // Close dropdown after a short delay to show success
+            setTimeout(() => {
+                setShowExportDropdown(false);
+            }, 500);
+        } catch (error: any) {
+            console.error("Failed to export TikTok campaigns:", error);
+            const errorMessage =
+                error?.response?.data?.error ||
+                error?.message ||
+                "Failed to export campaigns. Please try again.";
+            setErrorModal({
+                isOpen: true,
+                message: errorMessage,
+            });
+            setShowExportDropdown(false);
+        } finally {
+            setExportLoading(false);
+        }
+    };
+
     const handleEditCampaign = async (campaign: TikTokCampaign) => {
         if (!accountId) return;
         
@@ -287,6 +361,199 @@ export const TikTokCampaigns: React.FC = () => {
 
     const totalPages = Math.ceil(total / pageSize);
 
+    // Helper functions
+    const formatCurrency = (value?: number) => {
+        if (value === undefined || value === null) return "$0.00";
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 2,
+        }).format(value);
+    };
+
+    const normalizeStatus = (status: string): string => {
+        const statusLower = status?.toLowerCase() || "";
+        if (statusLower === "enable" || statusLower === "active") {
+            return "ENABLE";
+        }
+        if (statusLower === "disable" || statusLower === "paused") {
+            return "DISABLE";
+        }
+        return status?.toUpperCase() || "ENABLE";
+    };
+
+    // Inline edit handlers
+    const startInlineEdit = (
+        campaign: TikTokCampaign,
+        field: "operation_status" | "budget"
+    ) => {
+        isStartingEditRef.current = true;
+        setEditingCell({ campaign_id: campaign.campaign_id, field });
+        if (field === "operation_status") {
+            setEditedValue(normalizeStatus(campaign.operation_status));
+        } else if (field === "budget") {
+            setEditedValue((campaign.budget || 0).toString());
+        }
+        setTimeout(() => {
+            isStartingEditRef.current = false;
+        }, 300);
+    };
+
+    const cancelInlineEdit = () => {
+        setIsCancelling(true);
+        setEditingCell(null);
+        setEditedValue("");
+        setTimeout(() => {
+            setIsCancelling(false);
+        }, 100);
+    };
+
+    const handleInlineEditChange = (value: string) => {
+        setEditedValue(value);
+    };
+
+    // Cancel inline edit when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (isStartingEditRef.current) {
+                return;
+            }
+
+            if (editingCell && !showInlineEditModal) {
+                const target = event.target as HTMLElement;
+                const isDropdownMenu =
+                    target.closest('[class*="z-50"]') ||
+                    target.closest('[class*="shadow-lg"]') ||
+                    target.closest('button[type="button"]');
+                const isInput = target.closest("input");
+                const isModal = target.closest('[class*="fixed"]');
+
+                if (!isInput && !isDropdownMenu && !isModal) {
+                    setTimeout(() => {
+                        if (editingCell && !showInlineEditModal && !isStartingEditRef.current) {
+                            cancelInlineEdit();
+                        }
+                    }, 150);
+                }
+            }
+        };
+
+        if (editingCell && !showInlineEditModal) {
+            const timeout = setTimeout(() => {
+                document.addEventListener("mousedown", handleClickOutside);
+            }, 300);
+
+            return () => {
+                clearTimeout(timeout);
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }
+    }, [editingCell, showInlineEditModal]);
+
+    const confirmInlineEdit = (newValueOverride?: string) => {
+        if (!editingCell || !accountId || isCancelling) return;
+
+        const campaign = campaigns.find(
+            (c) => c.campaign_id === editingCell.campaign_id
+        );
+        if (!campaign) return;
+
+        const valueToCheck =
+            newValueOverride !== undefined ? newValueOverride : editedValue;
+
+        // Check if value actually changed
+        let hasChanged = false;
+        if (editingCell.field === "budget") {
+            const newBudgetStr = valueToCheck.trim();
+            const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
+            const oldBudget = campaign.budget || 0;
+
+            if (isNaN(newBudget)) {
+                cancelInlineEdit();
+                return;
+            }
+            hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
+        } else if (editingCell.field === "operation_status") {
+            const oldValue = normalizeStatus(campaign.operation_status);
+            const newValue = valueToCheck.trim().toUpperCase();
+            hasChanged = newValue !== oldValue;
+        }
+
+        if (!hasChanged) {
+            cancelInlineEdit();
+            return;
+        }
+
+        let oldValue = "";
+        let newValue = valueToCheck;
+
+        if (editingCell.field === "budget") {
+            oldValue = formatCurrency(campaign.budget || 0);
+            newValue = formatCurrency(parseFloat(valueToCheck) || 0);
+        } else if (editingCell.field === "operation_status") {
+            oldValue = normalizeStatus(campaign.operation_status);
+            newValue = valueToCheck.toUpperCase();
+        }
+
+        setInlineEditCampaign(campaign);
+        setInlineEditField(editingCell.field);
+        setInlineEditOldValue(oldValue);
+        setInlineEditNewValue(newValue);
+        setShowInlineEditModal(true);
+        setEditingCell(null);
+    };
+
+    const runInlineEdit = async () => {
+        if (!inlineEditCampaign || !inlineEditField || !accountId) return;
+
+        setInlineEditLoading(true);
+        try {
+            const accountIdNum = parseInt(accountId, 10);
+            if (isNaN(accountIdNum)) {
+                throw new Error("Invalid account ID");
+            }
+
+            if (inlineEditField === "operation_status") {
+                await campaignsService.updateTikTokCampaignStatus(accountIdNum, {
+                    campaign_ids: [inlineEditCampaign.campaign_id],
+                    operation_status: inlineEditNewValue as "ENABLE" | "DISABLE" | "DELETE",
+                });
+            } else if (inlineEditField === "budget") {
+                const budgetValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+                if (isNaN(budgetValue)) {
+                    throw new Error("Invalid budget value");
+                }
+                await campaignsService.updateTikTokCampaign(
+                    accountIdNum,
+                    inlineEditCampaign.campaign_id,
+                    { budget: budgetValue }
+                );
+            }
+
+            setShowInlineEditModal(false);
+            setInlineEditCampaign(null);
+            setInlineEditField(null);
+            setInlineEditOldValue("");
+            setInlineEditNewValue("");
+
+            // Refresh campaigns
+            await fetchCampaigns();
+        } catch (error: any) {
+            console.error("Error updating campaign:", error);
+            const errorMessage =
+                error?.response?.data?.error ||
+                error?.message ||
+                "Failed to update campaign. Please try again.";
+            setErrorModal({
+                isOpen: true,
+                title: "Error",
+                message: errorMessage,
+            });
+        } finally {
+            setInlineEditLoading(false);
+        }
+    };
+
     // Get chart data from API response
     const chartDataFromApi = useMemo(() => {
         return campaignsResponse?.chart_data || [];
@@ -330,43 +597,8 @@ export const TikTokCampaigns: React.FC = () => {
             });
         }
 
-        // Fallback: Generate sample chart data for visualization (same format as Amazon)
-        // Use date range from context (defaults to last 30 days like Amazon)
-        const days = startDate && endDate
-            ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-            : 30; // Default to 30 days if no date range
-        const data = [];
-        const dateStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const dateEnd = endDate || new Date();
-        const dataPoints = Math.min(days, 60); // Limit to 60 data points for readability
-
-        for (let i = 0; i < dataPoints; i++) {
-            const date = new Date(dateStart);
-            date.setDate(date.getDate() + Math.floor((i * days) / dataPoints));
-            // Only add dates up to endDate
-            if (date > dateEnd) break;
-            // Format to match Amazon: "Jan 01" (zero-padded day)
-            const month = date.toLocaleDateString('en-US', { month: 'short' });
-            const day = date.getDate().toString().padStart(2, '0');
-            const dateStr = `${month} ${day}`;
-
-            // Generate realistic-looking sample data
-            const baseSpend = 3000 + Math.random() * 2000;
-            const baseConversions = 150 + Math.random() * 100;
-            const baseImpressions = 50000 + Math.random() * 30000;
-            const baseClicks = 2000 + Math.random() * 1500;
-
-            data.push({
-                date: dateStr,
-                spend: Math.round(baseSpend),
-                conversions: Math.round(baseConversions),
-                impressions: Math.round(baseImpressions),
-                clicks: Math.round(baseClicks),
-                ctr: parseFloat(((baseClicks / baseImpressions) * 100).toFixed(2)),
-                cpc: parseFloat((baseSpend / baseClicks).toFixed(2)),
-            });
-        }
-        return data;
+        // Return empty array if no data (matching Amazon behavior)
+        return [];
     }, [chartDataFromApi]);
 
     // Filter campaigns based on FilterPanel filters and search query
@@ -429,8 +661,8 @@ export const TikTokCampaigns: React.FC = () => {
                     <div className="space-y-6">
                         {/* Header Row */}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
-                                Campaign Overview
+                            <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
+                                Campaigns Overview
                             </h1>
                             <div className="flex items-center gap-2">
                                 {/* Create Campaign Button */}
@@ -537,7 +769,7 @@ export const TikTokCampaigns: React.FC = () => {
                         </div>
 
                         {/* Search, Edit and Export Buttons - Above Table */}
-                        <div className="flex items-center justify-end gap-2 mb-4">
+                        <div className="flex items-center justify-end gap-2">
                             {/* Search Box */}
                             <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[8px] flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
                                 <div className="relative shrink-0 size-[12px]">
@@ -600,7 +832,7 @@ export const TikTokCampaigns: React.FC = () => {
                                     <span className="text-[10.64px] text-[#072929] font-normal">Edit</span>
                                 </Button>
                                 {showBulkActions && (
-                                    <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                                    <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                                         <div className="overflow-y-auto">
                                             {[
                                                 { value: "ENABLE", label: "Enable" },
@@ -629,28 +861,139 @@ export const TikTokCampaigns: React.FC = () => {
                             </div>
 
                             {/* Export Button */}
-                            <Button
-                                variant="ghost"
-                                className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
-                            >
-                                <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span className="text-[10.64px] text-[#072929] font-normal">Export</span>
-                            </Button>
+                            <div className="relative inline-flex justify-end" ref={exportDropdownRef}>
+                                <div className="relative">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={(e) => {
+                                            if (exportLoading) return;
+                                            e.stopPropagation();
+                                            setShowExportDropdown((prev) => !prev);
+                                            setShowBulkActions(false);
+                                        }}
+                                        disabled={exportLoading}
+                                    >
+                                        {exportLoading ? (
+                                            <div className="flex items-center justify-center">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <svg
+                                                    className="w-5 h-5 text-[#072929]"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                    />
+                                                </svg>
+                                                <span className="text-[10.64px] text-[#072929] font-normal">
+                                                    Export
+                                                </span>
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                                {(showExportDropdown || exportLoading) && (
+                                    <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                                        {exportLoading ? (
+                                            <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                                                <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                                                <p className="text-[13px] text-[#072929] font-medium">
+                                                    Exporting...
+                                                </p>
+                                                <p className="text-[11px] text-[#556179] text-center px-2">
+                                                    Please wait while we prepare your file
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="overflow-y-auto">
+                                                {[
+                                                    { value: "bulk_export", label: "Export All" },
+                                                    {
+                                                        value: "current_view",
+                                                        label: "Export Current View",
+                                                    },
+                                                ].map((opt) => (
+                                                    <button
+                                                        key={opt.value}
+                                                        type="button"
+                                                        className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            e.preventDefault();
+                                                            const exportType =
+                                                                opt.value === "bulk_export"
+                                                                    ? "all_data"
+                                                                    : "current_view";
+                                                            // Keep dropdown open during export
+                                                            await handleExport(exportType);
+                                                        }}
+                                                        disabled={exportLoading}
+                                                    >
+                                                        <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                                            <svg
+                                                                width="20"
+                                                                height="20"
+                                                                viewBox="0 0 20 20"
+                                                                fill="none"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                            >
+                                                                <rect
+                                                                    width="20"
+                                                                    height="20"
+                                                                    rx="3.2"
+                                                                    fill="#072929"
+                                                                />
+                                                                <path
+                                                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                                                    stroke="#F9F9F6"
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    strokeWidth="1.2"
+                                                                />
+                                                            </svg>
+                                                        </div>
+                                                        <span>{opt.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                             </div>
                         </div>
 
-                        <TikTokCampaignsTable
-                            campaigns={filteredCampaignsItems}
-                            loading={loading}
-                            onSort={handleSort}
-                            sortBy={sortColumn}
-                            sortOrder={sortDirection}
-                            onEditCampaign={handleEditCampaign}
-                            selectedCampaigns={selectedCampaigns}
-                            onSelectionChange={setSelectedCampaigns}
-                        />
+                        {/* Campaigns Table with overlay when panel is open */}
+                        <div className="relative">
+                            <TikTokCampaignsTable
+                                campaigns={filteredCampaignsItems}
+                                loading={loading}
+                                onSort={handleSort}
+                                sortBy={sortColumn}
+                                sortOrder={sortDirection}
+                                onEditCampaign={handleEditCampaign}
+                                selectedCampaigns={selectedCampaigns}
+                                onSelectionChange={setSelectedCampaigns}
+                                editingCell={editingCell}
+                                editedValue={editedValue}
+                                onStartInlineEdit={startInlineEdit}
+                                onCancelInlineEdit={cancelInlineEdit}
+                                onInlineEditChange={handleInlineEditChange}
+                                onConfirmInlineEdit={confirmInlineEdit}
+                            />
+                            {isCreatePanelOpen && (
+                                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-20 rounded-[12px] cursor-not-allowed" />
+                            )}
+                        </div>
 
                         {/* Pagination */}
                         {!loading && campaigns.length > 0 && (
@@ -740,11 +1083,11 @@ export const TikTokCampaigns: React.FC = () => {
                         }
                     }}
                 >
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 className="text-lg font-semibold text-[#072929] mb-4">
+                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                             Confirm {pendingStatusAction === 'ENABLE' ? 'Enable' : pendingStatusAction === 'DISABLE' ? 'Pause' : 'Delete'} Campaign{pendingStatusAction === 'DELETE' ? 's' : ''}
                         </h3>
-                        <p className="text-[14px] text-[#556179] mb-6">
+                        <p className="text-[12.16px] text-[#556179] mb-6">
                             Are you sure you want to {pendingStatusAction === 'ENABLE' ? 'enable' : pendingStatusAction === 'DISABLE' ? 'pause' : 'delete'} {selectedCampaigns.size} campaign{selectedCampaigns.size > 1 ? 's' : ''}?
                             {pendingStatusAction === 'DELETE' && (
                                 <span className="block mt-2 text-red-600 font-semibold">
@@ -759,7 +1102,7 @@ export const TikTokCampaigns: React.FC = () => {
                                     setShowConfirmationModal(false);
                                     setPendingStatusAction(null);
                                 }}
-                                className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[14px]"
+                                className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[10.64px]"
                                 disabled={statusUpdateLoading}
                             >
                                 Cancel
@@ -768,7 +1111,7 @@ export const TikTokCampaigns: React.FC = () => {
                                 type="button"
                                 onClick={handleStatusUpdateConfirm}
                                 disabled={statusUpdateLoading}
-                                className={`px-4 py-2 text-white rounded-lg transition-colors text-[14px] ${
+                                className={`px-4 py-2 text-white rounded-lg transition-colors text-[10.64px] ${
                                     pendingStatusAction === 'DELETE'
                                         ? 'bg-red-600 hover:bg-red-700'
                                         : 'bg-[#136D6D] hover:bg-[#0e5a5a]'
@@ -782,6 +1125,86 @@ export const TikTokCampaigns: React.FC = () => {
                                 ) : (
                                     pendingStatusAction === 'ENABLE' ? 'Enable' : pendingStatusAction === 'DISABLE' ? 'Pause' : 'Delete'
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Inline Edit Confirmation Modal */}
+            {showInlineEditModal && inlineEditCampaign && inlineEditField && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setShowInlineEditModal(false);
+                            setInlineEditCampaign(null);
+                            setInlineEditField(null);
+                            setInlineEditOldValue("");
+                            setInlineEditNewValue("");
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Confirm{" "}
+                            {inlineEditField === "operation_status"
+                                ? "Status"
+                                : "Budget"}{" "}
+                            Change
+                        </h3>
+                        <div className="mb-4">
+                            <p className="text-[12.16px] text-[#556179] mb-2">
+                                Campaign:{" "}
+                                <span className="font-semibold text-[#072929]">
+                                    {inlineEditCampaign.campaign_name ||
+                                        "Unnamed Campaign"}
+                                </span>
+                            </p>
+                            <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[12.16px] text-[#556179]">
+                                        {inlineEditField === "operation_status"
+                                            ? "Status"
+                                            : "Budget"}
+                                        :
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[12.16px] text-[#556179]">
+                                            {inlineEditOldValue}
+                                        </span>
+                                        <span className="text-[12.16px] text-[#556179]">
+                                            →
+                                        </span>
+                                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                                            {inlineEditNewValue}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowInlineEditModal(false);
+                                    setInlineEditCampaign(null);
+                                    setInlineEditField(null);
+                                    setInlineEditOldValue("");
+                                    setInlineEditNewValue("");
+                                }}
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                                disabled={inlineEditLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={runInlineEdit}
+                                disabled={inlineEditLoading}
+                                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {inlineEditLoading ? "Updating..." : "Confirm"}
                             </button>
                         </div>
                     </div>
