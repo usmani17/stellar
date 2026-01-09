@@ -12,8 +12,6 @@ import CampaignIcon from "../../assets/images/campaign-svgrepo-com 1.svg";
 import CampaignIconRegular from "../../assets/images/campaign.svg";
 import CampaignWhiteIcon from "../../assets/campaign-white.svg";
 import AdGroupIcon from "../../assets/images/adgroups.svg";
-import BlueprintsIcon from "../../assets/images/ph_fingerprint-fill.svg";
-import SettingsIcon from "../../assets/images/settings.svg";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
 import WalmartIcon from "../../assets/images/cbi_walmart.svg";
@@ -515,34 +513,6 @@ export const Sidebar: React.FC = () => {
                     }`}
                   >
                     Targets
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                }`}
-                title={isCollapsed ? "Blueprints" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Blueprints
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                }`}
-                title={isCollapsed ? "Settings" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Settings
                   </span>
                 )}
               </Link>

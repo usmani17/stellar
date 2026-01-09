@@ -434,6 +434,12 @@ export const Channels: React.FC = () => {
                                           navigate(
                                             `/accounts/${accountId}/google-campaigns`
                                           );
+                                        } else if (
+                                          channel.channel_type === "tiktok"
+                                        ) {
+                                          navigate(
+                                            `/accounts/${accountId}/tiktok-campaigns`
+                                          );
                                         }
                                       }}
                                       className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
@@ -496,6 +502,12 @@ export const Channels: React.FC = () => {
                                       if (channel.channel_type === "google") {
                                         navigate(
                                           `/channels/${channel.id}/select-google-accounts`
+                                        );
+                                      } else if (
+                                        channel.channel_type === "tiktok"
+                                      ) {
+                                        navigate(
+                                          `/channels/${channel.id}/select-tiktok-profiles`
                                         );
                                       } else {
                                         navigate(

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Checkbox } from "../ui/Checkbox";
 import { accountsService } from "../../services/accounts";
 
 interface CreateCampaignPanelProps {
@@ -1728,39 +1729,34 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Bid Optimization
                       </label>
                       <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.bidding?.bidOptimization ?? true}
-                            onChange={(e) => {
-                              const newBidOptimization = e.target.checked;
-                              setFormData((prev) => {
-                                const updated = { ...prev };
-                                if (!updated.bidding) {
-                                  updated.bidding = {
-                                    bidOptimization: newBidOptimization,
-                                    shopperCohortBidAdjustments: [],
-                                    bidAdjustmentsByPlacement: [],
-                                  };
-                                } else {
-                                  updated.bidding = {
-                                    ...updated.bidding,
-                                    bidOptimization: newBidOptimization,
-                                    // Keep bidAdjustmentsByPlacement regardless of bidOptimization
-                                    bidAdjustmentsByPlacement:
-                                      updated.bidding
-                                        .bidAdjustmentsByPlacement || [],
-                                  };
-                                }
-                                return updated;
-                              });
-                            }}
-                            className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
-                          />
-                          <span className="text-[13.3px] font-medium text-[#072929]">
-                            Automatic placement optimization
-                          </span>
-                        </label>
+                        <Checkbox
+                          checked={formData.bidding?.bidOptimization ?? true}
+                          onChange={(checked) => {
+                            const newBidOptimization = checked;
+                            setFormData((prev) => {
+                              const updated = { ...prev };
+                              if (!updated.bidding) {
+                                updated.bidding = {
+                                  bidOptimization: newBidOptimization,
+                                  shopperCohortBidAdjustments: [],
+                                  bidAdjustmentsByPlacement: [],
+                                };
+                              } else {
+                                updated.bidding = {
+                                  ...updated.bidding,
+                                  bidOptimization: newBidOptimization,
+                                  // Keep bidAdjustmentsByPlacement regardless of bidOptimization
+                                  bidAdjustmentsByPlacement:
+                                    updated.bidding.bidAdjustmentsByPlacement ||
+                                    [],
+                                };
+                              }
+                              return updated;
+                            });
+                          }}
+                          label="Automatic placement optimization"
+                          className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
+                        />
                       </div>
                       <p className="text-[12px] text-[#556179] mt-1">
                         When enabled, placement adjustments are ignored
@@ -2753,39 +2749,34 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Bid Optimization
                       </label>
                       <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.bidding?.bidOptimization ?? true}
-                            onChange={(e) => {
-                              const newBidOptimization = e.target.checked;
-                              setFormData((prev) => {
-                                const updated = { ...prev };
-                                if (!updated.bidding) {
-                                  updated.bidding = {
-                                    bidOptimization: newBidOptimization,
-                                    shopperCohortBidAdjustments: [],
-                                    bidAdjustmentsByPlacement: [],
-                                  };
-                                } else {
-                                  updated.bidding = {
-                                    ...updated.bidding,
-                                    bidOptimization: newBidOptimization,
-                                    // Keep bidAdjustmentsByPlacement regardless of bidOptimization
-                                    bidAdjustmentsByPlacement:
-                                      updated.bidding
-                                        .bidAdjustmentsByPlacement || [],
-                                  };
-                                }
-                                return updated;
-                              });
-                            }}
-                            className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
-                          />
-                          <span className="text-[13.3px] font-medium text-[#072929]">
-                            Automatic placement optimization
-                          </span>
-                        </label>
+                        <Checkbox
+                          checked={formData.bidding?.bidOptimization ?? true}
+                          onChange={(checked) => {
+                            const newBidOptimization = checked;
+                            setFormData((prev) => {
+                              const updated = { ...prev };
+                              if (!updated.bidding) {
+                                updated.bidding = {
+                                  bidOptimization: newBidOptimization,
+                                  shopperCohortBidAdjustments: [],
+                                  bidAdjustmentsByPlacement: [],
+                                };
+                              } else {
+                                updated.bidding = {
+                                  ...updated.bidding,
+                                  bidOptimization: newBidOptimization,
+                                  // Keep bidAdjustmentsByPlacement regardless of bidOptimization
+                                  bidAdjustmentsByPlacement:
+                                    updated.bidding.bidAdjustmentsByPlacement ||
+                                    [],
+                                };
+                              }
+                              return updated;
+                            });
+                          }}
+                          label="Automatic placement optimization"
+                          className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
+                        />
                       </div>
                       <p className="text-[12px] text-[#556179] mt-1">
                         When enabled, placement adjustments are ignored
