@@ -40,6 +40,11 @@ import { GoogleCreateCampaign } from "./pages/google/GoogleCreateCampaign";
 import { GoogleAdGroups } from "./pages/google/GoogleAdGroups";
 import { GoogleAds } from "./pages/google/GoogleAds";
 import { GoogleKeywords } from "./pages/google/GoogleKeywords";
+import { TikTokCampaigns } from "./pages/tiktok/TikTokCampaigns";
+import { TikTokCampaignDetail } from "./pages/tiktok/TikTokCampaignDetail";
+import { TikTokCreateCampaign } from "./pages/tiktok/TikTokCreateCampaign";
+import { TikTokAdGroups } from "./pages/tiktok/TikTokAdGroups";
+import { TikTokAds } from "./pages/tiktok/TikTokAds";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
 import { Dashboards } from "./pages/Dashboards";
@@ -126,14 +131,6 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <SelectAmazonProfiles />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/channels/:channelId/select-tiktok-profiles"
-                    element={
-                      <ProtectedRoute>
-                        <SelectTikTokProfiles />
                       </ProtectedRoute>
                     }
                   />
@@ -391,7 +388,69 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  {/* TikTok marketplace routes */}
+                  <Route
+                    path="/accounts/:accountId/tiktok/campaigns"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokCampaigns />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/campaigns/create"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokCreateCampaign />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/campaigns/:campaignId"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokCampaignDetail />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/adgroups"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokAdGroups />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/ads"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokAds />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* Legacy routes for backward compatibility - redirect to new structure */}
+
                   <Route
                     path="/accounts/:accountId/campaigns"
                     element={

@@ -42,8 +42,8 @@ interface FilterPanelProps {
   initialFilters?: FilterValues;
   filterFields?: Array<{ value: string; label: string }>;
   accountId?: string;
-  channelType?: "amazon" | "google" | "walmart";
-  useUppercaseState?: boolean; // If true, use STATUS_OPTIONS (ENABLED, PAUSED) instead of STATE_OPTIONS (Enabled, Paused)
+  channelType?: "amazon" | "google" | "walmart" | "tiktok";
+  useUppercaseState?: boolean;
 }
 
 const DEFAULT_FILTER_FIELDS = [
@@ -79,6 +79,16 @@ const NUMERIC_OPERATORS = [
 
 const STATE_OPTIONS = ["Enabled", "Paused", "Archived"];
 const TYPE_OPTIONS = ["SP", "SB", "SD"];
+const TIKTOK_TYPE_OPTIONS = [
+  "TRAFFIC",
+  "CONVERSIONS",
+  "APP_PROMOTION",
+  "REACH",
+  "VIDEO_VIEWS",
+  "LEAD_GENERATION",
+  "PRODUCT_SALES",
+  "ENGAGEMENT",
+];
 const TARGETING_TYPE_OPTIONS = ["AUTO", "MANUAL"];
 const STATUS_OPTIONS = ["ENABLED", "PAUSED", "REMOVED"];
 // Expression types supported for negative targets
@@ -589,24 +599,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Dropdown<string>
                 options={
                   selectedField === "campaign_name" ||
-                  selectedField === "profile_name" ||
-                  selectedField === "account_name" ||
-                  selectedField === "name" ||
-                  selectedField === "adgroup_name" ||
-                  selectedField === "sku" ||
-                  selectedField === "adId" ||
-                  selectedField === "asin" ||
-                  selectedField === "adGroupId" ||
-                  selectedField === "keywordText" ||
-                  selectedField === "expression"
+                    selectedField === "profile_name" ||
+                    selectedField === "account_name" ||
+                    selectedField === "name" ||
+                    selectedField === "adgroup_name" ||
+                    selectedField === "sku" ||
+                    selectedField === "adId" ||
+                    selectedField === "asin" ||
+                    selectedField === "adGroupId"
                     ? STRING_OPERATORS.map((op) => ({
-                        value: op.value,
-                        label: op.label,
-                      }))
+                      value: op.value,
+                      label: op.label,
+                    }))
                     : NUMERIC_OPERATORS.map((op) => ({
-                        value: op.value,
-                        label: op.label,
-                      }))
+                      value: op.value,
+                      label: op.label,
+                    }))
                 }
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
@@ -695,7 +703,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     ? useUppercaseState
                       ? STATUS_OPTIONS
                       : STATE_OPTIONS
-                    : TYPE_OPTIONS
+                    : channelType === "tiktok" ? TIKTOK_TYPE_OPTIONS : TYPE_OPTIONS
                   ).map((opt) => (
                     <div
                       key={opt}
@@ -800,9 +808,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     label: opt,
                   }))}
                   value={filterValue || undefined}
-                  placeholder={`Select ${
-                    selectedField === "status" ? "Status" : "Channel Type"
-                  }`}
+                  placeholder={`Select ${selectedField === "status" ? "Status" : "Channel Type"
+                    }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"
                 />

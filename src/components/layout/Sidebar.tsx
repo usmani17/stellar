@@ -26,6 +26,7 @@ import TargetsWhiteIcon from "../../assets/images/targets-white.svg";
 
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
 const GOOGLE_SECTION_STORAGE_KEY = "google-section-collapsed";
+const TIKTOK_SECTION_STORAGE_KEY = "tiktok-section-collapsed";
 const MARKETING_CHANNELS_SECTION_STORAGE_KEY =
   "marketing-channels-section-collapsed";
 const OVERVIEW_SECTION_STORAGE_KEY = "overview-section-collapsed";
@@ -44,6 +45,11 @@ export const Sidebar: React.FC = () => {
   const [isGoogleSectionCollapsed, setIsGoogleSectionCollapsed] =
     useState<boolean>(() => {
       const saved = localStorage.getItem(GOOGLE_SECTION_STORAGE_KEY);
+      return saved === "true" || saved === null; // Default to collapsed
+    });
+  const [isTikTokSectionCollapsed, setIsTikTokSectionCollapsed] =
+    useState<boolean>(() => {
+      const saved = localStorage.getItem(TIKTOK_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
   const [
@@ -80,6 +86,8 @@ export const Sidebar: React.FC = () => {
         setIsAmazonSectionCollapsed(false);
       } else if (marketplace === "google") {
         setIsGoogleSectionCollapsed(false);
+      } else if (marketplace === "tiktok") {
+        setIsTikTokSectionCollapsed(false);
       }
       // Marketing Channels and Overview don't have marketplace-specific routes
       // so they stay in their saved state
@@ -129,6 +137,10 @@ export const Sidebar: React.FC = () => {
     setIsGoogleSectionCollapsed((prev) => !prev);
   };
 
+  const toggleTikTokSection = () => {
+    setIsTikTokSectionCollapsed((prev) => !prev);
+  };
+
   const toggleMarketingChannelsSection = () => {
     setIsMarketingChannelsSectionCollapsed((prev) => !prev);
   };
@@ -145,12 +157,23 @@ export const Sidebar: React.FC = () => {
     if (path === "/campaigns") {
       return (
         location.pathname.includes("/campaigns") &&
-        !location.pathname.includes("/google")
+        !location.pathname.includes("/google") &&
+        !location.pathname.includes("/tiktok")
       );
     }
     if (path === "/google/campaigns") {
       return location.pathname.includes("/google/campaigns");
     }
+    if (path === "/tiktok/campaigns") {
+      return location.pathname.includes("/tiktok/campaigns");
+    }
+    if (path === "/tiktok/adgroups") {
+      return location.pathname.includes("/tiktok/adgroups");
+    }
+    if (path === "/tiktok/ads") {
+      return location.pathname.includes("/tiktok/ads");
+    }
+
     if (path === "/google/adgroups") {
       return location.pathname.includes("/google/adgroups");
     }
@@ -160,6 +183,11 @@ export const Sidebar: React.FC = () => {
     if (path === "/google/ads") {
       return location.pathname.includes("/google/ads");
     }
+    if (path === "/google/targets") {
+      return location.pathname.includes("/google/targets");
+    }
+
+    // Generic paths for Amazon (exclude google and tiktok paths)
     if (path === "/adgroups") {
       return location.pathname.includes("/adgroups");
     }
@@ -457,13 +485,11 @@ export const Sidebar: React.FC = () => {
                 title={isCollapsed ? "Keywords" : undefined}
               >
                 <img
-                  src={
-                    isActive("/keywords")
-                      ? KeywordsWhiteIcon
-                      : KeywordsIcon
-                  }
+                  src={isActive("/keywords") ? KeywordsWhiteIcon : KeywordsIcon}
                   alt=""
-                  className="w-5 h-5"
+                  className={`w-5 h-5 ${
+                    isActive("/keywords") ? "brightness-0 invert" : ""
+                  }`}
                 />
                 {!isCollapsed && (
                   <span
@@ -498,13 +524,11 @@ export const Sidebar: React.FC = () => {
                 title={isCollapsed ? "Targets" : undefined}
               >
                 <img
-                  src={
-                    isActive("/targets")
-                      ? TargetsWhiteIcon
-                      : TargetsIcon
-                  }
+                  src={isActive("/targets") ? TargetsWhiteIcon : TargetsIcon}
                   alt=""
-                  className="w-5 h-5"
+                  className={`w-5 h-5 ${
+                    isActive("/targets") ? "brightness-0 invert" : ""
+                  }`}
                 />
                 {!isCollapsed && (
                   <span
@@ -513,6 +537,34 @@ export const Sidebar: React.FC = () => {
                     }`}
                   >
                     Targets
+                  </span>
+                )}
+              </Link>
+              <Link
+                to="/channels"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
+                  isCollapsed ? "justify-center" : "gap-2"
+                }`}
+                title={isCollapsed ? "Blueprints" : undefined}
+              >
+                <img src={InstacartIcon} alt="" className="w-5 h-5" />
+                {!isCollapsed && (
+                  <span className="text-[12.32px] font-normal leading-[16px]">
+                    Blueprints
+                  </span>
+                )}
+              </Link>
+              <Link
+                to="/channels"
+                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
+                  isCollapsed ? "justify-center" : "gap-2"
+                }`}
+                title={isCollapsed ? "Settings" : undefined}
+              >
+                <img src={InstacartIcon} alt="" className="w-5 h-5" />
+                {!isCollapsed && (
+                  <span className="text-[12.32px] font-normal leading-[16px]">
+                    Settings
                   </span>
                 )}
               </Link>
@@ -702,6 +754,158 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/ads") ? "!text-white" : ""
+                    }`}
+                  >
+                    Ads
+                  </span>
+                )}
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* TikTok Section */}
+        <div className="mb-6">
+          {!isCollapsed && (
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                TikTok
+              </h2>
+              <button
+                onClick={toggleTikTokSection}
+                className="p-1 rounded hover:bg-gray-100 transition-colors"
+                aria-label={
+                  isTikTokSectionCollapsed
+                    ? "Expand TikTok section"
+                    : "Collapse TikTok section"
+                }
+              >
+                <svg
+                  className={`w-4 h-4 text-gray-600 transition-transform ${
+                    isTikTokSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {(isCollapsed || !isTikTokSectionCollapsed) && (
+            <div className="space-y-1">
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/tiktok/campaigns`
+                    : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId ? `/accounts/${accountId}/tiktok/campaigns` : null
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/tiktok/campaigns") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/tiktok/campaigns")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "TikTok Campaigns" : undefined}
+              >
+                <img
+                  src={
+                    isActive("/tiktok/campaigns")
+                      ? CampaignWhiteIcon
+                      : CampaignIconRegular
+                  }
+                  alt=""
+                  className="w-5 h-5"
+                />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/tiktok/campaigns") ? "!text-white" : ""
+                    }`}
+                  >
+                    Campaigns
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/tiktok/adgroups`
+                    : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId ? `/accounts/${accountId}/tiktok/adgroups` : null
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/tiktok/adgroups") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/tiktok/adgroups")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "TikTok Ad Groups" : undefined}
+              >
+                <img
+                  src={AdGroupIcon}
+                  alt=""
+                  className={`w-5 h-5 ${
+                    isActive("/tiktok/adgroups") ? "brightness-0 invert" : ""
+                  }`}
+                />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/tiktok/adgroups") ? "!text-white" : ""
+                    }`}
+                  >
+                    Ad Groups
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId ? `/accounts/${accountId}/tiktok/ads` : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId ? `/accounts/${accountId}/tiktok/ads` : null
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/tiktok/ads") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/tiktok/ads")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "TikTok Ads" : undefined}
+              >
+                <img
+                  src={ProductTargetIcon}
+                  alt=""
+                  className={`w-5 h-5 ${
+                    isActive("/tiktok/ads") ? "brightness-0 invert" : ""
+                  }`}
+                />
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/tiktok/ads") ? "!text-white" : ""
                     }`}
                   >
                     Ads

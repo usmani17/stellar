@@ -438,7 +438,7 @@ export const Channels: React.FC = () => {
                                           channel.channel_type === "tiktok"
                                         ) {
                                           navigate(
-                                            `/accounts/${accountId}/tiktok-campaigns`
+                                            `/accounts/${accountId}/tiktok/campaigns`
                                           );
                                         }
                                       }}
