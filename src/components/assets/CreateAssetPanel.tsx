@@ -1051,12 +1051,25 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
         </div>
       )}
 
+      {/* Upload Loading Spinner */}
+      {loading && (
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+          <div className="flex items-center justify-center gap-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#136D6D] border-t-transparent"></div>
+            <span className="text-[11.2px] font-medium text-[#556179]">
+              Uploading{assetData.assetType === "VIDEO" ? " video" : ""}...
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+          disabled={loading}
+          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Cancel
         </button>
@@ -1064,8 +1077,11 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={loading}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
+          {loading && (
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+          )}
           {loading ? "Uploading..." : "Upload Asset"}
         </button>
       </div>

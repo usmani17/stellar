@@ -1807,13 +1807,25 @@ export const campaignsService = {
     return response.data;
   },
 
-  createAsset: async (accountId: number, formData: FormData): Promise<any> => {
+  createAsset: async (
+    accountId: number,
+    formData: FormData,
+    onUploadProgress?: (progress: number) => void
+  ): Promise<any> => {
     const response = await api.post(
       `/accounts/${accountId}/assets/create/`,
       formData,
       {
         headers: {
           "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          if (onUploadProgress && progressEvent.total) {
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            onUploadProgress(progress);
+          }
         },
       }
     );

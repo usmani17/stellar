@@ -819,11 +819,32 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         : asset.assetId || `Asset ${asset.id}`,
                     }))}
                   value={currentAd.creative?.brandLogoAssetID || ""}
-                  onChange={(value) =>
-                    handleChange("creative.brandLogoAssetID", value)
-                  }
+                  onChange={(value) => {
+                    // Update the text field when an option is selected
+                    handleChange("creative.brandLogoAssetID", value);
+                  }}
                   placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                  buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 whitespace-nowrap min-w-[140px]"
+                  buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px] flex-shrink-0"
+                  menuClassName="min-w-[400px]"
+                  optionClassName="truncate"
+                  renderOption={(option, isSelected) => (
+                    <div className="flex items-center justify-between w-full min-w-0">
+                      <span className="truncate flex-1">{option.label}</span>
+                      {isSelected && (
+                        <svg
+                          className="w-4 h-4 text-[#136D6D] flex-shrink-0 ml-2"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  )}
                   disabled={assetsLoading || assets.length === 0}
                 />
               </div>
