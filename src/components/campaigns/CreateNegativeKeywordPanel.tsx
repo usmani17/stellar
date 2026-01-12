@@ -4,10 +4,10 @@ import { Dropdown } from "../ui/Dropdown";
 export interface NegativeKeywordInput {
   adGroupId: string;
   keywordText: string;
-  matchType: "NEGATIVE_BROAD" | "NEGATIVE_EXACT" | "NEGATIVE_PHRASE";
+  matchType: "NEGATIVE_BROAD" | "NEGATIVE_EXACT" | "NEGATIVE_PHRASE" | "negativeExact" | "negativePhrase";
   nativeLanguageKeyword?: string;
   nativeLanguageLocale?: string;
-  state: "ENABLED" | "PAUSED";
+  state?: "ENABLED" | "PAUSED"; // Optional for SB campaigns (cannot be set at creation)
 }
 
 interface NegativeKeywordError {
@@ -37,6 +37,7 @@ interface CreateNegativeKeywordPanelProps {
   onSubmit: (negativeKeywords: NegativeKeywordInput[]) => void;
   adgroups: Array<{ adGroupId: string; name: string }>;
   campaignId: string;
+  campaignType?: "SP" | "SB" | "SD"; // Campaign type to determine match types and state field
   loading?: boolean;
   submitError?: string | null;
   fieldErrors?: Record<string, string>;
@@ -45,10 +46,17 @@ interface CreateNegativeKeywordPanelProps {
   failedNegativeKeywords?: FailedNegativeKeyword[];
 }
 
-const MATCH_TYPE_OPTIONS = [
+// SP match types
+const MATCH_TYPE_OPTIONS_SP = [
   { value: "NEGATIVE_BROAD", label: "NEGATIVE_BROAD" },
   { value: "NEGATIVE_EXACT", label: "NEGATIVE_EXACT" },
   { value: "NEGATIVE_PHRASE", label: "NEGATIVE_PHRASE" },
+];
+
+// SB match types
+const MATCH_TYPE_OPTIONS_SB = [
+  { value: "negativeExact", label: "negativeExact" },
+  { value: "negativePhrase", label: "negativePhrase" },
 ];
 
 const STATE_OPTIONS = [
@@ -63,6 +71,7 @@ export const CreateNegativeKeywordPanel: React.FC<
   onClose,
   onSubmit,
   adgroups,
+  campaignType = "SP",
   loading = false,
   submitError = null,
   fieldErrors = {},
@@ -70,12 +79,17 @@ export const CreateNegativeKeywordPanel: React.FC<
   failedCount = 0,
   failedNegativeKeywords = [],
 }) => {
+  // Determine match type options based on campaign type
+  const matchTypeOptions = campaignType === "SB" ? MATCH_TYPE_OPTIONS_SB : MATCH_TYPE_OPTIONS_SP;
+  const defaultMatchType = campaignType === "SB" ? "negativeExact" : "NEGATIVE_BROAD";
+  const isSB = campaignType === "SB";
+  
   const [currentNegativeKeyword, setCurrentNegativeKeyword] =
     useState<NegativeKeywordInput>({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       keywordText: "",
-      matchType: "NEGATIVE_BROAD",
-      state: "ENABLED",
+      matchType: defaultMatchType as any,
+      ...(isSB ? {} : { state: "ENABLED" }), // State not set for SB at creation
     });
   const [addedNegativeKeywords, setAddedNegativeKeywords] = useState<
     NegativeKeywordInput[]
@@ -122,8 +136,8 @@ export const CreateNegativeKeywordPanel: React.FC<
     setCurrentNegativeKeyword({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       keywordText: "",
-      matchType: "NEGATIVE_BROAD",
-      state: "ENABLED",
+      matchType: defaultMatchType as any,
+      ...(isSB ? {} : { state: "ENABLED" }), // State not set for SB at creation
     });
     setErrors({});
   };
@@ -151,8 +165,8 @@ export const CreateNegativeKeywordPanel: React.FC<
     setCurrentNegativeKeyword({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       keywordText: "",
-      matchType: "NEGATIVE_BROAD",
-      state: "ENABLED",
+      matchType: defaultMatchType as any,
+      ...(isSB ? {} : { state: "ENABLED" }), // State not set for SB at creation
     });
     setErrors({});
     onClose();
@@ -343,7 +357,7 @@ export const CreateNegativeKeywordPanel: React.FC<
               Match Type *
             </label>
             <Dropdown<string>
-              options={MATCH_TYPE_OPTIONS}
+              options={matchTypeOptions}
               value={currentNegativeKeyword.matchType}
               onChange={(value) =>
                 handleChange(
@@ -356,21 +370,23 @@ export const CreateNegativeKeywordPanel: React.FC<
             />
           </div>
 
-          {/* State */}
-          <div className="w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-              State *
-            </label>
-            <Dropdown<string>
-              options={STATE_OPTIONS}
-              value={currentNegativeKeyword.state}
-              onChange={(value) =>
-                handleChange("state", value as NegativeKeywordInput["state"])
-              }
-              placeholder="Select state"
-              buttonClassName="w-full"
-            />
-          </div>
+          {/* State - Only shown for SP campaigns (SB cannot set state at creation) */}
+          {!isSB && (
+            <div className="w-[140px]">
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                State *
+              </label>
+              <Dropdown<string>
+                options={STATE_OPTIONS}
+                value={currentNegativeKeyword.state}
+                onChange={(value) =>
+                  handleChange("state", value as NegativeKeywordInput["state"])
+                }
+                placeholder="Select state"
+                buttonClassName="w-full"
+              />
+            </div>
+          )}
 
           {/* Add Negative Keyword Button */}
           <div className="w-[160px]">
@@ -405,9 +421,11 @@ export const CreateNegativeKeywordPanel: React.FC<
                     <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Match Type
                     </th>
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      State
-                    </th>
+                    {!isSB && (
+                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        State
+                      </th>
+                    )}
                     <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Action
                     </th>
@@ -473,11 +491,13 @@ export const CreateNegativeKeywordPanel: React.FC<
                             {negativeKeyword.matchType}
                           </span>
                         </td>
-                        <td className="py-[10px] px-[10px]">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {negativeKeyword.state}
-                          </span>
-                        </td>
+                        {!isSB && (
+                          <td className="py-[10px] px-[10px]">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {negativeKeyword.state || "ENABLED"}
+                            </span>
+                          </td>
+                        )}
                         <td className="py-[10px] px-[10px]">
                           <button
                             type="button"

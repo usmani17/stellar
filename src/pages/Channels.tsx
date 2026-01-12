@@ -387,11 +387,11 @@ export const Channels: React.FC = () => {
                               key={channel.id}
                               className={`${
                                 !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                                } hover:bg-gray-50 transition-colors`}
+                              } hover:bg-gray-50 transition-colors`}
                             >
                               <td className="py-4 px-5 group">
                                 {editingChannel?.channelId === channel.id &&
-                                  editingChannel.field === "channel_name" ? (
+                                editingChannel.field === "channel_name" ? (
                                   <input
                                     type="text"
                                     value={editedChannelName}
@@ -489,7 +489,7 @@ export const Channels: React.FC = () => {
                                   {profileCounts[channel.id]
                                     ? `${profileCounts[channel.id].selected}/${
                                         profileCounts[channel.id].total
-                                    }`
+                                      }`
                                     : "—"}
                                 </span>
                               </td>
@@ -502,6 +502,12 @@ export const Channels: React.FC = () => {
                                       if (channel.channel_type === "google") {
                                         navigate(
                                           `/channels/${channel.id}/select-google-accounts`
+                                        );
+                                      } else if (
+                                        channel.channel_type === "tiktok"
+                                      ) {
+                                        navigate(
+                                          `/channels/${channel.id}/select-tiktok-profiles`
                                         );
                                       } else {
                                         navigate(

@@ -92,6 +92,8 @@ export interface CampaignDetail {
     description: string;
     targetingType?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (camelCase)
     targeting_type?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (snake_case)
+    profile_id?: string; // Profile ID for the campaign
+    type?: string; // Campaign type (SP, SB, SD)
   };
   kpi_cards: Array<{
     label: string;
@@ -1328,7 +1330,7 @@ export const campaignsService = {
     payload: {
       adgroupIds: Array<string | number>;
       action: "status" | "default_bid" | "name";
-      status?: "enable" | "pause" | "archive";
+      status?: "ENABLED" | "PAUSED";
       value?: number;
       name?: string;
     }
@@ -1631,8 +1633,8 @@ export const campaignsService = {
     accountId: number,
     payload: {
       keywordIds: Array<string | number>;
-      action: "status" | "bid";
-      status?: "enable" | "pause" | "archive";
+      action: "status" | "bid" | "archive";
+      status?: "enable" | "pause";
       bid?: number;
     }
   ) => {
@@ -1660,6 +1662,8 @@ export const campaignsService = {
       negativeKeywordIdFilter: {
         include: Array<string | number>;
       };
+      campaignType?: string;
+      campaignId?: string | number;
     }
   ) => {
     const url = `/accounts/${accountId}/negative-keywords/bulk-delete/`;
@@ -1771,6 +1775,73 @@ export const campaignsService = {
   ) => {
     const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/create/`;
     const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  createSBAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { ads: any[] }
+  ): Promise<any> => {
+    const response = await api.post(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-ads/create/`,
+      data
+    );
+    return response.data;
+  },
+
+  createSBVideoAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { ads: any[] }
+  ): Promise<any> => {
+    // Add adType parameter to indicate this is a video ad request
+    const response = await api.post(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-video-ads/create/`,
+      { ...data, adType: 'VIDEO' }
+    );
+    return response.data;
+  },
+
+  getAssets: async (
+    accountId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      mediaType?: string;
+      brandEntityId?: string;
+    }
+  ): Promise<any> => {
+    const response = await api.get(`/accounts/${accountId}/assets/`, {
+      params,
+    });
+    return response.data;
+  },
+
+  createAsset: async (
+    accountId: number,
+    formData: FormData,
+    onUploadProgress?: (progress: number) => void
+  ): Promise<any> => {
+    const response = await api.post(
+      `/accounts/${accountId}/assets/create/`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          if (onUploadProgress && progressEvent.total) {
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            onUploadProgress(progress);
+          }
+        },
+      }
+    );
     return response.data;
   },
 

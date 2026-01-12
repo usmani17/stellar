@@ -37,6 +37,7 @@ interface CreateTargetPanelProps {
   onSubmit: (targets: TargetInput[]) => void;
   adgroups: Array<{ adGroupId: string; name: string }>;
   campaignId: string;
+  campaignType?: "SP" | "SB" | "SD";
   loading?: boolean;
   submitError?: string | null;
   fieldErrors?: Record<string, string>;
@@ -45,8 +46,8 @@ interface CreateTargetPanelProps {
   failedTargets?: FailedTarget[];
 }
 
-// Only supported expression types as per Amazon API documentation
-const EXPRESSION_TYPE_OPTIONS = [
+// Expression types for SP campaigns
+const EXPRESSION_TYPE_OPTIONS_SP = [
   { value: "ASIN_AGE_RANGE_SAME_AS", label: "ASIN Age Range Same As" },
   { value: "ASIN_BRAND_SAME_AS", label: "ASIN Brand Same As" },
   { value: "ASIN_CATEGORY_SAME_AS", label: "ASIN Category Same As" },
@@ -72,6 +73,12 @@ const EXPRESSION_TYPE_OPTIONS = [
   { value: "KEYWORD_GROUP_SAME_AS", label: "Keyword Group Same As" },
 ];
 
+// Expression types for SB campaigns (only asinBrandSameAs and asinSameAs)
+const EXPRESSION_TYPE_OPTIONS_SB = [
+  { value: "asinBrandSameAs", label: "ASIN Brand Same As" },
+  { value: "asinSameAs", label: "ASIN Same As" },
+];
+
 const STATE_OPTIONS = [
   { value: "ENABLED", label: "ENABLED" },
   { value: "PAUSED", label: "PAUSED" },
@@ -84,6 +91,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   onSubmit,
   adgroups,
   campaignId,
+  campaignType = "SP",
   loading = false,
   submitError = null,
   fieldErrors = {},
@@ -91,10 +99,15 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   failedCount = 0,
   failedTargets = [],
 }) => {
+  // Get expression type options based on campaign type
+  const EXPRESSION_TYPE_OPTIONS = campaignType === "SB" 
+    ? EXPRESSION_TYPE_OPTIONS_SB 
+    : EXPRESSION_TYPE_OPTIONS_SP;
+  
   const [currentTarget, setCurrentTarget] = useState<TargetInput>({
     adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
     bid: 0.1,
-    expressionType: "ASIN_SAME_AS",
+    expressionType: campaignType === "SB" ? "asinSameAs" : "ASIN_SAME_AS",
     expressionValue: "",
     state: "ENABLED",
   });
@@ -395,20 +408,23 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           </div>
 
           {/* State */}
-          <div className="w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-              State *
-            </label>
-            <Dropdown<string>
-              options={STATE_OPTIONS}
-              value={currentTarget.state}
-              onChange={(value) =>
-                handleChange("state", value as TargetInput["state"])
-              }
-              placeholder="Select state"
-              buttonClassName="w-full"
-            />
-          </div>
+          {/* State field - hidden for SB campaigns (state cannot be set at creation) */}
+          {campaignType !== "SB" && (
+            <div className="w-[140px]">
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                State *
+              </label>
+              <Dropdown<string>
+                options={STATE_OPTIONS}
+                value={currentTarget.state}
+                onChange={(value) =>
+                  handleChange("state", value as TargetInput["state"])
+                }
+                placeholder="Select state"
+                buttonClassName="w-full"
+              />
+            </div>
+          )}
 
           {/* Add Target Button */}
           <div className="w-[120px]">

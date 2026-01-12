@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
@@ -20,6 +20,8 @@ import {
 import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
 import { KeywordsTable } from "../components/campaigns/KeywordsTable";
 import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
+import { SBAdsTable, type SBAd } from "../components/campaigns/SBAdsTable";
+import { AssetsTable, type Asset } from "../components/campaigns/AssetsTable";
 import { TargetsTable } from "../components/campaigns/TargetsTable";
 import { NegativeKeywordsTable } from "../components/campaigns/NegativeKeywordsTable";
 import { NegativeTargetsTable } from "../components/campaigns/NegativeTargetsTable";
@@ -53,6 +55,14 @@ import {
   CreateProductAdPanel,
   type ProductAdInput,
 } from "../components/productads/CreateProductAdPanel";
+import {
+  CreateSBAdPanel,
+  type SBAdInput,
+} from "../components/sbads/CreateSBAdPanel";
+import {
+  CreateAssetPanel,
+  type AssetInput,
+} from "../components/assets/CreateAssetPanel";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { Tooltip } from "../components/ui/Tooltip";
 import { Button } from "../components/ui";
@@ -63,6 +73,7 @@ export const CampaignDetail: React.FC = () => {
     accountId: string;
     campaignTypeAndId: string;
   }>();
+  const [searchParams] = useSearchParams();
   const { startDate, endDate } = useDateRange();
   const { sidebarWidth } = useSidebar();
 
@@ -253,6 +264,55 @@ export const CampaignDetail: React.FC = () => {
   const [isProductAdsFilterPanelOpen, setIsProductAdsFilterPanelOpen] =
     useState(false);
   const [productadsFilters, setProductadsFilters] = useState<FilterValues>([]);
+
+  // SB Ads state
+  const [sbAds, setSbAds] = useState<SBAd[]>([]);
+  const [sbAdsLoading, setSbAdsLoading] = useState(false);
+  const [createSBAdLoading, setCreateSBAdLoading] = useState(false);
+  const [selectedSBAdIds, setSelectedSBAdIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [sbAdsCurrentPage, setSbAdsCurrentPage] = useState(1);
+  const [sbAdsTotalPages, setSbAdsTotalPages] = useState(0);
+  const [sbAdsSortBy, setSbAdsSortBy] = useState<string>("id");
+  const [sbAdsSortOrder, setSbAdsSortOrder] = useState<"asc" | "desc">("asc");
+  const [isSBAdsFilterPanelOpen, setIsSBAdsFilterPanelOpen] = useState(false);
+  const [sbAdsFilters, setSbAdsFilters] = useState<FilterValues>([]);
+  const [isCreateSBAdPanelOpen, setIsCreateSBAdPanelOpen] = useState(false);
+  const [createSBAdError, setCreateSBAdError] = useState<string | null>(null);
+  const [createSBAdFieldErrors, setCreateSBAdFieldErrors] = useState<
+    Record<string, string>
+  >({});
+  const [createdSBAds, setCreatedSBAds] = useState<any[]>([]);
+  const [failedSBAdCount, setFailedSBAdCount] = useState(0);
+  const [failedSBAds, setFailedSBAds] = useState<any[]>([]);
+
+  // SB Ads bulk edit state
+  const [showSBAdsBulkActions, setShowSBAdsBulkActions] = useState(false);
+  const [showSBAdsDeleteConfirmation, setShowSBAdsDeleteConfirmation] =
+    useState(false);
+  const [sbAdsDeleteLoading, setSbAdsDeleteLoading] = useState(false);
+  const sbAdsBulkActionsRef = useRef<HTMLDivElement>(null);
+
+  // Assets state
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [createAssetLoading, setCreateAssetLoading] = useState(false);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [assetsCurrentPage, setAssetsCurrentPage] = useState(1);
+  const [assetsTotalPages, setAssetsTotalPages] = useState(0);
+  const [assetsSortBy, setAssetsSortBy] = useState<string>("id");
+  const [assetsSortOrder, setAssetsSortOrder] = useState<"asc" | "desc">("asc");
+  const [isAssetsFilterPanelOpen, setIsAssetsFilterPanelOpen] = useState(false);
+  const [assetsFilters, setAssetsFilters] = useState<FilterValues>([]);
+  const [isCreateAssetPanelOpen, setIsCreateAssetPanelOpen] = useState(false);
+  const [createAssetError, setCreateAssetError] = useState<string | null>(null);
+  const [createAssetFieldErrors, setCreateAssetFieldErrors] = useState<
+    Record<string, string>
+  >({});
+
   const [targets, setTargets] = useState<Target[]>([]);
   const [targetsLoading, setTargetsLoading] = useState(false);
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<number>>(
@@ -488,11 +548,13 @@ export const CampaignDetail: React.FC = () => {
   const allTabs = [
     "Overview",
     "Ad Groups",
+    "Ads Collection",
     "Keywords",
     "Targets",
     "Product Ads",
     "Negative Keywords",
     "Negative Targets",
+    "Assets",
     "Logs",
   ];
 
@@ -528,6 +590,22 @@ export const CampaignDetail: React.FC = () => {
       filteredTabs = filteredTabs.filter((tab) => tab !== "Keywords");
     }
 
+    // Show Ads Collection only for SB campaigns, Product Ads only for SP campaigns
+    // Show Assets only for SB campaigns
+    if (campaignType === "SB") {
+      filteredTabs = filteredTabs.filter((tab) => tab !== "Product Ads");
+    } else if (campaignType === "SP") {
+      filteredTabs = filteredTabs.filter(
+        (tab) => tab !== "Ads Collection" && tab !== "Assets"
+      );
+    } else {
+      // SD campaigns - hide Ads Collection, Product Ads, and Assets
+      filteredTabs = filteredTabs.filter(
+        (tab) =>
+          tab !== "Product Ads" && tab !== "Ads Collection" && tab !== "Assets"
+      );
+    }
+
     // For AUTO campaigns, hide Keywords tab completely (as per user requirement)
     // But show Negative Keywords and Negative Targets before Logs
     if (campaignType === "SP" && isAutoCampaign) {
@@ -548,8 +626,20 @@ export const CampaignDetail: React.FC = () => {
           );
         }
       }
+    } else if (campaignType === "SB") {
+      // For SB campaigns, show Negative Keywords and Negative Targets tabs
+      // Insert Negative Keywords right after Keywords if not already present
+      const keywordsIndex = filteredTabs.indexOf("Keywords");
+      if (keywordsIndex !== -1 && !filteredTabs.includes("Negative Keywords")) {
+        filteredTabs.splice(keywordsIndex + 1, 0, "Negative Keywords");
+      }
+      // Insert Negative Targets right after Negative Keywords if not already present
+      const negativeKeywordsIndex = filteredTabs.indexOf("Negative Keywords");
+      if (negativeKeywordsIndex !== -1 && !filteredTabs.includes("Negative Targets")) {
+        filteredTabs.splice(negativeKeywordsIndex + 1, 0, "Negative Targets");
+      }
     } else {
-      // For non-auto campaigns, hide Negative Keywords and Negative Targets
+      // For non-auto SP campaigns and other types, hide Negative Keywords and Negative Targets
       filteredTabs = filteredTabs.filter(
         (tab) => tab !== "Negative Keywords" && tab !== "Negative Targets"
       );
@@ -557,6 +647,52 @@ export const CampaignDetail: React.FC = () => {
 
     return filteredTabs;
   }, [campaignType, isAutoCampaign]);
+
+  // Read tab from query parameter on mount (one-directional: URL → tab, not tab → URL)
+  // Use a ref to track if we've read the query param for this campaign
+  const hasReadTabParam = useRef<string | null>(null);
+  useEffect(() => {
+    // Reset ref when campaign changes
+    const campaignKey = `${accountId}-${campaignId}`;
+    if (hasReadTabParam.current !== campaignKey) {
+      hasReadTabParam.current = null; // Reset to allow reading for new campaign
+    }
+
+    // Only read query parameter once per campaign
+    if (hasReadTabParam.current === campaignKey) return;
+
+    const tabParam = searchParams.get("tab");
+    if (tabParam && tabs.length > 0) {
+      // Map query parameter to tab name (e.g., "keywords" -> "Keywords")
+      const tabNameMap: Record<string, string> = {
+        overview: "Overview",
+        "ad-groups": "Ad Groups",
+        keywords: "Keywords",
+        "product-ads": "Product Ads",
+        "ads-collection": "Ads Collection",
+        targets: "Targets",
+        "negative-keywords": "Negative Keywords",
+        "negative-targets": "Negative Targets",
+        assets: "Assets",
+        logs: "Logs",
+      };
+
+      // Also support direct tab names (case-insensitive)
+      const normalizedParam = tabParam.toLowerCase();
+      const mappedTab =
+        tabNameMap[normalizedParam] ||
+        tabParam.charAt(0).toUpperCase() + tabParam.slice(1); // Capitalize first letter
+
+      // Only set tab if it exists in the available tabs list
+      if (tabs.includes(mappedTab)) {
+        setActiveTab(mappedTab);
+      }
+      hasReadTabParam.current = campaignKey;
+    } else if (!tabParam) {
+      // If no tab param, mark as read to avoid re-checking
+      hasReadTabParam.current = campaignKey;
+    }
+  }, [accountId, campaignId, searchParams, tabs]); // Run when campaign changes, tabs are computed, or searchParams change
 
   // Switch away from Keywords tab if campaign type is SD
   useEffect(() => {
@@ -690,6 +826,12 @@ export const CampaignDetail: React.FC = () => {
       setTargetsCurrentPage(1);
     }
   }, [activeTab, startDate, endDate, targetsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Ads Collection") {
+      setSbAdsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, sbAdsFilters]);
 
   const buildKeywordsFilterParams = (filterList: FilterValues) => {
     const params: any = {};
@@ -1093,6 +1235,21 @@ export const CampaignDetail: React.FC = () => {
     keywordsFilters,
   ]);
 
+  // Load assets when Assets tab is active (only for SB campaigns)
+  useEffect(() => {
+    if (accountId && activeTab === "Assets" && campaignType === "SB") {
+      loadAssets();
+    }
+  }, [
+    accountId,
+    activeTab,
+    campaignType,
+    assetsCurrentPage,
+    assetsSortBy,
+    assetsSortOrder,
+    assetsFilters,
+  ]);
+
   useEffect(() => {
     if (accountId && campaignId && activeTab === "Product Ads") {
       loadProductAds();
@@ -1125,14 +1282,30 @@ export const CampaignDetail: React.FC = () => {
     targetsFilters,
   ]);
 
-  // Load negative keywords for auto campaigns
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Ads Collection") {
+      loadSBAds();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    sbAdsCurrentPage,
+    sbAdsSortBy,
+    sbAdsSortOrder,
+    sbAdsFilters,
+  ]);
+
+  // Load negative keywords for auto campaigns and SB campaigns
   useEffect(() => {
     if (
       accountId &&
       campaignId &&
       activeTab === "Negative Keywords" &&
-      isAutoCampaign &&
-      campaignType
+      campaignType &&
+      ((campaignType === "SP" && isAutoCampaign) || campaignType === "SB")
     ) {
       loadNegativeKeywords();
     }
@@ -1148,14 +1321,14 @@ export const CampaignDetail: React.FC = () => {
     negativeKeywordsFilters,
   ]);
 
-  // Load negative targets for auto campaigns
+  // Load negative targets for auto campaigns and SB campaigns
   useEffect(() => {
     if (
       accountId &&
       campaignId &&
       activeTab === "Negative Targets" &&
-      isAutoCampaign &&
-      campaignType
+      campaignType &&
+      ((campaignType === "SP" && isAutoCampaign) || campaignType === "SB")
     ) {
       loadNegativeTargets();
     }
@@ -1170,14 +1343,14 @@ export const CampaignDetail: React.FC = () => {
     campaignType,
   ]);
 
-  // Load negative targets for auto campaigns
+  // Load negative targets for auto campaigns and SB campaigns (with filters)
   useEffect(() => {
     if (
       accountId &&
       campaignId &&
       activeTab === "Negative Targets" &&
-      isAutoCampaign &&
-      campaignType
+      campaignType &&
+      ((campaignType === "SP" && isAutoCampaign) || campaignType === "SB")
     ) {
       loadNegativeTargets();
     }
@@ -1330,11 +1503,17 @@ export const CampaignDetail: React.FC = () => {
       }
 
       const payload = {
-        adgroups: adgroups.map((ag) => ({
-          name: ag.name,
-          defaultBid: ag.defaultBid,
-          state: ag.state,
-        })),
+        adgroups: adgroups.map((ag) => {
+          const adgroupData: any = {
+            name: ag.name,
+            state: ag.state,
+          };
+          // Only include defaultBid for SP campaigns (not SB)
+          if (campaignType !== "SB" && ag.defaultBid !== undefined) {
+            adgroupData.defaultBid = ag.defaultBid;
+          }
+          return adgroupData;
+        }),
       };
 
       const response = await campaignsService.createAdGroups(
@@ -1459,15 +1638,6 @@ export const CampaignDetail: React.FC = () => {
     if (!accountId || !campaignId) {
       console.error("Missing accountId or campaignId");
       setCreateKeywordError("Missing account or campaign information");
-      setCreateKeywordLoading(false);
-      return;
-    }
-
-    if (campaignType !== "SP") {
-      console.error("Keywords can only be created for SP campaigns");
-      setCreateKeywordError(
-        "Keywords can only be created for Sponsored Products (SP) campaigns"
-      );
       setCreateKeywordLoading(false);
       return;
     }
@@ -1648,7 +1818,7 @@ export const CampaignDetail: React.FC = () => {
   const [failedTargets, setFailedTargets] = useState<any[]>([]);
 
   const handleCreateTargets = async (targets: TargetInput[]) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (!accountId || !campaignId || (campaignType !== "SP" && campaignType !== "SB")) return;
 
     setCreateTargetLoading(true);
     setCreateTargetError(null);
@@ -1663,11 +1833,24 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.createTargets(
-        accountIdNum,
-        campaignId,
-        {
-          targets: targets.map((tgt) => ({
+      // Format targets based on campaign type
+      const formattedTargets = targets.map((tgt) => {
+        if (campaignType === "SB") {
+          // SB: use expressions (plural), no expressionType, no state at creation
+          return {
+            adGroupId: tgt.adGroupId,
+            campaignId: campaignId,
+            bid: tgt.bid,
+            expressions: [
+              {
+                type: tgt.expressionType,
+                value: tgt.expressionValue,
+              },
+            ],
+          };
+        } else {
+          // SP: use expression (singular), include expressionType and state
+          return {
             adGroupId: tgt.adGroupId,
             campaignId: campaignId,
             bid: tgt.bid,
@@ -1679,7 +1862,15 @@ export const CampaignDetail: React.FC = () => {
             ],
             expressionType: "MANUAL",
             state: tgt.state,
-          })),
+          };
+        }
+      });
+
+      const response = await campaignsService.createTargets(
+        accountIdNum,
+        campaignId,
+        {
+          targets: formattedTargets,
         }
       );
 
@@ -1759,15 +1950,30 @@ export const CampaignDetail: React.FC = () => {
       // Extract error message and field errors
       let errorMessage = "Failed to create targets. Please try again.";
       let fieldErrors: Record<string, string> = {};
+      let failedTargetsData: any[] = [];
 
       if (error?.response?.data) {
-        if (error.response.data.field_errors) {
-          fieldErrors = error.response.data.field_errors;
-          errorMessage = error.response.data.error || errorMessage;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
+        const errorData = error.response.data;
+        
+        // Check for field errors first
+        if (errorData.field_errors) {
+          fieldErrors = errorData.field_errors;
+        }
+        
+        // Check for errors array (plural) - this contains the actual error messages
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          // Use the first error message from the array
+          errorMessage = errorData.errors[0];
+        } else if (errorData.error) {
+          // Fallback to error (singular) if errors array is not present
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        // Extract failed targets if available
+        if (errorData.failed_targets && Array.isArray(errorData.failed_targets)) {
+          failedTargetsData = errorData.failed_targets;
         }
       } else if (error?.message) {
         errorMessage = error.message;
@@ -1776,7 +1982,7 @@ export const CampaignDetail: React.FC = () => {
       setCreateTargetError(errorMessage);
       setCreateTargetFieldErrors(fieldErrors);
       setFailedTargetCount(targets.length); // All failed
-      setFailedTargets([]); // No specific failed targets data in error case
+      setFailedTargets(failedTargetsData); // Use failed targets from response if available
       // Don't close panel on error - let user fix and resubmit
     } finally {
       setCreateTargetLoading(false);
@@ -1786,7 +1992,12 @@ export const CampaignDetail: React.FC = () => {
   const handleCreateNegativeKeywords = async (
     negativeKeywords: NegativeKeywordInput[]
   ) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (
+      !accountId ||
+      !campaignId ||
+      (campaignType !== "SP" && campaignType !== "SB")
+    )
+      return;
 
     setCreateNegativeKeywordLoading(true);
     setCreateNegativeKeywordError(null);
@@ -2266,6 +2477,392 @@ export const CampaignDetail: React.FC = () => {
     setProductadsCurrentPage(page);
   };
 
+  const loadSBAds = async () => {
+    try {
+      setSbAdsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setSbAdsLoading(false);
+        return;
+      }
+
+      // Use the same endpoint as product ads but with campaign type SB
+      const data = await campaignsService.getProductAds(
+        accountIdNum,
+        campaignId,
+        startDate.toISOString().split("T")[0],
+        endDate.toISOString().split("T")[0],
+        {
+          page: sbAdsCurrentPage,
+          page_size: 10,
+          sort_by: sbAdsSortBy,
+          order: sbAdsSortOrder,
+          type: "SB", // Force SB type for SB ads
+          ...buildProductAdsFilterParams(sbAdsFilters),
+        }
+      );
+
+      setSbAds(data.productads as SBAd[]);
+      setSbAdsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load SB ads:", error);
+      setSbAds([]);
+      setSbAdsTotalPages(0);
+    } finally {
+      setSbAdsLoading(false);
+    }
+  };
+
+  const handleSelectAllSBAds = (checked: boolean) => {
+    if (checked) {
+      setSelectedSBAdIds(new Set(sbAds.map((ad) => ad.id)));
+    } else {
+      setSelectedSBAdIds(new Set());
+    }
+  };
+
+  const handleSelectSBAd = (id: number, checked: boolean) => {
+    setSelectedSBAdIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSBAdsSort = (column: string) => {
+    if (sbAdsSortBy === column) {
+      setSbAdsSortOrder(sbAdsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSbAdsSortBy(column);
+      setSbAdsSortOrder("asc");
+    }
+    setSbAdsCurrentPage(1);
+  };
+
+  const handleSBAdsPageChange = (page: number) => {
+    setSbAdsCurrentPage(page);
+  };
+
+  const loadAssets = async () => {
+    try {
+      setAssetsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum)) {
+        setAssetsLoading(false);
+        return;
+      }
+
+      const data = await campaignsService.getAssets(accountIdNum, {
+        page: assetsCurrentPage,
+        page_size: 10,
+        sort_by: assetsSortBy,
+        order: assetsSortOrder,
+        ...buildAssetsFilterParams(assetsFilters),
+      });
+
+      setAssets(data.assets || []);
+      setAssetsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load assets:", error);
+      setAssets([]);
+      setAssetsTotalPages(0);
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
+
+  const handleSelectAllAssets = (checked: boolean) => {
+    if (checked) {
+      setSelectedAssetIds(new Set(assets.map((asset) => asset.id)));
+    } else {
+      setSelectedAssetIds(new Set());
+    }
+  };
+
+  const handleSelectAsset = (id: number, checked: boolean) => {
+    setSelectedAssetIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAssetsSort = (column: string) => {
+    if (assetsSortBy === column) {
+      setAssetsSortOrder(assetsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setAssetsSortBy(column);
+      setAssetsSortOrder("asc");
+    }
+    setAssetsCurrentPage(1);
+  };
+
+  const handleAssetsPageChange = (page: number) => {
+    setAssetsCurrentPage(page);
+  };
+
+  const handleCreateAsset = async (asset: AssetInput) => {
+    if (!accountId) return;
+
+    setCreateAssetLoading(true);
+    setCreateAssetError(null);
+    setCreateAssetFieldErrors({});
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const formData = new FormData();
+      
+      // Required fields
+      formData.append("assetName", asset.assetName);
+      formData.append("assetType", asset.assetType);
+      // For arrays, use repeated keys without brackets - Django QueryDict handles this
+      asset.assetSubTypeList.forEach((subType) => {
+        formData.append("assetSubTypeList", subType);
+      });
+      formData.append("brandEntityId", asset.brandEntityId);
+      
+      // Optional fields - only append if provided
+      if (asset.asinList && asset.asinList.length > 0) {
+        asset.asinList.forEach((asin) => {
+          formData.append("asinList", asin);
+        });
+      }
+      
+      if (asset.tags && asset.tags.length > 0) {
+        asset.tags.forEach((tag) => {
+          formData.append("tags", tag);
+        });
+      }
+      
+      if (asset.versionInfo) {
+        formData.append("versionInfo[linkedAssetId]", asset.versionInfo.linkedAssetId);
+        if (asset.versionInfo.versionNotes) {
+          formData.append("versionInfo[versionNotes]", asset.versionInfo.versionNotes);
+        }
+      }
+      
+      if (asset.registrationContext) {
+        formData.append(
+          "registrationContext[associatedPrograms][0][programName]",
+          asset.registrationContext.associatedPrograms[0]?.programName || "A_PLUS"
+        );
+        if (asset.registrationContext.associatedPrograms[0]?.metadata?.dspAdvertiserId) {
+          formData.append(
+            "registrationContext[associatedPrograms][0][metadata][dspAdvertiserId]",
+            asset.registrationContext.associatedPrograms[0].metadata.dspAdvertiserId
+          );
+        }
+      }
+      
+      if (asset.skipAssetSubTypesDetection !== undefined) {
+        formData.append("skipAssetSubTypesDetection", asset.skipAssetSubTypesDetection.toString());
+      }
+      
+      if (asset.url) {
+        formData.append("url", asset.url);
+      }
+
+      if (asset.file) {
+        formData.append("file", asset.file);
+      }
+
+      // Backward compatibility - include mediaType if provided
+      if (asset.mediaType) {
+        formData.append("mediaType", asset.mediaType);
+      }
+
+      const response = await campaignsService.createAsset(
+        accountIdNum,
+        formData
+      );
+
+      setIsCreateAssetPanelOpen(false);
+
+      setErrorModal({
+        isOpen: true,
+        title: "Success",
+        message: "Asset uploaded successfully!",
+        isSuccess: true,
+      });
+
+      // Reload assets to show the new one
+      await loadAssets();
+    } catch (error: any) {
+      console.error("Failed to create asset:", error);
+
+      let errorMessage = "Failed to upload asset. Please try again.";
+
+      if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (Array.isArray(error.response.data.errors)) {
+          errorMessage = error.response.data.errors.join(", ");
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      setCreateAssetError(errorMessage);
+
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateAssetLoading(false);
+    }
+  };
+
+  const buildAssetsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+    filterList.forEach((filter) => {
+      const field = filter.field as string;
+      if (field === "mediaType") {
+        params.mediaType = filter.value;
+      } else if (field === "brandEntityId") {
+        params.brandEntityId = filter.value;
+      }
+    });
+    return params;
+  };
+
+  const handleCreateSBAds = async (ads: SBAdInput[]) => {
+    if (!accountId || !campaignId) return;
+
+    setCreateSBAdLoading(true);
+    setCreateSBAdError(null);
+    setCreateSBAdFieldErrors({});
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Separate image and video ads
+      const imageAds = ads.filter((ad) => !ad.adType || ad.adType === "IMAGE");
+      const videoAds = ads.filter((ad) => ad.adType === "VIDEO");
+
+      let response: any = { created: 0, failed: 0, ads: [], failed_ads: [] };
+
+      // Create image ads if any
+      if (imageAds.length > 0) {
+        const imageResponse = await campaignsService.createSBAds(
+          accountIdNum,
+          campaignId,
+          { ads: imageAds }
+        );
+        response.created += imageResponse.created || 0;
+        response.failed += imageResponse.failed || 0;
+        response.ads = [...(response.ads || []), ...(imageResponse.ads || [])];
+        response.failed_ads = [...(response.failed_ads || []), ...(imageResponse.failed_ads || [])];
+      }
+
+      // Create video ads if any
+      if (videoAds.length > 0) {
+        const videoResponse = await campaignsService.createSBVideoAds(
+          accountIdNum,
+          campaignId,
+          { ads: videoAds }
+        );
+        response.created += videoResponse.created || 0;
+        response.failed += videoResponse.failed || 0;
+        response.ads = [...(response.ads || []), ...(videoResponse.ads || [])];
+        response.failed_ads = [...(response.failed_ads || []), ...(videoResponse.failed_ads || [])];
+      }
+
+      // Check for partial success
+      const created = response.created || 0;
+      const failed = response.failed || 0;
+
+      if (failed === 0) {
+        // Complete success - close panel and show success message
+        setIsCreateSBAdPanelOpen(false);
+
+        setErrorModal({
+          isOpen: true,
+          title: "Success",
+          message: `${created} ad(s) created successfully!`,
+          isSuccess: true,
+        });
+
+        // Reload SB ads to show the new ones
+        await loadSBAds();
+      } else {
+        // Partial success or all failed - show summary and keep panel open
+        if (created > 0 && failed > 0) {
+          setErrorModal({
+            isOpen: true,
+            title: "Summary",
+            message: `${created} ad(s) created successfully. ${failed} ad(s) failed.`,
+            isSuccess: false,
+          });
+        }
+
+        // Reload SB ads even on partial success to show newly created ones
+        if (created > 0) {
+          await loadSBAds();
+        }
+      }
+
+      // Set response data for display in panel
+      setCreatedSBAds(response.ads || []);
+      setFailedSBAdCount(failed);
+      setFailedSBAds(response.failed_ads || []);
+
+      // Handle field errors
+      if (response.field_errors) {
+        setCreateSBAdFieldErrors(response.field_errors);
+      }
+    } catch (error: any) {
+      console.error("Failed to create SB ads:", error);
+
+      // Extract error message
+      let errorMessage = "Failed to create ads. Please try again.";
+
+      if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (Array.isArray(error.response.data.errors)) {
+          errorMessage = error.response.data.errors.join(", ");
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      setCreateSBAdError(errorMessage);
+
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setCreateSBAdLoading(false);
+    }
+  };
+
   const loadTargets = async () => {
     try {
       setTargetsLoading(true);
@@ -2693,14 +3290,15 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingAdGroupChange.field === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
-          enabled: "enable",
-          paused: "pause",
-          archived: "archive",
+        // Map status values to uppercase
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          enabled: "ENABLED",
+          paused: "PAUSED",
+          enable: "ENABLED",
+          pause: "PAUSED",
         };
         const statusValue =
-          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "enable";
+          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
         await campaignsService.bulkUpdateAdGroups(accountIdNum, {
           adgroupIds: [adgroup.adGroupId],
@@ -2843,19 +3441,28 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingKeywordChange.field === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause"> = {
-          enabled: "enable",
-          paused: "pause",
-        };
-        const statusValue =
-          statusMap[pendingKeywordChange.newValue.toLowerCase()] || "enable";
+        const newValueLower = pendingKeywordChange.newValue.toLowerCase();
 
-        await campaignsService.bulkUpdateKeywords(accountIdNum, {
-          keywordIds: [keyword.keywordId],
-          action: "status",
-          status: statusValue,
-        });
+        // Handle archive separately (uses DELETE endpoint)
+        if (newValueLower === "archive") {
+          await campaignsService.bulkUpdateKeywords(accountIdNum, {
+            keywordIds: [keyword.keywordId],
+            action: "archive",
+          });
+        } else {
+          // Map status values for enable/pause
+          const statusMap: Record<string, "enable" | "pause"> = {
+            enabled: "enable",
+            paused: "pause",
+          };
+          const statusValue = statusMap[newValueLower] || "enable";
+
+          await campaignsService.bulkUpdateKeywords(accountIdNum, {
+            keywordIds: [keyword.keywordId],
+            action: "status",
+            status: statusValue,
+          });
+        }
       } else if (pendingKeywordChange.field === "bid") {
         // Extract numeric value
         const bidValue = parseFloat(pendingKeywordChange.newValue);
@@ -2969,14 +3576,34 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const confirmTargetChange = async () => {
-    if (!pendingTargetChange || !accountId) return;
+    if (!pendingTargetChange || !accountId) {
+      console.error("confirmTargetChange: Missing pendingTargetChange or accountId", {
+        pendingTargetChange,
+        accountId,
+      });
+      return;
+    }
 
     const target = targets.find((tgt) => tgt.id === pendingTargetChange.id);
     if (!target || !target.targetId) {
-      alert("Target ID not found");
+      console.error("confirmTargetChange: Target not found", {
+        targetId: pendingTargetChange.id,
+        target,
+      });
+      setErrorModal({
+        isOpen: true,
+        message: "Target ID not found",
+      });
       setPendingTargetChange(null);
+      setShowTargetsConfirmationModal(false);
       return;
     }
+
+    console.log("confirmTargetChange: Starting update", {
+      targetId: target.targetId,
+      field: pendingTargetChange.field,
+      newValue: pendingTargetChange.newValue,
+    });
 
     setTargetEditLoading((prev) => new Set(prev).add(pendingTargetChange.id));
     try {
@@ -2994,17 +3621,30 @@ export const CampaignDetail: React.FC = () => {
         const statusValue =
           statusMap[pendingTargetChange.newValue.toLowerCase()] || "enable";
 
+        console.log("confirmTargetChange: Updating status", {
+          targetId: target.targetId,
+          statusValue,
+        });
+
         await campaignsService.bulkUpdateTargets(accountIdNum, {
           targetIds: [String(target.targetId)],
           action: "status",
           status: statusValue,
         });
       } else if (pendingTargetChange.field === "bid") {
-        // Extract numeric value
-        const bidValue = parseFloat(pendingTargetChange.newValue);
-        if (isNaN(bidValue)) {
+        // Extract numeric value - clean any formatting
+        const cleanedValue = pendingTargetChange.newValue.replace(/[^0-9.]/g, "");
+        const bidValue = parseFloat(cleanedValue);
+        if (isNaN(bidValue) || bidValue < 0) {
           throw new Error("Invalid bid value");
         }
+
+        console.log("confirmTargetChange: Updating bid", {
+          targetId: target.targetId,
+          bidValue,
+          originalValue: pendingTargetChange.newValue,
+          cleanedValue,
+        });
 
         await campaignsService.bulkUpdateTargets(accountIdNum, {
           targetIds: [String(target.targetId)],
@@ -3013,6 +3653,7 @@ export const CampaignDetail: React.FC = () => {
         });
       }
 
+      console.log("confirmTargetChange: Update successful, reloading targets");
       // Reload targets
       await loadTargets();
       setPendingTargetChange(null);
@@ -3371,11 +4012,12 @@ export const CampaignDetail: React.FC = () => {
   const handleCreateNegativeTargets = async (
     negativeTargets: Array<{
       adGroupId: string;
-      expression: Array<{ type: string; value: string }>;
+      expression?: Array<{ type: string; value: string }>;
+      expressions?: Array<{ type: string; value: string }>;
       state?: "ENABLED" | "PAUSED";
     }>
   ) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (!accountId || !campaignId || (campaignType !== "SP" && campaignType !== "SB")) return;
 
     setCreateNegativeTargetLoading(true);
     setCreateNegativeTargetError(null);
@@ -3390,15 +4032,29 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      // Format negative targets based on campaign type
+      const formattedNegativeTargets = negativeTargets.map((ntg) => {
+        if (campaignType === "SB") {
+          // SB: use expressions (plural), no state at creation
+          return {
+            adGroupId: ntg.adGroupId,
+            expressions: ntg.expressions || ntg.expression || [],
+          };
+        } else {
+          // SP: use expression (singular), include state
+          return {
+            adGroupId: ntg.adGroupId,
+            expression: ntg.expression || [],
+            state: ntg.state || "ENABLED",
+          };
+        }
+      });
+
       const response = await campaignsService.createNegativeTargets(
         accountIdNum,
         campaignId,
         {
-          negativeTargetingClauses: negativeTargets.map((ntg) => ({
-            adGroupId: ntg.adGroupId,
-            expression: ntg.expression,
-            state: ntg.state || "ENABLED",
-          })),
+          negativeTargetingClauses: formattedNegativeTargets,
         }
       );
 
@@ -3728,7 +4384,7 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
-  const handleBulkKeywordsDelete = async () => {
+  const handleBulkKeywordsArchive = async () => {
     if (!accountId || selectedKeywordIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
@@ -3742,37 +4398,25 @@ export const CampaignDetail: React.FC = () => {
         .map((k) => k.keywordId || k.id)
         .filter(Boolean) as Array<string | number>;
 
-      const response = await campaignsService.bulkDeleteKeywords(accountIdNum, {
-        keywordIdFilter: {
-          include: keywordIds,
-        },
+      // Use bulkUpdateKeywords with archive action
+      const response = await campaignsService.bulkUpdateKeywords(accountIdNum, {
+        keywordIds: keywordIds,
+        action: "archive",
       });
 
-      // Handle response with success/error arrays
-      // Note: Log creation is handled by the backend
-      if (response?.keywords) {
-        const errors = response.keywords.error || [];
-        const successes = response.keywords.success || [];
-
-        if (errors.length > 0) {
-          const errorMessages = errors
-            .map((err: any) => {
-              const errorDetails = err.errors?.[0]?.errorValue;
-              if (errorDetails) {
-                return Object.values(errorDetails)
-                  .map((e: any) => e?.message || "Unknown error")
-                  .join(", ");
-              }
-              return "Unknown error";
-            })
-            .join("; ");
+      // Handle response - archive returns updated/failed counts
+      if (response?.updated !== undefined) {
+        if (response.failed > 0 && response.errors) {
+          const errorMessages = Array.isArray(response.errors)
+            ? response.errors.join("; ")
+            : response.errors;
           setErrorModal({
             isOpen: true,
-            message: `Some keywords could not be deleted: ${errorMessages}`,
+            message: `Some keywords could not be archived: ${errorMessages}`,
           });
         }
 
-        if (successes.length > 0) {
+        if (response.updated > 0) {
           await loadKeywords();
           setSelectedKeywordIds(new Set());
         }
@@ -3784,17 +4428,64 @@ export const CampaignDetail: React.FC = () => {
 
       setShowKeywordsDeleteConfirmation(false);
     } catch (error: any) {
-      console.error("Failed to delete keywords", error);
+      console.error("Failed to archive keywords", error);
       const errorMessage =
         error?.response?.data?.error ||
         error?.message ||
-        "Failed to delete keywords. Please try again.";
+        "Failed to archive keywords. Please try again.";
       setErrorModal({
         isOpen: true,
         message: errorMessage,
       });
     } finally {
       setKeywordsDeleteLoading(false);
+    }
+  };
+
+  const handleBulkSBAdsDelete = async () => {
+    if (!accountId || selectedSBAdIds.size === 0) return;
+
+    setSbAdsDeleteLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const selectedSBAdIdsArray = Array.from(selectedSBAdIds).map((id) => {
+        const ad = sbAds.find((a) => a.id === id);
+        return ad?.adId || id;
+      });
+
+      await campaignsService.bulkDeleteProductAds(accountIdNum, {
+        adIdFilter: {
+          include: selectedSBAdIdsArray,
+        },
+      });
+
+      await loadSBAds();
+      setSelectedSBAdIds(new Set());
+      setShowSBAdsDeleteConfirmation(false);
+
+      setErrorModal({
+        isOpen: true,
+        title: "Success",
+        message: "Ads deleted successfully!",
+        isSuccess: true,
+      });
+    } catch (error: any) {
+      console.error("Failed to delete SB ads", error);
+      setShowSBAdsDeleteConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message:
+          error?.response?.data?.error ||
+          "Failed to delete ads. Please try again.",
+        isSuccess: false,
+      });
+    } finally {
+      setSbAdsDeleteLoading(false);
     }
   };
 
@@ -4056,6 +4747,8 @@ export const CampaignDetail: React.FC = () => {
           negativeKeywordIdFilter: {
             include: negativeKeywordIds,
           },
+          ...(campaignType && { campaignType }),
+          ...(campaignId && { campaignId }),
         }
       );
 
@@ -4201,10 +4894,19 @@ export const CampaignDetail: React.FC = () => {
         }
       );
 
+      // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
+      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+        enable: "ENABLED",
+        pause: "PAUSED",
+        enabled: "ENABLED",
+        paused: "PAUSED",
+      };
+      const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
+
       await campaignsService.bulkUpdateAdGroups(accountIdNum, {
         adgroupIds: selectedAdGroupIdsArray,
         action: "status",
-        status: statusValue,
+        status: apiStatus,
       });
 
       await loadAdGroups();
@@ -5067,8 +5769,16 @@ export const CampaignDetail: React.FC = () => {
                             {[
                               { value: "enable", label: "Enabled" },
                               { value: "pause", label: "Paused" },
-                              { value: "archive", label: "Archived" },
-                              { value: "edit_bid", label: "Edit Default Bid" },
+                              // Only show "Archived" and "Edit Default Bid" for SP campaigns
+                              ...(campaignType !== "SB"
+                                ? [
+                                    { value: "archive", label: "Archived" },
+                                    {
+                                      value: "edit_bid",
+                                      label: "Edit Default Bid",
+                                    },
+                                  ]
+                                : []),
                               { value: "delete", label: "Delete" },
                             ].map((opt) => (
                               <button
@@ -5515,7 +6225,7 @@ export const CampaignDetail: React.FC = () => {
                                 { value: "enable", label: "Enabled" },
                                 { value: "pause", label: "Paused" },
                                 { value: "edit_bid", label: "Edit Bid" },
-                                { value: "delete", label: "Delete" },
+                                { value: "archive", label: "Archive" },
                               ].map((opt) => (
                                 <button
                                   key={opt.value}
@@ -5527,7 +6237,7 @@ export const CampaignDetail: React.FC = () => {
                                     if (selectedKeywordIds.size === 0) return;
                                     if (opt.value === "edit_bid") {
                                       setShowKeywordsBidPanel(true);
-                                    } else if (opt.value === "delete") {
+                                    } else if (opt.value === "archive") {
                                       setShowKeywordsBidPanel(false);
                                       setShowKeywordsDeleteConfirmation(true);
                                     } else {
@@ -5803,13 +6513,16 @@ export const CampaignDetail: React.FC = () => {
                       setFailedKeywords([]);
                     }}
                     onSubmit={handleCreateKeywords}
-                    adgroups={(allAdgroups.length > 0
-                      ? allAdgroups
-                      : adgroups
-                    ).map((ag) => ({
-                      adGroupId: ag.adGroupId || String(ag.id),
-                      name: ag.name,
-                    }))}
+                    adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)
+                      .filter((ag) => {
+                        // Only show ENABLED adgroups for keyword creation
+                        const status = ag.status || ag.state || "";
+                        return status.toUpperCase() === "ENABLED";
+                      })
+                      .map((ag) => ({
+                        adGroupId: ag.adGroupId || String(ag.id),
+                        name: ag.name,
+                      }))}
                     campaignId={campaignId || ""}
                     loading={createKeywordLoading}
                     submitError={createKeywordError}
@@ -5927,6 +6640,291 @@ export const CampaignDetail: React.FC = () => {
                       </div>
                     </div>
                   )}
+              </>
+            )}
+
+            {activeTab === "Ads Collection" && (
+              <>
+                {/* Header with Filter Button and Create SB Ad Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Ads Collection
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {/* Create SB Ad Button */}
+                    <button
+                      onClick={async () => {
+                        const newState = !isCreateSBAdPanelOpen;
+                        setIsCreateSBAdPanelOpen(newState);
+                        if (newState) {
+                          await loadAllAdGroups();
+                        }
+                      }}
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+                    >
+                      <svg
+                        className="w-4 h-4 !text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Create Ads
+                      <svg
+                        className={`w-4 h-4 !text-white transition-transform ${
+                          isCreateSBAdPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    {/* Bulk Edit Button */}
+                    {selectedSBAdIds.size > 0 && (
+                      <div
+                        className="relative inline-flex justify-end"
+                        ref={sbAdsBulkActionsRef}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSBAdsBulkActions((prev) => !prev);
+                            setIsSBAdsFilterPanelOpen(false);
+                          }}
+                        >
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Edit
+                          </span>
+                        </Button>
+                        {showSBAdsBulkActions && (
+                          <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                            <div className="overflow-y-auto">
+                              {[{ value: "delete", label: "Delete" }].map(
+                                (opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                    disabled={selectedSBAdIds.size === 0}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (selectedSBAdIds.size === 0) return;
+                                      if (opt.value === "delete") {
+                                        setShowSBAdsDeleteConfirmation(true);
+                                      }
+                                      setShowSBAdsBulkActions(false);
+                                    }}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Add Filter Button */}
+                    <button
+                      onClick={() =>
+                        setIsSBAdsFilterPanelOpen(!isSBAdsFilterPanelOpen)
+                      }
+                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                    >
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Filter
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Create SB Ad Panel */}
+                {isCreateSBAdPanelOpen && (
+                  <CreateSBAdPanel
+                    isOpen={isCreateSBAdPanelOpen}
+                    accountId={parseInt(accountId || "0", 10)}
+                    onClose={() => {
+                      setIsCreateSBAdPanelOpen(false);
+                      setCreateSBAdError(null);
+                      setCreateSBAdFieldErrors({});
+                      setCreatedSBAds([]);
+                      setFailedSBAdCount(0);
+                      setFailedSBAds([]);
+                    }}
+                    onSubmit={handleCreateSBAds}
+                    adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)
+                      .filter((ag) => {
+                        // Only show ENABLED adgroups for SB ad creation
+                        const statusValue =
+                          (ag as any).status || (ag as any).state || "";
+                        return statusValue.toUpperCase() === "ENABLED";
+                      })
+                      .map((ag) => ({
+                        adGroupId: ag.adGroupId || String(ag.id),
+                        name: ag.name,
+                      }))}
+                    campaignId={campaignId || ""}
+                    loading={createSBAdLoading}
+                    submitError={createSBAdError}
+                    fieldErrors={createSBAdFieldErrors}
+                    createdAds={createdSBAds}
+                    failedCount={failedSBAdCount}
+                    failedAds={failedSBAds}
+                  />
+                )}
+
+                {/* Filter Panel */}
+                {isSBAdsFilterPanelOpen && (
+                  <div className="mb-4">
+                    <FilterPanel
+                      isOpen={true}
+                      onClose={() => {
+                        setIsSBAdsFilterPanelOpen(false);
+                      }}
+                      onApply={(newFilters) => {
+                        setSbAdsFilters(newFilters);
+                        setSbAdsCurrentPage(1);
+                      }}
+                      initialFilters={sbAdsFilters}
+                      filterFields={[
+                        { value: "name", label: "Ad Name" },
+                        { value: "state", label: "State" },
+                        { value: "adGroupId", label: "Ad Group ID" },
+                      ]}
+                    />
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <SBAdsTable
+                    ads={sbAds}
+                    loading={sbAdsLoading}
+                    onSelectAll={handleSelectAllSBAds}
+                    onSelect={handleSelectSBAd}
+                    selectedIds={selectedSBAdIds}
+                    sortBy={sbAdsSortBy}
+                    sortOrder={sbAdsSortOrder}
+                    onSort={handleSBAdsSort}
+                  />
+                </div>
+
+                {/* Pagination */}
+                {!sbAdsLoading && sbAds.length > 0 && sbAdsTotalPages > 0 && (
+                  <div className="flex items-center justify-end mt-4">
+                    <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                      <button
+                        onClick={() =>
+                          handleSBAdsPageChange(
+                            Math.max(1, sbAdsCurrentPage - 1)
+                          )
+                        }
+                        disabled={sbAdsCurrentPage === 1}
+                        className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                      >
+                        Previous
+                      </button>
+                      {Array.from(
+                        { length: Math.min(5, sbAdsTotalPages) },
+                        (_, i) => {
+                          let pageNum;
+                          if (sbAdsTotalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (sbAdsCurrentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (sbAdsCurrentPage >= sbAdsTotalPages - 2) {
+                            pageNum = sbAdsTotalPages - 4 + i;
+                          } else {
+                            pageNum = sbAdsCurrentPage - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handleSBAdsPageChange(pageNum)}
+                              className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                sbAdsCurrentPage === pageNum
+                                  ? "bg-white text-[#136D6D] font-semibold"
+                                  : "text-black hover:bg-gray-50"
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        }
+                      )}
+                      {sbAdsTotalPages > 5 &&
+                        sbAdsCurrentPage < sbAdsTotalPages - 2 && (
+                          <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                            ...
+                          </span>
+                        )}
+                      {sbAdsTotalPages > 5 && (
+                        <button
+                          onClick={() => handleSBAdsPageChange(sbAdsTotalPages)}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                            sbAdsCurrentPage === sbAdsTotalPages
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                          }`}
+                        >
+                          {sbAdsTotalPages}
+                        </button>
+                      )}
+                      <button
+                        onClick={() =>
+                          handleSBAdsPageChange(
+                            Math.min(sbAdsTotalPages, sbAdsCurrentPage + 1)
+                          )
+                        }
+                        disabled={sbAdsCurrentPage === sbAdsTotalPages}
+                        className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -6402,6 +7400,7 @@ export const CampaignDetail: React.FC = () => {
                 {isCreateTargetPanelOpen && (
                   <CreateTargetPanel
                     isOpen={isCreateTargetPanelOpen}
+                    campaignType={campaignType}
                     onClose={() => {
                       setIsCreateTargetPanelOpen(false);
                       // Reset error states when closing
@@ -6910,6 +7909,7 @@ export const CampaignDetail: React.FC = () => {
                         name: ag.name,
                       }))}
                       campaignId={campaignId || ""}
+                      campaignType={campaignType || undefined}
                       loading={createNegativeKeywordLoading}
                       submitError={createNegativeKeywordError}
                       fieldErrors={createNegativeKeywordFieldErrors}
@@ -7233,6 +8233,7 @@ export const CampaignDetail: React.FC = () => {
                   {isCreateNegativeTargetPanelOpen && (
                     <CreateNegativeTargetPanel
                       isOpen={isCreateNegativeTargetPanelOpen}
+                      campaignType={campaignType}
                       onClose={() => {
                         setIsCreateNegativeTargetPanelOpen(false);
                         // Reset error states when closing
@@ -7376,6 +8377,217 @@ export const CampaignDetail: React.FC = () => {
               </>
             )}
 
+            {activeTab === "Assets" && (
+              <>
+                {/* Header with Filter Button and Create Asset Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Assets
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {/* Create Asset Button */}
+                    <button
+                      onClick={() => {
+                        setIsCreateAssetPanelOpen(!isCreateAssetPanelOpen);
+                      }}
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+                    >
+                      <svg
+                        className="w-4 h-4 !text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Create Asset
+                      <svg
+                        className={`w-4 h-4 !text-white transition-transform ${
+                          isCreateAssetPanelOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    {/* Add Filter Button */}
+                    <button
+                      onClick={() =>
+                        setIsAssetsFilterPanelOpen(!isAssetsFilterPanelOpen)
+                      }
+                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                    >
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Filter
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Create Asset Panel */}
+                {isCreateAssetPanelOpen && (
+                  <CreateAssetPanel
+                    isOpen={isCreateAssetPanelOpen}
+                    onClose={() => {
+                      setIsCreateAssetPanelOpen(false);
+                      setCreateAssetError(null);
+                      setCreateAssetFieldErrors({});
+                    }}
+                    onSubmit={handleCreateAsset}
+                    accountId={accountId}
+                    profileId={
+                      campaignDetail?.campaign?.profile_id || undefined
+                    }
+                    loading={createAssetLoading}
+                    submitError={createAssetError}
+                    fieldErrors={createAssetFieldErrors}
+                  />
+                )}
+
+                {/* Filter Panel */}
+                {isAssetsFilterPanelOpen && (
+                  <div className="mb-4">
+                    <FilterPanel
+                      isOpen={true}
+                      onClose={() => {
+                        setIsAssetsFilterPanelOpen(false);
+                      }}
+                      onApply={(newFilters) => {
+                        setAssetsFilters(newFilters);
+                        setAssetsCurrentPage(1);
+                      }}
+                      initialFilters={assetsFilters}
+                      filterFields={[
+                        { value: "mediaType", label: "Media Type" },
+                        { value: "brandEntityId", label: "Brand Entity ID" },
+                      ]}
+                    />
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <AssetsTable
+                    assets={assets}
+                    loading={assetsLoading}
+                    onSelectAll={handleSelectAllAssets}
+                    onSelect={handleSelectAsset}
+                    selectedIds={selectedAssetIds}
+                    sortBy={assetsSortBy}
+                    sortOrder={assetsSortOrder}
+                    onSort={handleAssetsSort}
+                  />
+                </div>
+
+                {/* Pagination */}
+                {!assetsLoading &&
+                  assets.length > 0 &&
+                  assetsTotalPages > 0 && (
+                    <div className="flex items-center justify-end mt-4">
+                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                        <button
+                          onClick={() =>
+                            handleAssetsPageChange(
+                              Math.max(1, assetsCurrentPage - 1)
+                            )
+                          }
+                          disabled={assetsCurrentPage === 1}
+                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Previous
+                        </button>
+                        {Array.from(
+                          { length: Math.min(5, assetsTotalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (assetsTotalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (assetsCurrentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              assetsCurrentPage >=
+                              assetsTotalPages - 2
+                            ) {
+                              pageNum = assetsTotalPages - 4 + i;
+                            } else {
+                              pageNum = assetsCurrentPage - 2 + i;
+                            }
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => handleAssetsPageChange(pageNum)}
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                  assetsCurrentPage === pageNum
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          }
+                        )}
+                        {assetsTotalPages > 5 &&
+                          assetsCurrentPage < assetsTotalPages - 2 && (
+                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                              ...
+                            </span>
+                          )}
+                        {assetsTotalPages > 5 && (
+                          <button
+                            onClick={() =>
+                              handleAssetsPageChange(assetsTotalPages)
+                            }
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                              assetsCurrentPage === assetsTotalPages
+                                ? "bg-white text-[#136D6D] font-semibold"
+                                : "text-black hover:bg-gray-50"
+                            }`}
+                          >
+                            {assetsTotalPages}
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            handleAssetsPageChange(
+                              Math.min(assetsTotalPages, assetsCurrentPage + 1)
+                            )
+                          }
+                          disabled={assetsCurrentPage === assetsTotalPages}
+                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
+
             {activeTab === "Logs" && (
               <div className="mt-6">
                 <LogsTable
@@ -7391,9 +8603,11 @@ export const CampaignDetail: React.FC = () => {
               activeTab !== "Ad Groups" &&
               activeTab !== "Keywords" &&
               activeTab !== "Product Ads" &&
+              activeTab !== "Ads Collection" &&
               activeTab !== "Targets" &&
               activeTab !== "Negative Keywords" &&
               activeTab !== "Negative Targets" &&
+              activeTab !== "Assets" &&
               activeTab !== "Logs" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
@@ -7459,66 +8673,69 @@ export const CampaignDetail: React.FC = () => {
       />
 
       {/* Confirmation Modal for Keywords Bulk Actions */}
-      {showKeywordsConfirmationModal && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
-            onClick={() => {
-              if (!keywordsBulkLoading) {
-                setShowKeywordsConfirmationModal(false);
-                setPendingKeywordsStatusAction(null);
-              }
-            }}
-          />
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
-            <div className="p-6">
-              <div className="mb-4 text-center">
-                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                  Confirm Action
-                </h3>
-                <p className="text-[14px] text-[#556179]">
-                  {pendingKeywordsStatusAction
-                    ? `Are you sure you want to ${
-                        pendingKeywordsStatusAction === "enable"
-                          ? "enable"
-                          : "pause"
-                      } ${selectedKeywordIds.size} keyword(s)?`
-                    : `Are you sure you want to update the bid for ${selectedKeywordIds.size} keyword(s)?`}
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowKeywordsConfirmationModal(false);
-                    setPendingKeywordsStatusAction(null);
-                  }}
-                  disabled={keywordsBulkLoading}
-                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (pendingKeywordsStatusAction) {
-                      await handleBulkKeywordsStatus(
-                        pendingKeywordsStatusAction
-                      );
-                    } else {
-                      await handleBulkKeywordsBid();
-                    }
-                  }}
-                  disabled={keywordsBulkLoading}
-                  className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {keywordsBulkLoading ? "Processing..." : "Confirm"}
-                </button>
+      {/* Bulk Actions Confirmation Modal - Only show when NOT doing inline edit */}
+      {showKeywordsConfirmationModal &&
+        !pendingKeywordChange &&
+        (pendingKeywordsStatusAction || selectedKeywordIds.size > 0) && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+              onClick={() => {
+                if (!keywordsBulkLoading) {
+                  setShowKeywordsConfirmationModal(false);
+                  setPendingKeywordsStatusAction(null);
+                }
+              }}
+            />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+              <div className="p-6">
+                <div className="mb-4 text-center">
+                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                    Confirm Action
+                  </h3>
+                  <p className="text-[14px] text-[#556179]">
+                    {pendingKeywordsStatusAction
+                      ? `Are you sure you want to ${
+                          pendingKeywordsStatusAction === "enable"
+                            ? "enable"
+                            : "pause"
+                        } ${selectedKeywordIds.size} keyword(s)?`
+                      : `Are you sure you want to update the bid for ${selectedKeywordIds.size} keyword(s)?`}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowKeywordsConfirmationModal(false);
+                      setPendingKeywordsStatusAction(null);
+                    }}
+                    disabled={keywordsBulkLoading}
+                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (pendingKeywordsStatusAction) {
+                        await handleBulkKeywordsStatus(
+                          pendingKeywordsStatusAction
+                        );
+                      } else {
+                        await handleBulkKeywordsBid();
+                      }
+                    }}
+                    disabled={keywordsBulkLoading}
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {keywordsBulkLoading ? "Processing..." : "Confirm"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Delete Confirmation Modal for Keywords */}
       {showKeywordsDeleteConfirmation && (
@@ -7538,9 +8755,9 @@ export const CampaignDetail: React.FC = () => {
                   Confirm Delete
                 </h3>
                 <p className="text-[14px] text-[#556179]">
-                  Are you sure you want to delete {selectedKeywordIds.size}{" "}
+                  Are you sure you want to archive {selectedKeywordIds.size}{" "}
                   selected keyword{selectedKeywordIds.size !== 1 ? "s" : ""}?
-                  This action cannot be undone.
+                  This action is permanent and cannot be undone.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 mt-6">
@@ -7556,11 +8773,11 @@ export const CampaignDetail: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={handleBulkKeywordsDelete}
+                  onClick={handleBulkKeywordsArchive}
                   disabled={keywordsDeleteLoading}
                   className="px-4 py-2 bg-red-600 text-white text-[11.2px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {keywordsDeleteLoading ? "Deleting..." : "Delete"}
+                  {keywordsDeleteLoading ? "Archiving..." : "Archive"}
                 </button>
               </div>
             </div>
@@ -7812,7 +9029,9 @@ export const CampaignDetail: React.FC = () => {
       )}
 
       {/* Confirmation Modal for Targets Bulk Actions */}
-      {showTargetsConfirmationModal && (
+      {showTargetsConfirmationModal && 
+       !pendingTargetChange && 
+       (pendingTargetsStatusAction || selectedTargetIds.size > 0) && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
@@ -8022,7 +9241,9 @@ export const CampaignDetail: React.FC = () => {
                           ? "pause"
                           : "archive"
                       } ${selectedAdGroupIds.size} ad group(s)?`
-                    : `Are you sure you want to update the default bid for ${selectedAdGroupIds.size} ad group(s)?`}
+                    : campaignType !== "SB"
+                    ? `Are you sure you want to update the default bid for ${selectedAdGroupIds.size} ad group(s)?`
+                    : ""}
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3 mt-6">
@@ -8044,7 +9265,8 @@ export const CampaignDetail: React.FC = () => {
                       await handleBulkAdGroupsStatus(
                         pendingAdGroupsStatusAction
                       );
-                    } else {
+                    } else if (campaignType !== "SB") {
+                      // Only allow default bid edit for non-SB campaigns
                       await handleBulkAdGroupsBid();
                     }
                   }}
@@ -8232,11 +9454,14 @@ export const CampaignDetail: React.FC = () => {
               maximumFractionDigits: 2,
             })}`;
           } else if (pendingKeywordChange.field === "status") {
+            const newValueLower = pendingKeywordChange.newValue.toLowerCase();
             newValueDisplay =
-              pendingKeywordChange.newValue === "enabled"
+              newValueLower === "enabled"
                 ? "Enabled"
-                : pendingKeywordChange.newValue === "paused"
+                : newValueLower === "paused"
                 ? "Paused"
+                : newValueLower === "archive"
+                ? "Archived"
                 : "Archived";
           }
 
@@ -8625,6 +9850,37 @@ export const CampaignDetail: React.FC = () => {
             </div>
           );
         })()}
+
+      {/* Delete Confirmation Modal for SB Ads */}
+      {showSBAdsDeleteConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+              Confirm Delete
+            </h3>
+            <p className="text-[12.16px] text-[#556179] mb-6">
+              Are you sure you want to delete {selectedSBAdIds.size} ad(s)? This
+              action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowSBAdsDeleteConfirmation(false)}
+                disabled={sbAdsDeleteLoading}
+                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkSBAdsDelete}
+                disabled={sbAdsDeleteLoading}
+                className="px-4 py-2 text-[12.16px] text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {sbAdsDeleteLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

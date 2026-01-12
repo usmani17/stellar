@@ -201,7 +201,7 @@ export const Dropdown = <T extends string | number = string>({
           buttonClassName
         )}
       >
-        <span className="truncate">{option ? option.label : placeholder}</span>
+        <span className="truncate flex-1 min-w-0 text-left">{option ? option.label : placeholder}</span>
         <svg
           className={cn(
             "w-4 h-4 text-[#072929] transition-transform",
