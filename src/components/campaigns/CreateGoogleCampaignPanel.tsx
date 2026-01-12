@@ -990,7 +990,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       onChange={(e) =>
                         handleChange("enable_local", e.target.checked)
                       }
-                      className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
+                      className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
                     />
                     <label className="text-[13px] text-[#072929]">
                       Enable Local
