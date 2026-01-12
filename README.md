@@ -14,9 +14,10 @@ npm install
 cp .env.example .env
 ```
 
-3. Update `.env` with your backend API URL:
+3. Update `.env` with your backend API URL and callback URLs:
 ```
 VITE_API_BASE_URL=http://localhost:8000/api
+VITE_AMAZON_CALLBACK_URL=http://localhost:5173/amazon-oauth-callback
 ```
 
 4. Run the development server:
