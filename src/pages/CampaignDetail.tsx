@@ -22,6 +22,7 @@ import { KeywordsTable } from "../components/campaigns/KeywordsTable";
 import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
 import { SBAdsTable, type SBAd } from "../components/campaigns/SBAdsTable";
 import { AssetsTable, type Asset } from "../components/campaigns/AssetsTable";
+import { AssetPreviewModal } from "../components/campaigns/AssetPreviewModal";
 import { TargetsTable } from "../components/campaigns/TargetsTable";
 import { NegativeKeywordsTable } from "../components/campaigns/NegativeKeywordsTable";
 import { NegativeTargetsTable } from "../components/campaigns/NegativeTargetsTable";
@@ -333,6 +334,13 @@ export const CampaignDetail: React.FC = () => {
   const [createAssetFieldErrors, setCreateAssetFieldErrors] = useState<
     Record<string, string>
   >({});
+  
+  // Asset preview modal state
+  const [isAssetPreviewModalOpen, setIsAssetPreviewModalOpen] = useState(false);
+  const [assetPreviewUrl, setAssetPreviewUrl] = useState<string | null>(null);
+  const [assetPreviewContentType, setAssetPreviewContentType] = useState<string | null>(null);
+  const [assetPreviewLoading, setAssetPreviewLoading] = useState(false);
+  const [assetPreviewError, setAssetPreviewError] = useState<string | null>(null);
 
   const [targets, setTargets] = useState<Target[]>([]);
   const [targetsLoading, setTargetsLoading] = useState(false);
@@ -1083,6 +1091,46 @@ export const CampaignDetail: React.FC = () => {
         }
       } else if (filter.field === "state") {
         params.state = filter.value;
+      } else if (filter.field === "adGroupId") {
+        if (filter.operator === "contains") {
+          params.adGroupId__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adGroupId__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adGroupId = filter.value;
+        }
+      }
+    });
+
+    return params;
+  };
+
+  const buildSBAdsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+
+    // Add filters to params
+    filterList.forEach((filter) => {
+      if (filter.field === "name") {
+        if (filter.operator === "contains") {
+          params.name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.name = filter.value;
+        }
+      } else if (filter.field === "status") {
+        // Convert frontend status values to backend values
+        const statusMap: Record<string, string> = {
+          Enabled: "enabled",
+          Paused: "paused",
+          enabled: "enabled",
+          paused: "paused",
+          ENABLED: "enabled",
+          PAUSED: "paused",
+        };
+        params.status = statusMap[filter.value as string] || filter.value;
+        // Also support state for backward compatibility
+        params.state = statusMap[filter.value as string] || filter.value;
       } else if (filter.field === "adGroupId") {
         if (filter.operator === "contains") {
           params.adGroupId__icontains = filter.value;
@@ -2520,7 +2568,7 @@ export const CampaignDetail: React.FC = () => {
           sort_by: sbAdsSortBy,
           order: sbAdsSortOrder,
           type: "SB", // Force SB type for SB ads
-          ...buildProductAdsFilterParams(sbAdsFilters),
+          ...buildSBAdsFilterParams(sbAdsFilters),
         }
       );
 
@@ -2760,9 +2808,53 @@ export const CampaignDetail: React.FC = () => {
         params.mediaType = filter.value;
       } else if (field === "brandEntityId") {
         params.brandEntityId = filter.value;
+      } else if (field === "contentType") {
+        params.contentType = filter.value;
+      } else if (field === "assetType") {
+        params.assetType = filter.value;
       }
     });
     return params;
+  };
+
+  const handleAssetPreview = async (assetId: string) => {
+    if (!accountId || !campaignDetail?.campaign?.profile_id) {
+      setAssetPreviewError("Profile ID is required to preview asset");
+      setIsAssetPreviewModalOpen(true);
+      return;
+    }
+
+    setIsAssetPreviewModalOpen(true);
+    setAssetPreviewLoading(true);
+    setAssetPreviewError(null);
+    setAssetPreviewUrl(null);
+    setAssetPreviewContentType(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const profileId = campaignDetail.campaign.profile_id;
+      const response = await campaignsService.getAssetPreview(
+        accountIdNum,
+        assetId,
+        profileId
+      );
+
+      setAssetPreviewUrl(response.previewUrl);
+      setAssetPreviewContentType(response.contentType || null);
+    } catch (error: any) {
+      console.error("Failed to load asset preview:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to load asset preview. Please try again.";
+      setAssetPreviewError(errorMessage);
+    } finally {
+      setAssetPreviewLoading(false);
+    }
   };
 
   const handleCreateSBAds = async (ads: SBAdInput[]) => {
@@ -7146,7 +7238,7 @@ export const CampaignDetail: React.FC = () => {
                       initialFilters={sbAdsFilters}
                       filterFields={[
                         { value: "name", label: "Ad Name" },
-                        { value: "state", label: "State" },
+                        { value: "status", label: "Status" },
                         { value: "adGroupId", label: "Ad Group ID" },
                       ]}
                     />
@@ -8811,6 +8903,8 @@ export const CampaignDetail: React.FC = () => {
                       filterFields={[
                         { value: "mediaType", label: "Media Type" },
                         { value: "brandEntityId", label: "Brand Entity ID" },
+                        { value: "contentType", label: "Content Type" },
+                        { value: "assetType", label: "Asset Type" },
                       ]}
                     />
                   </div>
@@ -8826,8 +8920,24 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={assetsSortBy}
                     sortOrder={assetsSortOrder}
                     onSort={handleAssetsSort}
+                    onPreview={handleAssetPreview}
                   />
                 </div>
+
+                {/* Asset Preview Modal */}
+                <AssetPreviewModal
+                  isOpen={isAssetPreviewModalOpen}
+                  onClose={() => {
+                    setIsAssetPreviewModalOpen(false);
+                    setAssetPreviewUrl(null);
+                    setAssetPreviewContentType(null);
+                    setAssetPreviewError(null);
+                  }}
+                  previewUrl={assetPreviewUrl}
+                  contentType={assetPreviewContentType}
+                  loading={assetPreviewLoading}
+                  error={assetPreviewError}
+                />
 
                 {/* Pagination */}
                 {!assetsLoading &&

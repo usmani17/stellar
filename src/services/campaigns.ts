@@ -1869,6 +1869,20 @@ export const campaignsService = {
     return response.data;
   },
 
+  getAssetPreview: async (
+    accountId: number,
+    assetId: string,
+    profileId: string
+  ): Promise<{ previewUrl: string; contentType?: string | null; assetData: any }> => {
+    const response = await api.get(
+      `/accounts/${accountId}/assets/${assetId}/preview/`,
+      {
+        params: { profileId },
+      }
+    );
+    return response.data;
+  },
+
   createProductAds: async (
     accountId: number,
     campaignId: string | number,

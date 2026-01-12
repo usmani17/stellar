@@ -23,6 +23,7 @@ interface AssetsTableProps {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
+  onPreview?: (assetId: string) => void;
 }
 
 export const AssetsTable: React.FC<AssetsTableProps> = ({
@@ -34,6 +35,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
   sortBy = "id",
   sortOrder = "asc",
   onSort,
+  onPreview,
 }) => {
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
@@ -192,7 +194,36 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                     </td>
                   )}
                   <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                    {asset.assetId || "—"}
+                    <div className="flex items-center gap-2">
+                      {asset.assetId && onPreview && (
+                        <button
+                          onClick={() => onPreview(asset.assetId!)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          title="Preview asset"
+                        >
+                          <svg
+                            className="w-4 h-4 text-[#136D6D]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                      <span>{asset.assetId || "—"}</span>
+                    </div>
                   </td>
                   <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                     {asset.fileName || "—"}
