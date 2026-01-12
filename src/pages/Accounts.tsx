@@ -487,11 +487,14 @@ export const Accounts: React.FC = () => {
                                 : "No accounts yet"}
                             </p>
                             {!searchQuery && (
-                              <Button
-                                onClick={() => setShowCreateAccount(true)}
-                              >
-                                Create Your First Account
-                              </Button>
+                              <div className="flex justify-center">
+                                <Button
+                                  onClick={() => setShowCreateAccount(true)}
+                                  className="rounded-lg"
+                                >
+                                  Create Your First Account
+                                </Button>
+                              </div>
                             )}
                           </td>
                         </tr>
