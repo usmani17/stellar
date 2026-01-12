@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -31,6 +31,7 @@ const TIKTOK_CAMPAIGN_FILTER_FIELDS = [
 
 export const TikTokCampaigns: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
+    const navigate = useNavigate();
     const { sidebarWidth } = useSidebar();
     const { startDate, endDate } = useDateRange();
 
@@ -64,15 +65,28 @@ export const TikTokCampaigns: React.FC = () => {
         isSuccess?: boolean;
         fieldErrors?: Record<string, string>;
         genericErrors?: string[];
+        actionButton?: {
+            text: string;
+            onClick: () => void;
+        };
     }>({ isOpen: false, message: "" });
 
     // Status update state
     const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string | number>>(new Set());
     const [showBulkActions, setShowBulkActions] = useState(false);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-    const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLE" | "DISABLE" | "DELETE" | null>(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLE" | "DISABLE" | null>(null);
     const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Helper function to get selected campaigns data
+    const getSelectedCampaignsData = () => {
+        return campaigns.filter((campaign) =>
+            selectedCampaigns.has(campaign.campaign_id)
+        );
+    };
 
     // Export state
     const [showExportDropdown, setShowExportDropdown] = useState(false);
@@ -142,6 +156,13 @@ export const TikTokCampaigns: React.FC = () => {
             const startDateStr = startDate?.toISOString().split("T")[0];
             const endDateStr = endDate?.toISOString().split("T")[0];
 
+            // Check if we need to include deleted campaigns (if "Deleted" is in the state filter)
+            const stateFilter = filters.find(f => f.field === "state");
+            const stateValues = stateFilter?.value;
+            const includeDeleted = Array.isArray(stateValues) 
+                ? stateValues.includes("Deleted")
+                : stateValues === "Deleted";
+
             const response = await campaignsService.getTikTokCampaigns(
                 parseInt(accountId),
                 {
@@ -149,6 +170,7 @@ export const TikTokCampaigns: React.FC = () => {
                     page_size: pageSize,
                     start_date: startDateStr,
                     end_date: endDateStr,
+                    ...(includeDeleted && { include_deleted: true }),
                 }
             );
 
@@ -167,7 +189,7 @@ export const TikTokCampaigns: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [accountId, page, pageSize, startDate, endDate]);
+    }, [accountId, page, pageSize, startDate, endDate, filters]);
 
     useEffect(() => {
         setPageTitle("TikTok Campaigns");
@@ -209,18 +231,49 @@ export const TikTokCampaigns: React.FC = () => {
                 setErrorModal({
                     isOpen: true,
                     title: "Success",
-                    message: "Campaign updated successfully!",
+                    message: `Campaign "${data.campaign_name}" updated successfully!`,
                     isSuccess: true,
+                    actionButton: {
+                        text: "View Campaign",
+                        onClick: () => {
+                            setErrorModal({ isOpen: false, message: "" });
+                            navigate(`/accounts/${accountId}/tiktok/campaigns/${editingCampaign.campaign_id}`);
+                        },
+                    },
                 });
             } else {
                 // Create campaign
-                await campaignsService.createTikTokCampaign(parseInt(accountId), data);
-                setErrorModal({
-                    isOpen: true,
-                    title: "Success",
-                    message: "Campaign created successfully!",
-                    isSuccess: true,
-                });
+                const response = await campaignsService.createTikTokCampaign(parseInt(accountId), data);
+                // Extract campaign_id from various possible response structures
+                const campaignId = response?.data?.campaign_id 
+                    || response?.campaign_id 
+                    || response?.data?.data?.campaign_id;
+                
+                console.log("TikTok create campaign response:", response);
+                console.log("Extracted campaignId:", campaignId);
+                
+                if (campaignId) {
+                    setErrorModal({
+                        isOpen: true,
+                        title: "Success",
+                        message: `Campaign "${data.campaign_name}" created successfully!`,
+                        isSuccess: true,
+                        actionButton: {
+                            text: "View Campaign",
+                            onClick: () => {
+                                setErrorModal({ isOpen: false, message: "" });
+                                navigate(`/accounts/${accountId}/tiktok/campaigns/${campaignId}`);
+                            },
+                        },
+                    });
+                } else {
+                    setErrorModal({
+                        isOpen: true,
+                        title: "Success",
+                        message: `Campaign "${data.campaign_name}" created successfully!`,
+                        isSuccess: true,
+                    });
+                }
             }
             setIsCreatePanelOpen(false);
             setCampaignFormMode("create");
@@ -313,6 +366,37 @@ export const TikTokCampaigns: React.FC = () => {
                 end_date: endDate.toISOString().split("T")[0],
             };
 
+            // Apply FilterPanel filters to export
+            for (const filter of filters) {
+                if (filter.field === "campaign_name") {
+                    params.campaign_name = filter.value;
+                }
+                if (filter.field === "state") {
+                    // Map display values to API values
+                    const stateMapping: Record<string, string> = {
+                        "Enabled": "ENABLE",
+                        "Paused": "DISABLE",
+                        "Deleted": "DELETED",
+                    };
+                    const filterValues = Array.isArray(filter.value) ? filter.value : [filter.value];
+                    const mappedValues = filterValues.map(v => stateMapping[v as string] || v);
+                    params.operation_status = mappedValues.join(",");
+                }
+                if (filter.field === "type") {
+                    params.objective_type = filter.value;
+                }
+            }
+
+            // Check if we need to include deleted campaigns
+            const stateFilter = filters.find(f => f.field === "state");
+            const stateValues = stateFilter?.value;
+            const includeDeleted = Array.isArray(stateValues) 
+                ? stateValues.includes("Deleted")
+                : stateValues === "Deleted";
+            if (includeDeleted) {
+                params.include_deleted = true;
+            }
+
             // Add pagination for current_view
             if (exportType === "current_view") {
                 params.page = page;
@@ -392,14 +476,7 @@ export const TikTokCampaigns: React.FC = () => {
                 }
             );
 
-            setErrorModal({
-                isOpen: true,
-                title: "Success",
-                message: `Campaign${campaignIds.length > 1 ? 's' : ''} ${pendingStatusAction === 'ENABLE' ? 'enabled' : pendingStatusAction === 'DISABLE' ? 'paused' : 'deleted'} successfully!`,
-                isSuccess: true,
-            });
-
-            // Clear selection and refresh campaigns
+            // Clear selection and refresh campaigns (silent refresh, matching Amazon)
             setSelectedCampaigns(new Set());
             setShowConfirmationModal(false);
             setPendingStatusAction(null);
@@ -413,6 +490,38 @@ export const TikTokCampaigns: React.FC = () => {
             });
         } finally {
             setStatusUpdateLoading(false);
+        }
+    };
+
+    // Handle delete confirmation
+    const handleDeleteConfirm = async () => {
+        if (!accountId || selectedCampaigns.size === 0) return;
+
+        setDeleteLoading(true);
+        try {
+            const campaignIds = Array.from(selectedCampaigns);
+            
+            await campaignsService.updateTikTokCampaignStatus(
+                parseInt(accountId),
+                {
+                    campaign_ids: campaignIds,
+                    operation_status: "DELETE",
+                }
+            );
+
+            // Clear selection and refresh campaigns (silent refresh, matching Amazon)
+            setSelectedCampaigns(new Set());
+            setShowDeleteModal(false);
+            await fetchCampaigns();
+        } catch (error: any) {
+            console.error("Failed to delete campaigns:", error);
+            setErrorModal({
+                isOpen: true,
+                title: "Error",
+                message: error?.response?.data?.error || error?.message || "Failed to delete campaigns. Please try again.",
+            });
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -670,9 +779,24 @@ export const TikTokCampaigns: React.FC = () => {
                     if (filter.operator === "equals" && campaign.campaign_name.toLowerCase() !== String(filter.value).toLowerCase()) return false;
                 }
                 if (filter.field === "state") {
-                    const statusNormalized = campaign.operation_status?.toLowerCase() === "enable" ? "ENABLED" :
-                        campaign.operation_status?.toLowerCase() === "disable" ? "PAUSED" : campaign.operation_status;
-                    if (statusNormalized !== filter.value) return false;
+                    // Map filter display values to database values
+                    // Filter: "Enabled" -> DB: "ENABLE", Filter: "Paused" -> DB: "DISABLE", Filter: "Deleted" -> DB: "DELETED"
+                    const statusMapping: Record<string, string[]> = {
+                        "Enabled": ["ENABLE", "ENABLED"],
+                        "Paused": ["DISABLE", "DISABLED", "PAUSED"],
+                        "Deleted": ["DELETED", "DELETE"],
+                    };
+                    
+                    const campaignStatus = campaign.operation_status?.toUpperCase() || "";
+                    const filterValues = Array.isArray(filter.value) ? filter.value : [filter.value];
+                    
+                    // Check if campaign status matches any of the selected filter values
+                    const matchesFilter = filterValues.some(filterVal => {
+                        const validStatuses = statusMapping[filterVal as string] || [filterVal];
+                        return validStatuses.includes(campaignStatus);
+                    });
+                    
+                    if (!matchesFilter) return false;
                 }
                 if (filter.field === "type") {
                     if (campaign.objective_type !== filter.value) return false;
@@ -906,8 +1030,12 @@ export const TikTokCampaigns: React.FC = () => {
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         if (selectedCampaigns.size === 0) return;
-                                                        setPendingStatusAction(opt.value as "ENABLE" | "DISABLE" | "DELETE");
-                                                        setShowConfirmationModal(true);
+                                                        if (opt.value === "DELETE") {
+                                                            setShowDeleteModal(true);
+                                                        } else {
+                                                            setPendingStatusAction(opt.value as "ENABLE" | "DISABLE");
+                                                            setShowConfirmationModal(true);
+                                                        }
                                                         setShowBulkActions(false);
                                                     }}
                                                 >
@@ -1131,6 +1259,7 @@ export const TikTokCampaigns: React.FC = () => {
                 isSuccess={errorModal.isSuccess}
                 fieldErrors={errorModal.fieldErrors}
                 genericErrors={errorModal.genericErrors}
+                actionButton={errorModal.actionButton}
             />
 
             {/* Confirmation Modal */}
@@ -1144,18 +1273,114 @@ export const TikTokCampaigns: React.FC = () => {
                         }
                     }}
                 >
-                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
                         <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                            Confirm {pendingStatusAction === 'ENABLE' ? 'Enable' : pendingStatusAction === 'DISABLE' ? 'Pause' : 'Delete'} Campaign{pendingStatusAction === 'DELETE' ? 's' : ''}
+                            Confirm Status Changes
                         </h3>
-                        <p className="text-[12.16px] text-[#556179] mb-6">
-                            Are you sure you want to {pendingStatusAction === 'ENABLE' ? 'enable' : pendingStatusAction === 'DISABLE' ? 'pause' : 'delete'} {selectedCampaigns.size} campaign{selectedCampaigns.size > 1 ? 's' : ''}?
-                            {pendingStatusAction === 'DELETE' && (
-                                <span className="block mt-2 text-red-600 font-semibold">
-                                    This action cannot be undone.
+
+                        {/* Summary */}
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[12.16px] text-[#556179]">
+                                    {selectedCampaigns.size} campaign
+                                    {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                                    updated:
                                 </span>
-                            )}
-                        </p>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    Status change
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Campaign Preview Table */}
+                        {(() => {
+                            const selectedCampaignsData = getSelectedCampaignsData();
+                            const previewCount = Math.min(
+                                10,
+                                selectedCampaignsData.length
+                            );
+                            const hasMore = selectedCampaignsData.length > 10;
+
+                            return (
+                                <div className="mb-6">
+                                    <div className="mb-2">
+                                        <span className="text-[10.64px] text-[#556179]">
+                                            {hasMore
+                                                ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
+                                                : `${selectedCampaignsData.length} campaign${
+                                                    selectedCampaignsData.length !== 1
+                                                        ? "s"
+                                                        : ""
+                                                } selected`}
+                                        </span>
+                                    </div>
+                                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                        <table className="w-full">
+                                            <thead className="bg-sandstorm-s20">
+                                                <tr>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        Campaign Name
+                                                    </th>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        Old Value
+                                                    </th>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        New Value
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {selectedCampaignsData
+                                                    .slice(0, 10)
+                                                    .map((campaign) => {
+                                                        const oldStatus = campaign.operation_status || "ENABLE";
+                                                        const newStatus = pendingStatusAction === 'ENABLE' 
+                                                            ? 'Enable' 
+                                                            : 'Pause';
+                                                        const oldStatusDisplay = oldStatus === 'ENABLE' 
+                                                            ? 'Enable' 
+                                                            : oldStatus === 'DISABLE' 
+                                                            ? 'Pause' 
+                                                            : oldStatus;
+
+                                                        return (
+                                                            <tr
+                                                                key={campaign.campaign_id}
+                                                                className="border-b border-gray-200 last:border-b-0"
+                                                            >
+                                                                <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                                                    {campaign.campaign_name ||
+                                                                        "Unnamed Campaign"}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                                                    {oldStatusDisplay}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                                                    {newStatus}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        <div className="space-y-3 mb-6">
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                    New Status:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {pendingStatusAction === 'ENABLE' 
+                                        ? 'Enable' 
+                                        : 'Pause'}
+                                </span>
+                            </div>
+                        </div>
+
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
@@ -1163,8 +1388,7 @@ export const TikTokCampaigns: React.FC = () => {
                                     setShowConfirmationModal(false);
                                     setPendingStatusAction(null);
                                 }}
-                                className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[10.64px]"
-                                disabled={statusUpdateLoading}
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
                             >
                                 Cancel
                             </button>
@@ -1172,20 +1396,59 @@ export const TikTokCampaigns: React.FC = () => {
                                 type="button"
                                 onClick={handleStatusUpdateConfirm}
                                 disabled={statusUpdateLoading}
-                                className={`px-4 py-2 text-white rounded-lg transition-colors text-[10.64px] ${
-                                    pendingStatusAction === 'DELETE'
-                                        ? 'bg-red-600 hover:bg-red-700'
-                                        : 'bg-[#136D6D] hover:bg-[#0e5a5a]'
-                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {statusUpdateLoading ? (
-                                    <span className="flex items-center gap-2">
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                        {pendingStatusAction === 'ENABLE' ? 'Enabling...' : pendingStatusAction === 'DISABLE' ? 'Pausing...' : 'Deleting...'}
-                                    </span>
-                                ) : (
-                                    pendingStatusAction === 'ENABLE' ? 'Enable' : pendingStatusAction === 'DISABLE' ? 'Pause' : 'Delete'
-                                )}
+                                {statusUpdateLoading ? "Applying..." : "Confirm"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !deleteLoading) {
+                            setShowDeleteModal(false);
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Delete Campaigns?
+                        </h3>
+
+                        <p className="text-[12.16px] text-[#556179] mb-4">
+                            You are about to permanently delete{" "}
+                            {selectedCampaigns.size} selected campaign
+                            {selectedCampaigns.size !== 1 ? "s" : ""}. This will stop
+                            all ad serving immediately and cannot be undone. Deleted
+                            campaigns can still be viewed in reports but not edited or
+                            re-enabled.
+                        </p>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!deleteLoading) {
+                                        setShowDeleteModal(false);
+                                    }
+                                }}
+                                disabled={deleteLoading}
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteConfirm}
+                                disabled={deleteLoading}
+                                className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {deleteLoading ? "Deleting..." : "Confirm"}
                             </button>
                         </div>
                     </div>
@@ -1206,7 +1469,7 @@ export const TikTokCampaigns: React.FC = () => {
                         }
                     }}
                 >
-                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full mx-4">
                         <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
                             Confirm{" "}
                             {inlineEditField === "operation_status"
@@ -1255,7 +1518,6 @@ export const TikTokCampaigns: React.FC = () => {
                                     setInlineEditNewValue("");
                                 }}
                                 className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
-                                disabled={inlineEditLoading}
                             >
                                 Cancel
                             </button>

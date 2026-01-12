@@ -189,13 +189,25 @@ export const Sidebar: React.FC = () => {
 
     // Generic paths for Amazon (exclude google and tiktok paths)
     if (path === "/adgroups") {
-      return location.pathname.includes("/adgroups");
+      return (
+        location.pathname.includes("/adgroups") &&
+        !location.pathname.includes("/google") &&
+        !location.pathname.includes("/tiktok")
+      );
     }
     if (path === "/keywords") {
-      return location.pathname.includes("/keywords");
+      return (
+        location.pathname.includes("/keywords") &&
+        !location.pathname.includes("/google") &&
+        !location.pathname.includes("/tiktok")
+      );
     }
     if (path === "/targets") {
-      return location.pathname.includes("/targets");
+      return (
+        location.pathname.includes("/targets") &&
+        !location.pathname.includes("/google") &&
+        !location.pathname.includes("/tiktok")
+      );
     }
     if (path === "/log-history" || path === "/logs") {
       return (

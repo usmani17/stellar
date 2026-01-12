@@ -2819,6 +2819,7 @@ export const campaignsService = {
       objective_type?: string;
       advertiser_id?: string;
       export_type?: "all_data" | "current_view";
+      include_deleted?: boolean;
     }
   ): Promise<void> => {
     // Build filters object for POST request body
@@ -2854,6 +2855,9 @@ export const campaignsService = {
     if (params?.advertiser_id) {
       filters.advertiser_id = params.advertiser_id;
     }
+    if (params?.include_deleted) {
+      filters.include_deleted = true;
+    }
 
     // Make request with responseType blob to handle CSV file
     const response = await api.post(
@@ -2873,6 +2877,92 @@ export const campaignsService = {
     // Get filename from Content-Disposition header or use default
     const contentDisposition = response.headers["content-disposition"];
     let filename = "tiktok_campaigns_export.csv";
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  exportTikTokAdGroups: async (
+    accountId: number,
+    params?: {
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      page?: number;
+      page_size?: number;
+      adgroup_name?: string;
+      campaign_name?: string;
+      operation_status?: string;
+      advertiser_id?: string;
+      export_type?: "all_data" | "current_view";
+      include_deleted?: boolean;
+    }
+  ): Promise<void> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+
+    if (params?.sort_by) {
+      filters.sort_by = params.sort_by;
+    }
+    if (params?.order) {
+      filters.order = params.order;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+    if (params?.adgroup_name) {
+      filters.adgroup_name = params.adgroup_name;
+    }
+    if (params?.campaign_name) {
+      filters.campaign_name = params.campaign_name;
+    }
+    if (params?.operation_status) {
+      filters.operation_status = params.operation_status;
+    }
+    if (params?.advertiser_id) {
+      filters.advertiser_id = params.advertiser_id;
+    }
+    if (params?.include_deleted) {
+      filters.include_deleted = true;
+    }
+
+    // Make request with responseType blob to handle CSV file
+    const response = await api.post(
+      `/accounts/${accountId}/tiktok-adgroups/export/`,
+      { filters, export_type: params?.export_type || "all_data" },
+      {
+        responseType: "blob",
+      }
+    );
+
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = "tiktok_adgroups_export.csv";
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
       if (filenameMatch) {
@@ -3497,6 +3587,9 @@ export const campaignsService = {
       page_size?: number;
       operation_status?: string;
       advertiser_id?: string;
+      start_date?: string;
+      end_date?: string;
+      include_deleted?: boolean;
     }
   ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number }> => {
     const queryParams = new URLSearchParams();
@@ -3504,6 +3597,9 @@ export const campaignsService = {
     if (params?.page_size) queryParams.append("page_size", String(params.page_size));
     if (params?.operation_status) queryParams.append("operation_status", params.operation_status);
     if (params?.advertiser_id) queryParams.append("advertiser_id", params.advertiser_id);
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
+    if (params?.include_deleted) queryParams.append("include_deleted", "true");
 
     const url = `/accounts/${accountId}/tiktok-campaigns/?${queryParams.toString()}`;
     const response = await api.get(url);

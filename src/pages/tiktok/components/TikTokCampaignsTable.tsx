@@ -58,6 +58,12 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     onInlineEditChange,
     onConfirmInlineEdit,
 }) => {
+    // Check if campaign is deleted (cannot be edited)
+    const isDeleted = (campaign: TikTokCampaign): boolean => {
+        const statusLower = campaign.operation_status?.toLowerCase() || "";
+        return statusLower === "deleted" || statusLower === "delete";
+    };
+
     const handleSelectCampaign = (campaignId: string | number, checked: boolean) => {
         if (!onSelectionChange) return;
         const newSelected = new Set(selectedCampaigns);
@@ -72,15 +78,22 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
     const handleSelectAll = (checked: boolean) => {
         if (!onSelectionChange) return;
         if (checked) {
-            const allIds = new Set(campaigns.map(c => c.campaign_id));
-            onSelectionChange(allIds);
+            // Only select non-deleted campaigns
+            const selectableIds = new Set(
+                campaigns
+                    .filter(c => !isDeleted(c))
+                    .map(c => c.campaign_id)
+            );
+            onSelectionChange(selectableIds);
         } else {
             onSelectionChange(new Set());
         }
     };
 
-    const allSelected = campaigns.length > 0 && campaigns.every(c => selectedCampaigns.has(c.campaign_id));
-    const someSelected = campaigns.some(c => selectedCampaigns.has(c.campaign_id));
+    // Only count non-deleted campaigns for "all selected" check
+    const selectableCampaigns = campaigns.filter(c => !isDeleted(c));
+    const allSelected = selectableCampaigns.length > 0 && selectableCampaigns.every(c => selectedCampaigns.has(c.campaign_id));
+    const someSelected = selectableCampaigns.some(c => selectedCampaigns.has(c.campaign_id));
     const navigate = useNavigate();
     const { accountId } = useParams<{ accountId: string }>();
 
@@ -116,11 +129,14 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     const normalizeStatus = (status: string): string => {
         const statusLower = status?.toLowerCase() || "";
-        if (statusLower === "enable" || statusLower === "active") {
+        if (statusLower === "enable" || statusLower === "enabled" || statusLower === "active") {
             return "Enabled";
         }
-        if (statusLower === "disable" || statusLower === "paused") {
+        if (statusLower === "disable" || statusLower === "disabled" || statusLower === "paused") {
             return "Paused";
+        }
+        if (statusLower === "deleted" || statusLower === "delete") {
+            return "Deleted";
         }
         if (statusLower === "archived") {
             return "Archived";
@@ -341,6 +357,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                         </tr>
                         {campaigns.map((campaign, index) => {
                             const isLastRow = index === campaigns.length - 1;
+                            const campaignIsDeleted = isDeleted(campaign);
                             return (
                                 <tr
                                     key={campaign.id}
@@ -370,7 +387,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                                         onEditCampaign(campaign);
                                                     }
                                                 }}
-                                                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60"
+                                                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
                                                 title="Edit campaign"
                                             >
                                                 <svg
@@ -408,7 +425,15 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                         </span>
                                     </td>
                                     <td className="py-[10px] px-[10px] min-w-[115px] text-left">
-                                        {editingCell?.campaign_id === campaign.campaign_id && editingCell?.field === "operation_status" ? (
+                                        {/* Deleted campaigns cannot be edited - mimic Amazon archived behavior */}
+                                        {campaignIsDeleted ? (
+                                            <div
+                                                className="rounded px-2 py-1 cursor-not-allowed opacity-60"
+                                                title="Deleted campaigns cannot be modified."
+                                            >
+                                                <StatusBadge status="DELETED" />
+                                            </div>
+                                        ) : editingCell?.campaign_id === campaign.campaign_id && editingCell?.field === "operation_status" ? (
                                             <div className="dropdown-container" onClick={(e) => e.stopPropagation()}>
                                                 <Dropdown
                                                     options={[
@@ -457,7 +482,12 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                         )}
                                     </td>
                                     <td className="py-[10px] px-[10px] text-left">
-                                        {editingCell?.campaign_id === campaign.campaign_id && editingCell?.field === "budget" ? (
+                                        {/* Deleted campaigns cannot be edited - show budget only, mimic Amazon archived behavior */}
+                                        {campaignIsDeleted ? (
+                                            <p className="text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 cursor-not-allowed opacity-60" title="Deleted campaigns cannot be modified.">
+                                                {formatCurrency(campaign.budget)}
+                                            </p>
+                                        ) : editingCell?.campaign_id === campaign.campaign_id && editingCell?.field === "budget" ? (
                                             <div className="flex items-center justify-center">
                                                 <input
                                                     type="number"

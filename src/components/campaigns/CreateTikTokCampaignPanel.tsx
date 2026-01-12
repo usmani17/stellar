@@ -89,8 +89,8 @@ const SALES_DESTINATIONS = [
 ];
 
 const STATUS_OPTIONS = [
-    { value: "ENABLED", label: "Enable" },
-    { value: "PAUSED", label: "Pause" },
+    { value: "ENABLE", label: "Enable" },
+    { value: "DISABLE", label: "Disable" },
 ];
 
 // Toggle Switch Component
@@ -158,7 +158,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
     const [budgetOptimizeOn, setBudgetOptimizeOn] = useState<boolean>(false);
     const [isDedicatedCampaign, setIsDedicatedCampaign] = useState<boolean>(false);
     const [disableSkanCampaign, setDisableSkanCampaign] = useState<boolean>(false);
-    const [status, setStatus] = useState<string>("ENABLED");
+    const [status, setStatus] = useState<string>("ENABLE");
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
 
@@ -182,7 +182,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             setBudgetMode("BUDGET_MODE_DAY");
             setBudget("");
             setBudgetOptimizeOn(false);
-            setStatus("ENABLED");
+            setStatus("ENABLE");
             setStartDate("");
             setEndDate("");
         }
@@ -276,9 +276,9 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                 const budgetValue = parseFloat(budget);
                 if (isNaN(budgetValue)) {
                     newErrors.budget = "Budget must be a valid number";
-                } else if (budgetValue < 0) {
-                    newErrors.budget = "Budget must be greater than or equal to 0";
-                } else if (budgetValue > 0 && budgetValue < 0.01) {
+                } else if (budgetValue <= 0) {
+                    newErrors.budget = "Budget must be greater than 0";
+                } else if (budgetValue < 0.01) {
                     newErrors.budget = "Budget must be at least 0.01";
                 }
             }

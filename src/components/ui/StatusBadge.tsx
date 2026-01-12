@@ -31,7 +31,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       ENABLED: {
         bg: "bg-[rgba(30,199,122,0.1)]",
         text: "text-[#1ec77a]",
-        label: "Enable",
+        label: "Enabled",
+      },
+      ENABLE: {
+        bg: "bg-[rgba(30,199,122,0.1)]",
+        text: "text-[#1ec77a]",
+        label: "Enabled",
       },
       Paused: {
         bg: "bg-[rgba(255,182,92,0.1)]",
@@ -44,6 +49,21 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         label: "Paused",
       },
       PAUSED: {
+        bg: "bg-[rgba(255,182,92,0.1)]",
+        text: "text-[#ffb65c]",
+        label: "Paused",
+      },
+      Disable: {
+        bg: "bg-[rgba(255,182,92,0.1)]",
+        text: "text-[#ffb65c]",
+        label: "Paused",
+      },
+      disable: {
+        bg: "bg-[rgba(255,182,92,0.1)]",
+        text: "text-[#ffb65c]",
+        label: "Paused",
+      },
+      DISABLE: {
         bg: "bg-[rgba(255,182,92,0.1)]",
         text: "text-[#ffb65c]",
         label: "Paused",
@@ -72,6 +92,26 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         bg: "bg-[rgba(163,168,179,0.1)]",
         text: "text-[#a3a8b3]",
         label: "Archived",
+      },
+      Deleted: {
+        bg: "bg-[rgba(163,168,179,0.1)]",
+        text: "text-[#a3a8b3]",
+        label: "Deleted",
+      },
+      deleted: {
+        bg: "bg-[rgba(163,168,179,0.1)]",
+        text: "text-[#a3a8b3]",
+        label: "Deleted",
+      },
+      DELETED: {
+        bg: "bg-[rgba(163,168,179,0.1)]",
+        text: "text-[#a3a8b3]",
+        label: "Deleted",
+      },
+      DELETE: {
+        bg: "bg-[rgba(163,168,179,0.1)]",
+        text: "text-[#a3a8b3]",
+        label: "Deleted",
       },
     };
 

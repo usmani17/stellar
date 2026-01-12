@@ -25,10 +25,9 @@ interface TikTokAdGroupsTableProps {
     sortBy: string;
     sortOrder: "asc" | "desc";
     onSort: (column: string) => void;
-    // Selection Props
-    selectedIds: Set<string>; // Assuming IDs are strings based on interface
-    onSelect: (id: string, checked: boolean) => void;
-    onSelectAll: (checked: boolean) => void;
+    // Selection Props - matching TikTokCampaignsTable pattern
+    selectedAdgroups?: Set<string | number>;
+    onSelectionChange?: (selected: Set<string | number>) => void;
     // Summary Props
     summary?: {
         total_adgroups: number;
@@ -39,10 +38,10 @@ interface TikTokAdGroupsTableProps {
         avg_ctr: number;
         avg_cpc: number;
     } | null;
-    // Inline Edit Props (optional)
-    onUpdateAdGroupName?: (adgroup_id: string, newName: string) => Promise<void>;
-    onUpdateAdGroupStatus?: (adgroup_id: string, newStatus: string) => Promise<void>;
-    onUpdateAdGroupBudget?: (adgroup_id: string, newBudget: number) => Promise<void>;
+    // Inline Edit Props (optional) - callbacks trigger confirmation modal in parent
+    onUpdateAdGroupName?: (adgroup_id: string, newName: string) => void;
+    onUpdateAdGroupStatus?: (adgroup_id: string, newStatus: string) => void;
+    onUpdateAdGroupBudget?: (adgroup_id: string, newBudget: number) => void;
 }
 
 export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
@@ -51,14 +50,45 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
     sortBy,
     sortOrder,
     onSort,
-    selectedIds,
-    onSelect,
-    onSelectAll,
+    selectedAdgroups = new Set(),
+    onSelectionChange,
     summary,
     onUpdateAdGroupName,
     onUpdateAdGroupStatus,
     onUpdateAdGroupBudget,
 }) => {
+    // Helper to check if ad group is deleted
+    const isDeleted = (adgroup: TikTokAdGroup): boolean => {
+        const statusLower = adgroup.operation_status?.toLowerCase() || "";
+        return statusLower === "deleted" || statusLower === "delete";
+    };
+
+    const handleSelectAdgroup = (adgroupId: string, checked: boolean) => {
+        if (!onSelectionChange) return;
+        const newSelected = new Set(selectedAdgroups);
+        if (checked) {
+            newSelected.add(adgroupId);
+        } else {
+            newSelected.delete(adgroupId);
+        }
+        onSelectionChange(newSelected);
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (!onSelectionChange) return;
+        if (checked) {
+            // Only select non-deleted ad groups
+            const selectableIds = new Set(
+                adgroups
+                    .filter(ag => !isDeleted(ag))
+                    .map(ag => ag.adgroup_id)
+            );
+            onSelectionChange(selectableIds);
+        } else {
+            onSelectionChange(new Set());
+        }
+    };
+
     // Inline edit state
     const [editingCell, setEditingCell] = useState<{
         adgroup_id: string;
@@ -115,7 +145,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
         setEditedValue(value);
     };
 
-    const confirmInlineEdit = async (newValueOverride?: string) => {
+    const confirmInlineEdit = (newValueOverride?: string) => {
         if (!editingCell || isCancelling) return;
 
         const adgroup = adgroups.find(
@@ -153,22 +183,19 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
             return;
         }
 
-        // Call the appropriate update handler
-        try {
-            if (editingCell.field === "adgroup_name" && onUpdateAdGroupName) {
-                await onUpdateAdGroupName(editingCell.adgroup_id, valueToCheck.trim());
-            } else if (editingCell.field === "operation_status" && onUpdateAdGroupStatus) {
-                await onUpdateAdGroupStatus(editingCell.adgroup_id, valueToCheck.trim());
-            } else if (editingCell.field === "budget" && onUpdateAdGroupBudget) {
-                const budgetValue = parseFloat(valueToCheck.trim()) || 0;
-                await onUpdateAdGroupBudget(editingCell.adgroup_id, budgetValue);
-            }
-            setEditingCell(null);
-            setEditedValue("");
-        } catch (error) {
-            console.error("Error updating ad group:", error);
-            cancelInlineEdit();
+        // Call the appropriate update handler (parent shows confirmation modal)
+        if (editingCell.field === "adgroup_name" && onUpdateAdGroupName) {
+            onUpdateAdGroupName(editingCell.adgroup_id, valueToCheck.trim());
+        } else if (editingCell.field === "operation_status" && onUpdateAdGroupStatus) {
+            onUpdateAdGroupStatus(editingCell.adgroup_id, valueToCheck.trim());
+        } else if (editingCell.field === "budget" && onUpdateAdGroupBudget) {
+            const budgetValue = parseFloat(valueToCheck.trim()) || 0;
+            onUpdateAdGroupBudget(editingCell.adgroup_id, budgetValue);
         }
+
+        // Clear editing state - parent modal handles the rest
+        setEditingCell(null);
+        setEditedValue("");
     };
 
     // Cancel inline edit when clicking outside
@@ -258,9 +285,10 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
         );
     };
 
-    const allSelected = adgroups.length > 0 && adgroups.every((ag) => selectedIds.has(ag.adgroup_id));
-    const isIndeterminate =
-        selectedIds.size > 0 && selectedIds.size < adgroups.length;
+    // Only count non-deleted ad groups for "all selected" check
+    const selectableAdgroups = adgroups.filter(ag => !isDeleted(ag));
+    const allSelected = selectableAdgroups.length > 0 && selectableAdgroups.every(ag => selectedAdgroups.has(ag.adgroup_id));
+    const someSelected = selectableAdgroups.some(ag => selectedAdgroups.has(ag.adgroup_id));
 
     return (
         <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
@@ -285,8 +313,9 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                         <div className="flex items-center justify-center">
                                             <Checkbox
                                                 checked={allSelected}
-                                                indeterminate={isIndeterminate}
-                                                onChange={onSelectAll}
+                                                indeterminate={someSelected && !allSelected}
+                                                onChange={(checked) => handleSelectAll(checked)}
+                                                size="small"
                                             />
                                         </div>
                                     </th>
@@ -435,19 +464,23 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                 )}
 
                                 {adgroups.map((item) => {
-                                    const isSelected = selectedIds.has(item.adgroup_id);
+                                    const isSelected = selectedAdgroups.has(item.adgroup_id);
+                                    const adgroupIsDeleted = isDeleted(item);
                                     return (
                                         <tr
                                             key={item.adgroup_id}
-                                            className="group border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
+                                            className={`group border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors ${
+                                                adgroupIsDeleted ? "opacity-60" : ""
+                                            }`}
                                         >
                                             <td className="py-[10px] px-[10px]">
                                                 <div className="flex items-center justify-center">
                                                     <Checkbox
                                                         checked={isSelected}
                                                         onChange={(checked) =>
-                                                            onSelect(item.adgroup_id, checked)
+                                                            handleSelectAdgroup(item.adgroup_id, checked)
                                                         }
+                                                        size="small"
                                                     />
                                                 </div>
                                             </td>
@@ -509,14 +542,18 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     )}
                                                 </div>
                                             </td>
-                                            {/* Status - Editable */}
+                                            {/* Status - Editable (read-only for deleted) */}
                                             <td className="py-[10px] px-[10px]">
-                                                {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "operation_status" ? (
+                                                {adgroupIsDeleted ? (
+                                                    <div className="text-[13.3px] leading-[1.26] cursor-not-allowed">
+                                                        <StatusBadge status="DELETED" />
+                                                    </div>
+                                                ) : editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "operation_status" ? (
                                                     <div className="dropdown-container">
                                                         <Dropdown
                                                             options={[
                                                                 { value: "ENABLE", label: "Enable" },
-                                                                { value: "DISABLE", label: "Disable" },
+                                                                { value: "DISABLE", label: "Pause" },
                                                                 { value: "DELETE", label: "Delete" },
                                                             ]}
                                                             value={editedValue}
@@ -532,9 +569,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                 ) : (
                                                     <div
                                                         className={`text-[13.3px] leading-[1.26] ${
-                                                            false // isArchived - add this check if needed
-                                                                ? "cursor-not-allowed opacity-60"
-                                                                : onUpdateAdGroupStatus ? "cursor-pointer hover:underline" : ""
+                                                            onUpdateAdGroupStatus ? "cursor-pointer hover:underline" : ""
                                                         }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -547,9 +582,13 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     </div>
                                                 )}
                                             </td>
-                                            {/* Budget - Editable */}
+                                            {/* Budget - Editable (read-only for deleted) */}
                                             <td className="py-[10px] px-[10px]">
-                                                {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "budget" ? (
+                                                {adgroupIsDeleted ? (
+                                                    <div className="text-[13.3px] text-gray-400 cursor-not-allowed">
+                                                        {formatCurrency(item.budget)}
+                                                    </div>
+                                                ) : editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "budget" ? (
                                                     <input
                                                         type="number"
                                                         step="0.01"
@@ -579,9 +618,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                 ) : (
                                                     <div
                                                         className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
-                                                            false // isArchived - add this check if needed
-                                                                ? "text-gray-400 cursor-not-allowed"
-                                                                : onUpdateAdGroupBudget ? "text-[#0b0f16] cursor-pointer hover:underline" : "text-[#0b0f16]"
+                                                            onUpdateAdGroupBudget ? "text-[#0b0f16] cursor-pointer hover:underline" : "text-[#0b0f16]"
                                                         }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
