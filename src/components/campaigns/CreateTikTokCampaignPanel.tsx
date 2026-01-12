@@ -37,6 +37,7 @@ interface CreateTikTokCampaignPanelProps {
     onClose: () => void;
     onSubmit: (data: CreateTikTokCampaignData) => Promise<void>;
     loading?: boolean;
+    submitError?: string | null;
     profiles?: Array<{ advertiser_id: string; advertiser_name: string }>;
     mode?: "create" | "edit";
     initialData?: Partial<CreateTikTokCampaignData> | null;
@@ -125,6 +126,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
     onClose,
     onSubmit,
     loading = false,
+    submitError = null,
     profiles = [],
     mode = "create",
     initialData = null,
@@ -135,6 +137,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
     const [objectiveType, setObjectiveType] = useState<string>("");
     const [campaignName, setCampaignName] = useState<string>("");
     const [errors, setErrors] = useState<Partial<Record<keyof CreateTikTokCampaignData, string>>>({});
+    const [genericErrors, setGenericErrors] = useState<string[]>([]);
     const [appPromotionType, setAppPromotionType] = useState<string>("UNSET");
     const [appPlatform, setAppPlatform] = useState<string>("");
     const [appSelection, setAppSelection] = useState<string>("");
@@ -184,6 +187,51 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             setEndDate("");
         }
     }, [isOpen, mode, initialData]);
+
+    // Parse field errors and generic errors from submitError
+    useEffect(() => {
+        if (submitError) {
+            try {
+                // Try to parse as JSON (if it contains field errors and generic errors)
+                const parsed = JSON.parse(submitError);
+                if (parsed.fieldErrors && typeof parsed.fieldErrors === "object") {
+                    // Set field-specific errors
+                    setErrors(parsed.fieldErrors);
+                } else {
+                    setErrors({});
+                }
+
+                // Extract generic errors
+                if (parsed.genericErrors && Array.isArray(parsed.genericErrors)) {
+                    setGenericErrors(parsed.genericErrors);
+                } else if (parsed.message && !parsed.fieldErrors) {
+                    // If there's a message but no field errors, treat it as a generic error
+                    setGenericErrors([parsed.message]);
+                } else {
+                    setGenericErrors([]);
+                }
+            } catch (e) {
+                // If not JSON, it's just a plain error message
+                // Clear field errors but treat the message as a generic error
+                setErrors({});
+                setGenericErrors([submitError]);
+            }
+        } else {
+            // Clear errors when submitError is cleared
+            setErrors({});
+            setGenericErrors([]);
+        }
+    }, [submitError]);
+
+    // Auto-switch budget mode when CBO is toggled off for objectives where Daily is deprecated
+    useEffect(() => {
+        const deprecatedDailyObjectives = ["REACH", "VIDEO_VIEWS", "ENGAGEMENT"];
+        if (deprecatedDailyObjectives.includes(objectiveType) && 
+            !budgetOptimizeOn && 
+            budgetMode === "BUDGET_MODE_DAY") {
+            setBudgetMode("BUDGET_MODE_DYNAMIC_DAILY_BUDGET");
+        }
+    }, [budgetOptimizeOn, objectiveType, budgetMode]);
 
     const validate = (): boolean => {
         const newErrors: Partial<Record<keyof CreateTikTokCampaignData, string>> = {};
@@ -259,6 +307,37 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
         return Object.keys(newErrors).length === 0;
     };
 
+    const resetForm = () => {
+        setSelectedProfile("");
+        setObjectiveType("");
+        setCampaignName("");
+        setAppPromotionType("UNSET");
+        setAppPlatform("");
+        setAppSelection("");
+        setIos14Dedicated(false);
+        setSmartPlusCampaign(false);
+        setProductSource("");
+        setTiktokShopAccount("");
+        setProductCatalog("");
+        setProductCatalogAppPlatform("");
+        setAppId("");
+        setOptimizationLocation("Website (Read-only (Auto))");
+        setCurrency("USD (auto)");
+        setCheckout("In-app (auto)");
+        setUpgradeSalesObjective(true);
+        setSalesDestination("");
+        setBudgetMode("BUDGET_MODE_DAY");
+        setBudget("");
+        setBudgetOptimizeOn(false);
+        setIsDedicatedCampaign(false);
+        setDisableSkanCampaign(false);
+        setStatus("ENABLED");
+        setStartDate("");
+        setEndDate("");
+        setErrors({});
+        setGenericErrors([]);
+    };
+
     const handleSubmit = async () => {
         // Validate before submitting
         if (!validate()) {
@@ -266,12 +345,21 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
         }
 
         if (mode === "edit") {
-            // In edit mode, only send updatable fields (campaign_name, budget)
+            // In edit mode, only send updatable fields (campaign_name, budget, objective_type)
             const data: CreateTikTokCampaignData = {
                 campaign_name: campaignName.trim(),
                 budget: budget ? parseFloat(budget) : undefined,
+                objective_type: objectiveType,
             };
-            await onSubmit(data);
+            try {
+                await onSubmit(data);
+                // Only reset on success - parent component handles closing
+                resetForm();
+            } catch (error) {
+                // Error handling is done in parent component
+                // Don't reset form on error - let user fix and resubmit
+                console.error("Submit error:", error);
+            }
             return;
         }
 
@@ -304,8 +392,9 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             if (appSelection) {
                 (data as any).app_id = appSelection;
             }
-            if (ios14Dedicated) {
-                data.disable_skan_campaign = !ios14Dedicated; // iOS14 Dedicated means SKAN is disabled
+            // Set campaign_type for iOS14 Dedicated campaigns
+            if (ios14Dedicated && appPlatform === "IOS" && appPromotionType === "APP_INSTALL") {
+                data.campaign_type = "IOS14_CAMPAIGN";
             }
             if (smartPlusCampaign) {
                 (data as any).smart_plus_campaign = smartPlusCampaign;
@@ -315,7 +404,14 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
         // Product Sales specific fields
         if (objectiveType === "PRODUCT_SALES") {
             if (productSource) {
-                (data as any).campaign_product_source = productSource;
+                // Map UI values to TikTok API values
+                const apiProductSource = productSource === "TIKTOK_SHOP" ? "STORE" : "CATALOG";
+                (data as any).campaign_product_source = apiProductSource;
+                
+                // Auto-enable catalog for catalog-based product sources
+                if (productSource === "PRODUCT_CATALOG_WEBSITE" || productSource === "PRODUCT_CATALOG_APP") {
+                    data.catalog_enabled = true;
+                }
             }
             if (isTikTokShop && tiktokShopAccount) {
                 (data as any).tiktok_shop_account = tiktokShopAccount;
@@ -341,6 +437,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
 
         // Sales Merged specific fields
         if (objectiveType === "SALES_MERGED") {
+            // Set virtual_objective_type for the new Sales objective
+            data.virtual_objective_type = "SALES";
             if (salesDestination) {
                 data.sales_destination = salesDestination;
             }
@@ -354,35 +452,15 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             (data as any).end_date = endDate;
         }
 
-        await onSubmit(data);
-
-        // Reset form
-        setSelectedProfile("");
-        setObjectiveType("");
-        setCampaignName("");
-        setAppPromotionType("UNSET");
-        setAppPlatform("");
-        setAppSelection("");
-        setIos14Dedicated(false);
-        setSmartPlusCampaign(false);
-        setProductSource("");
-        setTiktokShopAccount("");
-        setProductCatalog("");
-        setProductCatalogAppPlatform("");
-        setAppId("");
-        setOptimizationLocation("Website (Read-only (Auto))");
-        setCurrency("USD (auto)");
-        setCheckout("In-app (auto)");
-        setUpgradeSalesObjective(true);
-        setSalesDestination("");
-        setBudgetMode("BUDGET_MODE_DAY");
-        setBudget("");
-        setBudgetOptimizeOn(false);
-        setIsDedicatedCampaign(false);
-        setDisableSkanCampaign(false);
-        setStatus("ENABLED");
-        setStartDate("");
-        setEndDate("");
+        try {
+            await onSubmit(data);
+            // Only reset form on success - parent component handles closing
+            resetForm();
+        } catch (error) {
+            // Error handling is done in parent component
+            // Don't reset form on error - let user fix and resubmit
+            console.error("Submit error:", error);
+        }
     };
 
     if (!isOpen) return null;
@@ -432,6 +510,31 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                 <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
                     {mode === "edit" ? "Edit Campaign" : "Create Campaign"}
                 </h2>
+
+                {/* Validation Errors Banner */}
+                {(Object.values(errors).filter(Boolean).length > 0 || genericErrors.length > 0) && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-[13px] font-semibold text-red-600 mb-2">
+                            Please fix the following errors:
+                        </p>
+                        {Object.values(errors).filter(Boolean).length > 0 && (
+                            <ul className="list-disc list-inside text-[12px] text-red-600 space-y-1 mb-2">
+                                {Object.entries(errors)
+                                    .filter(([_, error]) => error)
+                                    .map(([field, error]) => (
+                                        <li key={field}>{error}</li>
+                                    ))}
+                            </ul>
+                        )}
+                        {genericErrors.length > 0 && (
+                            <ul className="list-disc list-inside text-[12px] text-red-600 space-y-1">
+                                {genericErrors.map((error, index) => (
+                                    <li key={index}>{error}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
 
                 <div className="space-y-6">
                     {/* Profile & Campaign Objective Row */}
@@ -918,7 +1021,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 type="text"
                                                 value={budget}
                                                 onChange={(e) => setBudget(e.target.value)}
-                                                placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : "Enter Average Daily Budget"}
+                                                placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : "Enter Dynamic Daily Budget"}
                                                 className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
@@ -1069,7 +1172,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                         onChange={(e) => setBudget(e.target.value)}
                                                         placeholder={
                                                             budgetMode === "BUDGET_MODE_DAY"
-                                                                ? "Enter Average Daily Budget"
+                                                                ? "Enter Daily Budget"
                                                                 : budgetMode === "BUDGET_MODE_TOTAL"
                                                                 ? "Enter Lifetime Budget"
                                                                 : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET"
@@ -1291,7 +1394,12 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 Budget Type
                                             </label>
                                             <Dropdown
-                                                options={BUDGET_MODES.filter(m => m.value !== "BUDGET_MODE_INFINITE")}
+                                                options={BUDGET_MODES.filter(m => {
+                                                    if (m.value === "BUDGET_MODE_INFINITE") return false;
+                                                    // BUDGET_MODE_DAY is deprecated for REACH when CBO is disabled
+                                                    if (!budgetOptimizeOn && m.value === "BUDGET_MODE_DAY") return false;
+                                                    return true;
+                                                })}
                                                 value={budgetMode}
                                                 onChange={(val) => setBudgetMode(val as string)}
                                                 placeholder="Select Budget Type"
@@ -1307,7 +1415,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 type="text"
                                                 value={budget}
                                                 onChange={(e) => setBudget(e.target.value)}
-                                                placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : "Enter Average Daily Budget"}
+                                                placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : "Enter Dynamic Daily Budget"}
                                                 className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
@@ -1487,7 +1595,12 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 Budget Type
                                             </label>
                                             <Dropdown
-                                                options={BUDGET_MODES.filter(m => m.value !== "BUDGET_MODE_INFINITE")}
+                                                options={BUDGET_MODES.filter(m => {
+                                                    if (m.value === "BUDGET_MODE_INFINITE") return false;
+                                                    // BUDGET_MODE_DAY is deprecated for VIDEO_VIEWS when CBO is disabled
+                                                    if (!budgetOptimizeOn && m.value === "BUDGET_MODE_DAY") return false;
+                                                    return true;
+                                                })}
                                                 value={budgetMode}
                                                 onChange={(val) => setBudgetMode(val as string)}
                                                 placeholder="Select Budget Type"
@@ -1683,7 +1796,12 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 Budget Type
                                             </label>
                                             <Dropdown
-                                                options={BUDGET_MODES.filter(m => m.value !== "BUDGET_MODE_INFINITE")}
+                                                options={BUDGET_MODES.filter(m => {
+                                                    if (m.value === "BUDGET_MODE_INFINITE") return false;
+                                                    // BUDGET_MODE_DAY is deprecated for ENGAGEMENT when CBO is disabled
+                                                    if (!budgetOptimizeOn && m.value === "BUDGET_MODE_DAY") return false;
+                                                    return true;
+                                                })}
                                                 value={budgetMode}
                                                 onChange={(val) => setBudgetMode(val as string)}
                                                 placeholder="Select Budget Type"

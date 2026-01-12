@@ -195,9 +195,10 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     if (loading) {
         return (
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#136D6D] mb-4"></div>
-                <p className="text-[13.3px] text-[#556179]">Loading campaigns...</p>
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+                <div className="text-center py-8 text-[#556179] text-[13.3px]">
+                    Loading campaigns...
+                </div>
             </div>
         );
     }

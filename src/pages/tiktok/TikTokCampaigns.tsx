@@ -39,7 +39,7 @@ export const TikTokCampaigns: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(20);
+    const [pageSize] = useState(10);
     const [sortColumn, setSortColumn] = useState<string>("campaign_name");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
@@ -48,6 +48,7 @@ export const TikTokCampaigns: React.FC = () => {
     // Create/Edit Campaign state
     const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
     const [createLoading, setCreateLoading] = useState(false);
+    const [createCampaignError, setCreateCampaignError] = useState<string | null>(null);
     const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">("create");
     const [editingCampaign, setEditingCampaign] = useState<TikTokCampaign | null>(null);
 
@@ -61,6 +62,8 @@ export const TikTokCampaigns: React.FC = () => {
         message: string;
         title?: string;
         isSuccess?: boolean;
+        fieldErrors?: Record<string, string>;
+        genericErrors?: string[];
     }>({ isOpen: false, message: "" });
 
     // Status update state
@@ -222,15 +225,69 @@ export const TikTokCampaigns: React.FC = () => {
             setIsCreatePanelOpen(false);
             setCampaignFormMode("create");
             setEditingCampaign(null);
+            setCreateCampaignError(null);
             // Refresh campaigns list
             await fetchCampaigns();
-        } catch (error) {
+        } catch (error: any) {
             console.error(`Failed to ${campaignFormMode === "edit" ? "update" : "create"} TikTok campaign:`, error);
+
+            // Extract error message from backend response
+            let errorMessage = `Failed to ${campaignFormMode === "edit" ? "update" : "create"} campaign. Please try again.`;
+            let fieldErrors: Record<string, string> = {};
+            let genericErrors: string[] = [];
+
+            if (error?.response?.data) {
+                // Parse standardized error format
+                if (error.response.data.field_errors) {
+                    fieldErrors = error.response.data.field_errors;
+                }
+
+                if (error.response.data.generic_errors) {
+                    genericErrors = Array.isArray(error.response.data.generic_errors)
+                        ? error.response.data.generic_errors
+                        : [error.response.data.generic_errors];
+                }
+
+                // Get summary error message
+                if (error.response.data.error) {
+                    errorMessage = error.response.data.error;
+                } else if (error.response.data.message) {
+                    errorMessage = error.response.data.message;
+                } else if (genericErrors.length > 0) {
+                    errorMessage = genericErrors[0];
+                } else if (Object.keys(fieldErrors).length > 0) {
+                    // Build summary from field errors
+                    const fieldNames = Object.keys(fieldErrors);
+                    errorMessage = `Validation failed: ${fieldNames.length} field error(s)`;
+                }
+            } else if (error?.message) {
+                errorMessage = error.message;
+                genericErrors = [error.message];
+            }
+
+            // Auto-open error modal with field errors and generic errors
             setErrorModal({
                 isOpen: true,
-                title: "Error",
-                message: `Failed to ${campaignFormMode === "edit" ? "update" : "create"} campaign. Please check the console for details.`,
+                title: "Validation Error",
+                message: errorMessage,
+                isSuccess: false,
+                fieldErrors:
+                    Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+                genericErrors: genericErrors.length > 0 ? genericErrors : undefined,
             });
+
+            // Pass field errors to the panel via a custom error object
+            // The panel will parse this and set field-specific errors
+            const errorWithFields = {
+                message: errorMessage,
+                fieldErrors: fieldErrors,
+                genericErrors: genericErrors,
+            };
+
+            // Re-throw error so the form knows submission failed
+            // Store error for panel to access
+            setCreateCampaignError(JSON.stringify(errorWithFields));
+            throw new Error(JSON.stringify(errorWithFields));
         } finally {
             setCreateLoading(false);
         }
@@ -712,9 +769,11 @@ export const TikTokCampaigns: React.FC = () => {
                                         setIsCreatePanelOpen(false);
                                         setCampaignFormMode("create");
                                         setEditingCampaign(null);
+                                        setCreateCampaignError(null);
                                     }}
                                     onSubmit={handleCreateCampaign}
                                     loading={createLoading}
+                                    submitError={createCampaignError}
                                     mode={campaignFormMode}
                                     initialData={editingCampaign ? {
                                         campaign_name: editingCampaign.campaign_name,
@@ -1067,9 +1126,11 @@ export const TikTokCampaigns: React.FC = () => {
             <ErrorModal
                 isOpen={errorModal.isOpen}
                 onClose={() => setErrorModal({ isOpen: false, message: "" })}
-                title={errorModal.title}
+                title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
                 message={errorModal.message}
                 isSuccess={errorModal.isSuccess}
+                fieldErrors={errorModal.fieldErrors}
+                genericErrors={errorModal.genericErrors}
             />
 
             {/* Confirmation Modal */}
