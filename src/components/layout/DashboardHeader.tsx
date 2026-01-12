@@ -9,7 +9,7 @@ import {
   buildMarketplaceRoute,
   getMarketplaceFromUrl,
 } from "../../utils/urlHelpers";
-import { type Account, type Channel } from "../../services/accounts";
+import { type Account } from "../../services/accounts";
 import CustomDateRangePicker from "../ui/CustomDateRangePicker";
 
 // Component to render channels list for an account (uses React Query hook properly)
@@ -148,6 +148,11 @@ export const DashboardHeader: React.FC = () => {
       >
         <button
           onClick={() => {
+            if (accounts.length === 0) {
+              // If no accounts, redirect to accounts page to create one
+              navigate("/accounts");
+              return;
+            }
             const open = !isAccountDropdownOpen;
             setIsAccountDropdownOpen(open);
             if (open && selectedAccount) {
@@ -159,11 +164,15 @@ export const DashboardHeader: React.FC = () => {
           className="flex items-center gap-2 h-10 px-4 bg-[#FEFEFB] border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
         >
           <div className="w-5 h-5 rounded bg-[#072929] text-white text-[10px] flex items-center justify-center font-semibold">
-            {selectedAccount?.name?.[0]?.toUpperCase() || "A"}
+            {selectedAccount?.name?.[0]?.toUpperCase() ||
+              (accounts.length === 0 ? "!" : "A")}
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[13.2px] text-[#072929]">
-              {selectedAccount?.name || "Select Account"}
+              {selectedAccount?.name ||
+                (accounts.length === 0
+                  ? "No Accounts - Click to Create"
+                  : "Select Account")}
             </span>
             {selectedChannel && (
               <>
@@ -194,51 +203,26 @@ export const DashboardHeader: React.FC = () => {
         {isAccountDropdownOpen && (
           <div className="absolute top-[60px] left-0 z-40 bg-[#FEFEFB] border border-[#e8e8e3] rounded-[10px] shadow-lg w-72">
             <ul className="py-1">
-              {accounts.map((account) => (
-                <li key={account.id} className="relative">
+              {accounts.length === 0 ? (
+                <li className="px-3 py-4 text-center">
+                  <p className="text-[12.32px] text-[#556179] mb-3">
+                    No accounts found
+                  </p>
                   <button
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseEnter={() => {
-                      if (hoverTimeoutRef.current) {
-                        clearTimeout(hoverTimeoutRef.current);
-                        hoverTimeoutRef.current = null;
-                      }
-                      setExpandedAccountId(account.id);
-                    }}
-                    onMouseLeave={() => {
-                      hoverTimeoutRef.current = window.setTimeout(() => {
-                        setExpandedAccountId(null);
-                      }, 150);
-                    }}
                     onClick={() => {
-                      setSelectedAccount(account);
+                      navigate("/accounts");
+                      setIsAccountDropdownOpen(false);
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-[12.32px] hover:bg-gray-50"
+                    className="text-[12.32px] text-[#136D6D] hover:text-[#0e5a5a] font-medium underline"
                   >
-                    <span>{account.name}</span>
-                    <svg
-                      className="w-3 h-3 text-[#556179]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
+                    Create your first account
                   </button>
-
-                  {expandedAccountId === account.id && (
-                    <AccountChannelsList
-                      accountId={account.id}
-                      navigate={navigate}
-                      onClose={() => {
-                        setIsAccountDropdownOpen(false);
-                        setExpandedAccountId(null);
-                      }}
+                </li>
+              ) : (
+                accounts.map((account) => (
+                  <li key={account.id} className="relative">
+                    <button
+                      onMouseDown={(e) => e.stopPropagation()}
                       onMouseEnter={() => {
                         if (hoverTimeoutRef.current) {
                           clearTimeout(hoverTimeoutRef.current);
@@ -247,12 +231,57 @@ export const DashboardHeader: React.FC = () => {
                         setExpandedAccountId(account.id);
                       }}
                       onMouseLeave={() => {
-                        setExpandedAccountId(null);
+                        hoverTimeoutRef.current = window.setTimeout(() => {
+                          setExpandedAccountId(null);
+                        }, 150);
                       }}
-                    />
-                  )}
-                </li>
-              ))}
+                      onClick={() => {
+                        setSelectedAccount(account);
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 text-[12.32px] hover:bg-gray-50"
+                    >
+                      <span>{account.name}</span>
+                      <svg
+                        className="w-3 h-3 text-[#556179]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+
+                    {expandedAccountId === account.id && (
+                      <div
+                        onMouseEnter={() => {
+                          if (hoverTimeoutRef.current) {
+                            clearTimeout(hoverTimeoutRef.current);
+                            hoverTimeoutRef.current = null;
+                          }
+                          setExpandedAccountId(account.id);
+                        }}
+                        onMouseLeave={() => {
+                          setExpandedAccountId(null);
+                        }}
+                      >
+                        <AccountChannelsList
+                          accountId={account.id}
+                          navigate={navigate}
+                          onClose={() => {
+                            setIsAccountDropdownOpen(false);
+                            setExpandedAccountId(null);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </li>
+                ))
+              )}
             </ul>
           </div>
         )}
