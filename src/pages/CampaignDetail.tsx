@@ -293,6 +293,27 @@ export const CampaignDetail: React.FC = () => {
     useState(false);
   const [sbAdsDeleteLoading, setSbAdsDeleteLoading] = useState(false);
   const sbAdsBulkActionsRef = useRef<HTMLDivElement>(null);
+  const [pendingSBAdsStatusAction, setPendingSBAdsStatusAction] = useState<
+    "enable" | "pause" | null
+  >(null);
+  const [showSBAdsConfirmationModal, setShowSBAdsConfirmationModal] =
+    useState(false);
+
+  // SB Ad inline edit state
+  const [editingSBAdField, setEditingSBAdField] = useState<{
+    id: number;
+    field: "status" | "name";
+  } | null>(null);
+  const [editedSBAdValue, setEditedSBAdValue] = useState<string>("");
+  const [sbAdEditLoading, setSbAdEditLoading] = useState<Set<number>>(
+    new Set()
+  );
+  const [pendingSBAdChange, setPendingSBAdChange] = useState<{
+    id: number;
+    field: "status" | "name";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
 
   // Assets state
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -2863,6 +2884,296 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
+  const handleEditSBAd = async (ad: SBAd) => {
+    if (!accountId || !campaignId || !ad.adId) return;
+
+    // Toggle state between ENABLED and PAUSED
+    const newState = ad.state === "ENABLED" ? "PAUSED" : "ENABLED";
+    
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      await campaignsService.updateSBAds(accountIdNum, campaignId, {
+        ads: [
+          {
+            adId: String(ad.adId),
+            name: ad.name || "",
+            state: newState,
+          },
+        ],
+      });
+
+      await loadSBAds();
+
+      setErrorModal({
+        isOpen: true,
+        title: "Success",
+        message: "Ad updated successfully!",
+        isSuccess: true,
+      });
+    } catch (error: any) {
+      console.error("Failed to update SB ad:", error);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message:
+          error?.response?.data?.error ||
+          "Failed to update ad. Please try again.",
+        isSuccess: false,
+      });
+    }
+  };
+
+  const handleDeleteSBAd = async (ad: SBAd) => {
+    if (!accountId || !campaignId || !ad.adId) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ad "${ad.name || ad.adId}"?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      await campaignsService.deleteSBAds(accountIdNum, campaignId, {
+        adIds: [String(ad.adId)],
+      });
+
+      await loadSBAds();
+
+      setErrorModal({
+        isOpen: true,
+        title: "Success",
+        message: "Ad deleted successfully!",
+        isSuccess: true,
+      });
+    } catch (error: any) {
+      console.error("Failed to delete SB ad:", error);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message:
+          error?.response?.data?.error ||
+          "Failed to delete ad. Please try again.",
+        isSuccess: false,
+      });
+    }
+  };
+
+  // SB Ad inline edit handlers
+  const handleSBAdEditStart = (
+    id: number,
+    field: "status" | "name",
+    currentValue: string
+  ) => {
+    setEditingSBAdField({ id, field });
+    setEditedSBAdValue(currentValue);
+    setPendingSBAdChange(null);
+  };
+
+  const handleSBAdEditChange = (value: string) => {
+    setEditedSBAdValue(value);
+  };
+
+  const handleSBAdEditEnd = (newValue?: string) => {
+    if (!editingSBAdField) return;
+    const ad = sbAds.find((a) => a.id === editingSBAdField.id);
+    if (!ad) {
+      setEditingSBAdField(null);
+      setEditedSBAdValue("");
+      return;
+    }
+
+    // Use the passed value if provided, otherwise use the state value
+    const valueToCompare =
+      newValue !== undefined ? newValue : editedSBAdValue;
+
+    let hasChanged = false;
+    let oldValue = "";
+
+    if (editingSBAdField.field === "status") {
+      const statusLower = (ad.status || ad.state || "").toLowerCase();
+      const currentStatus =
+        statusLower === "enable" || statusLower === "enabled"
+          ? "enabled"
+          : "paused";
+      oldValue = currentStatus;
+      hasChanged = valueToCompare !== currentStatus;
+    } else if (editingSBAdField.field === "name") {
+      oldValue = ad.name || "";
+      hasChanged =
+        valueToCompare.trim() !== oldValue.trim() &&
+        valueToCompare.trim() !== "";
+    }
+
+    if (hasChanged) {
+      setPendingSBAdChange({
+        id: editingSBAdField.id,
+        field: editingSBAdField.field,
+        newValue: valueToCompare,
+        oldValue: oldValue,
+      });
+      setEditingSBAdField(null);
+    } else {
+      setEditingSBAdField(null);
+      setEditedSBAdValue("");
+    }
+  };
+
+  const confirmSBAdChange = async () => {
+    if (!pendingSBAdChange || !accountId || !campaignId) return;
+
+    const ad = sbAds.find((a) => a.id === pendingSBAdChange.id);
+    if (!ad || !ad.adId) {
+      alert("Ad ID not found");
+      setPendingSBAdChange(null);
+      return;
+    }
+
+    setSbAdEditLoading((prev) => new Set(prev).add(pendingSBAdChange.id));
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (pendingSBAdChange.field === "status") {
+        // Map status values to uppercase
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          enabled: "ENABLED",
+          paused: "PAUSED",
+          enable: "ENABLED",
+          pause: "PAUSED",
+        };
+        const statusValue =
+          statusMap[pendingSBAdChange.newValue.toLowerCase()] || "ENABLED";
+
+        await campaignsService.updateSBAds(accountIdNum, campaignId, {
+          ads: [
+            {
+              adId: String(ad.adId),
+              name: ad.name || "",
+              state: statusValue,
+            },
+          ],
+        });
+      } else if (pendingSBAdChange.field === "name") {
+        // Get current status
+        const statusLower = (ad.status || ad.state || "").toLowerCase();
+        const statusValue =
+          statusLower === "enable" || statusLower === "enabled"
+            ? "ENABLED"
+            : "PAUSED";
+
+        await campaignsService.updateSBAds(accountIdNum, campaignId, {
+          ads: [
+            {
+              adId: String(ad.adId),
+              name: pendingSBAdChange.newValue.trim(),
+              state: statusValue,
+            },
+          ],
+        });
+      }
+
+      // Reload ads
+      await loadSBAds();
+      setPendingSBAdChange(null);
+      setEditingSBAdField(null);
+      setEditedSBAdValue("");
+    } catch (error: any) {
+      console.error("Error updating SB ad:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to update ad. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+    } finally {
+      setSbAdEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingSBAdChange.id);
+        return newSet;
+      });
+    }
+  };
+
+  const cancelSBAdChange = () => {
+    setPendingSBAdChange(null);
+    setEditingSBAdField(null);
+    setEditedSBAdValue("");
+  };
+
+  const handleSBAdEditCancel = () => {
+    setEditingSBAdField(null);
+    setEditedSBAdValue("");
+    setPendingSBAdChange(null);
+  };
+
+  // Bulk status handler for SB Ads
+  const handleBulkSBAdsStatus = async (statusValue: "enable" | "pause") => {
+    if (!accountId || !campaignId || selectedSBAdIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSbAdsDeleteLoading(true); // Reuse this loading state for bulk operations
+      const selectedSBAdsData = sbAds.filter((ad) =>
+        selectedSBAdIds.has(ad.id)
+      );
+
+      // Map status values to uppercase
+      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+        enabled: "ENABLED",
+        paused: "PAUSED",
+        enable: "ENABLED",
+        pause: "PAUSED",
+      };
+      const statusValueUpper =
+        statusMap[statusValue.toLowerCase()] || "ENABLED";
+
+      // Prepare ads array for update
+      const adsToUpdate = selectedSBAdsData
+        .filter((ad) => ad.adId)
+        .map((ad) => ({
+          adId: String(ad.adId),
+          name: ad.name || "",
+          state: statusValueUpper,
+        }));
+
+      if (adsToUpdate.length > 0) {
+        await campaignsService.updateSBAds(accountIdNum, campaignId, {
+          ads: adsToUpdate,
+        });
+
+        await loadSBAds();
+        setSelectedSBAdIds(new Set());
+      }
+      setShowSBAdsConfirmationModal(false);
+      setPendingSBAdsStatusAction(null);
+    } catch (error: any) {
+      console.error("Failed to update SB ads", error);
+      setShowSBAdsConfirmationModal(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update ads. Please try again.",
+      });
+    } finally {
+      setSbAdsDeleteLoading(false);
+    }
+  };
+
   const loadTargets = async () => {
     try {
       setTargetsLoading(true);
@@ -4454,13 +4765,11 @@ export const CampaignDetail: React.FC = () => {
 
       const selectedSBAdIdsArray = Array.from(selectedSBAdIds).map((id) => {
         const ad = sbAds.find((a) => a.id === id);
-        return ad?.adId || id;
+        return String(ad?.adId || id);
       });
 
-      await campaignsService.bulkDeleteProductAds(accountIdNum, {
-        adIdFilter: {
-          include: selectedSBAdIdsArray,
-        },
+      await campaignsService.deleteSBAds(accountIdNum, campaignId || "", {
+        adIds: selectedSBAdIdsArray,
       });
 
       await loadSBAds();
@@ -6728,26 +7037,33 @@ export const CampaignDetail: React.FC = () => {
                         {showSBAdsBulkActions && (
                           <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                             <div className="overflow-y-auto">
-                              {[{ value: "delete", label: "Delete" }].map(
-                                (opt) => (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                    disabled={selectedSBAdIds.size === 0}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (selectedSBAdIds.size === 0) return;
-                                      if (opt.value === "delete") {
-                                        setShowSBAdsDeleteConfirmation(true);
-                                      }
-                                      setShowSBAdsBulkActions(false);
-                                    }}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                )
-                              )}
+                              {[
+                                { value: "enable", label: "Enabled" },
+                                { value: "pause", label: "Paused" },
+                                { value: "delete", label: "Delete" },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  disabled={selectedSBAdIds.size === 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (selectedSBAdIds.size === 0) return;
+                                    if (opt.value === "delete") {
+                                      setShowSBAdsDeleteConfirmation(true);
+                                    } else {
+                                      setPendingSBAdsStatusAction(
+                                        opt.value as "enable" | "pause"
+                                      );
+                                      setShowSBAdsConfirmationModal(true);
+                                    }
+                                    setShowSBAdsBulkActions(false);
+                                  }}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
                             </div>
                           </div>
                         )}
@@ -6847,6 +7163,16 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={sbAdsSortBy}
                     sortOrder={sbAdsSortOrder}
                     onSort={handleSBAdsSort}
+                    editingField={editingSBAdField}
+                    editedValue={editedSBAdValue}
+                    onEditStart={handleSBAdEditStart}
+                    onEditChange={handleSBAdEditChange}
+                    onEditEnd={handleSBAdEditEnd}
+                    onEditCancel={handleSBAdEditCancel}
+                    inlineEditLoading={sbAdEditLoading}
+                    pendingChange={pendingSBAdChange}
+                    onConfirmChange={confirmSBAdChange}
+                    onCancelChange={cancelSBAdChange}
                   />
                 </div>
 
@@ -9850,6 +10176,162 @@ export const CampaignDetail: React.FC = () => {
             </div>
           );
         })()}
+
+      {/* Inline Edit Confirmation Modal for SB Ads */}
+      {pendingSBAdChange &&
+        (() => {
+          const ad = sbAds.find((a) => a.id === pendingSBAdChange.id);
+          const adName = ad?.name || ad?.adId || "Unnamed Ad";
+          const fieldLabel =
+            pendingSBAdChange.field === "status" ? "Status" : "Name";
+
+          // Format old value
+          let oldValueDisplay = "";
+          if (pendingSBAdChange.field === "status") {
+            oldValueDisplay =
+              pendingSBAdChange.oldValue === "enabled"
+                ? "Enabled"
+                : "Paused";
+          } else if (pendingSBAdChange.field === "name") {
+            oldValueDisplay = pendingSBAdChange.oldValue || "—";
+          }
+
+          // Format new value
+          let newValueDisplay = "";
+          if (pendingSBAdChange.field === "status") {
+            newValueDisplay =
+              pendingSBAdChange.newValue === "enabled"
+                ? "Enabled"
+                : "Paused";
+          } else if (pendingSBAdChange.field === "name") {
+            newValueDisplay = pendingSBAdChange.newValue || "—";
+          }
+
+          return (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              onClick={(e) => {
+                if (
+                  e.target === e.currentTarget &&
+                  !sbAdEditLoading.has(pendingSBAdChange.id)
+                ) {
+                  cancelSBAdChange();
+                }
+              }}
+            >
+              <div
+                className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                  Confirm {fieldLabel} Change
+                </h3>
+
+                <div className="mb-4">
+                  <p className="text-[12.16px] text-[#556179] mb-2">
+                    Ad:{" "}
+                    <span className="font-semibold text-[#072929]">
+                      {adName}
+                    </span>
+                  </p>
+                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {fieldLabel}:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {oldValueDisplay}
+                        </span>
+                        <span className="text-[12.16px] text-[#556179]">→</span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {newValueDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={cancelSBAdChange}
+                    disabled={sbAdEditLoading.has(pendingSBAdChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmSBAdChange}
+                    disabled={sbAdEditLoading.has(pendingSBAdChange.id)}
+                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                  >
+                    {sbAdEditLoading.has(pendingSBAdChange.id)
+                      ? "Updating..."
+                      : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* Bulk Actions Confirmation Modal for SB Ads */}
+      {showSBAdsConfirmationModal &&
+        pendingSBAdsStatusAction &&
+        selectedSBAdIds.size > 0 && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+              onClick={() => {
+                if (!sbAdsDeleteLoading) {
+                  setShowSBAdsConfirmationModal(false);
+                  setPendingSBAdsStatusAction(null);
+                }
+              }}
+            />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+              <div className="p-6">
+                <div className="mb-4 text-center">
+                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                    Confirm Action
+                  </h3>
+                  <p className="text-[14px] text-[#556179]">
+                    Are you sure you want to{" "}
+                    {pendingSBAdsStatusAction === "enable"
+                      ? "enable"
+                      : "pause"}{" "}
+                    {selectedSBAdIds.size} ad(s)?
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSBAdsConfirmationModal(false);
+                      setPendingSBAdsStatusAction(null);
+                    }}
+                    disabled={sbAdsDeleteLoading}
+                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (pendingSBAdsStatusAction) {
+                        await handleBulkSBAdsStatus(pendingSBAdsStatusAction);
+                      }
+                    }}
+                    disabled={sbAdsDeleteLoading}
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {sbAdsDeleteLoading ? "Processing..." : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Delete Confirmation Modal for SB Ads */}
       {showSBAdsDeleteConfirmation && (
