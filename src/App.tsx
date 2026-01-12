@@ -93,7 +93,7 @@ function App() {
                   />
                   <Route path="/callback" element={<Auth0Callback />} />
                   <Route
-                    path="/return"
+                    path="/amazon-oauth-callback"
                     element={
                       <ProtectedRoute>
                         <AmazonOAuthCallback />
