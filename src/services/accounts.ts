@@ -85,6 +85,10 @@ export const accountsService = {
     return response.data;
   },
 
+  deleteChannel: async (accountId: number, channelId: number): Promise<void> => {
+    await api.delete(`/accounts/${accountId}/channels/${channelId}/`);
+  },
+
   // Amazon OAuth
   initiateAmazonOAuth: async (accountId: number): Promise<{ auth_url: string }> => {
     const response = await api.get<{ auth_url: string }>(`/accounts/amazon-oauth/initiate/?account_id=${accountId}`);
