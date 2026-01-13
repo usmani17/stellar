@@ -252,9 +252,9 @@ export const SelectAmazonProfiles: React.FC = () => {
   };
 
   const getProfileId = (profile: AmazonProfile): string => {
-    // Amazon API returns 'id' field, not 'profileId'
-    // Make sure we return a string and handle all possible field names
-    const id = profile.profileId;
+    // Handle all possible field names for profile ID
+    // Check in order: profileId (most common), id, profile_id
+    const id = profile.profileId || profile.id || profile.profile_id;
     return id ? String(id) : "";
   };
 
@@ -337,12 +337,7 @@ export const SelectAmazonProfiles: React.FC = () => {
                       if (checked) {
                         setSelectedProfileIds(
                           new Set(
-                            profiles
-                              .map(
-                                (p) => p.id || p.profileId || p.profile_id || ""
-                              )
-                              .filter(Boolean)
-                              .map((id) => String(id))
+                            profiles.map((p) => getProfileId(p)).filter(Boolean)
                           )
                         );
                       } else {

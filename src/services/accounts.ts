@@ -212,5 +212,11 @@ export const accountsService = {
     );
     return response.data.brandEntities || [];
   },
+
+  // AWS Identity (public endpoint)
+  getAWSIdentity: async (): Promise<{ UserId?: string; Account?: string; Arn?: string }> => {
+    const response = await api.get<{ UserId?: string; Account?: string; Arn?: string }>('/accounts/aws-identity/');
+    return response.data;
+  },
 };
 
