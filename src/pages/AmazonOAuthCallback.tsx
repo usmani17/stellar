@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 
@@ -7,9 +7,16 @@ export const AmazonOAuthCallback: React.FC = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasProcessedRef = useRef(false); // Prevent duplicate processing
 
   useEffect(() => {
+    // Prevent React strict mode from calling this twice
+    if (hasProcessedRef.current) {
+      return;
+    }
+
     const handleCallback = async () => {
+      hasProcessedRef.current = true;
       const code = searchParams.get("code");
       const errorParam = searchParams.get("error");
       const state = searchParams.get("state");
