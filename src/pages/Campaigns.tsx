@@ -1078,17 +1078,24 @@ export const Campaigns: React.FC = () => {
       if (data.type === "SP") {
         const originalTargetingType = original.targetingType || "";
         const newTargetingType = data.targetingType || "";
-        const normalizeTargetingType = (tt: string) => {
+        const normalizeTargetingType = (tt: any) => {
           if (!tt) return "";
-          return tt.toUpperCase();
+          const ttStr = String(tt).trim();
+          if (!ttStr) return "";
+          return ttStr.toUpperCase();
         };
         if (
           normalizeTargetingType(originalTargetingType) !==
           normalizeTargetingType(newTargetingType)
         ) {
-          updatePayload.targetingType = newTargetingType.toUpperCase() as
-            | "AUTO"
-            | "MANUAL";
+          const newTargetingTypeStr = newTargetingType
+            ? String(newTargetingType).trim().toUpperCase()
+            : "";
+          if (newTargetingTypeStr) {
+            updatePayload.targetingType = newTargetingTypeStr as
+              | "AUTO"
+              | "MANUAL";
+          }
         }
 
         // 8. Check if tags changed
