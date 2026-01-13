@@ -1660,12 +1660,18 @@ export const Targets: React.FC = () => {
                       )}
                       {targets.map((target, index) => {
                         const isLastRow = index === targets.length - 1;
+                        const isArchived =
+                          target.status?.toLowerCase() === "archived";
                         return (
                           <tr
                             key={target.id}
                             className={`${
                               !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                            } hover:bg-gray-100 transition-colors`}
+                            } ${
+                              isArchived
+                                ? "bg-gray-100 opacity-60"
+                                : "hover:bg-gray-100"
+                            } transition-colors`}
                           >
                             {/* Checkbox */}
                             <td className="py-[10px] px-[10px]">
@@ -1747,10 +1753,30 @@ export const Targets: React.FC = () => {
                                 />
                               ) : (
                                 <div
-                                  onClick={() =>
-                                    startInlineEdit(target, "status")
+                                  onClick={() => {
+                                    // Prevent editing if target is archived
+                                    const currentStatus = (
+                                      target.status || "Enabled"
+                                    ).toLowerCase();
+                                    if (currentStatus === "archived") {
+                                      return; // Archived targets are read-only
+                                    }
+                                    startInlineEdit(target, "status");
+                                  }}
+                                  className={`${
+                                    (
+                                      target.status || "Enabled"
+                                    ).toLowerCase() === "archived"
+                                      ? "cursor-not-allowed opacity-60"
+                                      : "cursor-pointer hover:bg-gray-100"
+                                  } rounded px-2 py-1`}
+                                  title={
+                                    (
+                                      target.status || "Enabled"
+                                    ).toLowerCase() === "archived"
+                                      ? "Archived targets cannot be modified"
+                                      : undefined
                                   }
-                                  className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
                                 >
                                   <StatusBadge
                                     status={target.status || "Enabled"}

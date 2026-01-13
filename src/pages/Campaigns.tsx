@@ -3062,7 +3062,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Campaign Name Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-50 border-r border-[#e8e8e3]"
                             onClick={() => handleSort("campaign_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3252,12 +3252,18 @@ export const Campaigns: React.FC = () => {
                         )}
                         {campaigns.map((campaign, index) => {
                           const isLastRow = index === campaigns.length - 1;
+                          const isArchived =
+                            campaign.status?.toLowerCase() === "archived";
                           return (
                             <tr
                               key={campaign.campaignId}
                               className={`group ${
                                 !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                              } hover:bg-gray-100 transition-colors`}
+                              } ${
+                                isArchived
+                                  ? "bg-gray-100 opacity-60"
+                                  : "hover:bg-gray-100"
+                              } transition-colors`}
                             >
                               {/* Checkbox */}
                               <td className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">

@@ -1913,12 +1913,18 @@ export const Keywords: React.FC = () => {
                       )}
                       {keywords.map((keyword, index) => {
                         const isLastRow = index === keywords.length - 1;
+                        const isArchived =
+                          keyword.status?.toLowerCase() === "archived";
                         return (
                           <tr
                             key={keyword.id}
                             className={`${
                               !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                            } hover:bg-gray-50 transition-colors`}
+                            } ${
+                              isArchived
+                                ? "bg-gray-100 opacity-60"
+                                : "hover:bg-gray-50"
+                            } transition-colors`}
                           >
                             {/* Checkbox */}
                             <td className="py-[10px] px-[10px]">
@@ -2000,10 +2006,30 @@ export const Keywords: React.FC = () => {
                                 />
                               ) : (
                                 <div
-                                  onClick={() =>
-                                    startInlineEdit(keyword, "status")
+                                  onClick={() => {
+                                    // Prevent editing if keyword is archived
+                                    const currentStatus = (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase();
+                                    if (currentStatus === "archived") {
+                                      return; // Archived keywords are read-only
+                                    }
+                                    startInlineEdit(keyword, "status");
+                                  }}
+                                  className={`${
+                                    (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase() === "archived"
+                                      ? "cursor-not-allowed opacity-60"
+                                      : "cursor-pointer hover:bg-gray-50"
+                                  } rounded px-2 py-1`}
+                                  title={
+                                    (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase() === "archived"
+                                      ? "Archived keywords cannot be modified"
+                                      : undefined
                                   }
-                                  className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                 >
                                   <StatusBadge
                                     status={keyword.status || "Enabled"}
