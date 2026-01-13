@@ -778,8 +778,10 @@ export const Targets: React.FC = () => {
       setBulkLoading(true);
       // Get targetIds from selected targets - use targetId from the target objects
       const selectedTargetsData = getSelectedTargetsData();
-      const targetIds = selectedTargetsData.map((t) => t.targetId || t.id).filter(Boolean);
-      
+      const targetIds = selectedTargetsData
+        .map((t) => t.targetId || t.id)
+        .filter(Boolean);
+
       await campaignsService.bulkUpdateTargets(accountIdNum, {
         targetIds: targetIds,
         action: "status",
@@ -1669,9 +1671,12 @@ export const Targets: React.FC = () => {
                             <td className="py-[10px] px-[10px]">
                               <div className="flex items-center justify-center">
                                 <Checkbox
-                                  checked={selectedTargets.has(target.targetId || target.id)}
+                                  checked={selectedTargets.has(
+                                    target.targetId || target.id
+                                  )}
                                   onChange={(checked) => {
-                                    const targetId = target.targetId || target.id;
+                                    const targetId =
+                                      target.targetId || target.id;
                                     if (checked) {
                                       setSelectedTargets((prev) => {
                                         const newSet = new Set(prev);
@@ -1833,7 +1838,7 @@ export const Targets: React.FC = () => {
 
                             {/* Type */}
                             <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {target.type || "SP"}
                               </span>
                             </td>

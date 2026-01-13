@@ -2085,7 +2085,7 @@ export const Keywords: React.FC = () => {
 
                             {/* Type */}
                             <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {keyword.type || "SP"}
                               </span>
                             </td>
