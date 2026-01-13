@@ -498,31 +498,22 @@ export const Accounts: React.FC = () => {
                         ))
                       ) : filteredAccounts.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-8">
-                            <div className="flex flex-col items-center justify-center">
-                              <p className="text-[14px] text-[#556179] mb-4">
-                                {searchQuery
-                                  ? "No accounts found"
-                                  : "No accounts yet"}
-                              </p>
-                              {!searchQuery && (
+                          <td colSpan={5} className="text-center py-8">
+                            <p className="text-[14px] text-[#556179] mb-4">
+                              {searchQuery
+                                ? "No accounts found"
+                                : "No accounts yet"}
+                            </p>
+                            {!searchQuery && (
+                              <div className="flex justify-center">
                                 <Button
-                                  onClick={() => {
-                                    setShowCreateAccount(true);
-                                    // Scroll to form after a brief delay to ensure it's rendered
-                                    setTimeout(() => {
-                                      window.scrollTo({
-                                        top: 0,
-                                        behavior: "smooth",
-                                      });
-                                    }, 100);
-                                  }}
-                                  className="bg-[#136d6d] text-white hover:bg-[#0e5a5a] rounded-lg"
+                                  onClick={() => setShowCreateAccount(true)}
+                                  className="rounded-lg"
                                 >
                                   Create Your First Account
                                 </Button>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ) : (
