@@ -159,8 +159,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
     const [isDedicatedCampaign, setIsDedicatedCampaign] = useState<boolean>(false);
     const [disableSkanCampaign, setDisableSkanCampaign] = useState<boolean>(false);
     const [status, setStatus] = useState<string>("ENABLE");
-    const [startDate, setStartDate] = useState<string>("");
-    const [endDate, setEndDate] = useState<string>("");
 
     // Load initial data when in edit mode
     useEffect(() => {
@@ -172,8 +170,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             if (initialData.budget !== undefined) setBudget(String(initialData.budget));
             if (initialData.budget_optimize_on !== undefined) setBudgetOptimizeOn(initialData.budget_optimize_on);
             if ((initialData as any).operation_status) setStatus((initialData as any).operation_status);
-            if ((initialData as any).start_date) setStartDate((initialData as any).start_date);
-            if ((initialData as any).end_date) setEndDate((initialData as any).end_date);
         } else if (!isOpen || mode === "create") {
             // Reset form when closing or switching to create mode
             setSelectedProfile("");
@@ -183,8 +179,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             setBudget("");
             setBudgetOptimizeOn(false);
             setStatus("ENABLE");
-            setStartDate("");
-            setEndDate("");
         }
     }, [isOpen, mode, initialData]);
 
@@ -332,8 +326,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
         setIsDedicatedCampaign(false);
         setDisableSkanCampaign(false);
         setStatus("ENABLED");
-        setStartDate("");
-        setEndDate("");
         setErrors({});
         setGenericErrors([]);
     };
@@ -442,14 +434,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             if (salesDestination) {
                 data.sales_destination = salesDestination;
             }
-        }
-
-        // Add date fields (stored in extra_data for ad group creation)
-        if (startDate) {
-            (data as any).start_date = startDate;
-        }
-        if (endDate) {
-            (data as any).end_date = endDate;
         }
 
         try {
@@ -892,8 +876,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 6: Status, Start Date, End Date - Product Sales Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 6: Status - Product Sales Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -904,32 +888,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1027,8 +985,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Sales Merged */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Sales Merged */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1039,32 +997,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1184,8 +1116,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
                                             </div>
 
-                                            {/* Row 5: Status, Start Date, End Date - Android Only */}
-                                            <div className="grid grid-cols-3 gap-6">
+                                            {/* Row 5: Status - Android Only */}
+                                            <div className="grid grid-cols-1 gap-6">
                                                 <div>
                                                     <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                         Status
@@ -1196,32 +1128,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                         onChange={(val) => setStatus(val as string)}
                                                         placeholder="Select Status"
                                                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                        Start Date
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={startDate}
-                                                        onChange={(e) => setStartDate(e.target.value)}
-                                                        min={new Date().toISOString().split("T")[0]}
-                                                        className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                        End Date
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={endDate}
-                                                        onChange={(e) => setEndDate(e.target.value)}
-                                                        min={startDate || new Date().toISOString().split("T")[0]}
-                                                        className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                                     />
                                                 </div>
                                             </div>
@@ -1316,8 +1222,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
                                             </div>
 
-                                            {/* Row 5: Status, Start Date, End Date - App Promotion iOS Only */}
-                                            <div className="grid grid-cols-3 gap-6">
+                                            {/* Row 5: Status - App Promotion iOS Only */}
+                                            <div className="grid grid-cols-1 gap-6">
                                                 <div>
                                                     <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                         Status
@@ -1328,32 +1234,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                         onChange={(val) => setStatus(val as string)}
                                                         placeholder="Select Status"
                                                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                        Start Date
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={startDate}
-                                                        onChange={(e) => setStartDate(e.target.value)}
-                                                        min={new Date().toISOString().split("T")[0]}
-                                                        className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                        End Date
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={endDate}
-                                                        onChange={(e) => setEndDate(e.target.value)}
-                                                        min={startDate || new Date().toISOString().split("T")[0]}
-                                                        className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                                     />
                                                 </div>
                                             </div>
@@ -1421,8 +1301,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Reach Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Reach Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1433,32 +1313,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1519,8 +1373,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Traffic Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Traffic Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1531,32 +1385,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1622,8 +1450,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Video Views Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Video Views Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1634,32 +1462,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1720,8 +1522,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Lead Generation Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Lead Generation Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1732,32 +1534,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1823,8 +1599,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Engagement Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Engagement Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1835,32 +1611,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1921,8 +1671,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Website Conversions Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Website Conversions Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1933,32 +1683,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
