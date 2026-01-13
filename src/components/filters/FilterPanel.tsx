@@ -108,6 +108,7 @@ const CHANNEL_TYPE_OPTIONS = [
   "LOCAL",
   "SMART",
 ];
+const ASSET_TYPE_OPTIONS = ["Image", "Video"];
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   isOpen,
@@ -492,6 +493,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const isTargetingType = selectedField === "targeting_type";
   const isStatusOrChannelType =
     selectedField === "status" || selectedField === "advertising_channel_type";
+  const isAssetType = selectedField === "assetType";
   const isExpression = selectedField === "expression";
 
   if (!isOpen) return null;
@@ -813,6 +815,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue || undefined}
                   placeholder={`Select ${selectedField === "status" ? "Status" : "Channel Type"
                     }`}
+                  onChange={(value) => setFilterValue(value)}
+                  buttonClassName="w-full bg-[#FEFEFB]"
+                />
+              ) : isAssetType ? (
+                <Dropdown<string>
+                  options={ASSET_TYPE_OPTIONS.map((opt) => ({
+                    value: opt,
+                    label: opt,
+                  }))}
+                  value={filterValue || undefined}
+                  placeholder="Select Asset Type"
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"
                 />

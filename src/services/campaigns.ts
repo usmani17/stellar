@@ -1803,6 +1803,30 @@ export const campaignsService = {
     return response.data;
   },
 
+  updateSBAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { ads: any[] }
+  ): Promise<any> => {
+    const response = await api.put(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-ads/update/`,
+      data
+    );
+    return response.data;
+  },
+
+  deleteSBAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { adIds: string[] }
+  ): Promise<any> => {
+    const response = await api.delete(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-ads/delete/`,
+      { data }
+    );
+    return response.data;
+  },
+
   getAssets: async (
     accountId: number,
     params?: {
@@ -1840,6 +1864,20 @@ export const campaignsService = {
             onUploadProgress(progress);
           }
         },
+      }
+    );
+    return response.data;
+  },
+
+  getAssetPreview: async (
+    accountId: number,
+    assetId: string,
+    profileId: string
+  ): Promise<{ previewUrl: string; contentType?: string | null; assetData: any }> => {
+    const response = await api.get(
+      `/accounts/${accountId}/assets/${assetId}/preview/`,
+      {
+        params: { profileId },
       }
     );
     return response.data;
