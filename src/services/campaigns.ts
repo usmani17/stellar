@@ -18,6 +18,7 @@ export interface Campaign {
   budgetType?: string; // Budget type (e.g., 'daily', 'lifetime')
   profile_name?: string; // Profile name
   profile_id?: string; // Profile ID
+  profile_country_code?: string; // Profile country code
   report_date?: string; // Report date (YYYY-MM-DD) - one row per campaign per day
 }
 

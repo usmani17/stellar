@@ -334,13 +334,17 @@ export const CampaignDetail: React.FC = () => {
   const [createAssetFieldErrors, setCreateAssetFieldErrors] = useState<
     Record<string, string>
   >({});
-  
+
   // Asset preview modal state
   const [isAssetPreviewModalOpen, setIsAssetPreviewModalOpen] = useState(false);
   const [assetPreviewUrl, setAssetPreviewUrl] = useState<string | null>(null);
-  const [assetPreviewContentType, setAssetPreviewContentType] = useState<string | null>(null);
+  const [assetPreviewContentType, setAssetPreviewContentType] = useState<
+    string | null
+  >(null);
   const [assetPreviewLoading, setAssetPreviewLoading] = useState(false);
-  const [assetPreviewError, setAssetPreviewError] = useState<string | null>(null);
+  const [assetPreviewError, setAssetPreviewError] = useState<string | null>(
+    null
+  );
 
   const [targets, setTargets] = useState<Target[]>([]);
   const [targetsLoading, setTargetsLoading] = useState(false);
@@ -664,7 +668,10 @@ export const CampaignDetail: React.FC = () => {
       }
       // Insert Negative Targets right after Negative Keywords if not already present
       const negativeKeywordsIndex = filteredTabs.indexOf("Negative Keywords");
-      if (negativeKeywordsIndex !== -1 && !filteredTabs.includes("Negative Targets")) {
+      if (
+        negativeKeywordsIndex !== -1 &&
+        !filteredTabs.includes("Negative Targets")
+      ) {
         filteredTabs.splice(negativeKeywordsIndex + 1, 0, "Negative Targets");
       }
     } else {
@@ -1887,7 +1894,12 @@ export const CampaignDetail: React.FC = () => {
   const [failedTargets, setFailedTargets] = useState<any[]>([]);
 
   const handleCreateTargets = async (targets: TargetInput[]) => {
-    if (!accountId || !campaignId || (campaignType !== "SP" && campaignType !== "SB")) return;
+    if (
+      !accountId ||
+      !campaignId ||
+      (campaignType !== "SP" && campaignType !== "SB")
+    )
+      return;
 
     setCreateTargetLoading(true);
     setCreateTargetError(null);
@@ -2023,14 +2035,18 @@ export const CampaignDetail: React.FC = () => {
 
       if (error?.response?.data) {
         const errorData = error.response.data;
-        
+
         // Check for field errors first
         if (errorData.field_errors) {
           fieldErrors = errorData.field_errors;
         }
-        
+
         // Check for errors array (plural) - this contains the actual error messages
-        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+        if (
+          errorData.errors &&
+          Array.isArray(errorData.errors) &&
+          errorData.errors.length > 0
+        ) {
           // Use the first error message from the array
           errorMessage = errorData.errors[0];
         } else if (errorData.error) {
@@ -2039,9 +2055,12 @@ export const CampaignDetail: React.FC = () => {
         } else if (errorData.message) {
           errorMessage = errorData.message;
         }
-        
+
         // Extract failed targets if available
-        if (errorData.failed_targets && Array.isArray(errorData.failed_targets)) {
+        if (
+          errorData.failed_targets &&
+          Array.isArray(errorData.failed_targets)
+        ) {
           failedTargetsData = errorData.failed_targets;
         }
       } else if (error?.message) {
@@ -2694,7 +2713,7 @@ export const CampaignDetail: React.FC = () => {
       }
 
       const formData = new FormData();
-      
+
       // Required fields
       formData.append("assetName", asset.assetName);
       formData.append("assetType", asset.assetType);
@@ -2703,44 +2722,58 @@ export const CampaignDetail: React.FC = () => {
         formData.append("assetSubTypeList", subType);
       });
       formData.append("brandEntityId", asset.brandEntityId);
-      
+
       // Optional fields - only append if provided
       if (asset.asinList && asset.asinList.length > 0) {
         asset.asinList.forEach((asin) => {
           formData.append("asinList", asin);
         });
       }
-      
+
       if (asset.tags && asset.tags.length > 0) {
         asset.tags.forEach((tag) => {
           formData.append("tags", tag);
         });
       }
-      
+
       if (asset.versionInfo) {
-        formData.append("versionInfo[linkedAssetId]", asset.versionInfo.linkedAssetId);
-        if (asset.versionInfo.versionNotes) {
-          formData.append("versionInfo[versionNotes]", asset.versionInfo.versionNotes);
-        }
-      }
-      
-      if (asset.registrationContext) {
         formData.append(
-          "registrationContext[associatedPrograms][0][programName]",
-          asset.registrationContext.associatedPrograms[0]?.programName || "A_PLUS"
+          "versionInfo[linkedAssetId]",
+          asset.versionInfo.linkedAssetId
         );
-        if (asset.registrationContext.associatedPrograms[0]?.metadata?.dspAdvertiserId) {
+        if (asset.versionInfo.versionNotes) {
           formData.append(
-            "registrationContext[associatedPrograms][0][metadata][dspAdvertiserId]",
-            asset.registrationContext.associatedPrograms[0].metadata.dspAdvertiserId
+            "versionInfo[versionNotes]",
+            asset.versionInfo.versionNotes
           );
         }
       }
-      
-      if (asset.skipAssetSubTypesDetection !== undefined) {
-        formData.append("skipAssetSubTypesDetection", asset.skipAssetSubTypesDetection.toString());
+
+      if (asset.registrationContext) {
+        formData.append(
+          "registrationContext[associatedPrograms][0][programName]",
+          asset.registrationContext.associatedPrograms[0]?.programName ||
+            "A_PLUS"
+        );
+        if (
+          asset.registrationContext.associatedPrograms[0]?.metadata
+            ?.dspAdvertiserId
+        ) {
+          formData.append(
+            "registrationContext[associatedPrograms][0][metadata][dspAdvertiserId]",
+            asset.registrationContext.associatedPrograms[0].metadata
+              .dspAdvertiserId
+          );
+        }
       }
-      
+
+      if (asset.skipAssetSubTypesDetection !== undefined) {
+        formData.append(
+          "skipAssetSubTypesDetection",
+          asset.skipAssetSubTypesDetection.toString()
+        );
+      }
+
       if (asset.url) {
         formData.append("url", asset.url);
       }
@@ -2886,7 +2919,10 @@ export const CampaignDetail: React.FC = () => {
         response.created += imageResponse.created || 0;
         response.failed += imageResponse.failed || 0;
         response.ads = [...(response.ads || []), ...(imageResponse.ads || [])];
-        response.failed_ads = [...(response.failed_ads || []), ...(imageResponse.failed_ads || [])];
+        response.failed_ads = [
+          ...(response.failed_ads || []),
+          ...(imageResponse.failed_ads || []),
+        ];
       }
 
       // Create video ads if any
@@ -2899,7 +2935,10 @@ export const CampaignDetail: React.FC = () => {
         response.created += videoResponse.created || 0;
         response.failed += videoResponse.failed || 0;
         response.ads = [...(response.ads || []), ...(videoResponse.ads || [])];
-        response.failed_ads = [...(response.failed_ads || []), ...(videoResponse.failed_ads || [])];
+        response.failed_ads = [
+          ...(response.failed_ads || []),
+          ...(videoResponse.failed_ads || []),
+        ];
       }
 
       // Check for partial success
@@ -2981,7 +3020,7 @@ export const CampaignDetail: React.FC = () => {
 
     // Toggle state between ENABLED and PAUSED
     const newState = ad.state === "ENABLED" ? "PAUSED" : "ENABLED";
-    
+
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
@@ -3084,8 +3123,7 @@ export const CampaignDetail: React.FC = () => {
     }
 
     // Use the passed value if provided, otherwise use the state value
-    const valueToCompare =
-      newValue !== undefined ? newValue : editedSBAdValue;
+    const valueToCompare = newValue !== undefined ? newValue : editedSBAdValue;
 
     let hasChanged = false;
     let oldValue = "";
@@ -3980,10 +4018,13 @@ export const CampaignDetail: React.FC = () => {
 
   const confirmTargetChange = async () => {
     if (!pendingTargetChange || !accountId) {
-      console.error("confirmTargetChange: Missing pendingTargetChange or accountId", {
-        pendingTargetChange,
-        accountId,
-      });
+      console.error(
+        "confirmTargetChange: Missing pendingTargetChange or accountId",
+        {
+          pendingTargetChange,
+          accountId,
+        }
+      );
       return;
     }
 
@@ -4036,7 +4077,10 @@ export const CampaignDetail: React.FC = () => {
         });
       } else if (pendingTargetChange.field === "bid") {
         // Extract numeric value - clean any formatting
-        const cleanedValue = pendingTargetChange.newValue.replace(/[^0-9.]/g, "");
+        const cleanedValue = pendingTargetChange.newValue.replace(
+          /[^0-9.]/g,
+          ""
+        );
         const bidValue = parseFloat(cleanedValue);
         if (isNaN(bidValue) || bidValue < 0) {
           throw new Error("Invalid bid value");
@@ -4420,7 +4464,12 @@ export const CampaignDetail: React.FC = () => {
       state?: "ENABLED" | "PAUSED";
     }>
   ) => {
-    if (!accountId || !campaignId || (campaignType !== "SP" && campaignType !== "SB")) return;
+    if (
+      !accountId ||
+      !campaignId ||
+      (campaignType !== "SP" && campaignType !== "SB")
+    )
+      return;
 
     setCreateNegativeTargetLoading(true);
     setCreateNegativeTargetError(null);
@@ -6668,7 +6717,7 @@ export const CampaignDetail: React.FC = () => {
                           await loadAllAdGroups();
                         }
                       }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-normal"
                     >
                       <svg
                         className="w-4 h-4 !text-white"
@@ -7363,7 +7412,7 @@ export const CampaignDetail: React.FC = () => {
                           await loadAllAdGroups();
                         }
                       }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-normal"
                     >
                       <svg
                         className="w-4 h-4 !text-white"
@@ -7740,7 +7789,7 @@ export const CampaignDetail: React.FC = () => {
                           await loadAllAdGroups();
                         }
                       }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-normal"
                     >
                       <svg
                         className="w-4 h-4 !text-white"
@@ -9465,66 +9514,68 @@ export const CampaignDetail: React.FC = () => {
       )}
 
       {/* Confirmation Modal for Targets Bulk Actions */}
-      {showTargetsConfirmationModal && 
-       !pendingTargetChange && 
-       (pendingTargetsStatusAction || selectedTargetIds.size > 0) && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
-            onClick={() => {
-              if (!targetsBulkLoading) {
-                setShowTargetsConfirmationModal(false);
-                setPendingTargetsStatusAction(null);
-              }
-            }}
-          />
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
-            <div className="p-6">
-              <div className="mb-4 text-center">
-                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                  Confirm Action
-                </h3>
-                <p className="text-[14px] text-[#556179]">
-                  {pendingTargetsStatusAction
-                    ? `Are you sure you want to ${
-                        pendingTargetsStatusAction === "enable"
-                          ? "enable"
-                          : "pause"
-                      } ${selectedTargetIds.size} target(s)?`
-                    : `Are you sure you want to update the bid for ${selectedTargetIds.size} target(s)?`}
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTargetsConfirmationModal(false);
-                    setPendingTargetsStatusAction(null);
-                  }}
-                  disabled={targetsBulkLoading}
-                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (pendingTargetsStatusAction) {
-                      await handleBulkTargetsStatus(pendingTargetsStatusAction);
-                    } else {
-                      await handleBulkTargetsBid();
-                    }
-                  }}
-                  disabled={targetsBulkLoading}
-                  className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {targetsBulkLoading ? "Processing..." : "Confirm"}
-                </button>
+      {showTargetsConfirmationModal &&
+        !pendingTargetChange &&
+        (pendingTargetsStatusAction || selectedTargetIds.size > 0) && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+              onClick={() => {
+                if (!targetsBulkLoading) {
+                  setShowTargetsConfirmationModal(false);
+                  setPendingTargetsStatusAction(null);
+                }
+              }}
+            />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+              <div className="p-6">
+                <div className="mb-4 text-center">
+                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                    Confirm Action
+                  </h3>
+                  <p className="text-[14px] text-[#556179]">
+                    {pendingTargetsStatusAction
+                      ? `Are you sure you want to ${
+                          pendingTargetsStatusAction === "enable"
+                            ? "enable"
+                            : "pause"
+                        } ${selectedTargetIds.size} target(s)?`
+                      : `Are you sure you want to update the bid for ${selectedTargetIds.size} target(s)?`}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTargetsConfirmationModal(false);
+                      setPendingTargetsStatusAction(null);
+                    }}
+                    disabled={targetsBulkLoading}
+                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (pendingTargetsStatusAction) {
+                        await handleBulkTargetsStatus(
+                          pendingTargetsStatusAction
+                        );
+                      } else {
+                        await handleBulkTargetsBid();
+                      }
+                    }}
+                    disabled={targetsBulkLoading}
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {targetsBulkLoading ? "Processing..." : "Confirm"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Confirmation Modal for Negative Keywords Bulk Actions */}
       {showNegativeKeywordsConfirmationModal &&
@@ -10299,9 +10350,7 @@ export const CampaignDetail: React.FC = () => {
           let oldValueDisplay = "";
           if (pendingSBAdChange.field === "status") {
             oldValueDisplay =
-              pendingSBAdChange.oldValue === "enabled"
-                ? "Enabled"
-                : "Paused";
+              pendingSBAdChange.oldValue === "enabled" ? "Enabled" : "Paused";
           } else if (pendingSBAdChange.field === "name") {
             oldValueDisplay = pendingSBAdChange.oldValue || "—";
           }
@@ -10310,9 +10359,7 @@ export const CampaignDetail: React.FC = () => {
           let newValueDisplay = "";
           if (pendingSBAdChange.field === "status") {
             newValueDisplay =
-              pendingSBAdChange.newValue === "enabled"
-                ? "Enabled"
-                : "Paused";
+              pendingSBAdChange.newValue === "enabled" ? "Enabled" : "Paused";
           } else if (pendingSBAdChange.field === "name") {
             newValueDisplay = pendingSBAdChange.newValue || "—";
           }
@@ -10407,9 +10454,7 @@ export const CampaignDetail: React.FC = () => {
                   </h3>
                   <p className="text-[14px] text-[#556179]">
                     Are you sure you want to{" "}
-                    {pendingSBAdsStatusAction === "enable"
-                      ? "enable"
-                      : "pause"}{" "}
+                    {pendingSBAdsStatusAction === "enable" ? "enable" : "pause"}{" "}
                     {selectedSBAdIds.size} ad(s)?
                   </p>
                 </div>
