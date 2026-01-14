@@ -375,7 +375,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       </>
                     )}
                     <td className="py-[10px] px-[10px]"></td>
-                    <td className="py-[10px] px-[10px]"></td>
                     <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {summary.total_impressions > 0
                         ? `${(

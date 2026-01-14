@@ -976,7 +976,7 @@ export const AdGroups: React.FC = () => {
   // Define filter fields for Ad Groups
   const ADGROUP_FILTER_FIELDS = [
     { value: "name", label: "Ad Group Name" },
-    { value: "state", label: "Status" },
+    { value: "state", label: "State" },
     { value: "default_bid", label: "Default Bid" },
     { value: "campaign_name", label: "Campaign Name" },
     { value: "profile_name", label: "Profile" },

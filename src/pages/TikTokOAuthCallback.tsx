@@ -73,9 +73,9 @@ export const TikTokOAuthCallback: React.FC = () => {
           return;
         } else {
           // Fallback - refresh accounts and navigate there
-          await refreshAccounts();
-          setLoading(false);
-          navigate("/accounts", { replace: true });
+        await refreshAccounts();
+        setLoading(false);
+        navigate("/accounts", { replace: true });
         }
       } catch (err: any) {
         console.error("TikTok OAuth callback error:", err);

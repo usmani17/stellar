@@ -4,7 +4,7 @@ import { accountsService } from "../services/accounts";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
-import { Button } from "../components/ui";
+import { Button, Checkbox } from "../components/ui";
 
 interface AmazonProfile {
   // Amazon API fields (primary)
@@ -137,16 +137,6 @@ export const SelectAmazonProfiles: React.FC = () => {
     setSelectedProfileIds(newSelected);
   };
 
-  const toggleAll = () => {
-    if (selectedProfileIds.size === profiles.length) {
-      setSelectedProfileIds(new Set());
-    } else {
-      setSelectedProfileIds(
-        new Set(profiles.map((p) => p.id || p.profileId || p.profile_id || ""))
-      );
-    }
-  };
-
   const handleSave = async () => {
     if (!channelId || selectedProfileIds.size === 0) {
       setError("Please select at least one profile");
@@ -262,9 +252,9 @@ export const SelectAmazonProfiles: React.FC = () => {
   };
 
   const getProfileId = (profile: AmazonProfile): string => {
-    // Amazon API returns 'id' field, not 'profileId'
-    // Make sure we return a string and handle all possible field names
-    const id = profile.profileId;
+    // Handle all possible field names for profile ID
+    // Check in order: profileId (most common), id, profile_id
+    const id = profile.profileId || profile.id || profile.profile_id;
     return id ? String(id) : "";
   };
 
@@ -338,20 +328,25 @@ export const SelectAmazonProfiles: React.FC = () => {
             ) : (
               <>
                 <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={
-                        profiles.length > 0 &&
-                        selectedProfileIds.size === profiles.length
+                  <Checkbox
+                    checked={
+                      profiles.length > 0 &&
+                      selectedProfileIds.size === profiles.length
+                    }
+                    onChange={(checked) => {
+                      if (checked) {
+                        setSelectedProfileIds(
+                          new Set(
+                            profiles.map((p) => getProfileId(p)).filter(Boolean)
+                          )
+                        );
+                      } else {
+                        setSelectedProfileIds(new Set());
                       }
-                      onChange={toggleAll}
-                      className="w-4 h-4 text-[#072929] border-gray-200 rounded focus:ring-[#072929]"
-                    />
-                    <label className="text-[14px] font-medium text-[#072929]">
-                      Select All ({selectedProfileIds.size}/{profiles.length})
-                    </label>
-                  </div>
+                    }}
+                    label={`Select All (${selectedProfileIds.size}/${profiles.length})`}
+                    size="small"
+                  />
                 </div>
 
                 <div className="space-y-3 mb-6">
@@ -392,13 +387,16 @@ export const SelectAmazonProfiles: React.FC = () => {
                         onClick={() => toggleProfile(profileId)}
                       >
                         <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleProfile(profileId)}
+                          <div
+                            className="mt-1"
                             onClick={(e) => e.stopPropagation()}
-                            className="mt-1 w-4 h-4 text-[#072929] border-gray-200 rounded focus:ring-[#072929]"
-                          />
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onChange={() => toggleProfile(profileId)}
+                              size="small"
+                            />
+                          </div>
                           <div className="flex-1">
                             <h3 className="text-[16px] font-medium text-[#072929] mb-1">
                               {profileName}
@@ -434,12 +432,14 @@ export const SelectAmazonProfiles: React.FC = () => {
                     variant="outline"
                     onClick={() => navigate("/accounts")}
                     disabled={saving}
+                    className="rounded-lg"
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={handleSave}
                     disabled={saving || selectedProfileIds.size === 0}
+                    className="rounded-lg"
                   >
                     {saving
                       ? "Saving..."

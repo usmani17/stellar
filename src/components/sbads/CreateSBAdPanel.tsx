@@ -986,15 +986,18 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       options={assets
                         .filter((asset) => {
                           if (!asset.assetId) return false;
-                          // Check both mediaType and contentType for image assets
-                          const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
+                          // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                          const isImageByAssetType = asset.assetType === 'IMAGE';
                           const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
-                          return isImageByMediaType || isImageByContentType;
+                          const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
+                          // Fallback to old schema for backward compatibility
+                          const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
+                          return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
                         }) // Only show image assets
                         .map((asset) => ({
                           value: asset.assetId || "",
-                          label: asset.fileName
-                            ? `${asset.fileName} (${asset.assetId})`
+                          label: asset.name || asset.fileName
+                            ? `${asset.name || asset.fileName} (${asset.assetId})`
                             : asset.assetId || `Asset ${asset.id}`,
                         }))}
                       value={currentAd.creative?.brandLogoAssetID || ""}
@@ -1003,12 +1006,12 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         handleChange("creative.brandLogoAssetID", value);
                       }}
                       placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                      buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px] flex-shrink-0"
-                      menuClassName="min-w-[400px]"
+                      buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] flex-shrink-0 truncate"
+                      menuClassName="max-w-[300px]"
                       optionClassName="truncate"
                       renderOption={(option, isSelected) => (
                         <div className="flex items-center justify-between w-full min-w-0">
-                          <span className="truncate flex-1">{option.label}</span>
+                          <span className="truncate flex-1 max-w-[300px]">{option.label}</span>
                           {isSelected && (
                             <svg
                               className="w-4 h-4 text-[#136D6D] flex-shrink-0 ml-2"
@@ -1083,15 +1086,18 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       options={assets
                         .filter((asset) => {
                           if (!asset.assetId) return false;
-                          // Check both mediaType and contentType for image assets
-                          const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
+                          // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                          const isImageByAssetType = asset.assetType === 'IMAGE';
                           const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
-                          return isImageByMediaType || isImageByContentType;
+                          const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
+                          // Fallback to old schema for backward compatibility
+                          const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
+                          return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
                         }) // Only show image assets
                         .map((asset) => ({
                           value: asset.assetId || "",
-                          label: asset.fileName
-                            ? `${asset.fileName} (${asset.assetId})`
+                          label: asset.name || asset.fileName
+                            ? `${asset.name || asset.fileName} (${asset.assetId})`
                             : asset.assetId || `Asset ${asset.id}`,
                         }))}
                       value={currentAd.creative?.brandLogoAssetID || ""}
@@ -1100,12 +1106,12 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         handleChange("creative.brandLogoAssetID", value);
                       }}
                       placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                      buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px] flex-shrink-0"
-                      menuClassName="min-w-[400px]"
+                      buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] flex-shrink-0 truncate"
+                      menuClassName="max-w-[300px]"
                       optionClassName="truncate"
                       renderOption={(option, isSelected) => (
                         <div className="flex items-center justify-between w-full min-w-0">
-                          <span className="truncate flex-1">{option.label}</span>
+                          <span className="truncate flex-1 max-w-[300px]">{option.label}</span>
                           {isSelected && (
                             <svg
                               className="w-4 h-4 text-[#136D6D] flex-shrink-0 ml-2"
@@ -1554,11 +1560,20 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       />
                       <Dropdown<string>
                         options={assets
-                          .filter((asset) => asset.assetId) // Only show assets with assetId
+                          .filter((asset) => {
+                            if (!asset.assetId) return false;
+                            // For custom images, show IMAGE type assets
+                            const isImageByAssetType = asset.assetType === 'IMAGE';
+                            const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
+                            const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
+                            // Fallback to old schema for backward compatibility
+                            const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
+                            return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
+                          })
                           .map((asset) => ({
                             value: asset.assetId || "",
-                            label: asset.fileName
-                              ? `${asset.fileName} (${asset.assetId})`
+                            label: asset.name || asset.fileName
+                              ? `${asset.name || asset.fileName} (${asset.assetId})`
                               : asset.assetId || `Asset ${asset.id}`,
                           }))}
                         value={image.assetId || ""}
@@ -1566,7 +1581,27 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                           handleCustomImageChange(index, "assetId", value)
                         }
                         placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                        buttonClassName="px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 whitespace-nowrap min-w-[140px]"
+                        buttonClassName="px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] truncate"
+                        menuClassName="max-w-[300px]"
+                        optionClassName="truncate"
+                        renderOption={(option, isSelected) => (
+                          <div className="flex items-center justify-between w-full min-w-0">
+                            <span className="truncate flex-1 max-w-[300px]">{option.label}</span>
+                            {isSelected && (
+                              <svg
+                                className="w-4 h-4 text-[#136D6D] flex-shrink-0 ml-2"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                        )}
                         disabled={assetsLoading || assets.length === 0}
                       />
                     </div>
