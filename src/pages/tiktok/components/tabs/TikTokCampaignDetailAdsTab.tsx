@@ -1,6 +1,9 @@
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import { useState, useRef, useEffect } from "react";
+import { Dropdown } from "../../../../components/ui/Dropdown";
+import { campaignsService } from "../../../../services/campaigns";
 import { CreateTikTokAdPanel, type TikTokAdInput, type AdGroupOption } from "../../../../components/tiktok/CreateTikTokAdPanel";
 import type { TikTokAd } from "./types";
 
@@ -32,6 +35,8 @@ interface TikTokCampaignDetailAdsTabProps {
     onCreateAd?: (data: TikTokAdInput) => void;
     createAdLoading?: boolean;
     createAdError?: string | null;
+    accountId: number;
+    onAdsUpdated: () => void;
 }
 
 export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProps> = ({
@@ -60,7 +65,132 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
     onCreateAd,
     createAdLoading,
     createAdError,
+    accountId,
+    onAdsUpdated,
 }) => {
+    // Inline Edit State
+    const [editingCell, setEditingCell] = useState<{
+        ad_id: string;
+        field: "ad_name" | "operation_status";
+    } | null>(null);
+    const [editedValue, setEditedValue] = useState("");
+    const [inlineEditLoading, setInlineEditLoading] = useState(false);
+    const [showInlineEditConfirm, setShowInlineEditConfirm] = useState(false);
+    const [pendingInlineEdit, setPendingInlineEdit] = useState<{
+        ad: TikTokAd;
+        field: "ad_name" | "operation_status";
+        newValue: string;
+    } | null>(null);
+
+    // Bulk Actions State
+    const [showBulkActions, setShowBulkActions] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Click outside handler for bulk actions dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setShowBulkActions(false);
+            }
+        };
+
+        if (showBulkActions) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [showBulkActions]);
+
+    // Bulk Action Handler
+    const handleBulkAction = async (action: "ENABLE" | "DISABLE" | "DELETE") => {
+        if (!accountId || selectedAdIds.size === 0) return;
+
+        if (!window.confirm(`Are you sure you want to ${action.toLowerCase()} details for ${selectedAdIds.size} ads?`)) {
+            return;
+        }
+
+        try {
+            await campaignsService.updateTikTokAdStatus(accountId, {
+                ad_ids: Array.from(selectedAdIds),
+                operation_status: action,
+            });
+
+            onAdsUpdated();
+            onSelectAll(false); // Clear selection
+        } catch (error) {
+            console.error(`Bulk ${action} failed:`, error);
+            alert(`Failed to ${action.toLowerCase()} ads`);
+        } finally {
+            setShowBulkActions(false);
+        }
+    };
+
+    // Inline Edit Handlers
+    const startInlineEdit = (ad: TikTokAd, field: "ad_name" | "operation_status") => {
+        setEditingCell({ ad_id: ad.ad_id, field });
+        setEditedValue(field === "ad_name" ? ad.ad_name : ad.operation_status);
+    };
+
+    const cancelInlineEdit = () => {
+        setEditingCell(null);
+        setEditedValue("");
+        setPendingInlineEdit(null);
+    };
+
+    const handleInlineEditChange = (value: string) => {
+        setEditedValue(value);
+    };
+
+    const confirmInlineEdit = (newValueOverride?: string) => {
+        if (!editingCell) return;
+
+        const ad = ads.find(a => a.ad_id === editingCell.ad_id);
+        if (!ad) return;
+
+        const valueToSave = newValueOverride !== undefined ? newValueOverride : editedValue;
+
+        // Check if value actually changed
+        const currentValue = editingCell.field === "ad_name" ? ad.ad_name : ad.operation_status;
+        if (valueToSave === currentValue) {
+            cancelInlineEdit();
+            return;
+        }
+
+        setPendingInlineEdit({
+            ad,
+            field: editingCell.field,
+            newValue: valueToSave,
+        });
+        setShowInlineEditConfirm(true);
+    };
+
+    const runInlineEdit = async () => {
+        if (!pendingInlineEdit || !accountId) return;
+
+        setInlineEditLoading(true);
+        try {
+            const payload: any = {};
+            if (pendingInlineEdit.field === "ad_name") {
+                payload.ad_name = pendingInlineEdit.newValue;
+            } else if (pendingInlineEdit.field === "operation_status") {
+                payload.operation_status = pendingInlineEdit.newValue;
+            }
+
+            await campaignsService.updateTikTokAd(accountId, pendingInlineEdit.ad.ad_id, payload);
+
+            onAdsUpdated();
+        } catch (error) {
+            console.error("Inline update failed:", error);
+            alert("Failed to update ad");
+        } finally {
+            setInlineEditLoading(false);
+            setShowInlineEditConfirm(false);
+            cancelInlineEdit();
+        }
+    };
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat("en-US", {
             style: "currency",
@@ -149,6 +279,36 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                         </svg>
                     </button>
                 )}
+
+                {/* Bulk Actions Dropdown */}
+                <div className="relative inline-flex" ref={dropdownRef}>
+                    <button
+                        onClick={() => setShowBulkActions(!showBulkActions)}
+                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                    >
+                        <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">Edit</span>
+                    </button>
+                    {showBulkActions && (
+                        <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                            <div className="overflow-y-auto">
+                                {['ENABLE', 'DISABLE', 'DELETE'].map((action) => (
+                                    <button
+                                        key={action}
+                                        className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer capitalize"
+                                        disabled={selectedAdIds.size === 0}
+                                        onClick={() => handleBulkAction(action as "ENABLE" | "DISABLE" | "DELETE")}
+                                    >
+                                        {action.toLowerCase()}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <button
                     onClick={onToggleFilterPanel}
                     className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
@@ -311,11 +471,61 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                                                     />
                                                 </div>
                                             </td>
-                                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] font-medium cursor-pointer">
-                                                {item.ad_name}
+                                            <td className="py-[10px] px-[10px]">
+                                                {editingCell?.ad_id === item.ad_id && editingCell?.field === "ad_name" ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editedValue}
+                                                        onChange={(e) => handleInlineEditChange(e.target.value)}
+                                                        onBlur={(e) => confirmInlineEdit(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") {
+                                                                e.currentTarget.blur();
+                                                            } else if (e.key === "Escape") {
+                                                                cancelInlineEdit();
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                        maxLength={512}
+                                                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className="text-[13.3px] text-[#0b0f16] font-medium cursor-pointer hover:underline truncate block w-full whitespace-nowrap"
+                                                        onClick={() => startInlineEdit(item, "ad_name")}
+                                                        title={item.ad_name}
+                                                    >
+                                                        {item.ad_name}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-[10px] px-[10px]">
-                                                <StatusBadge status={item.operation_status} />
+                                                {editingCell?.ad_id === item.ad_id && editingCell?.field === "operation_status" ? (
+                                                    <div className="dropdown-container w-[100px]">
+                                                        <Dropdown
+                                                            options={[
+                                                                { value: "ENABLE", label: "Enable" },
+                                                                { value: "DISABLE", label: "Disable" },
+                                                                { value: "DELETE", label: "Delete" },
+                                                            ]}
+                                                            value={editedValue}
+                                                            onChange={(value) => {
+                                                                handleInlineEditChange(value);
+                                                                confirmInlineEdit(value);
+                                                            }}
+                                                            defaultOpen={true}
+                                                            closeOnSelect={true}
+                                                            buttonClassName="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className="cursor-pointer hover:underline"
+                                                        onClick={() => startInlineEdit(item, "operation_status")}
+                                                    >
+                                                        <StatusBadge status={item.operation_status} />
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16]">
                                                 {formatCurrency(item.spend)}
@@ -374,11 +584,10 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                                     <button
                                         key={pageNum}
                                         onClick={() => onPageChange(pageNum)}
-                                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                            currentPage === pageNum
-                                                ? "bg-white text-[#136D6D] font-semibold"
-                                                : "text-black hover:bg-gray-50"
-                                        }`}
+                                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                                            ? "bg-white text-[#136D6D] font-semibold"
+                                            : "text-black hover:bg-gray-50"
+                                            }`}
                                     >
                                         {pageNum}
                                     </button>
@@ -393,11 +602,10 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                         {totalPages > 5 && (
                             <button
                                 onClick={() => onPageChange(totalPages)}
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                                    currentPage === totalPages
-                                        ? "bg-white text-[#136D6D] font-semibold"
-                                        : "text-black hover:bg-gray-50"
-                                }`}
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
+                                    }`}
                             >
                                 {totalPages}
                             </button>
@@ -409,6 +617,37 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                         >
                             Next
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Inline Edit Confirmation Modal */}
+            {showInlineEditConfirm && pendingInlineEdit && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-lg font-semibold text-[#072929] mb-4">
+                            Confirm Update
+                        </h3>
+                        <div className="mb-4">
+                            <p className="text-[13.3px] text-[#556179] mb-2">
+                                Are you sure you want to change the {pendingInlineEdit.field === "ad_name" ? "name" : "status"} of this ad to "{pendingInlineEdit.newValue}"? This action cannot be undone.
+                            </p>
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowInlineEditConfirm(false)}
+                                className="px-4 py-2 text-[13.3px] text-[#556179] border border-gray-200 rounded-lg hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={runInlineEdit}
+                                disabled={inlineEditLoading}
+                                className="px-4 py-2 text-[13.3px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
+                            >
+                                {inlineEditLoading ? "Updating..." : "Confirm"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

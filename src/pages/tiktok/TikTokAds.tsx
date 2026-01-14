@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -11,6 +11,7 @@ import { TikTokAdsTable, type TikTokAd } from "./components/TikTokAdsTable";
 import { Button } from "../../components/ui";
 import { FilterSection, FilterSectionPanel } from "../../components/filters/FilterSection";
 import type { FilterValues } from "../../components/filters/FilterPanel";
+import { ErrorModal } from "../../components/ui/ErrorModal";
 
 export const TikTokAds: React.FC = () => {
     const { accountId } = useParams<{ accountId: string }>();
@@ -30,7 +31,7 @@ export const TikTokAds: React.FC = () => {
     const [chartData, setChartData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(20);
+    const [itemsPerPage] = useState(10);
     const [totalPages, setTotalPages] = useState(0);
     const [sortBy, setSortBy] = useState<string>("id");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -45,6 +46,36 @@ export const TikTokAds: React.FC = () => {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [exportLoading, setExportLoading] = useState(false);
 
+    // Bulk Actions State
+    const [pendingStatusAction, setPendingStatusAction] = useState<"ENABLE" | "DISABLE" | null>(null);
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+
+    // Inline Editing State
+    const [inlineEditLoading, setInlineEditLoading] = useState(false);
+    const [showInlineEditConfirm, setShowInlineEditConfirm] = useState(false);
+    const [pendingInlineEdit, setPendingInlineEdit] = useState<{
+        ad: TikTokAd;
+        field: "ad_name" | "operation_status";
+        newValue: string;
+    } | null>(null);
+
+    // Error Modal State
+    const [errorModal, setErrorModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        isSuccess?: boolean;
+        fieldErrors?: Record<string, string[]>;
+        genericErrors?: string[];
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+    });
+
     // Filter State
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
     const [filters, setFilters] = useState<FilterValues>([]);
@@ -52,8 +83,8 @@ export const TikTokAds: React.FC = () => {
     // Chart toggle state
     const [chartToggles, setChartToggles] = useState({
         spend: true,
-        impressions: true,
-        clicks: false,
+        clicks: true,
+        impressions: false,
         conversions: false,
         ctr: false,
         cpc: false,
@@ -67,12 +98,12 @@ export const TikTokAds: React.FC = () => {
     };
 
     const metrics: MetricConfig[] = [
-        { key: "spend", label: "Spend", color: "#506766", tooltipFormatter: (v) => `$${v.toFixed(2)}` },
-        { key: "impressions", label: "Impressions", color: "#7C3AED" },
+        { key: "spend", label: "Spend", color: "#506766", tooltipFormatter: (v) => `$${v.toFixed(2)} ` },
         { key: "clicks", label: "Clicks", color: "#169aa3" },
+        { key: "impressions", label: "Impressions", color: "#7C3AED" },
         { key: "conversions", label: "Conversions", color: "#FF6B6B" },
-        { key: "ctr", label: "CTR", color: "#8B5CF6", tooltipFormatter: (v) => `${v.toFixed(2)}%` },
-        { key: "cpc", label: "CPC", color: "#F59E0B", tooltipFormatter: (v) => `$${v.toFixed(2)}` },
+        { key: "ctr", label: "CTR", color: "#8B5CF6", tooltipFormatter: (v) => `${v.toFixed(2)}% ` },
+        { key: "cpc", label: "CPC", color: "#F59E0B", tooltipFormatter: (v) => `$${v.toFixed(2)} ` },
     ];
 
     const TIKTOK_AD_FILTER_FIELDS = [
@@ -87,18 +118,19 @@ export const TikTokAds: React.FC = () => {
     const buildFilterParams = (currentFilters: FilterValues) => {
         const params: any = {};
         currentFilters.forEach((filter) => {
-            if (filter.field === "ad_name") {
+            const field = filter.field as string;
+            if (field === "ad_name") {
                 params.ad_name__icontains = filter.value;
-            } else if (filter.field === "adgroup_name") {
+            } else if (field === "adgroup_name") {
                 params.adgroup_name__icontains = filter.value;
-            } else if (filter.field === "campaign_name") {
+            } else if (field === "campaign_name") {
                 params.campaign_name__icontains = filter.value;
-            } else if (filter.field === "state") {
+            } else if (field === "state") {
                 const val = String(filter.value).toUpperCase();
                 if (val === "ENABLED") params.operation_status = "ENABLE";
                 else if (val === "PAUSED") params.operation_status = "DISABLE";
                 else params.operation_status = filter.value;
-            } else if (filter.field === "ad_format") {
+            } else if (field === "ad_format") {
                 params.ad_format = filter.value;
             }
         });
@@ -236,8 +268,190 @@ export const TikTokAds: React.FC = () => {
         setCurrentPage(1);
     };
 
+    // Export Handler
+    const handleExport = async (exportType: "current_view" | "all_data") => {
+        if (!accountId) return;
+        setExportLoading(true);
+        try {
+            const accountIdNum = parseInt(accountId, 10);
+            if (isNaN(accountIdNum)) return;
+
+            const baseParams: any = {
+                sort_by: sortBy,
+                order: sortOrder,
+                start_date: startDate.toISOString().split("T")[0],
+                end_date: endDate.toISOString().split("T")[0],
+                filters: buildFilterParams(filters),
+            };
+
+            if (exportType === "current_view") {
+                baseParams.page = currentPage;
+                baseParams.page_size = itemsPerPage;
+            }
+
+            await campaignsService.exportTikTokAds(accountIdNum, baseParams, exportType);
+            // toast.success("Export started successfully");
+        } catch (error) {
+            console.error("Export failed:", error);
+            setErrorModal({
+                isOpen: true,
+                title: "Export Failed",
+                message: "Failed to export ads. Please try again.",
+            });
+        } finally {
+            setExportLoading(false);
+            setShowExportDropdown(false);
+        }
+    };
+
+    // Bulk Actions Handler
+    const handleBulkAction = (action: "ENABLE" | "DISABLE" | "DELETE") => {
+        if (!accountId || selectedAds.size === 0) return;
+
+        if (action === "DELETE") {
+            setShowDeleteModal(true);
+        } else {
+            setPendingStatusAction(action);
+            setShowConfirmationModal(true);
+        }
+        setShowBulkActions(false);
+    };
+
+    const handleStatusUpdateConfirm = async () => {
+        if (!accountId || !pendingStatusAction || selectedAds.size === 0) return;
+
+        setStatusUpdateLoading(true);
+        try {
+            const accountIdNum = parseInt(accountId, 10);
+            if (isNaN(accountIdNum)) return;
+
+            await campaignsService.updateTikTokAdStatus(accountIdNum, {
+                ad_ids: Array.from(selectedAds),
+                operation_status: pendingStatusAction,
+            });
+
+            loadAds();
+            setSelectedAds(new Set());
+            setShowConfirmationModal(false);
+            setPendingStatusAction(null);
+        } catch (error) {
+            console.error("Failed to update ad status:", error);
+            setErrorModal({
+                isOpen: true,
+                title: "Status Update Failed",
+                message: "Failed to update ad status. Please try again.",
+            });
+        } finally {
+            setStatusUpdateLoading(false);
+        }
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!accountId || selectedAds.size === 0) return;
+
+        setDeleteLoading(true);
+        try {
+            const accountIdNum = parseInt(accountId, 10);
+            if (isNaN(accountIdNum)) return;
+
+            await campaignsService.updateTikTokAdStatus(accountIdNum, {
+                ad_ids: Array.from(selectedAds),
+                operation_status: "DELETE",
+            });
+
+            loadAds();
+            setSelectedAds(new Set());
+            setShowDeleteModal(false);
+        } catch (error) {
+            console.error("Failed to delete ads:", error);
+            setErrorModal({
+                isOpen: true,
+                title: "Delete Failed",
+                message: "Failed to delete ads. Please try again.",
+            });
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    // Helper to get selected ads data
+    const getSelectedAdsData = () => {
+        return ads.filter((ad) => selectedAds.has(ad.ad_id));
+    };
+
+    // Inline Edit Handlers
+    // Inline Edit Handlers
+    const handleInlineNameEdit = (adId: string, newName: string) => {
+        const ad = ads.find(a => a.ad_id === adId);
+        if (!ad) return;
+
+        if (ad.ad_name === newName) return;
+
+        setPendingInlineEdit({
+            ad,
+            field: "ad_name",
+            newValue: newName,
+        });
+        setShowInlineEditConfirm(true);
+    };
+
+    const handleInlineStatusEdit = (adId: string, newStatus: string) => {
+        const ad = ads.find(a => a.ad_id === adId);
+        if (!ad) return;
+
+        if (ad.operation_status === newStatus) return;
+
+        setPendingInlineEdit({
+            ad,
+            field: "operation_status",
+            newValue: newStatus,
+        });
+        setShowInlineEditConfirm(true);
+    };
+
+    const runInlineEdit = async () => {
+        if (!pendingInlineEdit || !accountId) return;
+
+        setInlineEditLoading(true);
+        try {
+            const accountIdNum = parseInt(accountId, 10);
+            if (isNaN(accountIdNum)) return;
+
+            const payload: any = {};
+            if (pendingInlineEdit.field === "ad_name") {
+                payload.ad_name = pendingInlineEdit.newValue;
+            } else if (pendingInlineEdit.field === "operation_status") {
+                payload.operation_status = pendingInlineEdit.newValue;
+            }
+
+            await campaignsService.updateTikTokAd(accountIdNum, pendingInlineEdit.ad.ad_id, payload);
+
+            // Optimistic update
+            setAds(prev => prev.map(item => {
+                if (item.ad_id === pendingInlineEdit.ad.ad_id) {
+                    return { ...item, [pendingInlineEdit.field]: pendingInlineEdit.newValue };
+                }
+                return item;
+            }));
+
+        } catch (error) {
+            console.error("Inline update failed:", error);
+            setErrorModal({
+                isOpen: true,
+                title: "Update Failed",
+                message: "Failed to update ad. Please try again.",
+            });
+            loadAds(); // Revert on failure
+        } finally {
+            setInlineEditLoading(false);
+            setShowInlineEditConfirm(false);
+            setPendingInlineEdit(null);
+        }
+    };
+
     // Process chart data with computed metrics
-    const processedChartData = React.useMemo(() => {
+    // Process chart data with computed metrics
+    const processedChartData = useMemo(() => {
         return chartData.map(item => ({
             ...item,
             ctr: item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0,
@@ -319,7 +533,8 @@ export const TikTokAds: React.FC = () => {
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                                    disabled={statusUpdateLoading}
+                                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowBulkActions(prev => !prev);
@@ -329,18 +544,21 @@ export const TikTokAds: React.FC = () => {
                                     <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
                                     </svg>
-                                    <span className="text-[10.64px] text-[#072929] font-normal">Edit</span>
+                                    <span className="text-[10.64px] text-[#072929] font-normal">
+                                        {statusUpdateLoading ? "Updating..." : "Edit"}
+                                    </span>
                                 </Button>
                                 {showBulkActions && (
                                     <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                                         <div className="overflow-y-auto">
-                                            {['Enable', 'Pause', 'Archive'].map((label) => (
+                                            {['ENABLE', 'DISABLE', 'DELETE'].map((action) => (
                                                 <button
-                                                    key={label}
-                                                    className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                    key={action}
+                                                    className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer capitalize"
                                                     disabled={selectedAds.size === 0}
+                                                    onClick={() => handleBulkAction(action as "ENABLE" | "DISABLE" | "DELETE")}
                                                 >
-                                                    {label}
+                                                    {action.toLowerCase()}
                                                 </button>
                                             ))}
                                         </div>
@@ -350,32 +568,90 @@ export const TikTokAds: React.FC = () => {
 
                             {/* Export Button */}
                             <div className="relative inline-flex justify-end" ref={exportDropdownRef}>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowExportDropdown(prev => !prev);
-                                        setShowBulkActions(false);
-                                    }}
-                                    disabled={exportLoading}
-                                >
-                                    <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <span className="text-[10.64px] text-[#072929] font-normal">Export</span>
-                                </Button>
-                                {showExportDropdown && (
+                                <div className="relative">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={(e) => {
+                                            if (exportLoading) return;
+                                            e.stopPropagation();
+                                            setShowExportDropdown(prev => !prev);
+                                            setShowBulkActions(false);
+                                        }}
+                                        disabled={exportLoading}
+                                    >
+                                        {exportLoading ? (
+                                            <div className="flex items-center justify-center">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <span className="text-[10.64px] text-[#072929] font-normal">Export</span>
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                                {(showExportDropdown || exportLoading) && (
                                     <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                                        <div className="overflow-y-auto">
-                                            <button className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors cursor-pointer">
-                                                Export All Data
-                                            </button>
-                                            <button className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors cursor-pointer">
-                                                Export Current View
-                                            </button>
-                                        </div>
+                                        {exportLoading ? (
+                                            <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                                                <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
+                                                <p className="text-[13px] text-[#072929] font-medium">
+                                                    Exporting...
+                                                </p>
+                                                <p className="text-[11px] text-[#556179] text-center px-2">
+                                                    Please wait while we prepare your file
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="overflow-y-auto">
+                                                {[
+                                                    { value: "all_data", label: "Export All" },
+                                                    { value: "current_view", label: "Export Current View" }
+                                                ].map((opt) => (
+                                                    <button
+                                                        key={opt.value}
+                                                        type="button"
+                                                        className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            e.preventDefault();
+                                                            await handleExport(opt.value as "all_data" | "current_view");
+                                                        }}
+                                                        disabled={exportLoading}
+                                                    >
+                                                        <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                                            <svg
+                                                                width="20"
+                                                                height="20"
+                                                                viewBox="0 0 20 20"
+                                                                fill="none"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                            >
+                                                                <rect
+                                                                    width="20"
+                                                                    height="20"
+                                                                    rx="3.2"
+                                                                    fill="#072929"
+                                                                />
+                                                                <path
+                                                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                                                    stroke="#F9F9F6"
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    strokeWidth="1.2"
+                                                                />
+                                                            </svg>
+                                                        </div>
+                                                        <span>{opt.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -392,6 +668,8 @@ export const TikTokAds: React.FC = () => {
                             onSelect={handleSelect}
                             onSelectAll={handleSelectAll}
                             summary={summary}
+                            onUpdateAdName={handleInlineNameEdit}
+                            onUpdateAdStatus={handleInlineStatusEdit}
                         />
 
                         {/* Pagination */}
@@ -462,6 +740,268 @@ export const TikTokAds: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Confirmation Modal */}
+            {showConfirmationModal && pendingStatusAction && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setShowConfirmationModal(false);
+                            setPendingStatusAction(null);
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Confirm Status Changes
+                        </h3>
+
+                        {/* Summary */}
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[12.16px] text-[#556179]">
+                                    {selectedAds.size} ad
+                                    {selectedAds.size !== 1 ? "s" : ""} will be
+                                    updated:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    Status change
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Ad Preview Table */}
+                        {(() => {
+                            const selectedAdsData = getSelectedAdsData();
+                            const previewCount = Math.min(
+                                10,
+                                selectedAdsData.length
+                            );
+                            const hasMore = selectedAdsData.length > 10;
+
+                            return (
+                                <div className="mb-6">
+                                    <div className="mb-2">
+                                        <span className="text-[10.64px] text-[#556179]">
+                                            {hasMore
+                                                ? `Showing ${previewCount} of ${selectedAdsData.length} selected ads`
+                                                : `${selectedAdsData.length} ad${selectedAdsData.length !== 1
+                                                    ? "s"
+                                                    : ""
+                                                } selected`}
+                                        </span>
+                                    </div>
+                                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                        <table className="w-full">
+                                            <thead className="bg-sandstorm-s20">
+                                                <tr>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        Ad Name
+                                                    </th>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        Old Value
+                                                    </th>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        New Value
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {selectedAdsData
+                                                    .slice(0, 10)
+                                                    .map((ad) => {
+                                                        const oldStatus = ad.operation_status;
+                                                        const newStatus = pendingStatusAction === 'ENABLE'
+                                                            ? 'Enable'
+                                                            : 'Pause';
+                                                        const oldStatusDisplay = oldStatus === 'ENABLE'
+                                                            ? 'Enable'
+                                                            : oldStatus === 'DISABLE'
+                                                                ? 'Pause'
+                                                                : oldStatus;
+
+                                                        return (
+                                                            <tr
+                                                                key={ad.ad_id}
+                                                                className="border-b border-gray-200 last:border-b-0"
+                                                            >
+                                                                <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                                                    {ad.ad_name ||
+                                                                        "Unnamed Ad"}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                                                    {oldStatusDisplay}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                                                    {newStatus}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        <div className="space-y-3 mb-6">
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                    New Status:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {pendingStatusAction === 'ENABLE'
+                                        ? 'Enable'
+                                        : 'Pause'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowConfirmationModal(false);
+                                    setPendingStatusAction(null);
+                                }}
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleStatusUpdateConfirm}
+                                disabled={statusUpdateLoading}
+                                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {statusUpdateLoading ? "Applying..." : "Confirm"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Inline Edit Confirmation Modal */}
+            {showInlineEditConfirm && pendingInlineEdit && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setShowInlineEditConfirm(false);
+                            setPendingInlineEdit(null);
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl shadow-lg max-w-lg w-full mx-4 p-6">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Confirm Changes
+                        </h3>
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-6">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex justify-between items-center text-[12.16px]">
+                                    <span className="text-[#556179]">Ad Name:</span>
+                                    <span className="font-medium text-[#072929]">{pendingInlineEdit.ad.ad_name}</span>
+                                </div>
+                                <div className="border-t border-sandstorm-s40 my-1"></div>
+                                <div className="flex justify-between items-center text-[12.16px]">
+                                    <span className="text-[#556179]">Field:</span>
+                                    <span className="font-medium text-[#072929]">
+                                        {pendingInlineEdit.field === 'ad_name' ? 'Ad Name' : 'Status'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center text-[12.16px]">
+                                    <span className="text-[#556179]">New Value:</span>
+                                    <span className="font-semibold text-[#136D6D]">
+                                        {pendingInlineEdit.field === 'operation_status'
+                                            ? (pendingInlineEdit.newValue === 'ENABLE' ? 'Enable' : 'Pause')
+                                            : pendingInlineEdit.newValue}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowInlineEditConfirm(false);
+                                    setPendingInlineEdit(null);
+                                }}
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <Button
+                                onClick={runInlineEdit}
+                                disabled={inlineEditLoading}
+                                className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5757] transition-colors"
+                            >
+                                {inlineEditLoading ? "Saving..." : "Confirm"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Error Modal */}
+            <ErrorModal
+                isOpen={errorModal.isOpen}
+                onClose={() => setErrorModal(prev => ({ ...prev, isOpen: false }))}
+                title={errorModal.title}
+                message={errorModal.message}
+            />
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !deleteLoading) {
+                            setShowDeleteModal(false);
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Delete Ads?
+                        </h3>
+
+                        <p className="text-[12.16px] text-[#556179] mb-4">
+                            You are about to permanently delete{" "}
+                            {selectedAds.size} selected ad
+                            {selectedAds.size !== 1 ? "s" : ""}. This will stop
+                            all ad serving immediately and cannot be undone. Deleted
+                            ads can still be viewed in reports but not edited or
+                            re-enabled.
+                        </p>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!deleteLoading) {
+                                        setShowDeleteModal(false);
+                                    }
+                                }}
+                                disabled={deleteLoading}
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteConfirm}
+                                disabled={deleteLoading}
+                                className="px-4 py-2 bg-red-600 text-white text-[10.64px] rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {deleteLoading ? "Deleting..." : "Confirm"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

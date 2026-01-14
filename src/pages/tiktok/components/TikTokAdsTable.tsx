@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { Checkbox } from "../../../components/ui/Checkbox";
+import { Dropdown } from "../../../components/ui/Dropdown";
 
 export interface TikTokAd {
     ad_id: string;
@@ -41,6 +42,9 @@ interface TikTokAdsTableProps {
         avg_ctr: number;
         avg_cpc: number;
     } | null;
+    // Inline Edit Callbacks
+    onUpdateAdName?: (adId: string, newName: string) => void;
+    onUpdateAdStatus?: (adId: string, newStatus: string) => void;
 }
 
 export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
@@ -53,7 +57,18 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
     onSelect,
     onSelectAll,
     summary,
+    onUpdateAdName,
+    onUpdateAdStatus,
 }) => {
+    // Internal Inline Edit State
+    const [editingCell, setEditingCell] = useState<{
+        ad_id: string;
+        field: "ad_name" | "operation_status";
+    } | null>(null);
+    const [editedValue, setEditedValue] = useState<string>("");
+    const [isCancelling, setIsCancelling] = useState(false);
+    const isStartingEditRef = useRef(false);
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat("en-US", {
             style: "currency",
@@ -118,6 +133,99 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
             </svg>
         );
     };
+
+    // Inline Edit Logic
+    const startInlineEdit = (
+        ad: TikTokAd,
+        field: "ad_name" | "operation_status"
+    ) => {
+        isStartingEditRef.current = true;
+        setEditingCell({ ad_id: ad.ad_id, field });
+        setEditedValue(field === "ad_name" ? ad.ad_name : ad.operation_status);
+
+        setTimeout(() => {
+            isStartingEditRef.current = false;
+        }, 300);
+    };
+
+    const cancelInlineEdit = () => {
+        setIsCancelling(true);
+        setEditingCell(null);
+        setEditedValue("");
+        setTimeout(() => {
+            setIsCancelling(false);
+        }, 100);
+    };
+
+    const handleInlineEditChange = (value: string) => {
+        setEditedValue(value);
+    };
+
+    const confirmInlineEdit = (newValueOverride?: string) => {
+        if (!editingCell || isCancelling) return;
+
+        const ad = ads.find((a) => a.ad_id === editingCell.ad_id);
+        if (!ad) return;
+
+        const valueToCheck =
+            newValueOverride !== undefined ? newValueOverride : editedValue;
+
+        // Check if value actually changed
+        const currentValue =
+            editingCell.field === "ad_name" ? ad.ad_name : ad.operation_status;
+
+        if (valueToCheck === currentValue) {
+            cancelInlineEdit();
+            return;
+        }
+
+        // Trigger callback
+        if (editingCell.field === "ad_name" && onUpdateAdName) {
+            onUpdateAdName(editingCell.ad_id, valueToCheck);
+        } else if (editingCell.field === "operation_status" && onUpdateAdStatus) {
+            onUpdateAdStatus(editingCell.ad_id, valueToCheck);
+        }
+
+        setEditingCell(null);
+        setEditedValue("");
+    };
+
+    // Cancel inline edit when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (isStartingEditRef.current) return;
+
+            if (editingCell) {
+                const target = event.target as HTMLElement;
+                const isDropdownContainer = target.closest(".dropdown-container");
+                const isDropdownMenu =
+                    target.closest('[class*="z-50"]') ||
+                    target.closest('[class*="z-[100000]"]') || // Dropdown portal z-index
+                    target.closest('[class*="shadow-lg"]');
+                const isInput = target.closest("input");
+                const isModal = target.closest('[class*="fixed"]');
+
+                if (!isInput && !isDropdownMenu && !isModal && !isDropdownContainer) {
+                    setTimeout(() => {
+                        if (editingCell && !isCancelling) {
+                            cancelInlineEdit();
+                        }
+                    }, 150);
+                }
+            }
+        };
+
+        if (editingCell) {
+            const timeout = setTimeout(() => {
+                document.addEventListener("mousedown", handleClickOutside);
+            }, 300);
+
+            return () => {
+                clearTimeout(timeout);
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }
+    }, [editingCell, isCancelling]);
 
     const allSelected = ads.length > 0 && ads.every((ad) => selectedIds.has(ad.ad_id));
     const isIndeterminate =
@@ -325,9 +433,43 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                 </div>
                                             </td>
                                             <td className="py-[10px] px-[10px]">
-                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-medium text-left">
-                                                    {item.ad_name}
-                                                </div>
+                                                {editingCell?.ad_id === item.ad_id && editingCell?.field === "ad_name" ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editedValue}
+                                                        onChange={(e) => handleInlineEditChange(e.target.value)}
+                                                        onBlur={(e) => {
+                                                            if (isCancelling) return;
+                                                            confirmInlineEdit(e.target.value);
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") {
+                                                                e.currentTarget.blur();
+                                                            } else if (e.key === "Escape") {
+                                                                cancelInlineEdit();
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                        maxLength={512}
+                                                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className={`text-[13.3px] text-[#0b0f16] leading-[1.26] font-medium text-left truncate block w-full whitespace-nowrap ${onUpdateAdName
+                                                            ? "cursor-pointer hover:underline"
+                                                            : ""
+                                                            }`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (onUpdateAdName) {
+                                                                startInlineEdit(item, "ad_name");
+                                                            }
+                                                        }}
+                                                        title={item.ad_name}
+                                                    >
+                                                        {item.ad_name}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-[10px] px-[10px]">
                                                 <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left">
@@ -351,7 +493,41 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                 </span>
                                             </td>
                                             <td className="py-[10px] px-[10px]">
-                                                <StatusBadge status={item.operation_status} />
+                                                {editingCell?.ad_id === item.ad_id && editingCell?.field === "operation_status" ? (
+                                                    <div className="dropdown-container w-[100px]">
+                                                        <Dropdown
+                                                            options={[
+                                                                { value: "ENABLE", label: "Enable" },
+                                                                { value: "DISABLE", label: "Disable" },
+                                                                { value: "DELETE", label: "Delete" },
+                                                            ]}
+                                                            value={editedValue}
+                                                            onChange={(value) => {
+                                                                handleInlineEditChange(value);
+                                                                confirmInlineEdit(value);
+                                                            }}
+                                                            onClose={cancelInlineEdit}
+                                                            defaultOpen={true}
+                                                            closeOnSelect={true}
+                                                            buttonClassName="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className={`text-[13.3px] leading-[1.26] ${onUpdateAdStatus
+                                                            ? "cursor-pointer hover:underline"
+                                                            : ""
+                                                            }`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (onUpdateAdStatus) {
+                                                                startInlineEdit(item, "operation_status");
+                                                            }
+                                                        }}
+                                                    >
+                                                        <StatusBadge status={item.operation_status} />
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-[10px] px-[10px]">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">

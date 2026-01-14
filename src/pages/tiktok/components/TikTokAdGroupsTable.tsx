@@ -207,14 +207,15 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
             if (editingCell) {
                 const target = event.target as HTMLElement;
+                const isDropdownContainer = target.closest(".dropdown-container");
                 const isDropdownMenu =
                     target.closest('[class*="z-50"]') ||
-                    target.closest('[class*="shadow-lg"]') ||
-                    target.closest('button[type="button"]');
+                    target.closest('[class*="z-[100000]"]') || // Dropdown portal z-index
+                    target.closest('[class*="shadow-lg"]');
                 const isInput = target.closest("input");
                 const isModal = target.closest('[class*="fixed"]');
 
-                if (!isInput && !isDropdownMenu && !isModal) {
+                if (!isInput && !isDropdownMenu && !isModal && !isDropdownContainer) {
                     setTimeout(() => {
                         if (editingCell && !isCancelling) {
                             cancelInlineEdit();
@@ -469,9 +470,8 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                     return (
                                         <tr
                                             key={item.adgroup_id}
-                                            className={`group border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors ${
-                                                adgroupIsDeleted ? "opacity-60" : ""
-                                            }`}
+                                            className={`group border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors ${adgroupIsDeleted ? "opacity-60" : ""
+                                                }`}
                                         >
                                             <td className="py-[10px] px-[10px]">
                                                 <div className="flex items-center justify-center">
@@ -513,11 +513,10 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     />
                                                 ) : (
                                                     <div
-                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
-                                                            false // isArchived - add this check if needed
+                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${false // isArchived - add this check if needed
                                                                 ? "text-gray-400 cursor-not-allowed"
                                                                 : "text-[#0b0f16] cursor-pointer hover:underline"
-                                                        }`}
+                                                            }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             if (onUpdateAdGroupName) {
@@ -561,6 +560,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                                 handleInlineEditChange(value);
                                                                 confirmInlineEdit(value);
                                                             }}
+                                                            onClose={cancelInlineEdit}
                                                             defaultOpen={true}
                                                             closeOnSelect={true}
                                                             buttonClassName="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
@@ -568,9 +568,8 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     </div>
                                                 ) : (
                                                     <div
-                                                        className={`text-[13.3px] leading-[1.26] ${
-                                                            onUpdateAdGroupStatus ? "cursor-pointer hover:underline" : ""
-                                                        }`}
+                                                        className={`text-[13.3px] leading-[1.26] ${onUpdateAdGroupStatus ? "cursor-pointer hover:underline" : ""
+                                                            }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             if (onUpdateAdGroupStatus) {
@@ -617,9 +616,8 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     />
                                                 ) : (
                                                     <div
-                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
-                                                            onUpdateAdGroupBudget ? "text-[#0b0f16] cursor-pointer hover:underline" : "text-[#0b0f16]"
-                                                        }`}
+                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${onUpdateAdGroupBudget ? "text-[#0b0f16] cursor-pointer hover:underline" : "text-[#0b0f16]"
+                                                            }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             if (onUpdateAdGroupBudget) {
