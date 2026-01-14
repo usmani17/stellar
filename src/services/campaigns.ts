@@ -1904,6 +1904,21 @@ export const campaignsService = {
     return response.data;
   },
 
+  updateProductAds: async (
+    accountId: number,
+    campaignId: string | number,
+    payload: {
+      productAds: Array<{
+        adId: string;
+        state: "ENABLED" | "PAUSED";
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/update/`;
+    const response = await api.put(url, payload);
+    return response.data;
+  },
+
   createCampaign: async (
     accountId: number,
     payload: {
