@@ -378,6 +378,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         <td className="py-[10px] px-[10px]"></td>
                         <td className="py-[10px] px-[10px]"></td>
                         <td className="py-[10px] px-[10px]"></td>
+                        <td className="py-[10px] px-[10px]"></td>
                       </>
                     )}
                     <td className="py-[10px] px-[10px]"></td>
