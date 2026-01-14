@@ -2285,7 +2285,7 @@ export const Campaigns: React.FC = () => {
                 title="Performance Trends"
               />
               {isCreateCampaignPanelOpen && (
-                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-20 rounded-[12px] cursor-not-allowed" />
+                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
               )}
             </div>
 
@@ -3032,7 +3032,7 @@ export const Campaigns: React.FC = () => {
                       <thead>
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={
@@ -3062,7 +3062,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Campaign Name Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-50 border-r border-[#e8e8e3]"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-30 border-r border-[#e8e8e3]"
                             onClick={() => handleSort("campaign_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3219,8 +3219,8 @@ export const Campaigns: React.FC = () => {
                         {/* Summary Row */}
                         {summary && (
                           <tr className="bg-[#f5f5f0] font-semibold">
-                            <td className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                            <td className="py-[10px] px-[10px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] sticky left-[35px] z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                               Total ({summary.total_campaigns})
                             </td>
                             <td className="py-[10px] px-[10px]"></td>
@@ -3266,7 +3266,7 @@ export const Campaigns: React.FC = () => {
                               } transition-colors`}
                             >
                               {/* Checkbox */}
-                              <td className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                              <td className="py-[10px] px-[10px] sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                 <div className="flex items-center justify-center">
                                   <Checkbox
                                     checked={selectedCampaigns.has(
@@ -3297,7 +3297,7 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Campaign Name (with edit icon) */}
-                              <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                              <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px] sticky left-[35px] z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
@@ -3737,7 +3737,7 @@ export const Campaigns: React.FC = () => {
                 </div>
               )}
               {isCreateCampaignPanelOpen && (
-                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-20 rounded-[12px] cursor-not-allowed" />
+                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
               )}
             </div>
           </div>
