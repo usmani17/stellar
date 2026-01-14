@@ -129,7 +129,12 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const [selectedMultiValues, setSelectedMultiValues] = useState<string[]>([]); // For multi-select fields (type, state, profile_name)
   const [expressionType, setExpressionType] = useState<string>("ASIN_SAME_AS");
   const [profileOptions, setProfileOptions] = useState<
-    Array<{ value: string; label: string }>
+    Array<{
+      value: string;
+      label: string;
+      profileName?: string;
+      profileId?: string;
+    }>
   >([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -166,10 +171,23 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             (profile: any) => profile.is_selected && !profile.deleted_at
           );
 
-          const options = activeProfiles.map((profile: any) => ({
-            value: profile.name || profile.profileId || "",
-            label: profile.name || profile.profileId || "",
-          }));
+          const options = activeProfiles.map((profile: any) => {
+            const profileName = profile.name || profile.profileId || "";
+            const profileId = profile.profileId || profile.id || "";
+            const countryCode =
+              profile.countryCode || profile.country_code || "";
+            const label = countryCode
+              ? `${profileName} (${countryCode})`
+              : profileName;
+            // Use profileId as value to ensure uniqueness, or fallback to composite key
+            const uniqueValue = profileId || `${profileName}|${countryCode}`;
+            return {
+              value: uniqueValue,
+              label: label,
+              profileName: profileName,
+              profileId: profileId,
+            };
+          });
 
           setProfileOptions(options);
         }
@@ -206,6 +224,40 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       setSelectedOperator("");
     }
   }, [profileOptions.length, selectedField, channelType, selectedOperator]);
+
+  // Sync selectedMultiValues when profile_name field is selected and profileOptions are loaded
+  // This handles the case where filters are already applied and panel is reopened
+  useEffect(() => {
+    if (
+      selectedField === "profile_name" &&
+      channelType === "amazon" &&
+      profileOptions.length > 0
+    ) {
+      // Find existing filter for profile_name
+      const existingFilter = activeFilters.find(
+        (f) => f.field === "profile_name"
+      );
+      if (existingFilter) {
+        if (Array.isArray(existingFilter.value)) {
+          // Map profile names back to unique values
+          const uniqueValues = existingFilter.value
+            .map((profileName: string) => {
+              const option = profileOptions.find(
+                (opt) => opt.profileName === profileName
+              );
+              return option?.value;
+            })
+            .filter((v): v is string => v !== undefined);
+          if (uniqueValues.length > 0) {
+            setSelectedMultiValues(uniqueValues);
+          }
+        }
+      }
+    } else if (selectedField !== "profile_name") {
+      // Clear selectedMultiValues when switching away from profile_name
+      setSelectedMultiValues([]);
+    }
+  }, [selectedField, profileOptions, activeFilters, channelType]);
 
   // Apply filters when component unmounts (panel closes) if they changed
   useEffect(() => {
@@ -334,21 +386,40 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       return;
     }
 
+    // For profile_name filters, convert unique values back to profile names
+    let filterValueToStore: any = isMultiSelectField
+      ? selectedMultiValues // Store array for multi-select fields
+      : selectedField === "budget" ||
+        selectedField === "default_bid" ||
+        selectedField === "spends" ||
+        selectedField === "sales" ||
+        selectedField === "ctr" ||
+        selectedField === "bid"
+      ? parseFloat(filterValue) || 0
+      : filterValue;
+
+    if (selectedField === "profile_name" && isProfileDropdown) {
+      if (isMultiSelectField && Array.isArray(selectedMultiValues)) {
+        // Convert array of unique values to array of profile names
+        filterValueToStore = selectedMultiValues.map((uniqueValue) => {
+          const option = profileOptions.find(
+            (opt) => opt.value === uniqueValue
+          );
+          return option?.profileName || uniqueValue;
+        });
+      } else if (typeof filterValue === "string") {
+        // Convert single unique value to profile name
+        const option = profileOptions.find((opt) => opt.value === filterValue);
+        filterValueToStore = option?.profileName || filterValue;
+      }
+    }
+
     const newFilter: FilterItem = {
       id: `${selectedField}-${Date.now()}`,
       field: selectedField as FilterItem["field"],
       // For profile dropdown, use "equals" operator implicitly (don't show it to user)
       operator: isProfileDropdown ? "equals" : selectedOperator || undefined,
-      value: isMultiSelectField
-        ? selectedMultiValues // Store array for multi-select fields
-        : selectedField === "budget" ||
-          selectedField === "default_bid" ||
-          selectedField === "spends" ||
-          selectedField === "sales" ||
-          selectedField === "ctr" ||
-          selectedField === "bid"
-        ? parseFloat(filterValue) || 0
-        : filterValue,
+      value: filterValueToStore,
     };
 
     setActiveFilters([...activeFilters, newFilter]);
@@ -445,6 +516,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   };
 
   const getFilterDisplayValue = (filter: FilterItem) => {
+    // For profile_name filters, show label with country code if available
+    if (filter.field === "profile_name" && Array.isArray(filter.value)) {
+      const displayValues = filter.value.map((val) => {
+        // val is profile name, find option by profileName
+        const option = profileOptions.find((opt) => opt.profileName === val);
+        return option ? option.label : val;
+      });
+      return displayValues.length > 0 ? displayValues.join(", ") : "";
+    }
+    if (filter.field === "profile_name" && typeof filter.value === "string") {
+      // filter.value is profile name, find option by profileName
+      const option = profileOptions.find(
+        (opt) => opt.profileName === filter.value
+      );
+      return option ? option.label : filter.value;
+    }
     // Handle array values for multi-select fields
     if (Array.isArray(filter.value)) {
       return filter.value.length > 0 ? filter.value.join(", ") : "";
@@ -601,22 +688,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Dropdown<string>
                 options={
                   selectedField === "campaign_name" ||
-                    selectedField === "profile_name" ||
-                    selectedField === "account_name" ||
-                    selectedField === "name" ||
-                    selectedField === "adgroup_name" ||
-                    selectedField === "sku" ||
-                    selectedField === "adId" ||
-                    selectedField === "asin" ||
-                    selectedField === "adGroupId"
+                  selectedField === "profile_name" ||
+                  selectedField === "account_name" ||
+                  selectedField === "name" ||
+                  selectedField === "adgroup_name" ||
+                  selectedField === "sku" ||
+                  selectedField === "adId" ||
+                  selectedField === "asin" ||
+                  selectedField === "adGroupId"
                     ? STRING_OPERATORS.map((op) => ({
-                      value: op.value,
-                      label: op.label,
-                    }))
+                        value: op.value,
+                        label: op.label,
+                      }))
                     : NUMERIC_OPERATORS.map((op) => ({
-                      value: op.value,
-                      label: op.label,
-                    }))
+                        value: op.value,
+                        label: op.label,
+                      }))
                 }
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
@@ -705,7 +792,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     ? useUppercaseState
                       ? STATUS_OPTIONS
                       : STATE_OPTIONS
-                    : channelType === "tiktok" ? TIKTOK_TYPE_OPTIONS : TYPE_OPTIONS
+                    : channelType === "tiktok"
+                    ? TIKTOK_TYPE_OPTIONS
+                    : TYPE_OPTIONS
                   ).map((opt) => (
                     <div
                       key={opt}
@@ -810,8 +899,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     label: opt,
                   }))}
                   value={filterValue || undefined}
-                  placeholder={`Select ${selectedField === "status" ? "Status" : "Channel Type"
-                    }`}
+                  placeholder={`Select ${
+                    selectedField === "status" ? "Status" : "Channel Type"
+                  }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"
                 />

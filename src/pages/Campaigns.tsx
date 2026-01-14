@@ -3082,6 +3082,11 @@ export const Campaigns: React.FC = () => {
                             </div>
                           </th>
 
+                          {/* Country Header */}
+                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[100px]">
+                            Country
+                          </th>
+
                           {/* Campaign Type Header */}
                           <th
                             className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
@@ -3223,6 +3228,7 @@ export const Campaigns: React.FC = () => {
                             <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] sticky left-[35px] z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                               Total ({summary.total_campaigns})
                             </td>
+                            <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
                             <td className="py-[10px] px-[10px]"></td>
@@ -3376,27 +3382,22 @@ export const Campaigns: React.FC = () => {
 
                               {/* Profile */}
                               <td className="py-[10px] px-[10px] min-w-[200px]">
-                                <div className="flex items-center gap-2">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
                                   {campaign.profile_name &&
-                                  campaign.profile_name.trim() !== "" ? (
-                                    <>
-                                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                        {campaign.profile_name}
-                                      </span>
-                                      {campaign.profile_country_code &&
-                                        campaign.profile_country_code.trim() !==
-                                          "" && (
-                                          <span className="text-[11px] text-[#556179] leading-[1.26] whitespace-nowrap">
-                                            ({campaign.profile_country_code})
-                                          </span>
-                                        )}
-                                    </>
-                                  ) : (
-                                    <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
-                                      —
-                                    </span>
-                                  )}
-                                </div>
+                                  campaign.profile_name.trim() !== ""
+                                    ? campaign.profile_name
+                                    : "—"}
+                                </span>
+                              </td>
+
+                              {/* Country */}
+                              <td className="py-[10px] px-[10px] min-w-[100px]">
+                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                  {campaign.profile_country_code &&
+                                  campaign.profile_country_code.trim() !== ""
+                                    ? campaign.profile_country_code
+                                    : "—"}
+                                </span>
                               </td>
 
                               {/* Type */}

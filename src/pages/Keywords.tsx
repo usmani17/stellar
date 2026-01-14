@@ -1788,6 +1788,11 @@ export const Keywords: React.FC = () => {
                           Profile
                         </th>
 
+                        {/* Country */}
+                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[100px]">
+                          Country
+                        </th>
+
                         {/* Type */}
                         <th
                           className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
@@ -2105,6 +2110,16 @@ export const Keywords: React.FC = () => {
                                 {keyword.profile_name &&
                                 keyword.profile_name.trim() !== ""
                                   ? keyword.profile_name
+                                  : "—"}
+                              </span>
+                            </td>
+
+                            {/* Country */}
+                            <td className="py-[10px] px-[10px] min-w-[100px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                {keyword.profile_country_code &&
+                                keyword.profile_country_code.trim() !== ""
+                                  ? keyword.profile_country_code
                                   : "—"}
                               </span>
                             </td>
