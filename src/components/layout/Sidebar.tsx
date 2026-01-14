@@ -540,34 +540,6 @@ export const Sidebar: React.FC = () => {
                   </span>
                 )}
               </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                }`}
-                title={isCollapsed ? "Blueprints" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Blueprints
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                }`}
-                title={isCollapsed ? "Settings" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Settings
-                  </span>
-                )}
-              </Link>
             </div>
           )}
         </div>

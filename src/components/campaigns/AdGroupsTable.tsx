@@ -416,7 +416,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           {summary.avg_acos.toFixed(2)}%
                         </td>
                         <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {summary.avg_roas.toFixed(2)}x
+                          {summary.avg_roas.toFixed(2)} x
                         </td>
                       </>
                     )}
@@ -726,7 +726,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       {showCampaignColumn && (
                         <td className="py-[10px] px-[10px]">
                           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {adgroup.acos || "—"}
+                            {adgroup.acos
+                              ? `${parseFloat(String(adgroup.acos)).toFixed(2)}%`
+                              : "0.00%"}
                           </span>
                         </td>
                       )}
@@ -735,7 +737,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       {showCampaignColumn && (
                         <td className="py-[10px] px-[10px]">
                           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {adgroup.roas || "—"}
+                            {adgroup.roas
+                              ? `${parseFloat(String(adgroup.roas)).toFixed(2)} x`
+                              : "0.00 x"}
                           </span>
                         </td>
                       )}
