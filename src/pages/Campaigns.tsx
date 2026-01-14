@@ -45,6 +45,7 @@ import {
 import ExportIcon from "../assets/export-icon.svg";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { filtersService } from "../services/filters";
+import { accountsService } from "../services/accounts";
 import type { FilterDefinition } from "../types/filters";
 
 export const Campaigns: React.FC = () => {
@@ -108,13 +109,6 @@ export const Campaigns: React.FC = () => {
             params.type__in = filter.value;
           } else if (typeof filter.value === "string") {
             params.type = filter.value;
-          }
-        } else if (filter.field === "targeting_type") {
-          // Handle array values for multi-select
-          if (Array.isArray(filter.value)) {
-            params.targeting_type__in = filter.value;
-          } else if (typeof filter.value === "string") {
-            params.targeting_type = filter.value;
           }
         } else if (filter.field === "profile_name") {
           // Handle array values for multi-select (when profile_name is used as dropdown)
@@ -291,6 +285,11 @@ export const Campaigns: React.FC = () => {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
+
+  // Profile options for campaign creation/editing (loaded once on page load)
+  const [profileOptions, setProfileOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
     message: string;
@@ -375,7 +374,6 @@ export const Campaigns: React.FC = () => {
     { value: "state", label: "State" },
     { value: "budget", label: "Budget" },
     { value: "type", label: "Type" },
-    { value: "targeting_type", label: "Targeting Type" },
     { value: "profile_name", label: "Profile" },
   ];
 
@@ -536,6 +534,64 @@ export const Campaigns: React.FC = () => {
       console.error("Failed to load filter definitions:", error);
     }
   };
+
+  // Load profiles once when page loads (to avoid AJAX calls in CreateCampaignPanel)
+  useEffect(() => {
+    const loadProfiles = async () => {
+      if (!accountIdNum) return;
+
+      try {
+        console.log("Loading profiles for account:", accountIdNum);
+        const channels = await accountsService.getAccountChannels(accountIdNum);
+        console.log("Channels loaded:", channels);
+        const amazonChannel = channels.find(
+          (ch) => ch.channel_type === "amazon"
+        );
+        console.log("Amazon channel found:", amazonChannel);
+
+        if (amazonChannel) {
+          const response = await accountsService.getProfiles(amazonChannel.id);
+          console.log("Profiles response:", response);
+          // Show all non-deleted profiles for campaign creation (not just selected ones)
+          const activeProfiles = (response.profiles || []).filter(
+            (profile: any) => !profile.deleted_at
+          );
+          console.log("Active profiles:", activeProfiles);
+
+          const options = activeProfiles
+            .map((profile: any) => {
+              const profileId =
+                profile.profileId || profile.id || profile.profile_id;
+              const profileName = profile.name || profileId;
+              if (!profileId) {
+                console.warn("Profile missing ID:", profile);
+                return null;
+              }
+              return {
+                value: String(profileId),
+                label: String(profileName || profileId),
+              };
+            })
+            .filter(
+              (opt): opt is { value: string; label: string } => opt !== null
+            );
+
+          console.log("Profile options:", options);
+          setProfileOptions(options);
+        } else {
+          console.warn("No Amazon channel found for account:", accountIdNum);
+          setProfileOptions([]);
+        }
+      } catch (error) {
+        console.error("Failed to load profiles:", error);
+        setProfileOptions([]);
+      }
+    };
+
+    if (accountIdNum) {
+      loadProfiles();
+    }
+  }, [accountIdNum]);
 
   // React Query handles data loading automatically
   // No need for manual loadCampaigns functions
@@ -1078,17 +1134,24 @@ export const Campaigns: React.FC = () => {
       if (data.type === "SP") {
         const originalTargetingType = original.targetingType || "";
         const newTargetingType = data.targetingType || "";
-        const normalizeTargetingType = (tt: string) => {
+        const normalizeTargetingType = (tt: any) => {
           if (!tt) return "";
-          return tt.toUpperCase();
+          const ttStr = String(tt).trim();
+          if (!ttStr) return "";
+          return ttStr.toUpperCase();
         };
         if (
           normalizeTargetingType(originalTargetingType) !==
           normalizeTargetingType(newTargetingType)
         ) {
-          updatePayload.targetingType = newTargetingType.toUpperCase() as
-            | "AUTO"
-            | "MANUAL";
+          const newTargetingTypeStr = newTargetingType
+            ? String(newTargetingType).trim().toUpperCase()
+            : "";
+          if (newTargetingTypeStr) {
+            updatePayload.targetingType = newTargetingTypeStr as
+              | "AUTO"
+              | "MANUAL";
+          }
         }
 
         // 8. Check if tags changed
@@ -2183,6 +2246,7 @@ export const Campaigns: React.FC = () => {
                   }}
                   onSubmit={handleCampaignPanelSubmit}
                   accountId={accountId}
+                  profiles={profileOptions}
                   loading={
                     createCampaignLoading ||
                     editLoadingCampaignId === campaignId
@@ -2998,7 +3062,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Campaign Name Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-50 bg-[#f5f5f0] border-r border-[#e8e8e3]"
+                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-50 border-r border-[#e8e8e3]"
                             onClick={() => handleSort("campaign_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3188,12 +3252,18 @@ export const Campaigns: React.FC = () => {
                         )}
                         {campaigns.map((campaign, index) => {
                           const isLastRow = index === campaigns.length - 1;
+                          const isArchived =
+                            campaign.status?.toLowerCase() === "archived";
                           return (
                             <tr
                               key={campaign.campaignId}
                               className={`group ${
                                 !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                              } hover:bg-gray-100 transition-colors`}
+                              } ${
+                                isArchived
+                                  ? "bg-gray-100 opacity-60"
+                                  : "hover:bg-gray-100"
+                              } transition-colors`}
                             >
                               {/* Checkbox */}
                               <td className="py-[10px] px-[10px] sticky left-0 z-50 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">

@@ -13,6 +13,7 @@ interface CreateCampaignPanelProps {
   mode?: "create" | "edit";
   initialData?: Partial<CreateCampaignData> | null;
   campaignId?: string | number; // Campaign ID for edit mode (needed for updates)
+  profiles?: Array<{ value: string; label: string }>; // Profiles passed from parent to avoid separate AJAX call
 }
 
 export interface CreateCampaignData {
@@ -136,6 +137,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   mode = "create",
   initialData = null,
   campaignId,
+  profiles: profilesProp = [],
 }) => {
   // Store original data for comparison in edit mode
   const [originalData, setOriginalData] =
@@ -178,10 +180,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     useState<boolean>(false);
   const [selectedAudience, setSelectedAudience] = useState<string>("");
   const [audiencePercentage, setAudiencePercentage] = useState<number>(100);
-  const [profileOptions, setProfileOptions] = useState<
-    Array<{ value: string; label: string }>
-  >([]);
-  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [profileOptions, setProfileOptions] =
+    useState<Array<{ value: string; label: string }>>(profilesProp);
   const [portfolioOptions, setPortfolioOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
@@ -195,12 +195,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   >({});
   const [genericErrors, setGenericErrors] = useState<string[]>([]);
 
-  // Load profiles when panel opens
+  // Use profiles from props (loaded by parent component)
   useEffect(() => {
-    if (isOpen && accountId) {
-      loadProfiles();
+    console.log("CreateCampaignPanel received profiles:", profilesProp);
+    console.log("Profile options count:", profilesProp.length);
+    if (profilesProp && profilesProp.length > 0) {
+      console.log("Setting profile options:", profilesProp);
     }
-  }, [isOpen, accountId]);
+    setProfileOptions(profilesProp || []);
+  }, [profilesProp]);
 
   // Load portfolios when profileId is selected
   useEffect(() => {
@@ -464,37 +467,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       setGenericErrors([]);
     }
   }, [submitError]);
-
-  const loadProfiles = async () => {
-    if (!accountId) return;
-
-    try {
-      setLoadingProfiles(true);
-      const channels = await accountsService.getAccountChannels(
-        parseInt(accountId)
-      );
-      const amazonChannel = channels.find((ch) => ch.channel_type === "amazon");
-
-      if (amazonChannel) {
-        const response = await accountsService.getProfiles(amazonChannel.id);
-        const activeProfiles = (response.profiles || []).filter(
-          (profile: any) => profile.is_selected && !profile.deleted_at
-        );
-
-        const options = activeProfiles.map((profile: any) => ({
-          value: profile.profileId || profile.id || "",
-          label: profile.name || profile.profileId || profile.id || "",
-        }));
-
-        setProfileOptions(options);
-      }
-    } catch (error) {
-      console.error("Failed to load profiles:", error);
-      setProfileOptions([]);
-    } finally {
-      setLoadingProfiles(false);
-    }
-  };
 
   const loadPortfolios = async (profileId: string) => {
     if (!accountId || !profileId) {
@@ -1055,35 +1027,34 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             {formData.type === "SB" ? (
               <div className="grid grid-cols-3 gap-6">
                 {/* Profile */}
-                {profileOptions.length > 0 && (
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Profile
-                    </label>
-                    <Dropdown<string>
-                      options={profileOptions}
-                      value={formData.profileId || undefined}
-                      onChange={(value) => handleChange("profileId", value)}
-                      placeholder={
-                        loadingProfiles
-                          ? "Loading profiles..."
-                          : "Select profile"
-                      }
-                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                      disabled={loadingProfiles || mode === "edit"}
-                    />
-                    {mode === "edit" && (
-                      <p className="text-[10px] text-[#556179] mt-1 italic">
-                        Read-only in edit mode
-                      </p>
-                    )}
-                    {errors.profileId && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.profileId}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    Profile
+                  </label>
+                  <Dropdown<string>
+                    options={profileOptions}
+                    value={formData.profileId || undefined}
+                    onChange={(value) => handleChange("profileId", value)}
+                    placeholder="Select profile"
+                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    disabled={mode === "edit"}
+                    emptyMessage={
+                      profileOptions.length === 0
+                        ? "Loading profiles..."
+                        : "No profiles available"
+                    }
+                  />
+                  {mode === "edit" && (
+                    <p className="text-[10px] text-[#556179] mt-1 italic">
+                      Read-only in edit mode
+                    </p>
+                  )}
+                  {errors.profileId && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.profileId}
+                    </p>
+                  )}
+                </div>
 
                 {/* Campaign Type */}
                 <div>
@@ -1138,35 +1109,34 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             ) : (
               <div className="grid grid-cols-3 gap-6">
                 {/* Profile */}
-                {profileOptions.length > 0 && (
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Profile
-                    </label>
-                    <Dropdown<string>
-                      options={profileOptions}
-                      value={formData.profileId || undefined}
-                      onChange={(value) => handleChange("profileId", value)}
-                      placeholder={
-                        loadingProfiles
-                          ? "Loading profiles..."
-                          : "Select profile"
-                      }
-                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                      disabled={loadingProfiles || mode === "edit"}
-                    />
-                    {mode === "edit" && (
-                      <p className="text-[10px] text-[#556179] mt-1 italic">
-                        Read-only in edit mode
-                      </p>
-                    )}
-                    {errors.profileId && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.profileId}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    Profile
+                  </label>
+                  <Dropdown<string>
+                    options={profileOptions}
+                    value={formData.profileId || undefined}
+                    onChange={(value) => handleChange("profileId", value)}
+                    placeholder="Select profile"
+                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    disabled={mode === "edit"}
+                    emptyMessage={
+                      profileOptions.length === 0
+                        ? "Loading profiles..."
+                        : "No profiles available"
+                    }
+                  />
+                  {mode === "edit" && (
+                    <p className="text-[10px] text-[#556179] mt-1 italic">
+                      Read-only in edit mode
+                    </p>
+                  )}
+                  {errors.profileId && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.profileId}
+                    </p>
+                  )}
+                </div>
 
                 {/* Campaign Type */}
                 <div>

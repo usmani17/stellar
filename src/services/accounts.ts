@@ -85,6 +85,10 @@ export const accountsService = {
     return response.data;
   },
 
+  deleteChannel: async (accountId: number, channelId: number): Promise<void> => {
+    await api.delete(`/accounts/${accountId}/channels/${channelId}/`);
+  },
+
   // Amazon OAuth
   initiateAmazonOAuth: async (accountId: number): Promise<{ auth_url: string }> => {
     const response = await api.get<{ auth_url: string }>(`/accounts/amazon-oauth/initiate/?account_id=${accountId}`);
@@ -207,6 +211,12 @@ export const accountsService = {
       { params }
     );
     return response.data.brandEntities || [];
+  },
+
+  // AWS Identity (public endpoint)
+  getAWSIdentity: async (): Promise<{ UserId?: string; Account?: string; Arn?: string }> => {
+    const response = await api.get<{ UserId?: string; Account?: string; Arn?: string }>('/accounts/aws-identity/');
+    return response.data;
   },
 };
 
