@@ -85,6 +85,8 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
     // Bulk Actions State
     const [showBulkActions, setShowBulkActions] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const isStartingEditRef = useRef(false);
+    const [isCancelling, setIsCancelling] = useState(false);
 
     // Click outside handler for bulk actions dropdown
     useEffect(() => {
@@ -102,6 +104,43 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, [showBulkActions]);
+
+    // Click outside handler for inline editing
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (isStartingEditRef.current) return;
+
+            if (editingCell && !showInlineEditConfirm) {
+                const target = event.target as HTMLElement;
+                const isDropdownContainer = target.closest(".dropdown-container");
+                const isDropdownMenu =
+                    target.closest('[class*="z-50"]') ||
+                    target.closest('[class*="z-[100000]"]') ||
+                    target.closest('[class*="shadow-lg"]');
+                const isInput = target.closest("input");
+                const isModal = target.closest('[class*="fixed"]');
+
+                if (!isInput && !isDropdownMenu && !isModal && !isDropdownContainer) {
+                    setTimeout(() => {
+                        if (editingCell && !showInlineEditConfirm && !isStartingEditRef.current) {
+                            cancelInlineEdit();
+                        }
+                    }, 150);
+                }
+            }
+        };
+
+        if (editingCell && !showInlineEditConfirm) {
+            const timeout = setTimeout(() => {
+                document.addEventListener("mousedown", handleClickOutside);
+            }, 300);
+
+            return () => {
+                clearTimeout(timeout);
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }
+    }, [editingCell, showInlineEditConfirm]);
 
     // Bulk Action Handler
     const handleBulkAction = async (action: "ENABLE" | "DISABLE" | "DELETE") => {
@@ -129,14 +168,23 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
 
     // Inline Edit Handlers
     const startInlineEdit = (ad: TikTokAd, field: "ad_name" | "operation_status") => {
+        isStartingEditRef.current = true;
         setEditingCell({ ad_id: ad.ad_id, field });
         setEditedValue(field === "ad_name" ? ad.ad_name : ad.operation_status);
+
+        setTimeout(() => {
+            isStartingEditRef.current = false;
+        }, 300);
     };
 
     const cancelInlineEdit = () => {
+        setIsCancelling(true);
         setEditingCell(null);
         setEditedValue("");
         setPendingInlineEdit(null);
+        setTimeout(() => {
+            setIsCancelling(false);
+        }, 100);
     };
 
     const handleInlineEditChange = (value: string) => {
@@ -144,7 +192,7 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
     };
 
     const confirmInlineEdit = (newValueOverride?: string) => {
-        if (!editingCell) return;
+        if (!editingCell || isCancelling) return;
 
         const ad = ads.find(a => a.ad_id === editingCell.ad_id);
         if (!ad) return;
@@ -477,7 +525,10 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                                                         type="text"
                                                         value={editedValue}
                                                         onChange={(e) => handleInlineEditChange(e.target.value)}
-                                                        onBlur={(e) => confirmInlineEdit(e.target.value)}
+                                                        onBlur={(e) => {
+                                                            if (isCancelling) return;
+                                                            confirmInlineEdit(e.target.value);
+                                                        }}
                                                         onKeyDown={(e) => {
                                                             if (e.key === "Enter") {
                                                                 e.currentTarget.blur();
@@ -513,6 +564,7 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                                                                 handleInlineEditChange(value);
                                                                 confirmInlineEdit(value);
                                                             }}
+                                                            onClose={cancelInlineEdit}
                                                             defaultOpen={true}
                                                             closeOnSelect={true}
                                                             buttonClassName="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
@@ -623,29 +675,62 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
 
             {/* Inline Edit Confirmation Modal */}
             {showInlineEditConfirm && pendingInlineEdit && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 className="text-lg font-semibold text-[#072929] mb-4">
-                            Confirm Update
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !inlineEditLoading) {
+                            setShowInlineEditConfirm(false);
+                            setPendingInlineEdit(null);
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Confirm {pendingInlineEdit.field === "ad_name" ? "Name" : "Status"} Change
                         </h3>
                         <div className="mb-4">
-                            <p className="text-[13.3px] text-[#556179] mb-2">
-                                Are you sure you want to change the {pendingInlineEdit.field === "ad_name" ? "name" : "status"} of this ad to "{pendingInlineEdit.newValue}"? This action cannot be undone.
+                            <p className="text-[12.16px] text-[#556179] mb-2">
+                                Ad: <span className="font-semibold text-[#072929]">{pendingInlineEdit.ad.ad_name}</span>
                             </p>
+                            <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[12.16px] text-[#556179]">
+                                        {pendingInlineEdit.field === "ad_name" ? "Name" : "Status"}:
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[12.16px] text-[#556179]">
+                                            {pendingInlineEdit.field === "operation_status"
+                                                ? (pendingInlineEdit.ad.operation_status === "ENABLE" ? "Enable" : "Pause")
+                                                : pendingInlineEdit.ad.ad_name}
+                                        </span>
+                                        <span className="text-[12.16px] text-[#556179]">→</span>
+                                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                                            {pendingInlineEdit.field === "operation_status"
+                                                ? (pendingInlineEdit.newValue === "ENABLE" ? "Enable" : (pendingInlineEdit.newValue === "DELETE" ? "Delete" : "Pause"))
+                                                : pendingInlineEdit.newValue}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            {pendingInlineEdit.newValue === "DELETE" && (
+                                <p className="mt-3 text-[11px] text-red-600 italic">
+                                    * This action cannot be undone.
+                                </p>
+                            )}
                         </div>
                         <div className="flex gap-3 justify-end">
                             <button
                                 onClick={() => setShowInlineEditConfirm(false)}
-                                className="px-4 py-2 text-[13.3px] text-[#556179] border border-gray-200 rounded-lg hover:bg-gray-50"
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={runInlineEdit}
                                 disabled={inlineEditLoading}
-                                className="px-4 py-2 text-[13.3px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
+                                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {inlineEditLoading ? "Updating..." : "Confirm"}
+                                {inlineEditLoading ? "Saving..." : "Confirm"}
                             </button>
                         </div>
                     </div>

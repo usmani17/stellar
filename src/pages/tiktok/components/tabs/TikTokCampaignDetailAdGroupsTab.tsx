@@ -348,7 +348,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
 
         const selectedIds = Array.from(selectedAdGroupIds);
         const selectedAdGroups = adgroups.filter(ag => selectedAdGroupIds.has(ag.adgroup_id));
-        
+
         // Show confirmation
         const confirmMessage = `Are you sure you want to ${operationStatus.toLowerCase()} ${selectedIds.length} ad group(s)?`;
         if (!window.confirm(confirmMessage)) {
@@ -740,7 +740,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                             false // isArchived - add this check if needed
                                                                 ? "text-gray-400 cursor-not-allowed"
                                                                 : "text-[#0b0f16] cursor-pointer hover:underline"
-                                                        }`}
+                                                            }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             startInlineEdit(item, "adgroup_name");
@@ -777,7 +777,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                             false // isArchived - add this check if needed
                                                                 ? "cursor-not-allowed opacity-60"
                                                                 : "cursor-pointer hover:underline"
-                                                        }`}
+                                                            }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             startInlineEdit(item, "operation_status");
@@ -822,7 +822,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                             false // isArchived - add this check if needed
                                                                 ? "text-gray-400 cursor-not-allowed"
                                                                 : "text-[#0b0f16] cursor-pointer hover:underline"
-                                                        }`}
+                                                            }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             startInlineEdit(item, "budget");
@@ -905,7 +905,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                             currentPage === pageNum
                                                 ? "bg-white text-[#136D6D] font-semibold"
                                                 : "text-black hover:bg-gray-50"
-                                        }`}
+                                            }`}
                                     >
                                         {pageNum}
                                     </button>
@@ -924,7 +924,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                     currentPage === totalPages
                                         ? "bg-white text-[#136D6D] font-semibold"
                                         : "text-black hover:bg-gray-50"
-                                }`}
+                                    }`}
                             >
                                 {totalPages}
                             </button>
@@ -942,37 +942,65 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
 
             {/* Inline Edit Confirmation Modal */}
             {showInlineEditModal && inlineEditAdGroup && inlineEditField && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 className="text-lg font-semibold text-[#072929] mb-4">
-                            Confirm Update
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !inlineEditLoading) {
+                            setShowInlineEditModal(false);
+                            setInlineEditAdGroup(null);
+                            setInlineEditField(null);
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Confirm{" "}
+                            {inlineEditField === "operation_status"
+                                ? "Status"
+                                : inlineEditField === "adgroup_name"
+                                    ? "Name"
+                                    : "Budget"}{" "}
+                            Change
                         </h3>
                         <div className="mb-4">
-                            <p className="text-[13.3px] text-[#556179] mb-2">
-                                {inlineEditField === "budget"
-                                    ? "Budget"
-                                    : inlineEditField === "operation_status"
-                                    ? "Status"
-                                    : "Ad Group Name"}
+                            <p className="text-[12.16px] text-[#556179] mb-2">
+                                Ad Group:{" "}
+                                <span className="font-semibold text-[#072929]">
+                                    {inlineEditAdGroup.adgroup_name || "Unnamed Ad Group"}
+                                </span>
                             </p>
-                            <div className="flex items-center gap-4">
-                                <div className="flex-1">
-                                    <p className="text-[12px] text-[#556179] mb-1">Current</p>
-                                    <p className="text-[13.3px] text-[#0b0f16] font-medium">
-                                        {inlineEditOldValue}
-                                    </p>
-                                </div>
-                                <div className="text-[#136D6D]">→</div>
-                                <div className="flex-1">
-                                    <p className="text-[12px] text-[#556179] mb-1">New</p>
-                                    <p className="text-[13.3px] text-[#0b0f16] font-medium">
-                                        {inlineEditNewValue}
-                                    </p>
+                            <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[12.16px] text-[#556179]">
+                                        {inlineEditField === "operation_status"
+                                            ? "Status"
+                                            : inlineEditField === "adgroup_name"
+                                                ? "Name"
+                                                : "Budget"}
+                                        :
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[12.16px] text-[#556179]">
+                                            {inlineEditOldValue}
+                                        </span>
+                                        <span className="text-[12.16px] text-[#556179]">
+                                            →
+                                        </span>
+                                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                                            {inlineEditNewValue}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
+                            {inlineEditNewValue === "DELETE" && (
+                                <p className="mt-3 text-[11px] text-red-600 italic">
+                                    * This action cannot be undone.
+                                </p>
+                            )}
                         </div>
-                        <div className="flex gap-3 justify-end">
+                        <div className="flex justify-end gap-3">
                             <button
+                                type="button"
                                 onClick={() => {
                                     setShowInlineEditModal(false);
                                     setInlineEditAdGroup(null);
@@ -980,16 +1008,17 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                     setInlineEditOldValue("");
                                     setInlineEditNewValue("");
                                 }}
-                                className="px-4 py-2 text-[13.3px] text-[#556179] border border-gray-200 rounded-lg hover:bg-gray-50"
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
+                                type="button"
                                 onClick={runInlineEdit}
                                 disabled={inlineEditLoading}
-                                className="px-4 py-2 text-[13.3px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
+                                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {inlineEditLoading ? "Updating..." : "Confirm"}
+                                {inlineEditLoading ? "Saving..." : "Confirm"}
                             </button>
                         </div>
                     </div>

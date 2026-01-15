@@ -888,40 +888,46 @@ export const TikTokAds: React.FC = () => {
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
                     onClick={(e) => {
-                        if (e.target === e.currentTarget) {
+                        if (e.target === e.currentTarget && !inlineEditLoading) {
                             setShowInlineEditConfirm(false);
                             setPendingInlineEdit(null);
                         }
                     }}
                 >
-                    <div className="bg-white rounded-xl shadow-lg max-w-lg w-full mx-4 p-6">
+                    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full mx-4">
                         <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                            Confirm Changes
+                            Confirm {pendingInlineEdit.field === "ad_name" ? "Name" : "Status"} Change
                         </h3>
-                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-6">
-                            <div className="flex flex-col gap-2">
-                                <div className="flex justify-between items-center text-[12.16px]">
-                                    <span className="text-[#556179]">Ad Name:</span>
-                                    <span className="font-medium text-[#072929]">{pendingInlineEdit.ad.ad_name}</span>
-                                </div>
-                                <div className="border-t border-sandstorm-s40 my-1"></div>
-                                <div className="flex justify-between items-center text-[12.16px]">
-                                    <span className="text-[#556179]">Field:</span>
-                                    <span className="font-medium text-[#072929]">
-                                        {pendingInlineEdit.field === 'ad_name' ? 'Ad Name' : 'Status'}
+                        <div className="mb-4">
+                            <p className="text-[12.16px] text-[#556179] mb-2">
+                                Ad: <span className="font-semibold text-[#072929]">{pendingInlineEdit.ad.ad_name}</span>
+                            </p>
+                            <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[12.16px] text-[#556179]">
+                                        {pendingInlineEdit.field === "ad_name" ? "Name" : "Status"}:
                                     </span>
-                                </div>
-                                <div className="flex justify-between items-center text-[12.16px]">
-                                    <span className="text-[#556179]">New Value:</span>
-                                    <span className="font-semibold text-[#136D6D]">
-                                        {pendingInlineEdit.field === 'operation_status'
-                                            ? (pendingInlineEdit.newValue === 'ENABLE' ? 'Enable' : 'Pause')
-                                            : pendingInlineEdit.newValue}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[12.16px] text-[#556179]">
+                                            {pendingInlineEdit.field === "operation_status"
+                                                ? (pendingInlineEdit.ad.operation_status === "ENABLE" ? "Enable" : "Pause")
+                                                : pendingInlineEdit.ad.ad_name}
+                                        </span>
+                                        <span className="text-[12.16px] text-[#556179]">→</span>
+                                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                                            {pendingInlineEdit.field === "operation_status"
+                                                ? (pendingInlineEdit.newValue === "ENABLE" ? "Enable" : (pendingInlineEdit.newValue === "DELETE" ? "Delete" : "Pause"))
+                                                : pendingInlineEdit.newValue}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
+                            {pendingInlineEdit.newValue === "DELETE" && (
+                                <p className="mt-3 text-[11px] text-red-600 italic">
+                                    * This action cannot be undone.
+                                </p>
+                            )}
                         </div>
-
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
@@ -933,13 +939,14 @@ export const TikTokAds: React.FC = () => {
                             >
                                 Cancel
                             </button>
-                            <Button
+                            <button
+                                type="button"
                                 onClick={runInlineEdit}
                                 disabled={inlineEditLoading}
-                                className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5757] transition-colors"
+                                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {inlineEditLoading ? "Saving..." : "Confirm"}
-                            </Button>
+                            </button>
                         </div>
                     </div>
                 </div>
