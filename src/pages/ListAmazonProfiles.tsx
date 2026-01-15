@@ -94,16 +94,16 @@ export const ListAmazonProfiles: React.FC = () => {
       const amazonProfiles = Array.isArray(response) ? response : response.profiles || [];
       const excluded = response.excluded_profiles || [];
       
-      console.log("Profiles fetched from Amazon:", amazonProfiles);
+          console.log("Profiles fetched from Amazon:", amazonProfiles);
       console.log("Excluded profiles:", excluded);
 
       if (amazonProfiles.length === 0 && excluded.length === 0) {
         setError("No profiles found from Amazon API");
         setProfiles([]);
-        setSelectedProfileIds(new Set());
+            setSelectedProfileIds(new Set());
         setExcludedProfiles([]);
-        return;
-      }
+            return;
+          }
       
       // Set excluded profiles for display
       setExcludedProfiles(excluded);

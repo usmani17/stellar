@@ -1155,8 +1155,8 @@ export const Campaigns: React.FC = () => {
             : "";
           if (newTargetingTypeStr) {
             updatePayload.targetingType = newTargetingTypeStr as
-              | "AUTO"
-              | "MANUAL";
+            | "AUTO"
+            | "MANUAL";
           }
         }
 

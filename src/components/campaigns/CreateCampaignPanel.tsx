@@ -1023,9 +1023,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
           {/* Form Fields - Layout matching Figma */}
           <div className="space-y-6">
-            {/* Row 1: Profile | Campaign Type (for SB) */}
+            {/* Row 1: Profile | Campaign Type (all campaign types use 4-column grid) */}
             {formData.type === "SB" ? (
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-4 gap-6">
                 {/* Profile */}
                 <div>
                   <label className="block text-[13px] font-semibold text-[#072929] mb-2">
@@ -1140,8 +1140,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 </div>
               </div>
             ) : (
-              // SP Campaign: Profile | Campaign Type (3-column grid)
-              <div className="grid grid-cols-3 gap-6">
+              // SP Campaign: Profile | Campaign Type (4-column grid for consistency)
+              <div className="grid grid-cols-4 gap-6">
                 {/* Profile */}
                 <div>
                   <label className="block text-[13px] font-semibold text-[#072929] mb-2">
@@ -1436,8 +1436,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         value={
                           formData.status === "enabled"
                             ? "Enabled"
-                            : String(formData.status).toLowerCase() ===
-                              "paused"
+                            : String(formData.status).toLowerCase() === "paused"
                             ? "Paused"
                             : formData.status
                         }
@@ -1458,8 +1457,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     </div>
                   </div>
                 ) : (
-                  // SP Campaign: Campaign Name | Budget | State (3 columns)
-                  <div className="grid grid-cols-3 gap-6">
+                  // SP Campaign: Campaign Name | Budget | State (4-column grid for consistency)
+                  <div className="grid grid-cols-4 gap-6">
                     {/* Campaign Name */}
                     <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
@@ -1537,7 +1536,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Row 3: Targeting Type | Start Date | End Date (for SP campaigns) */}
                 {formData.type === "SP" && (
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-4 gap-6">
                     {/* Targeting Type */}
                     <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
@@ -1648,29 +1647,31 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Start Date - For SB campaigns (editable in edit mode) */}
                 {formData.type === "SB" && (
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Start Date
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={formData.startDate || ""}
-                        onChange={(e) =>
-                          handleChange("startDate", e.target.value)
-                        }
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          errors.startDate
-                            ? "border-red-500"
-                            : "border-gray-200"
-                        }`}
-                      />
+                  <div className="grid grid-cols-4 gap-6">
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Start Date
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={formData.startDate || ""}
+                          onChange={(e) =>
+                            handleChange("startDate", e.target.value)
+                          }
+                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                            errors.startDate
+                              ? "border-red-500"
+                              : "border-gray-200"
+                          }`}
+                        />
+                      </div>
+                      {errors.startDate && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.startDate}
+                        </p>
+                      )}
                     </div>
-                    {errors.startDate && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.startDate}
-                      </p>
-                    )}
                   </div>
                 )}
 
@@ -1755,35 +1756,37 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </div>
                 )}
 
-                {/* Row 4: Portfolio ID - Match Profile Dropdown Width */}
+                {/* Row 4: Portfolio ID */}
                 {formData.type === "SP" && (
-                  <div className="max-w-[calc(33.333%-1rem)]">
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Portfolio ID
-                    </label>
-                    <Dropdown<string>
-                      options={portfolioOptions}
-                      value={formData.portfolioId || undefined}
-                      onChange={(value) => handleChange("portfolioId", value)}
-                      placeholder={
-                        !formData.profileId
-                          ? "Select profile first"
-                          : loadingPortfolios
-                          ? "Loading portfolios..."
-                          : "Select portfolio (optional)"
-                      }
-                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                      disabled={
-                        !formData.profileId ||
-                        loadingPortfolios ||
-                        portfolioOptions.length === 0
-                      }
-                    />
-                    {errors.portfolioId && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.portfolioId}
-                      </p>
-                    )}
+                  <div className="grid grid-cols-4 gap-6">
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Portfolio ID
+                      </label>
+                      <Dropdown<string>
+                        options={portfolioOptions}
+                        value={formData.portfolioId || undefined}
+                        onChange={(value) => handleChange("portfolioId", value)}
+                        placeholder={
+                          !formData.profileId
+                            ? "Select profile first"
+                            : loadingPortfolios
+                            ? "Loading portfolios..."
+                            : "Select portfolio (optional)"
+                        }
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        disabled={
+                          !formData.profileId ||
+                          loadingPortfolios ||
+                          portfolioOptions.length === 0
+                        }
+                      />
+                      {errors.portfolioId && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.portfolioId}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -1878,63 +1881,65 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       {/* Strategy Tab Content */}
                       {activeBiddingTab === "strategy" && (
                         <div className="space-y-4">
-                          <div className="max-w-[calc(33.333%-1rem)]">
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                              Strategy
-                            </label>
-                            <Dropdown<string>
-                              options={[
-                                {
-                                  value: "LEGACY_FOR_SALES",
-                                  label: "LEGACY_FOR_SALES",
-                                },
-                                {
-                                  value: "AUTO_FOR_SALES",
-                                  label: "AUTO_FOR_SALES",
-                                },
-                                { value: "MANUAL", label: "MANUAL" },
-                              ]}
-                              value={formData.bidding?.strategy || undefined}
-                              onChange={(value) => {
-                                setFormData((prev) => {
-                                  const updated = { ...prev };
-                                  if (!updated.bidding) {
-                                    updated.bidding = {
-                                      strategy: value as
-                                        | "LEGACY_FOR_SALES"
-                                        | "AUTO_FOR_SALES"
-                                        | "MANUAL",
-                                      bidOptimization: true,
-                                      shopperCohortBidAdjustments: [],
-                                      bidAdjustmentsByPlacement: [],
-                                    };
-                                  } else {
-                                    updated.bidding = {
-                                      ...updated.bidding,
-                                      strategy: value as
-                                        | "LEGACY_FOR_SALES"
-                                        | "AUTO_FOR_SALES"
-                                        | "MANUAL",
-                                    };
-                                  }
-                                  return updated;
-                                });
-                              }}
-                              placeholder="Select strategy"
-                              buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                            />
-                            {mode === "create" &&
-                              formData.bidding &&
-                              !formData.bidding.strategy &&
-                              ((formData.bidding.bidAdjustmentsByPlacement
-                                ?.length ?? 0) > 0 ||
-                                (formData.bidding.shopperCohortBidAdjustments
-                                  ?.length ?? 0) > 0) && (
-                                <p className="text-[10px] text-[#556179] mt-1">
-                                  Strategy is required when Dynamic Bidding is
-                                  provided
-                                </p>
-                              )}
+                          <div className="grid grid-cols-4 gap-6">
+                            <div>
+                              <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                Strategy
+                              </label>
+                              <Dropdown<string>
+                                options={[
+                                  {
+                                    value: "LEGACY_FOR_SALES",
+                                    label: "LEGACY_FOR_SALES",
+                                  },
+                                  {
+                                    value: "AUTO_FOR_SALES",
+                                    label: "AUTO_FOR_SALES",
+                                  },
+                                  { value: "MANUAL", label: "MANUAL" },
+                                ]}
+                                value={formData.bidding?.strategy || undefined}
+                                onChange={(value) => {
+                                  setFormData((prev) => {
+                                    const updated = { ...prev };
+                                    if (!updated.bidding) {
+                                      updated.bidding = {
+                                        strategy: value as
+                                          | "LEGACY_FOR_SALES"
+                                          | "AUTO_FOR_SALES"
+                                          | "MANUAL",
+                                        bidOptimization: true,
+                                        shopperCohortBidAdjustments: [],
+                                        bidAdjustmentsByPlacement: [],
+                                      };
+                                    } else {
+                                      updated.bidding = {
+                                        ...updated.bidding,
+                                        strategy: value as
+                                          | "LEGACY_FOR_SALES"
+                                          | "AUTO_FOR_SALES"
+                                          | "MANUAL",
+                                      };
+                                    }
+                                    return updated;
+                                  });
+                                }}
+                                placeholder="Select strategy"
+                                buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                              />
+                              {mode === "create" &&
+                                formData.bidding &&
+                                !formData.bidding.strategy &&
+                                ((formData.bidding.bidAdjustmentsByPlacement
+                                  ?.length ?? 0) > 0 ||
+                                  (formData.bidding.shopperCohortBidAdjustments
+                                    ?.length ?? 0) > 0) && (
+                                  <p className="text-[10px] text-[#556179] mt-1">
+                                    Strategy is required when Dynamic Bidding is
+                                    provided
+                                  </p>
+                                )}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -2384,39 +2389,41 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {formData.type === "SP" && (
                   <>
                     {/* Site Restrictions */}
-                    <div className="max-w-[calc(33.333%-1rem)]">
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                        Site Restrictions
-                      </label>
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mb-2 italic">
-                          Read-only: Site restrictions cannot be changed after
-                          campaign creation
-                        </p>
-                      )}
-                      <Dropdown<string>
-                        options={[
-                          {
-                            value: "",
-                            label: "Select Site Restrictions",
-                          },
-                          {
-                            value: "AMAZON_BUSINESS",
-                            label: "AMAZON_BUSINESS",
-                          },
-                        ]}
-                        value={formData.siteRestrictions || ""}
-                        onChange={(value) =>
-                          handleChange("siteRestrictions", value || undefined)
-                        }
-                        placeholder="Select site restrictions (optional)"
-                        buttonClassName={`w-full h-[38px] text-[14px] text-[#072929] ${
-                          mode === "edit"
-                            ? "bg-gray-50 cursor-not-allowed"
-                            : "bg-[#FEFEFB]"
-                        }`}
-                        disabled={mode === "edit"}
-                      />
+                    <div className="grid grid-cols-4 gap-6">
+                      <div>
+                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                          Site Restrictions
+                        </label>
+                        {mode === "edit" && (
+                          <p className="text-[10px] text-[#556179] mb-2 italic">
+                            Read-only: Site restrictions cannot be changed after
+                            campaign creation
+                          </p>
+                        )}
+                        <Dropdown<string>
+                          options={[
+                            {
+                              value: "",
+                              label: "Select Site Restrictions",
+                            },
+                            {
+                              value: "AMAZON_BUSINESS",
+                              label: "AMAZON_BUSINESS",
+                            },
+                          ]}
+                          value={formData.siteRestrictions || ""}
+                          onChange={(value) =>
+                            handleChange("siteRestrictions", value || undefined)
+                          }
+                          placeholder="Select site restrictions (optional)"
+                          buttonClassName={`w-full h-[38px] text-[14px] text-[#072929] ${
+                            mode === "edit"
+                              ? "bg-gray-50 cursor-not-allowed"
+                              : "bg-[#FEFEFB]"
+                          }`}
+                          disabled={mode === "edit"}
+                        />
+                      </div>
                     </div>
 
                     {/* Tags */}
@@ -2504,13 +2511,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         options={[
                           {
                             value: "T00020",
-                            label:
-                              "T00020 - Contextual targeting (Choose individual products to show your ads in placements related to those products. Choose individual categories to show your ads in placements related to those categories on and off Amazon.)",
+                            label: "T00020",
                           },
                           {
                             value: "T00030",
-                            label:
-                              "T00030 - Audiences or Contextual Targeting (Select individual products, categories, refined categories, or audiences to show your ads.)",
+                            label: "T00030",
                           },
                         ]}
                         value={formData.tactic || ""}
@@ -2542,13 +2547,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         options={[
                           {
                             value: "cpc",
-                            label:
-                              "CPC - Cost per click (Default) - The performance of this campaign is measured by the clicks triggered by the ad.",
+                            label: "CPC - Cost Per Click",
                           },
                           {
                             value: "vcpm",
-                            label:
-                              "VCPM - Cost per 1000 viewable impressions - The performance of this campaign is measured by the viewed impressions triggered by the ad.",
+                            label: "VCPM",
                           },
                         ]}
                         value={formData.costType || "cpc"}
@@ -2595,7 +2598,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Row 4: Brand Entity ID | Targeted PG Deal ID (for SB campaigns) */}
                 {formData.type === "SB" && (
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-4 gap-6">
                     {/* Brand Entity ID */}
                     <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
@@ -2665,7 +2668,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Row 5: Product Location | Cost Type | Portfolio ID (for SB campaigns) */}
                 {formData.type === "SB" && (
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-4 gap-6">
                     {/* Product Location */}
                     <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
@@ -2776,7 +2779,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Row 6: Smart Default (for SB campaigns) */}
                 {formData.type === "SB" && (
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-4 gap-6">
                     {/* Smart Default */}
                     <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
