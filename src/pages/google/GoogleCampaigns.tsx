@@ -1,4 +1,3 @@
-import { buildMarketplaceRoute } from "../../utils/urlHelpers";
 import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import React, { useState, useEffect, useRef, useMemo } from "react";
@@ -91,10 +90,17 @@ export const GoogleCampaigns: React.FC = () => {
     message: string;
     details?: string;
   } | null>(null);
-  const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">("create");
-  const [initialCampaignData, setInitialCampaignData] = useState<Partial<CreateGoogleCampaignData> | null>(null);
-  const [campaignId, setCampaignId] = useState<string | number | undefined>(undefined);
-  const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<string | number | null>(null);
+  const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">(
+    "create"
+  );
+  const [initialCampaignData, setInitialCampaignData] =
+    useState<Partial<CreateGoogleCampaignData> | null>(null);
+  const [campaignId, setCampaignId] = useState<string | number | undefined>(
+    undefined
+  );
+  const [editLoadingCampaignId, setEditLoadingCampaignId] = useState<
+    string | number | null
+  >(null);
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
     message: string;
@@ -467,7 +473,9 @@ export const GoogleCampaigns: React.FC = () => {
             text: "View Campaign",
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
-              navigate(`/accounts/${accountIdNum}/google-campaigns/${newCampaignId}`);
+              navigate(
+                `/accounts/${accountIdNum}/google-campaigns/${newCampaignId}`
+              );
             },
           },
         });
@@ -961,7 +969,7 @@ export const GoogleCampaigns: React.FC = () => {
       const today = new Date();
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-      
+
       const result = await campaignsService.syncGoogleCampaignAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
@@ -1162,13 +1170,15 @@ export const GoogleCampaigns: React.FC = () => {
       const startDateStr = parseDateToYYYYMMDD(campaign.start_date);
       if (startDateStr) {
         const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const todayStr = `${today.getFullYear()}-${String(
+          today.getMonth() + 1
+        ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
         if (startDateStr < todayStr) {
           return; // Silently prevent editing past start dates
         }
       }
     }
-    
+
     setEditingCell({ campaignId: campaign.campaign_id, field });
     if (field === "budget") {
       setEditedValue((campaign.daily_budget || 0).toString());
@@ -1231,20 +1241,22 @@ export const GoogleCampaigns: React.FC = () => {
       const oldValue = parseDateToYYYYMMDD(campaign.start_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-      
+
       console.log("[start_date] Date comparison:", {
         campaignId: editingCell.campaignId,
         oldValue,
         newValue,
         hasChanged,
-        rawStartDate: campaign.start_date
+        rawStartDate: campaign.start_date,
       });
 
       // Validate: start date cannot be in the past
       // Compare YYYY-MM-DD strings directly to avoid timezone issues
       if (newValue) {
         const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const todayStr = `${today.getFullYear()}-${String(
+          today.getMonth() + 1
+        ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
         if (newValue < todayStr) {
           validationError = "Start date cannot be in the past";
           alert(validationError);
@@ -1257,13 +1269,13 @@ export const GoogleCampaigns: React.FC = () => {
       const oldValue = parseDateToYYYYMMDD(campaign.end_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-      
+
       console.log("[end_date] Date comparison:", {
         campaignId: editingCell.campaignId,
         oldValue,
         newValue,
         hasChanged,
-        rawEndDate: campaign.end_date
+        rawEndDate: campaign.end_date,
       });
 
       // Validate: end date cannot be before start date
@@ -1294,7 +1306,7 @@ export const GoogleCampaigns: React.FC = () => {
     if (editingCell.field === "status") {
       const oldStatusRaw = campaign.status || "ENABLED";
       const newStatusRaw = valueToCheck.trim();
-      
+
       // Format status values for display (convert ENABLED -> Enabled, PAUSED -> Paused, REMOVED -> Removed)
       const statusDisplayMap: Record<string, string> = {
         ENABLED: "Enabled",
@@ -1306,7 +1318,7 @@ export const GoogleCampaigns: React.FC = () => {
       };
       const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
       const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
-      
+
       setInlineEditCampaign(campaign);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(oldValue);
@@ -1320,7 +1332,7 @@ export const GoogleCampaigns: React.FC = () => {
     if (editingCell.field === "budget") {
       const newBudget = parseFloat(valueToCheck) || 0;
       const oldBudget = campaign.daily_budget || 0;
-      
+
       setInlineEditCampaign(campaign);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(formatCurrency(oldBudget));
@@ -1331,11 +1343,14 @@ export const GoogleCampaigns: React.FC = () => {
     }
 
     // For start_date and end_date, show modal
-    if (editingCell.field === "start_date" || editingCell.field === "end_date") {
+    if (
+      editingCell.field === "start_date" ||
+      editingCell.field === "end_date"
+    ) {
       // Format dates for display
       const oldDateStr = parseDateToYYYYMMDD(campaign[editingCell.field]);
       const newDateStr = valueToCheck.trim();
-      
+
       // Format dates for display (MM/DD/YYYY format)
       const formatDateForDisplay = (dateStr: string) => {
         if (!dateStr) return "—";
@@ -1350,10 +1365,10 @@ export const GoogleCampaigns: React.FC = () => {
           return dateStr;
         }
       };
-      
+
       // Store formatted values for display in modal
       const oldValue = oldDateStr ? formatDateForDisplay(oldDateStr) : "—";
-      
+
       setInlineEditCampaign(campaign);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(oldValue);
@@ -1402,11 +1417,14 @@ export const GoogleCampaigns: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: "status",
-          status: statusValue,
-        });
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: "status",
+            status: statusValue,
+          }
+        );
 
         if (response.errors && response.errors.length > 0) {
           const error = new Error(response.errors[0]);
@@ -1421,32 +1439,41 @@ export const GoogleCampaigns: React.FC = () => {
           throw new Error("Invalid budget value");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: "budget",
-          budgetAction: "set",
-          unit: "amount",
-          value: budgetValue,
-        });
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: "budget",
+            budgetAction: "set",
+            unit: "amount",
+            value: budgetValue,
+          }
+        );
 
         if (response.errors && response.errors.length > 0) {
           const error = new Error(response.errors[0]);
           (error as any).response = { data: { errors: response.errors } };
           throw error;
         }
-      } else if (inlineEditField === "start_date" || inlineEditField === "end_date") {
+      } else if (
+        inlineEditField === "start_date" ||
+        inlineEditField === "end_date"
+      ) {
         // inlineEditNewValue should already be in YYYY-MM-DD format from the date input
         let dateValue = inlineEditNewValue.trim();
         if (!dateValue || dateValue === "—") {
           dateValue = "";
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-          campaignIds: [inlineEditCampaign.campaign_id],
-          action: inlineEditField,
-          [inlineEditField]: dateValue || undefined,
-        });
-        
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: inlineEditField,
+            [inlineEditField]: dateValue || undefined,
+          }
+        );
+
         if (response.errors && response.errors.length > 0) {
           const error = new Error(response.errors[0]);
           (error as any).response = { data: { errors: response.errors } };
@@ -1589,7 +1616,7 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
-      
+
       await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
@@ -1599,7 +1626,7 @@ export const GoogleCampaigns: React.FC = () => {
         upperLimit: upper,
         lowerLimit: lower,
       });
-      
+
       // Close modal and reload campaigns with loading state
       setShowConfirmationModal(false);
       setShowBudgetPanel(false);
@@ -1644,7 +1671,11 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportGoogleCampaigns(accountIdNum, params, exportType);
+      const result = await campaignsService.exportGoogleCampaigns(
+        accountIdNum,
+        params,
+        exportType
+      );
 
       // Automatically download the file
       const link = document.createElement("a");
@@ -1653,7 +1684,6 @@ export const GoogleCampaigns: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
       // Close dropdown after a short delay to show success
       setTimeout(() => {
         setShowExportDropdown(false);
@@ -1848,9 +1878,7 @@ export const GoogleCampaigns: React.FC = () => {
               </h1>
               <div className="flex items-center gap-3">
                 <CreateGoogleCampaignSection
-                  isOpen={
-                    isCreateCampaignPanelOpen
-                  }
+                  isOpen={isCreateCampaignPanelOpen}
                   onToggle={() => {
                     setIsCreateCampaignPanelOpen(!isCreateCampaignPanelOpen);
                     setIsFilterPanelOpen(false); // Close filter panel when opening create panel
@@ -2016,7 +2044,7 @@ export const GoogleCampaigns: React.FC = () => {
                 title="Performance Trends"
               />
               {isCreateCampaignPanelOpen && (
-                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-20 rounded-[12px] cursor-not-allowed" />
+                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
               )}
             </div>
 
@@ -2107,7 +2135,9 @@ export const GoogleCampaigns: React.FC = () => {
                       setShowBulkActions(false);
                       setShowBudgetPanel(false);
                     }}
-                    disabled={exportLoading || loading || campaigns.length === 0}
+                    disabled={
+                      exportLoading || loading || campaigns.length === 0
+                    }
                   >
                     {exportLoading ? (
                       <div className="flex items-center justify-center">
@@ -2206,7 +2236,6 @@ export const GoogleCampaigns: React.FC = () => {
 
             {/* Google Campaigns Table Card with overlay when panel is open */}
             <div className="relative">
-
               {/* Budget editor panel */}
               {selectedCampaigns.size > 0 && showBudgetPanel && (
                 <div className="mb-4">
@@ -2369,7 +2398,7 @@ export const GoogleCampaigns: React.FC = () => {
                     <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
                       <div className="flex items-center gap-2">
                         <span className="text-[12.16px] text-[#556179]">
-                        {selectedCampaigns.size} campaign
+                          {selectedCampaigns.size} campaign
                           {selectedCampaigns.size !== 1 ? "s" : ""} will be
                           updated:
                         </span>
@@ -2461,81 +2490,81 @@ export const GoogleCampaigns: React.FC = () => {
                     })()}
 
                     <div className="space-y-3 mb-6">
-                        {isBudgetChange ? (
-                          <>
+                      {isBudgetChange ? (
+                        <>
                           <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.16px] text-[#556179]">
-                                Action:
-                              </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetAction === "increase"
-                                  ? "Increase By"
-                                  : budgetAction === "decrease"
-                                  ? "Decrease By"
-                                  : "Set To"}
-                              </span>
-                            </div>
-
-                            {(budgetAction === "increase" ||
-                              budgetAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                  Unit:
-                                </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  {budgetUnit === "percent"
-                                    ? "Percentage (%)"
-                                    : "Amount ($)"}
-                                </span>
-                              </div>
-                            )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                                Value:
-                              </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetValue}{" "}
-                                {budgetUnit === "percent" ? "%" : "$"}
-                              </span>
-                            </div>
-
-                            {budgetAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                  Upper Limit:
-                                </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  ${upperLimit}
-                                </span>
-                              </div>
-                            )}
-
-                            {budgetAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                  Lower Limit:
-                                </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  ${lowerLimit}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                              New Status:
+                              Action:
                             </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {pendingStatusAction
-                                ? pendingStatusAction.charAt(0) +
-                                  pendingStatusAction.slice(1).toLowerCase()
-                                : ""}
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {budgetAction === "increase"
+                                ? "Increase By"
+                                : budgetAction === "decrease"
+                                ? "Decrease By"
+                                : "Set To"}
                             </span>
                           </div>
-                        )}
-                      </div>
+
+                          {(budgetAction === "increase" ||
+                            budgetAction === "decrease") && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Unit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {budgetUnit === "percent"
+                                  ? "Percentage (%)"
+                                  : "Amount ($)"}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Value:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {budgetValue}{" "}
+                              {budgetUnit === "percent" ? "%" : "$"}
+                            </span>
+                          </div>
+
+                          {budgetAction === "increase" && upperLimit && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Upper Limit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                ${upperLimit}
+                              </span>
+                            </div>
+                          )}
+
+                          {budgetAction === "decrease" && lowerLimit && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Lower Limit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                ${lowerLimit}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            New Status:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {pendingStatusAction
+                              ? pendingStatusAction.charAt(0) +
+                                pendingStatusAction.slice(1).toLowerCase()
+                              : ""}
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex justify-end gap-3">
                       <button
@@ -2624,10 +2653,15 @@ export const GoogleCampaigns: React.FC = () => {
                               →
                             </span>
                             <span className="text-[12.8px] font-semibold text-[#072929]">
-                              {inlineEditField === "start_date" || inlineEditField === "end_date"
+                              {inlineEditField === "start_date" ||
+                              inlineEditField === "end_date"
                                 ? (() => {
                                     // Format YYYY-MM-DD to MM/DD/YYYY for display
-                                    if (!inlineEditNewValue || inlineEditNewValue === "—") return "—";
+                                    if (
+                                      !inlineEditNewValue ||
+                                      inlineEditNewValue === "—"
+                                    )
+                                      return "—";
                                     const parts = inlineEditNewValue.split("-");
                                     if (parts.length === 3) {
                                       return `${parts[1]}/${parts[2]}/${parts[0]}`;
@@ -2774,7 +2808,7 @@ export const GoogleCampaigns: React.FC = () => {
                 </div>
               )}
               {isCreateCampaignPanelOpen && (
-                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-20 rounded-[12px] cursor-not-allowed" />
+                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
               )}
             </div>
 

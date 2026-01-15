@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Checkbox } from "../ui/Checkbox";
 import { accountsService } from "../../services/accounts";
 
 interface CreateCampaignPanelProps {
@@ -12,6 +13,7 @@ interface CreateCampaignPanelProps {
   mode?: "create" | "edit";
   initialData?: Partial<CreateCampaignData> | null;
   campaignId?: string | number; // Campaign ID for edit mode (needed for updates)
+  profiles?: Array<{ value: string; label: string }>; // Profiles passed from parent to avoid separate AJAX call
 }
 
 export interface CreateCampaignData {
@@ -135,6 +137,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   mode = "create",
   initialData = null,
   campaignId,
+  profiles: profilesProp = [],
 }) => {
   // Store original data for comparison in edit mode
   const [originalData, setOriginalData] =
@@ -177,10 +180,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     useState<boolean>(false);
   const [selectedAudience, setSelectedAudience] = useState<string>("");
   const [audiencePercentage, setAudiencePercentage] = useState<number>(100);
-  const [profileOptions, setProfileOptions] = useState<
-    Array<{ value: string; label: string }>
-  >([]);
-  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [profileOptions, setProfileOptions] =
+    useState<Array<{ value: string; label: string }>>(profilesProp);
   const [portfolioOptions, setPortfolioOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
@@ -194,12 +195,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   >({});
   const [genericErrors, setGenericErrors] = useState<string[]>([]);
 
-  // Load profiles when panel opens
+  // Use profiles from props (loaded by parent component)
   useEffect(() => {
-    if (isOpen && accountId) {
-      loadProfiles();
+    console.log("CreateCampaignPanel received profiles:", profilesProp);
+    console.log("Profile options count:", profilesProp.length);
+    if (profilesProp && profilesProp.length > 0) {
+      console.log("Setting profile options:", profilesProp);
     }
-  }, [isOpen, accountId]);
+    setProfileOptions(profilesProp || []);
+  }, [profilesProp]);
 
   // Load portfolios when profileId is selected
   useEffect(() => {
@@ -464,37 +468,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
     }
   }, [submitError]);
 
-  const loadProfiles = async () => {
-    if (!accountId) return;
-
-    try {
-      setLoadingProfiles(true);
-      const channels = await accountsService.getAccountChannels(
-        parseInt(accountId)
-      );
-      const amazonChannel = channels.find((ch) => ch.channel_type === "amazon");
-
-      if (amazonChannel) {
-        const response = await accountsService.getProfiles(amazonChannel.id);
-        const activeProfiles = (response.profiles || []).filter(
-          (profile: any) => profile.is_selected && !profile.deleted_at
-        );
-
-        const options = activeProfiles.map((profile: any) => ({
-          value: profile.profileId || profile.id || "",
-          label: profile.name || profile.profileId || profile.id || "",
-        }));
-
-        setProfileOptions(options);
-      }
-    } catch (error) {
-      console.error("Failed to load profiles:", error);
-      setProfileOptions([]);
-    } finally {
-      setLoadingProfiles(false);
-    }
-  };
-
   const loadPortfolios = async (profileId: string) => {
     if (!accountId || !profileId) {
       setPortfolioOptions([]);
@@ -542,8 +515,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       );
       const options =
         brandEntities?.map((be) => ({
-          value: be.id,
-          label: `${be.name} (${be.id})`,
+          value: be.brandEntityId,
+          label: `${be.brandRegistryName} (${be.brandEntityId})`,
         })) || [];
       setBrandEntityOptions(options);
       // Clear brandEntityId if it's no longer in the options
@@ -1054,35 +1027,34 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             {formData.type === "SB" ? (
               <div className="grid grid-cols-3 gap-6">
                 {/* Profile */}
-                {profileOptions.length > 0 && (
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Profile
-                    </label>
-                    <Dropdown<string>
-                      options={profileOptions}
-                      value={formData.profileId || undefined}
-                      onChange={(value) => handleChange("profileId", value)}
-                      placeholder={
-                        loadingProfiles
-                          ? "Loading profiles..."
-                          : "Select profile"
-                      }
-                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                      disabled={loadingProfiles || mode === "edit"}
-                    />
-                    {mode === "edit" && (
-                      <p className="text-[10px] text-[#556179] mt-1 italic">
-                        Read-only in edit mode
-                      </p>
-                    )}
-                    {errors.profileId && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.profileId}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    Profile
+                  </label>
+                  <Dropdown<string>
+                    options={profileOptions}
+                    value={formData.profileId || undefined}
+                    onChange={(value) => handleChange("profileId", value)}
+                    placeholder="Select profile"
+                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    disabled={mode === "edit"}
+                    emptyMessage={
+                      profileOptions.length === 0
+                        ? "Loading profiles..."
+                        : "No profiles available"
+                    }
+                  />
+                  {mode === "edit" && (
+                    <p className="text-[10px] text-[#556179] mt-1 italic">
+                      Read-only in edit mode
+                    </p>
+                  )}
+                  {errors.profileId && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.profileId}
+                    </p>
+                  )}
+                </div>
 
                 {/* Campaign Type */}
                 <div>
@@ -1137,35 +1109,34 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             ) : (
               <div className="grid grid-cols-3 gap-6">
                 {/* Profile */}
-                {profileOptions.length > 0 && (
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Profile
-                    </label>
-                    <Dropdown<string>
-                      options={profileOptions}
-                      value={formData.profileId || undefined}
-                      onChange={(value) => handleChange("profileId", value)}
-                      placeholder={
-                        loadingProfiles
-                          ? "Loading profiles..."
-                          : "Select profile"
-                      }
-                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                      disabled={loadingProfiles || mode === "edit"}
-                    />
-                    {mode === "edit" && (
-                      <p className="text-[10px] text-[#556179] mt-1 italic">
-                        Read-only in edit mode
-                      </p>
-                    )}
-                    {errors.profileId && (
-                      <p className="text-[10px] text-red-500 mt-1">
-                        {errors.profileId}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    Profile
+                  </label>
+                  <Dropdown<string>
+                    options={profileOptions}
+                    value={formData.profileId || undefined}
+                    onChange={(value) => handleChange("profileId", value)}
+                    placeholder="Select profile"
+                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    disabled={mode === "edit"}
+                    emptyMessage={
+                      profileOptions.length === 0
+                        ? "Loading profiles..."
+                        : "No profiles available"
+                    }
+                  />
+                  {mode === "edit" && (
+                    <p className="text-[10px] text-[#556179] mt-1 italic">
+                      Read-only in edit mode
+                    </p>
+                  )}
+                  {errors.profileId && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.profileId}
+                    </p>
+                  )}
+                </div>
 
                 {/* Campaign Type */}
                 <div>
@@ -1728,39 +1699,34 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Bid Optimization
                       </label>
                       <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.bidding?.bidOptimization ?? true}
-                            onChange={(e) => {
-                              const newBidOptimization = e.target.checked;
-                              setFormData((prev) => {
-                                const updated = { ...prev };
-                                if (!updated.bidding) {
-                                  updated.bidding = {
-                                    bidOptimization: newBidOptimization,
-                                    shopperCohortBidAdjustments: [],
-                                    bidAdjustmentsByPlacement: [],
-                                  };
-                                } else {
-                                  updated.bidding = {
-                                    ...updated.bidding,
-                                    bidOptimization: newBidOptimization,
-                                    // Keep bidAdjustmentsByPlacement regardless of bidOptimization
-                                    bidAdjustmentsByPlacement:
-                                      updated.bidding
-                                        .bidAdjustmentsByPlacement || [],
-                                  };
-                                }
-                                return updated;
-                              });
-                            }}
-                            className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
-                          />
-                          <span className="text-[13.3px] font-medium text-[#072929]">
-                            Automatic placement optimization
-                          </span>
-                        </label>
+                        <Checkbox
+                          checked={formData.bidding?.bidOptimization ?? true}
+                          onChange={(checked) => {
+                            const newBidOptimization = checked;
+                            setFormData((prev) => {
+                              const updated = { ...prev };
+                              if (!updated.bidding) {
+                                updated.bidding = {
+                                  bidOptimization: newBidOptimization,
+                                  shopperCohortBidAdjustments: [],
+                                  bidAdjustmentsByPlacement: [],
+                                };
+                              } else {
+                                updated.bidding = {
+                                  ...updated.bidding,
+                                  bidOptimization: newBidOptimization,
+                                  // Keep bidAdjustmentsByPlacement regardless of bidOptimization
+                                  bidAdjustmentsByPlacement:
+                                    updated.bidding.bidAdjustmentsByPlacement ||
+                                    [],
+                                };
+                              }
+                              return updated;
+                            });
+                          }}
+                          label="Automatic placement optimization"
+                          className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
+                        />
                       </div>
                       <p className="text-[12px] text-[#556179] mt-1">
                         When enabled, placement adjustments are ignored
@@ -2753,39 +2719,34 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         Bid Optimization
                       </label>
                       <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.bidding?.bidOptimization ?? true}
-                            onChange={(e) => {
-                              const newBidOptimization = e.target.checked;
-                              setFormData((prev) => {
-                                const updated = { ...prev };
-                                if (!updated.bidding) {
-                                  updated.bidding = {
-                                    bidOptimization: newBidOptimization,
-                                    shopperCohortBidAdjustments: [],
-                                    bidAdjustmentsByPlacement: [],
-                                  };
-                                } else {
-                                  updated.bidding = {
-                                    ...updated.bidding,
-                                    bidOptimization: newBidOptimization,
-                                    // Keep bidAdjustmentsByPlacement regardless of bidOptimization
-                                    bidAdjustmentsByPlacement:
-                                      updated.bidding
-                                        .bidAdjustmentsByPlacement || [],
-                                  };
-                                }
-                                return updated;
-                              });
-                            }}
-                            className="w-4 h-4 text-[#136D6D] focus:ring-[#136D6D] border-gray-300 rounded"
-                          />
-                          <span className="text-[13.3px] font-medium text-[#072929]">
-                            Automatic placement optimization
-                          </span>
-                        </label>
+                        <Checkbox
+                          checked={formData.bidding?.bidOptimization ?? true}
+                          onChange={(checked) => {
+                            const newBidOptimization = checked;
+                            setFormData((prev) => {
+                              const updated = { ...prev };
+                              if (!updated.bidding) {
+                                updated.bidding = {
+                                  bidOptimization: newBidOptimization,
+                                  shopperCohortBidAdjustments: [],
+                                  bidAdjustmentsByPlacement: [],
+                                };
+                              } else {
+                                updated.bidding = {
+                                  ...updated.bidding,
+                                  bidOptimization: newBidOptimization,
+                                  // Keep bidAdjustmentsByPlacement regardless of bidOptimization
+                                  bidAdjustmentsByPlacement:
+                                    updated.bidding.bidAdjustmentsByPlacement ||
+                                    [],
+                                };
+                              }
+                              return updated;
+                            });
+                          }}
+                          label="Automatic placement optimization"
+                          className="[&_label]:text-[13.3px] [&_label]:font-medium [&_label]:text-[#072929]"
+                        />
                       </div>
                       <p className="text-[12px] text-[#556179] mt-1">
                         When enabled, placement adjustments are ignored

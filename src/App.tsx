@@ -31,6 +31,7 @@ import { GoogleOAuthCallback } from "./pages/GoogleOAuthCallback";
 import { TikTokOAuthCallback } from "./pages/TikTokOAuthCallback";
 import { ConnectTikTok } from "./pages/ConnectTikTok";
 import { SelectAmazonProfiles } from "./pages/SelectAmazonProfiles";
+import { SelectTikTokProfiles } from "./pages/SelectTikTokProfiles";
 import { ListAmazonProfiles } from "./pages/ListAmazonProfiles";
 import { SelectGoogleAdsAccounts } from "./pages/SelectGoogleAdsAccounts";
 import { GoogleCampaigns } from "./pages/google/GoogleCampaigns";
@@ -39,6 +40,11 @@ import { GoogleCreateCampaign } from "./pages/google/GoogleCreateCampaign";
 import { GoogleAdGroups } from "./pages/google/GoogleAdGroups";
 import { GoogleAds } from "./pages/google/GoogleAds";
 import { GoogleKeywords } from "./pages/google/GoogleKeywords";
+import { TikTokCampaigns } from "./pages/tiktok/TikTokCampaigns";
+import { TikTokCampaignDetail } from "./pages/tiktok/TikTokCampaignDetail";
+import { TikTokCreateCampaign } from "./pages/tiktok/TikTokCreateCampaign";
+import { TikTokAdGroups } from "./pages/tiktok/TikTokAdGroups";
+import { TikTokAds } from "./pages/tiktok/TikTokAds";
 import { Auth0Callback } from "./pages/Auth0Callback";
 import { ColorExamples } from "./pages/ColorExamples";
 import { Dashboards } from "./pages/Dashboards";
@@ -51,388 +57,460 @@ function App() {
         <AccountsProvider>
           <GlobalStateProvider>
             <SidebarProvider>
-            <Router>
-              <Routes>
-                <Route
-                  path="/login"
-                  element={
-                    <PublicRoute>
-                      <Login />
-                    </PublicRoute>
-                  }
-                />
-                <Route
-                  path="/signup"
-                  element={
-                    <PublicRoute>
-                      <Signup />
-                    </PublicRoute>
-                  }
-                />
-                <Route
-                  path="/forgot-password"
-                  element={
-                    <PublicRoute>
-                      <ForgotPassword />
-                    </PublicRoute>
-                  }
-                />
-                <Route
-                  path="/reset-password/:token"
-                  element={
-                    <PublicRoute>
-                      <ResetPassword />
-                    </PublicRoute>
-                  }
-                />
-                <Route path="/callback" element={<Auth0Callback />} />
-                <Route
-                  path="/return"
-                  element={
-                    <ProtectedRoute>
-                      <AmazonOAuthCallback />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/google-oauth-callback"
-                  element={
-                    <ProtectedRoute>
-                      <GoogleOAuthCallback />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/tiktok-oauth-callback"
-                  element={
-                    <ProtectedRoute>
-                      <TikTokOAuthCallback />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/channels/:channelId/select-google-accounts"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <SelectGoogleAdsAccounts />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/channels/:channelId/select-profiles"
-                  element={
-                    <ProtectedRoute>
-                      <SelectAmazonProfiles />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/channels/:channelId/list-profiles"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <ListAmazonProfiles />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <Navigate to="/accounts" replace />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                {/* Legacy routes - redirect to accounts */}
-                <Route
-                  path="/campaigns"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <Navigate to="/accounts" replace />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/channels"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <Navigate to="/accounts" replace />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboards"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <Dashboards />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <Accounts />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/log-history"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <LogHistory />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/log-history"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
+              <Router>
+                <Routes>
+                  <Route
+                    path="/login"
+                    element={
+                      <PublicRoute>
+                        <Login />
+                      </PublicRoute>
+                    }
+                  />
+                  <Route
+                    path="/signup"
+                    element={
+                      <PublicRoute>
+                        <Signup />
+                      </PublicRoute>
+                    }
+                  />
+                  <Route
+                    path="/forgot-password"
+                    element={
+                      <PublicRoute>
+                        <ForgotPassword />
+                      </PublicRoute>
+                    }
+                  />
+                  <Route
+                    path="/reset-password/:token"
+                    element={
+                      <PublicRoute>
+                        <ResetPassword />
+                      </PublicRoute>
+                    }
+                  />
+                  <Route path="/callback" element={<Auth0Callback />} />
+                  <Route
+                    path="/amazon-oauth-callback"
+                    element={
+                      <ProtectedRoute>
+                        <AmazonOAuthCallback />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/google-oauth-callback"
+                    element={
+                      <ProtectedRoute>
+                        <GoogleOAuthCallback />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/tiktok-oauth-callback"
+                    element={
+                      <ProtectedRoute>
+                        <TikTokOAuthCallback />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/channels/:channelId/select-google-accounts"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <SelectGoogleAdsAccounts />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/channels/:channelId/select-profiles"
+                    element={
+                      <ProtectedRoute>
+                        <SelectAmazonProfiles />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/channels/:channelId/select-tiktok-profiles"
+                    element={
+                      <ProtectedRoute>
+                        <SelectTikTokProfiles />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/channels/:channelId/list-profiles"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <ListAmazonProfiles />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Navigate to="/accounts" replace />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Legacy routes - redirect to accounts */}
+                  <Route
+                    path="/campaigns"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Navigate to="/accounts" replace />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/channels"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Navigate to="/accounts" replace />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboards"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Dashboards />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Accounts />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/log-history"
+                    element={
+                      <ProtectedRoute>
                         <Layout>
                           <LogHistory />
                         </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/log-history/:campaignId"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/log-history"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <LogHistory />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/log-history/:campaignId"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <LogHistory />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Account-scoped routes requiring account ID */}
+                  <Route
+                    path="/accounts/:accountId/channels"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <Channels />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/connect-tiktok"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <ConnectTikTok />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Amazon marketplace routes */}
+                  <Route
+                    path="/accounts/:accountId/amazon/campaigns"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <Campaigns />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/amazon/campaigns/:campaignTypeAndId"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <CampaignDetail />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/amazon/adgroups"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <AdGroups />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/amazon/keywords"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <Keywords />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/amazon/targets"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <Targets />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Google marketplace routes */}
+                  <Route
+                    path="/accounts/:accountId/google/campaigns/create"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <GoogleCreateCampaign />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/google/campaigns"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <GoogleCampaigns />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/google/campaigns/:campaignId"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <GoogleCampaignDetail />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/google/adgroups"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <GoogleAdGroups />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/google/ads"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <GoogleAds />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/google/keywords"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <GoogleKeywords />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* TikTok marketplace routes */}
+                  <Route
+                    path="/accounts/:accountId/tiktok/campaigns"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokCampaigns />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/campaigns/create"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokCreateCampaign />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/campaigns/:campaignId"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokCampaignDetail />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/adgroups"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokAdGroups />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/tiktok/ads"
+                    element={
+                      <ProtectedRoute>
+                        <AccountRequiredRoute>
+                          <Layout>
+                            <TikTokAds />
+                          </Layout>
+                        </AccountRequiredRoute>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Legacy routes for backward compatibility - redirect to new structure */}
+
+                  <Route
+                    path="/accounts/:accountId/campaigns"
+                    element={
+                      <ProtectedRoute>
+                        <LegacyRedirect pattern="amazon/campaigns" />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/google-campaigns"
+                    element={
+                      <ProtectedRoute>
+                        <LegacyRedirect pattern="google/campaigns" />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/google-campaigns/:campaignId"
+                    element={
+                      <ProtectedRoute>
+                        <LegacyRedirect pattern="google/campaigns/:campaignId" />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/accounts/:accountId/campaigns/:campaignTypeAndId"
+                    element={
+                      <ProtectedRoute>
+                        <LegacyRedirect pattern="amazon/campaigns/:campaignTypeAndId" />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/color-examples"
+                    element={
+                      <ProtectedRoute>
                         <Layout>
-                          <LogHistory />
+                          <ColorExamples />
                         </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                {/* Account-scoped routes requiring account ID */}
-                <Route
-                  path="/accounts/:accountId/channels"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <Channels />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/connect-tiktok"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <ConnectTikTok />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                {/* Amazon marketplace routes */}
-                <Route
-                  path="/accounts/:accountId/amazon/campaigns"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <Campaigns />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/amazon/campaigns/:campaignTypeAndId"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <CampaignDetail />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/amazon/adgroups"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <AdGroups />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/amazon/keywords"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <Keywords />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/amazon/targets"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <Targets />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                {/* Google marketplace routes */}
-                <Route
-                  path="/accounts/:accountId/google/campaigns/create"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <GoogleCreateCampaign />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/google/campaigns"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <GoogleCampaigns />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/google/campaigns/:campaignId"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <GoogleCampaignDetail />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/google/adgroups"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <GoogleAdGroups />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/google/ads"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <GoogleAds />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/google/keywords"
-                  element={
-                    <ProtectedRoute>
-                      <AccountRequiredRoute>
-                        <Layout>
-                          <GoogleKeywords />
-                        </Layout>
-                      </AccountRequiredRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                {/* Legacy routes for backward compatibility - redirect to new structure */}
-                <Route
-                  path="/accounts/:accountId/campaigns"
-                  element={
-                    <ProtectedRoute>
-                      <LegacyRedirect pattern="amazon/campaigns" />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/google-campaigns"
-                  element={
-                    <ProtectedRoute>
-                      <LegacyRedirect pattern="google/campaigns" />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/google-campaigns/:campaignId"
-                  element={
-                    <ProtectedRoute>
-                      <LegacyRedirect pattern="google/campaigns/:campaignId" />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/accounts/:accountId/campaigns/:campaignTypeAndId"
-                  element={
-                    <ProtectedRoute>
-                      <LegacyRedirect pattern="amazon/campaigns/:campaignTypeAndId" />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/color-examples"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <ColorExamples />
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-          </Routes>
-        </Router>
-        {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
-      </SidebarProvider>
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </Router>
+              {import.meta.env.DEV && (
+                <ReactQueryDevtools initialIsOpen={false} />
+              )}
+            </SidebarProvider>
           </GlobalStateProvider>
-    </AccountsProvider>
-  </DateRangeProvider>
-</AuthProvider>
+        </AccountsProvider>
+      </DateRangeProvider>
+    </AuthProvider>
   );
 }
 

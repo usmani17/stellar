@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import { useAccounts } from "../contexts/AccountsContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -22,7 +22,6 @@ export const Accounts: React.FC = () => {
   const { accounts, loading: accountsLoading } = useAccounts();
   const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
-  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(
     null
@@ -93,6 +92,21 @@ export const Accounts: React.FC = () => {
       alert(error.response?.data?.error || "Failed to create account");
     }
   };
+
+  // Scroll to create account form when it's shown
+  const createAccountFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showCreateAccount && createAccountFormRef.current) {
+      // Small delay to ensure the form is rendered
+      setTimeout(() => {
+        createAccountFormRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    }
+  }, [showCreateAccount]);
 
   const handleDeleteAccount = async (id: number) => {
     const account = accounts.find((acc) => acc.id === id);
@@ -297,70 +311,74 @@ export const Accounts: React.FC = () => {
 
             {/* Create Account Form */}
             {showCreateAccount && (
-              <Card>
-                <div className="p-4">
-                  <div className="flex gap-[12px]">
-                    <input
-                      type="text"
-                      value={newAccountName}
-                      onChange={(e) => setNewAccountName(e.target.value)}
-                      placeholder="Account name"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-[14px] focus-visible:outline-none focus:ring-1 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && handleCreateAccount()
-                      }
-                    />
-                    <Button
-                      onClick={() => {
-                        setNewAccountName("");
-                        setShowCreateAccount(false);
-                      }}
-                      size="sm"
-                      className="bg-[#f9f9f6] border border-[#072929] h-[36px] px-2 py-1.5 rounded-[8px] flex items-center justify-center"
-                    >
-                      <span className="text-[14px] font-semibold text-[#072929] ">
-                        Cancel
-                      </span>
-                    </Button>
-                    <Button
-                      onClick={handleCreateAccount}
-                      disabled={createAccountMutation.isPending}
-                      size="sm"
-                      className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {createAccountMutation.isPending ? (
-                        <>
-                          <svg
-                            className="animate-spin h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
+              <div ref={createAccountFormRef}>
+                <Card>
+                  <div className="p-4">
+                    <div className="flex gap-[12px]">
+                      <input
+                        type="text"
+                        value={newAccountName}
+                        onChange={(e) => setNewAccountName(e.target.value)}
+                        placeholder="Account name"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-[14px] focus-visible:outline-none focus:ring-1 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && handleCreateAccount()
+                        }
+                      />
+                      <Button
+                        onClick={() => {
+                          setNewAccountName("");
+                          setShowCreateAccount(false);
+                        }}
+                        size="sm"
+                        className="bg-[#f9f9f6] border border-[#072929] h-[36px] px-2 py-1.5 rounded-[8px] flex items-center justify-center"
+                      >
+                        <span className="text-[14px] font-semibold text-[#072929] ">
+                          Cancel
+                        </span>
+                      </Button>
+                      <Button
+                        onClick={handleCreateAccount}
+                        disabled={createAccountMutation.isPending}
+                        size="sm"
+                        className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {createAccountMutation.isPending ? (
+                          <>
+                            <svg
+                              className="animate-spin h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            <span className="text-[14px] font-medium">
+                              Creating...
+                            </span>
+                          </>
+                        ) : (
                           <span className="text-[14px] font-medium">
-                            Creating...
+                            Create
                           </span>
-                        </>
-                      ) : (
-                        <span className="text-[14px] font-medium">Create</span>
-                      )}
-                    </Button>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             )}
 
             {/* Accounts Table Card */}
@@ -487,11 +505,14 @@ export const Accounts: React.FC = () => {
                                 : "No accounts yet"}
                             </p>
                             {!searchQuery && (
-                              <Button
-                                onClick={() => setShowCreateAccount(true)}
-                              >
-                                Create Your First Account
-                              </Button>
+                              <div className="flex justify-center">
+                                <Button
+                                  onClick={() => setShowCreateAccount(true)}
+                                  className="rounded-lg"
+                                >
+                                  Create Your First Account
+                                </Button>
+                              </div>
                             )}
                           </td>
                         </tr>

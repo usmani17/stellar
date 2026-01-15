@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { accountsService } from "../services/accounts";
 import { useAccounts } from "../contexts/AccountsContext";
@@ -9,10 +9,19 @@ export const TikTokOAuthCallback: React.FC = () => {
   const { refreshAccounts } = useAccounts();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasProcessedRef = useRef(false); // Prevent duplicate processing
 
   useEffect(() => {
+    // Prevent React strict mode from calling this twice
+    if (hasProcessedRef.current) {
+      return;
+    }
+
     const handleCallback = async () => {
-      const code = searchParams.get("code");
+      hasProcessedRef.current = true;
+      // TikTok sends auth_code, not code
+      const authCode =
+        searchParams.get("auth_code") || searchParams.get("code");
       const errorParam = searchParams.get("error");
       const state = searchParams.get("state");
 
@@ -27,7 +36,7 @@ export const TikTokOAuthCallback: React.FC = () => {
       }
 
       // Check for authorization code
-      if (!code) {
+      if (!authCode) {
         setError("No authorization code received from TikTok");
         setLoading(false);
         setTimeout(() => {
@@ -39,16 +48,35 @@ export const TikTokOAuthCallback: React.FC = () => {
       try {
         // Exchange authorization code for tokens
         const channel = await accountsService.handleTikTokOAuthCallback(
-          code,
+          authCode,
           state || undefined
         );
 
         console.log("TikTok OAuth callback response:", channel);
 
-        // Refresh accounts to show the new channel
+        // Extract channel ID and redirect to TikTok profiles selection
+        const channelId =
+          channel?.id ||
+          (channel as any)?.id ||
+          (channel as any)?.data?.id ||
+          null;
+
+        if (channelId) {
+          console.log(
+            "Redirecting to TikTok advertiser selection for channel:",
+            channelId
+          );
+          // Use window.location for immediate redirect (more reliable than navigate)
+          setTimeout(() => {
+            window.location.href = `/channels/${channelId}/select-tiktok-profiles`;
+          }, 100);
+          return;
+        } else {
+          // Fallback - refresh accounts and navigate there
         await refreshAccounts();
         setLoading(false);
         navigate("/accounts", { replace: true });
+        }
       } catch (err: any) {
         console.error("TikTok OAuth callback error:", err);
         setError(
@@ -100,4 +128,3 @@ export const TikTokOAuthCallback: React.FC = () => {
 
   return null;
 };
-

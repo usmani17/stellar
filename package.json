@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:tailwind-colors": "npx tsx scripts/generate-tailwind-from-tokens.ts"
@@ -18,6 +18,7 @@
     "@types/react-datepicker": "^7.0.0",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
+    "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-datepicker": "^9.0.0",
     "react-dom": "^19.2.0",

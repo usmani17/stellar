@@ -18,6 +18,7 @@ export interface Campaign {
   budgetType?: string; // Budget type (e.g., 'daily', 'lifetime')
   profile_name?: string; // Profile name
   profile_id?: string; // Profile ID
+  profile_country_code?: string; // Profile country code
   report_date?: string; // Report date (YYYY-MM-DD) - one row per campaign per day
 }
 
@@ -92,6 +93,8 @@ export interface CampaignDetail {
     description: string;
     targetingType?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (camelCase)
     targeting_type?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (snake_case)
+    profile_id?: string; // Profile ID for the campaign
+    type?: string; // Campaign type (SP, SB, SD)
   };
   kpi_cards: Array<{
     label: string;
@@ -399,6 +402,61 @@ export interface TargetsResponse {
   page: number;
   page_size: number;
   total_pages: number;
+}
+
+// Google Ad Groups Query Params
+export interface GoogleAdGroupsQueryParams {
+  sort_by?: string;
+  order?: "asc" | "desc";
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  page_size?: number;
+  adgroup_name?: string;
+  adgroup_name__icontains?: string;
+  adgroup_name__not_icontains?: string;
+  status?: string;
+  cpc_bid_dollars?: number;
+  cpc_bid_dollars__lt?: number;
+  cpc_bid_dollars__gt?: number;
+  cpc_bid_dollars__lte?: number;
+  cpc_bid_dollars__gte?: number;
+  account_name?: string;
+  account_name__icontains?: string;
+  account_name__not_icontains?: string;
+  campaign_name?: string;
+  campaign_name__icontains?: string;
+  campaign_name__not_icontains?: string;
+  spends?: number;
+  spends__lt?: number;
+  spends__gt?: number;
+  spends__lte?: number;
+  spends__gte?: number;
+  sales?: number;
+  sales__lt?: number;
+  sales__gt?: number;
+  sales__lte?: number;
+  sales__gte?: number;
+  impressions?: number;
+  impressions__lt?: number;
+  impressions__gt?: number;
+  impressions__lte?: number;
+  impressions__gte?: number;
+  clicks?: number;
+  clicks__lt?: number;
+  clicks__gt?: number;
+  clicks__lte?: number;
+  clicks__gte?: number;
+  acos?: number;
+  acos__lt?: number;
+  acos__gt?: number;
+  acos__lte?: number;
+  acos__gte?: number;
+  roas?: number;
+  roas__lt?: number;
+  roas__gt?: number;
+  roas__lte?: number;
+  roas__gte?: number;
 }
 
 export const campaignsService = {
@@ -948,9 +1006,8 @@ export const campaignsService = {
       params.append("type", campaignType);
     }
 
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/${
-      params.toString() ? `?${params.toString()}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/${params.toString() ? `?${params.toString()}` : ""
+      }`;
     const response = await api.get<CampaignDetail>(url);
     return response.data;
   },
@@ -987,9 +1044,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post<AdGroupsResponse>(url, { filters });
     return response.data;
   },
@@ -1026,9 +1082,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post<KeywordsResponse>(url, { filters });
     return response.data;
   },
@@ -1065,9 +1120,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post<ProductAdsResponse>(url, { filters });
     return response.data;
   },
@@ -1104,9 +1158,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post<TargetsResponse>(url, { filters });
     return response.data;
   },
@@ -1153,9 +1206,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1203,9 +1255,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1215,16 +1266,13 @@ export const campaignsService = {
     payload: {
       campaignIds: Array<string | number>;
       action:
-        | "status"
-        | "budget"
-        | "budgetType"
-        | "name"
-        | "portfolioId"
-        | "endDate"
-        | "targetingType"
-        | "tags"
-        | "siteRestrictions"
-        | "dynamicBidding";
+      | "status"
+      | "budget"
+      | "budgetType"
+      | "name"
+      | "portfolioId"
+      | "endDate"
+      | "targetingType";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
       budgetType?: "DAILY" | "LIFETIME";
@@ -1283,7 +1331,7 @@ export const campaignsService = {
     payload: {
       adgroupIds: Array<string | number>;
       action: "status" | "default_bid" | "name";
-      status?: "enable" | "pause" | "archive";
+      status?: "ENABLED" | "PAUSED";
       value?: number;
       name?: string;
     }
@@ -1586,8 +1634,8 @@ export const campaignsService = {
     accountId: number,
     payload: {
       keywordIds: Array<string | number>;
-      action: "status" | "bid";
-      status?: "enable" | "pause" | "archive";
+      action: "status" | "bid" | "archive";
+      status?: "enable" | "pause";
       bid?: number;
     }
   ) => {
@@ -1615,6 +1663,8 @@ export const campaignsService = {
       negativeKeywordIdFilter: {
         include: Array<string | number>;
       };
+      campaignType?: string;
+      campaignId?: string | number;
     }
   ) => {
     const url = `/accounts/${accountId}/negative-keywords/bulk-delete/`;
@@ -1729,6 +1779,111 @@ export const campaignsService = {
     return response.data;
   },
 
+  createSBAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { ads: any[] }
+  ): Promise<any> => {
+    const response = await api.post(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-ads/create/`,
+      data
+    );
+    return response.data;
+  },
+
+  createSBVideoAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { ads: any[] }
+  ): Promise<any> => {
+    // Add adType parameter to indicate this is a video ad request
+    const response = await api.post(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-video-ads/create/`,
+      { ...data, adType: 'VIDEO' }
+    );
+    return response.data;
+  },
+
+  updateSBAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { ads: any[] }
+  ): Promise<any> => {
+    const response = await api.put(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-ads/update/`,
+      data
+    );
+    return response.data;
+  },
+
+  deleteSBAds: async (
+    accountId: number,
+    campaignId: string,
+    data: { adIds: string[] }
+  ): Promise<any> => {
+    const response = await api.delete(
+      `/accounts/${accountId}/campaigns/${campaignId}/sb-ads/delete/`,
+      { data }
+    );
+    return response.data;
+  },
+
+  getAssets: async (
+    accountId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      mediaType?: string;
+      brandEntityId?: string;
+    }
+  ): Promise<any> => {
+    const response = await api.get(`/accounts/${accountId}/assets/`, {
+      params,
+    });
+    return response.data;
+  },
+
+  createAsset: async (
+    accountId: number,
+    formData: FormData,
+    onUploadProgress?: (progress: number) => void
+  ): Promise<any> => {
+    const response = await api.post(
+      `/accounts/${accountId}/assets/create/`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          if (onUploadProgress && progressEvent.total) {
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            onUploadProgress(progress);
+          }
+        },
+      }
+    );
+    return response.data;
+  },
+
+  getAssetPreview: async (
+    accountId: number,
+    assetId: string,
+    profileId: string
+  ): Promise<{ previewUrl: string; contentType?: string | null; assetData: any }> => {
+    const response = await api.get(
+      `/accounts/${accountId}/assets/${assetId}/preview/`,
+      {
+        params: { profileId },
+      }
+    );
+    return response.data;
+  },
+
   createProductAds: async (
     accountId: number,
     campaignId: string | number,
@@ -1747,6 +1902,21 @@ export const campaignsService = {
   ) => {
     const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/create/`;
     const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  updateProductAds: async (
+    accountId: number,
+    campaignId: string | number,
+    payload: {
+      productAds: Array<{
+        adId: string;
+        state: "ENABLED" | "PAUSED";
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/update/`;
+    const response = await api.put(url, payload);
     return response.data;
   },
 
@@ -2675,6 +2845,7 @@ export const campaignsService = {
     return response.data;
   },
 
+
   exportGoogleAdGroups: async (
     accountId: number,
     params?: GoogleAdGroupsQueryParams,
@@ -2802,9 +2973,8 @@ export const campaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.get(url);
     return response.data;
   },
@@ -3348,4 +3518,311 @@ export const campaignsService = {
     link.remove();
     window.URL.revokeObjectURL(url);
   },
+
+  // TikTok Campaign Methods
+  getTikTokCampaigns: async (
+    accountId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      operation_status?: string;
+      advertiser_id?: string;
+    }
+  ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number }> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", String(params.page));
+    if (params?.page_size) queryParams.append("page_size", String(params.page_size));
+    if (params?.operation_status) queryParams.append("operation_status", params.operation_status);
+    if (params?.advertiser_id) queryParams.append("advertiser_id", params.advertiser_id);
+
+    const url = `/accounts/${accountId}/tiktok-campaigns/?${queryParams.toString()}`;
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  createTikTokCampaign: async (
+    accountId: number,
+    data: {
+      // Core Required
+      campaign_name: string;
+      objective_type: string;
+      // Conditionally Required
+      advertiser_id?: string;
+      app_promotion_type?: string;
+      virtual_objective_type?: string;
+      sales_destination?: string;
+      campaign_product_source?: string;
+      app_id?: string;
+      // Optional & Advanced
+      budget?: number;
+      budget_mode?: string;
+      campaign_type?: string;
+      budget_optimize_on?: boolean;
+      special_industries?: string[];
+      is_search_campaign?: boolean;
+      is_advanced_dedicated_campaign?: boolean;
+      disable_skan_campaign?: boolean;
+      campaign_app_profile_page_state?: string;
+      rf_campaign_type?: string;
+      catalog_enabled?: boolean;
+      request_id?: string;
+      operation_status?: string;
+      postback_window_mode?: string;
+      rta_id?: string;
+      rta_bid_enabled?: boolean;
+      rta_product_selection_enabled?: boolean;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-campaigns/create/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  updateTikTokCampaign: async (
+    accountId: number,
+    campaignId: string | number,
+    data: {
+      campaign_name?: string;
+      budget?: number;
+      special_industries?: string[];
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-campaigns/${campaignId}/update/`;
+    const response = await api.put(url, data);
+    return response.data;
+  },
+
+  // TikTok Campaign Status Update
+  updateTikTokCampaignStatus: async (
+    accountId: number,
+    data: {
+      campaign_ids: Array<string | number>;
+      operation_status: "ENABLE" | "DISABLE" | "DELETE";
+      advertiser_id?: string;
+      postback_window_mode?: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-campaigns/status/update/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  // TikTok Campaign Detail
+  getTikTokCampaignDetail: async (
+    accountId: number,
+    campaignId: string | number,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    campaign: {
+      id: number;
+      campaign_id: string;
+      advertiser_id: string;
+      campaign_name: string;
+      operation_status: string;
+      objective_type: string;
+      budget_mode: string;
+      budget: number;
+      create_time: string;
+      modify_time: string;
+    };
+    kpi_cards: Array<{ label: string; value: string }>;
+    chart_data: Array<{
+      date: string;
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+    }>;
+  }> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    const queryString = params.toString();
+    const url = `/accounts/${accountId}/tiktok-campaigns/${campaignId}/${queryString ? `?${queryString}` : ""}`;
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  // TikTok Ad Groups
+  getTikTokAdGroups: async (
+    accountId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      campaign_id?: string;
+      advertiser_id?: string;
+      operation_status?: string;
+      optimization_goal?: string;
+      adgroup_name?: string;
+      adgroup_name__icontains?: string;
+    }
+  ): Promise<{
+    adgroups: any[];
+    summary?: {
+      total_adgroups: number;
+      total_spend: number;
+      total_impressions: number;
+      total_clicks: number;
+      total_conversions: number;
+      avg_ctr: number;
+      avg_cpc: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const filters: any = {};
+
+    if (params?.page) filters.page = params.page;
+    if (params?.page_size) filters.page_size = params.page_size;
+    if (params?.sort_by) filters.sort_by = params.sort_by;
+    if (params?.order) filters.order = params.order;
+    if (params?.start_date) filters.start_date = params.start_date;
+    if (params?.end_date) filters.end_date = params.end_date;
+    if (params?.campaign_id) filters.campaign_id = params.campaign_id;
+    if (params?.advertiser_id) filters.advertiser_id = params.advertiser_id;
+    if (params?.operation_status) filters.operation_status = params.operation_status;
+    if (params?.optimization_goal) filters.optimization_goal = params.optimization_goal;
+    if (params?.adgroup_name) filters.adgroup_name = params.adgroup_name;
+    if (params?.adgroup_name__icontains)
+      filters.adgroup_name__icontains = params.adgroup_name__icontains;
+
+    const response = await api.post(`/accounts/${accountId}/tiktok-adgroups/`, {
+      filters,
+    });
+    return response.data;
+  },
+
+  createTikTokAdGroup: async (
+    accountId: number,
+    data: {
+      campaign_id: string;
+      adgroup_name: string;
+      location_ids: string[];
+      budget_mode: string;
+      budget: number;
+      schedule_type: string;
+      schedule_start_time: string;
+      optimization_goal: string;
+      billing_event: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-adgroups/create/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  // TikTok Ads
+  getTikTokAds: async (
+    accountId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      ad_id?: string;
+      adgroup_id?: string;
+      campaign_id?: string;
+      advertiser_id?: string;
+      operation_status?: string;
+      ad_format?: string;
+      ad_name?: string;
+      ad_name__icontains?: string;
+      adgroup_name__icontains?: string;
+      campaign_name__icontains?: string;
+      filters?: any;
+    }
+  ): Promise<{
+    ads: any[];
+    summary?: {
+      total_ads: number;
+      total_spend: number;
+      total_impressions: number;
+      total_clicks: number;
+      total_conversions: number;
+      avg_ctr: number;
+      avg_cpc: number;
+    };
+    chart_data?: Array<{
+      date: string;
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    const filters: any = {};
+
+    if (params?.page) filters.page = params.page;
+    if (params?.page_size) filters.page_size = params.page_size;
+    if (params?.sort_by) filters.sort_by = params.sort_by;
+    if (params?.order) filters.order = params.order;
+    if (params?.start_date) filters.start_date = params.start_date;
+    if (params?.end_date) filters.end_date = params.end_date;
+    if (params?.ad_id) filters.ad_id = params.ad_id;
+    if (params?.adgroup_id) filters.adgroup_id = params.adgroup_id;
+    if (params?.campaign_id) filters.campaign_id = params.campaign_id;
+    if (params?.advertiser_id) filters.advertiser_id = params.advertiser_id;
+    if (params?.operation_status) filters.operation_status = params.operation_status;
+    if (params?.ad_format) filters.ad_format = params.ad_format;
+    if (params?.ad_name) filters.ad_name = params.ad_name;
+    if (params?.ad_name__icontains)
+      filters.ad_name__icontains = params.ad_name__icontains;
+    if (params?.adgroup_name__icontains)
+      filters.adgroup_name__icontains = params.adgroup_name__icontains;
+    if (params?.campaign_name__icontains)
+      filters.campaign_name__icontains = params.campaign_name__icontains;
+
+    // Merge any additional filters from params.filters
+    if (params?.filters) {
+      Object.assign(filters, params.filters);
+    }
+
+    const response = await api.post(`/accounts/${accountId}/tiktok-ads/`, {
+      filters,
+    });
+    return response.data;
+  },
+
+  createTikTokAd: async (
+    accountId: number,
+    data: {
+      adgroup_id: string;
+      ad_name: string;
+      ad_format: string;
+      ad_text: string;
+      identity_id: string;
+      video_id?: string;
+      image_ids?: string[];
+      landing_page_url?: string;
+      call_to_action?: string;
+      deeplink?: string;
+      tracking_pixel_id?: string;
+      advertiser_id?: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-ads/create/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
 };

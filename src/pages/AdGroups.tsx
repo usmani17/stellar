@@ -674,14 +674,15 @@ export const AdGroups: React.FC = () => {
       }
 
       if (pendingAdGroupChange.field === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause" | "archive"> = {
-          enabled: "enable",
-          paused: "pause",
-          archived: "archive",
+        // Map status values to uppercase
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          enabled: "ENABLED",
+          paused: "PAUSED",
+          enable: "ENABLED",
+          pause: "PAUSED",
         };
         const statusValue =
-          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "enable";
+          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
         await campaignsService.bulkUpdateAdGroups(accountIdNum, {
           adgroupIds: [adgroup.adGroupId],
@@ -782,10 +783,19 @@ export const AdGroups: React.FC = () => {
         .map((ag) => ag.adGroupId || ag.id)
         .filter(Boolean);
 
+      // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
+      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+        enable: "ENABLED",
+        pause: "PAUSED",
+        enabled: "ENABLED",
+        paused: "PAUSED",
+      };
+      const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
+
       await campaignsService.bulkUpdateAdGroups(accountIdNum, {
         adgroupIds: adgroupIds,
         action: "status",
-        status: statusValue,
+        status: apiStatus,
       });
       await loadAdGroups(accountIdNum);
       setSelectedAdgroups(new Set());
@@ -966,7 +976,7 @@ export const AdGroups: React.FC = () => {
   // Define filter fields for Ad Groups
   const ADGROUP_FILTER_FIELDS = [
     { value: "name", label: "Ad Group Name" },
-    { value: "state", label: "Status" },
+    { value: "state", label: "State" },
     { value: "default_bid", label: "Default Bid" },
     { value: "campaign_name", label: "Campaign Name" },
     { value: "profile_name", label: "Profile" },

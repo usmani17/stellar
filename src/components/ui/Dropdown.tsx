@@ -70,7 +70,11 @@ export const Dropdown = <T extends string | number = string>({
 }: DropdownProps<T>) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [searchQuery, setSearchQuery] = useState("");
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width?: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left: number;
+    width?: number;
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -93,27 +97,30 @@ export const Dropdown = <T extends string | number = string>({
       )
     : options;
 
-  // Calculate menu position for portal rendering when defaultOpen is true
+  // Calculate menu position for portal rendering when dropdown is open
   useEffect(() => {
-    if (isOpen && defaultOpen && dropdownRef.current) {
+    if (isOpen && dropdownRef.current) {
       const triggerRect = dropdownRef.current.getBoundingClientRect();
       // Use the trigger width for the menu width when width is "w-full"
       const menuWidth = width === "w-full" ? triggerRect.width : 200;
-      const menuHeight = Math.min(filteredOptions.length * 40 + (searchable ? 50 : 0), 400);
-      
+      const menuHeight = Math.min(
+        filteredOptions.length * 40 + (searchable ? 50 : 0),
+        400
+      );
+
       let top = triggerRect.bottom + 8; // mt-2 = 8px
       let left = triggerRect.left;
-      
+
       if (position === "top") {
         top = triggerRect.top - menuHeight - 8; // mb-2 = 8px
       }
-      
+
       if (align === "right") {
         left = triggerRect.right - menuWidth;
       } else if (align === "center") {
-        left = triggerRect.left + (triggerRect.width / 2) - (menuWidth / 2);
+        left = triggerRect.left + triggerRect.width / 2 - menuWidth / 2;
       }
-      
+
       // Ensure menu stays within viewport
       if (left + menuWidth > window.innerWidth) {
         left = window.innerWidth - menuWidth - 8;
@@ -127,12 +134,12 @@ export const Dropdown = <T extends string | number = string>({
       if (top < 8) {
         top = 8;
       }
-      
+
       setMenuPosition({ top, left, width: menuWidth });
     } else {
       setMenuPosition(null);
     }
-  }, [isOpen, defaultOpen, filteredOptions.length, searchable, align, position, width]);
+  }, [isOpen, filteredOptions.length, searchable, align, position, width]);
 
   // Handle click outside
   useEffect(() => {
@@ -140,7 +147,8 @@ export const Dropdown = <T extends string | number = string>({
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
-        (!defaultOpen || (menuRef.current && !menuRef.current.contains(event.target as Node)))
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
         setSearchQuery("");
@@ -201,7 +209,9 @@ export const Dropdown = <T extends string | number = string>({
           buttonClassName
         )}
       >
-        <span className="truncate">{option ? option.label : placeholder}</span>
+        <span className="truncate flex-1 min-w-0 text-left">
+          {option ? option.label : placeholder}
+        </span>
         <svg
           className={cn(
             "w-4 h-4 text-[#072929] transition-transform",
@@ -260,29 +270,27 @@ export const Dropdown = <T extends string | number = string>({
 
   const renderMenu = () => {
     if (!isOpen) return null;
-    
+
     return (
       <div
         ref={menuRef}
         className={cn(
-          "z-[100000] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
-          !defaultOpen && width, // Only apply width class when not using portal
+          "z-[999999] bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg overflow-hidden",
           maxHeight,
-          !defaultOpen && "absolute",
-          !defaultOpen && alignClasses[align],
-          !defaultOpen && positionClasses[position],
           menuClassName
         )}
         style={
-          defaultOpen && menuPosition
+          menuPosition
             ? {
-                zIndex: 100000,
+                zIndex: 999999,
                 position: "fixed",
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
-                width: menuPosition.width ? `${menuPosition.width}px` : undefined,
+                width: menuPosition.width
+                  ? `${menuPosition.width}px`
+                  : undefined,
               }
-            : { zIndex: 100000 }
+            : { zIndex: 999999 }
         }
       >
         {/* Search Input */}
@@ -348,9 +356,8 @@ export const Dropdown = <T extends string | number = string>({
         {renderButton
           ? renderButton(selectedOption, isOpen, toggleDropdown)
           : defaultRenderButton(selectedOption, isOpen)}
-        {!defaultOpen && renderMenu()}
       </div>
-      {defaultOpen && menuPosition && isOpen && createPortal(renderMenu(), document.body)}
+      {menuPosition && isOpen && createPortal(renderMenu(), document.body)}
     </>
   );
 };

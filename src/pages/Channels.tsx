@@ -8,7 +8,7 @@ import { useChannels } from "../hooks/queries/useChannels";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
-import { Button, Menu } from "../components/ui";
+import { Button, Menu, DeleteConfirmationModal } from "../components/ui";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import AmazonIcon from "../assets/images/ri_amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
@@ -37,6 +37,14 @@ export const Channels: React.FC = () => {
   } | null>(null);
   const [editedChannelName, setEditedChannelName] = useState<string>("");
   const [updatingChannel, setUpdatingChannel] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    channelId: number;
+    channelName: string;
+  } | null>(null);
+  const [deletingChannelId, setDeletingChannelId] = useState<number | null>(
+    null
+  );
 
   // Get account ID number
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
@@ -195,6 +203,34 @@ export const Channels: React.FC = () => {
       alert(error.response?.data?.error || "Failed to update channel name");
     } finally {
       setUpdatingChannel(false);
+    }
+  };
+
+  const handleDeleteChannel = (channel: Channel) => {
+    setDeleteModal({
+      isOpen: true,
+      channelId: channel.id,
+      channelName: channel.channel_name || "Unknown Channel",
+    });
+  };
+
+  const confirmDeleteChannel = async () => {
+    if (!deleteModal || !accountIdNum) {
+      setDeleteModal(null);
+      return;
+    }
+
+    setDeletingChannelId(deleteModal.channelId);
+    try {
+      await accountsService.deleteChannel(accountIdNum, deleteModal.channelId);
+      // Refresh channels from global context after deletion
+      await refreshChannels(accountIdNum);
+      setDeleteModal(null);
+    } catch (error: any) {
+      console.error("Failed to delete channel:", error);
+      alert(error.response?.data?.error || "Failed to delete channel");
+    } finally {
+      setDeletingChannelId(null);
     }
   };
 
@@ -434,6 +470,12 @@ export const Channels: React.FC = () => {
                                           navigate(
                                             `/accounts/${accountId}/google-campaigns`
                                           );
+                                        } else if (
+                                          channel.channel_type === "tiktok"
+                                        ) {
+                                          navigate(
+                                            `/accounts/${accountId}/tiktok/campaigns`
+                                          );
                                         }
                                       }}
                                       className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
@@ -497,6 +539,12 @@ export const Channels: React.FC = () => {
                                         navigate(
                                           `/channels/${channel.id}/select-google-accounts`
                                         );
+                                      } else if (
+                                        channel.channel_type === "tiktok"
+                                      ) {
+                                        navigate(
+                                          `/channels/${channel.id}/select-tiktok-profiles`
+                                        );
                                       } else {
                                         navigate(
                                           `/channels/${channel.id}/list-profiles`
@@ -511,23 +559,14 @@ export const Channels: React.FC = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                      // TODO: Implement delete functionality
-                                      if (
-                                        window.confirm(
-                                          `Are you sure you want to delete channel "${channel.channel_name}"?`
-                                        )
-                                      ) {
-                                        // Delete functionality will be implemented
-                                        alert(
-                                          "Delete functionality coming soon"
-                                        );
-                                      }
-                                    }}
+                                    onClick={() => handleDeleteChannel(channel)}
+                                    disabled={deletingChannelId === channel.id}
                                     className="px-2 py-1.5 h-[36px] rounded-lg flex items-center justify-center"
                                   >
                                     <span className="text-[14px] font-medium">
-                                      Delete
+                                      {deletingChannelId === channel.id
+                                        ? "Deleting..."
+                                        : "Delete"}
                                     </span>
                                   </Button>
                                 </div>
@@ -544,6 +583,19 @@ export const Channels: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <DeleteConfirmationModal
+          isOpen={deleteModal.isOpen}
+          onClose={() => setDeleteModal(null)}
+          onConfirm={confirmDeleteChannel}
+          title="Delete Channel"
+          itemName={deleteModal.channelName}
+          itemType="channel"
+          isLoading={deletingChannelId === deleteModal.channelId}
+        />
+      )}
     </div>
   );
 };

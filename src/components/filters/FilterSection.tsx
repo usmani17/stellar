@@ -44,7 +44,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
         <svg
           className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
             isOpen ? "rotate-180" : ""
-          }`}
+            }`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -70,7 +70,7 @@ export const FilterSectionPanel: React.FC<{
   filterFields: Array<{ value: string; label: string }>;
   initialFilters?: FilterValues;
   accountId?: string;
-  channelType?: "amazon" | "google" | "walmart";
+  channelType?: "amazon" | "google" | "walmart" | "tiktok";
 }> = ({
   isOpen,
   onToggle,
@@ -81,17 +81,17 @@ export const FilterSectionPanel: React.FC<{
   accountId,
   channelType,
 }) => {
-  if (!isOpen) return null;
+    if (!isOpen) return null;
 
-  return (
-    <FilterPanel
-      isOpen={true}
-      onClose={onToggle}
-      onApply={onApply}
-      initialFilters={initialFilters || filters}
-      filterFields={filterFields}
-      accountId={accountId}
-      channelType={channelType}
-    />
-  );
-};
+    return (
+      <FilterPanel
+        isOpen={true}
+        onClose={onToggle}
+        onApply={onApply}
+        initialFilters={initialFilters || filters}
+        filterFields={filterFields}
+        accountId={accountId}
+        channelType={channelType}
+      />
+    );
+  };

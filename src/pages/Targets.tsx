@@ -778,8 +778,10 @@ export const Targets: React.FC = () => {
       setBulkLoading(true);
       // Get targetIds from selected targets - use targetId from the target objects
       const selectedTargetsData = getSelectedTargetsData();
-      const targetIds = selectedTargetsData.map((t) => t.targetId || t.id).filter(Boolean);
-      
+      const targetIds = selectedTargetsData
+        .map((t) => t.targetId || t.id)
+        .filter(Boolean);
+
       await campaignsService.bulkUpdateTargets(accountIdNum, {
         targetIds: targetIds,
         action: "status",
@@ -1532,6 +1534,11 @@ export const Targets: React.FC = () => {
                           Profile
                         </th>
 
+                        {/* Country */}
+                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[100px]">
+                          Country
+                        </th>
+
                         {/* Type */}
                         <th
                           className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
@@ -1635,6 +1642,7 @@ export const Targets: React.FC = () => {
                           <td className="py-[10px] px-[10px]"></td>
                           <td className="py-[10px] px-[10px]"></td>
                           <td className="py-[10px] px-[10px]"></td>
+                          <td className="py-[10px] px-[10px]"></td>
                           <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                             {formatCurrency(summary.total_spends)}
                           </td>
@@ -1658,20 +1666,29 @@ export const Targets: React.FC = () => {
                       )}
                       {targets.map((target, index) => {
                         const isLastRow = index === targets.length - 1;
+                        const isArchived =
+                          target.status?.toLowerCase() === "archived";
                         return (
                           <tr
                             key={target.id}
                             className={`${
                               !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                            } hover:bg-gray-100 transition-colors`}
+                            } ${
+                              isArchived
+                                ? "bg-gray-100 opacity-60"
+                                : "hover:bg-gray-100"
+                            } transition-colors`}
                           >
                             {/* Checkbox */}
                             <td className="py-[10px] px-[10px]">
                               <div className="flex items-center justify-center">
                                 <Checkbox
-                                  checked={selectedTargets.has(target.targetId || target.id)}
+                                  checked={selectedTargets.has(
+                                    target.targetId || target.id
+                                  )}
                                   onChange={(checked) => {
-                                    const targetId = target.targetId || target.id;
+                                    const targetId =
+                                      target.targetId || target.id;
                                     if (checked) {
                                       setSelectedTargets((prev) => {
                                         const newSet = new Set(prev);
@@ -1742,10 +1759,30 @@ export const Targets: React.FC = () => {
                                 />
                               ) : (
                                 <div
-                                  onClick={() =>
-                                    startInlineEdit(target, "status")
+                                  onClick={() => {
+                                    // Prevent editing if target is archived
+                                    const currentStatus = (
+                                      target.status || "Enabled"
+                                    ).toLowerCase();
+                                    if (currentStatus === "archived") {
+                                      return; // Archived targets are read-only
+                                    }
+                                    startInlineEdit(target, "status");
+                                  }}
+                                  className={`${
+                                    (
+                                      target.status || "Enabled"
+                                    ).toLowerCase() === "archived"
+                                      ? "cursor-not-allowed opacity-60"
+                                      : "cursor-pointer hover:bg-gray-100"
+                                  } rounded px-2 py-1`}
+                                  title={
+                                    (
+                                      target.status || "Enabled"
+                                    ).toLowerCase() === "archived"
+                                      ? "Archived targets cannot be modified"
+                                      : undefined
                                   }
-                                  className="cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
                                 >
                                   <StatusBadge
                                     status={target.status || "Enabled"}
@@ -1831,9 +1868,19 @@ export const Targets: React.FC = () => {
                               </span>
                             </td>
 
+                            {/* Country */}
+                            <td className="py-[10px] px-[10px] min-w-[100px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                {target.profile_country_code &&
+                                target.profile_country_code.trim() !== ""
+                                  ? target.profile_country_code
+                                  : "—"}
+                              </span>
+                            </td>
+
                             {/* Type */}
                             <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {target.type || "SP"}
                               </span>
                             </td>
