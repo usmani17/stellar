@@ -501,9 +501,11 @@ export const TikTokCampaigns: React.FC = () => {
                                         setIsCreatePanelOpen(false);
                                         setCampaignFormMode("create");
                                         setEditingCampaign(null);
+                                        setCreateCampaignError(null);
                                     }}
                                     onSubmit={handleCreateCampaign}
                                     loading={createLoading}
+                                    submitError={createCampaignError}
                                     mode={campaignFormMode}
                                     initialData={editingCampaign ? {
                                         campaign_name: editingCampaign.campaign_name,
