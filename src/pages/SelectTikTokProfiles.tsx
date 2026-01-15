@@ -34,6 +34,15 @@ export const SelectTikTokProfiles: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountId, setAccountId] = useState<number | null>(null);
+  const [excludedProfiles, setExcludedProfiles] = useState<
+    Array<{
+      advertiser_id: string;
+      name: string;
+      channel_id: number;
+      channel_name: string;
+      account_name: string;
+    }>
+  >([]);
 
   useEffect(() => {
     if (channelId) {
@@ -59,46 +68,47 @@ export const SelectTikTokProfiles: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Always fetch from TikTok API first to get latest advertisers
-      // This will also save them to the database and preserve selection status
-      console.log("Fetching latest advertisers from TikTok API...");
-      try {
-        await accountsService.fetchTikTokProfiles(parseInt(channelId));
-        console.log(
-          "Successfully fetched and saved advertisers from TikTok API"
-        );
-      } catch (fetchErr: any) {
-        console.error("Failed to fetch profiles from TikTok:", fetchErr);
-        // Continue - we'll try to load from DB as fallback
-        setError(
-          fetchErr.response?.data?.error ||
-            "Failed to fetch latest advertisers from TikTok. Showing cached data."
-        );
-      }
-
-      // Now load profiles from database (which includes selection status)
-      const savedProfilesResponse = await accountsService.getTikTokProfiles(
+      // Always fetch fresh profiles from TikTok API
+      console.log("Fetching fresh profiles from TikTok API...");
+      const response = await accountsService.fetchTikTokProfiles(
         parseInt(channelId)
       );
-      const savedProfiles = savedProfilesResponse.profiles || [];
-      console.log("Loaded profiles from DB:", savedProfiles);
+      
+      // Handle both array response (old format) and object response (new format with excluded_profiles)
+      const tiktokProfiles = Array.isArray(response) ? response : response.profiles || [];
+      const excluded = response.excluded_profiles || [];
+      
+      console.log("Profiles fetched from TikTok:", tiktokProfiles);
+      console.log("Excluded profiles:", excluded);
 
-      // Set selected profile IDs based on is_selected flag
+      if (tiktokProfiles.length === 0 && excluded.length === 0) {
+        setError("No profiles found from TikTok API");
+        setProfiles([]);
+        setSelectedProfileIds(new Set());
+        setExcludedProfiles([]);
+        return;
+      }
+      
+      // Set excluded profiles for display
+      setExcludedProfiles(excluded);
+
+      // Profiles from API already include is_selected status for current channel profiles
+      // Extract selected profile IDs from the profiles array
       const selectedIds = new Set<string>();
-      savedProfiles.forEach((savedProfile: any) => {
-        if (savedProfile.is_selected) {
-          const profileId = savedProfile.advertiser_id || savedProfile.id;
+      tiktokProfiles.forEach((profile: any) => {
+        if (profile.is_selected) {
+          const profileId = profile.advertiser_id || profile.id;
           if (profileId) {
             selectedIds.add(String(profileId));
           }
         }
       });
 
-      // Set both profiles and selected IDs (ensure all IDs are strings)
-      setProfiles(savedProfiles);
-      setSelectedProfileIds(
-        new Set(Array.from(selectedIds).map((id) => String(id)))
-      );
+      console.log("Selected profile IDs from API response:", Array.from(selectedIds));
+
+      // Set profiles from TikTok (they already have is_selected flag set for current channel)
+      setProfiles(tiktokProfiles);
+      setSelectedProfileIds(selectedIds);
     } catch (err: any) {
       setError(
         err.response?.data?.error ||
@@ -130,8 +140,14 @@ export const SelectTikTokProfiles: React.FC = () => {
       setSaving(true);
       setError(null);
 
+      // Only include selected profiles in the data to save
+      const selectedProfiles = profiles.filter((profile) => {
+        const profileId = profile.advertiser_id || profile.id;
+        return profileId && selectedProfileIds.has(String(profileId));
+      });
+
       // Prepare profile data for saving
-      const profilesToSave = profiles.map((profile) => {
+      const profilesToSave = selectedProfiles.map((profile) => {
         const profileId = profile.advertiser_id || profile.id || "";
         const profileName =
           profile.advertiser_name || `Advertiser ${profileId}`;
@@ -139,13 +155,35 @@ export const SelectTikTokProfiles: React.FC = () => {
         return {
           advertiser_id: String(profileId),
           advertiser_name: profileName,
+          name: profileName,
           company: profile.company || "",
           description: profile.description || "",
+          brand: profile.brand || "",
+          address: profile.address || "",
+          industry: profile.industry || "",
+          email: profile.email || "",
+          cellphone_number: profile.cellphone_number || "",
+          telephone_number: profile.telephone_number || "",
+          contacter: profile.contacter || "",
+          license_url: profile.license_url || "",
+          license_no: profile.license_no || "",
+          license_province: profile.license_province || "",
+          license_city: profile.license_city || "",
           currency: profile.currency || "",
           timezone: profile.timezone || "",
+          display_timezone: profile.display_timezone || "",
           country: profile.country || "",
           language: profile.language || "",
-          tiktok_status: profile.tiktok_status || "",
+          advertiser_account_type: profile.advertiser_account_type || "",
+          role: profile.role || "",
+          balance: profile.balance || null,
+          promotion_area: profile.promotion_area || "",
+          promotion_center_city: profile.promotion_center_city || "",
+          promotion_center_province: profile.promotion_center_province || "",
+          tiktok_status: profile.tiktok_status || profile.status || "",
+          status: profile.tiktok_status || profile.status || "",
+          rejection_reason: profile.rejection_reason || "",
+          create_time: profile.create_time || null,
         };
       });
 
@@ -221,6 +259,55 @@ export const SelectTikTokProfiles: React.FC = () => {
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-[14px]">
                 {error}
+              </div>
+            )}
+
+            {excludedProfiles.length > 0 && (
+              <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg
+                      className="h-5 w-5 text-amber-400"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-[14px] font-medium text-amber-800 mb-2">
+                      Some advertisers are already connected to other channels
+                    </h3>
+                    <p className="text-[13px] text-amber-700 mb-2">
+                      The following {excludedProfiles.length} advertiser
+                      {excludedProfiles.length > 1 ? "s are" : " is"} already
+                      connected to another channel. To connect them to this
+                      channel, you first need to unselect them from the
+                      original channel.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {excludedProfiles.map((excluded) => (
+                        <div
+                          key={excluded.advertiser_id}
+                          className="text-[13px] text-amber-700 bg-amber-100 px-3 py-2 rounded border border-amber-200"
+                        >
+                          <span className="font-medium">
+                            {excluded.name || `Advertiser ${excluded.advertiser_id}`}
+                          </span>{" "}
+                          is connected to{" "}
+                          <span className="font-medium">
+                            {excluded.channel_name}
+                          </span>{" "}
+                          ({excluded.account_name})
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

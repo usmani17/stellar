@@ -781,7 +781,7 @@ export const Targets: React.FC = () => {
       const targetIds = selectedTargetsData
         .map((t) => t.targetId || t.id)
         .filter(Boolean);
-
+      
       await campaignsService.bulkUpdateTargets(accountIdNum, {
         targetIds: targetIds,
         action: "status",

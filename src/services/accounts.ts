@@ -231,11 +231,24 @@ export const accountsService = {
     return response.data;
   },
 
-  fetchProfiles: async (channelId: number): Promise<any[]> => {
-    const response = await api.get<{ profiles: any[] }>(
+  fetchProfiles: async (channelId: number): Promise<any> => {
+    const response = await api.get<{ 
+      profiles: any[];
+      excluded_profiles?: Array<{
+        profileId: string;
+        name: string;
+        channel_id: number;
+        channel_name: string;
+        account_name: string;
+      }>;
+      total_fetched?: number;
+      existing_count?: number;
+      available_count?: number;
+    }>(
       `/accounts/channels/${channelId}/profiles/fetch/`
     );
-    return response.data.profiles || [];
+    // Return full response object to access excluded_profiles and other metadata
+    return response.data;
   },
 
   saveProfiles: async (
@@ -265,11 +278,24 @@ export const accountsService = {
     return response.data;
   },
 
-  fetchTikTokProfiles: async (channelId: number): Promise<any[]> => {
-    const response = await api.get<{ profiles: any[] }>(
+  fetchTikTokProfiles: async (channelId: number): Promise<any> => {
+    const response = await api.get<{ 
+      profiles: any[];
+      excluded_profiles?: Array<{
+        advertiser_id: string;
+        name: string;
+        channel_id: number;
+        channel_name: string;
+        account_name: string;
+      }>;
+      total_fetched?: number;
+      existing_count?: number;
+      available_count?: number;
+    }>(
       `/accounts/channels/${channelId}/tiktok-profiles/fetch/`
     );
-    return response.data.profiles || [];
+    // Return full response object to access excluded_profiles and other metadata
+    return response.data;
   },
 
   saveTikTokProfiles: async (

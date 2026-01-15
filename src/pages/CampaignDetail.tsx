@@ -166,6 +166,7 @@ export const CampaignDetail: React.FC = () => {
     useState<"enable" | "pause" | "archive" | null>(null);
   const [showAdGroupsConfirmationModal, setShowAdGroupsConfirmationModal] =
     useState(false);
+  const [isAdGroupsBidChange, setIsAdGroupsBidChange] = useState(false);
   const [adGroupsBulkLoading, setAdGroupsBulkLoading] = useState(false);
   const [showAdGroupsDeleteConfirmation, setShowAdGroupsDeleteConfirmation] =
     useState(false);
@@ -189,6 +190,13 @@ export const CampaignDetail: React.FC = () => {
     setShowProductAdsDeleteConfirmation,
   ] = useState(false);
   const [productAdsDeleteLoading, setProductAdsDeleteLoading] = useState(false);
+  const [pendingProductAdsStatusAction, setPendingProductAdsStatusAction] =
+    useState<"enable" | "pause" | null>(null);
+  const [
+    showProductAdsStatusConfirmation,
+    setShowProductAdsStatusConfirmation,
+  ] = useState(false);
+  const [productAdsBulkLoading, setProductAdsBulkLoading] = useState(false);
   const productAdsBulkActionsRef = useRef<HTMLDivElement>(null);
 
   // Target bulk edit state
@@ -651,10 +659,12 @@ export const CampaignDetail: React.FC = () => {
       );
     }
 
-    // For AUTO campaigns, hide Keywords tab completely (as per user requirement)
+    // For AUTO campaigns, hide Keywords and Targets tabs completely (as per user requirement)
     // But show Negative Keywords and Negative Targets before Logs
     if (campaignType === "SP" && isAutoCampaign) {
-      filteredTabs = filteredTabs.filter((tab) => tab !== "Keywords");
+      filteredTabs = filteredTabs.filter(
+        (tab) => tab !== "Keywords" && tab !== "Targets"
+      );
       // Ensure Negative Keywords and Negative Targets appear before Logs
       // They should only show for auto campaigns
       const logsIndex = filteredTabs.indexOf("Logs");
@@ -761,7 +771,11 @@ export const CampaignDetail: React.FC = () => {
         setActiveTab("Overview");
       }
     }
-  }, [isAutoCampaign, hasKeywords, hasTargets, activeTab]);
+    // Hide Targets tab for auto SP campaigns - switch to Overview if active
+    if (campaignType === "SP" && isAutoCampaign && activeTab === "Targets") {
+      setActiveTab("Overview");
+    }
+  }, [isAutoCampaign, hasKeywords, hasTargets, activeTab, campaignType]);
 
   useEffect(() => {
     if (accountId && campaignId) {
@@ -5289,6 +5303,58 @@ export const CampaignDetail: React.FC = () => {
     }
   };
 
+  const handleBulkProductAdsStatus = async (
+    statusValue: "enable" | "pause"
+  ) => {
+    if (!accountId || selectedProductAdIds.size === 0) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setProductAdsBulkLoading(true);
+      const selectedProductAdsData = productads.filter((pa) =>
+        selectedProductAdIds.has(pa.id)
+      );
+      const adIds = selectedProductAdsData
+        .map((pa) => pa.adId || pa.id)
+        .filter(Boolean) as Array<string | number>;
+
+      // Map status values
+      const statusMap: Record<"enable" | "pause", "ENABLED" | "PAUSED"> = {
+        enable: "ENABLED",
+        pause: "PAUSED",
+      };
+      const stateValue = statusMap[statusValue];
+
+      await campaignsService.bulkUpdateProductAds(
+        accountIdNum,
+        campaignId || "",
+        {
+          productAds: adIds.map((adId) => ({
+            adId: String(adId),
+            state: stateValue,
+          })),
+        }
+      );
+
+      await loadProductAds();
+      setSelectedProductAdIds(new Set());
+      setShowProductAdsStatusConfirmation(false);
+      setPendingProductAdsStatusAction(null);
+    } catch (error: any) {
+      console.error("Failed to update product ads", error);
+      setShowProductAdsStatusConfirmation(false);
+      setErrorModal({
+        isOpen: true,
+        message:
+          error?.response?.data?.error ||
+          "Failed to update product ads. Please try again.",
+      });
+    } finally {
+      setProductAdsBulkLoading(false);
+    }
+  };
+
   const handleBulkProductAdsDelete = async () => {
     if (!accountId || selectedProductAdIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -5713,6 +5779,7 @@ export const CampaignDetail: React.FC = () => {
       setSelectedAdGroupIds(new Set());
       setShowAdGroupsConfirmationModal(false);
       setPendingAdGroupsStatusAction(null);
+      setIsAdGroupsBidChange(false);
     } catch (error: any) {
       console.error("Failed to update ad groups", error);
       setShowAdGroupsConfirmationModal(false);
@@ -5725,6 +5792,46 @@ export const CampaignDetail: React.FC = () => {
     } finally {
       setAdGroupsBulkLoading(false);
     }
+  };
+
+  const calculateNewAdGroupBid = (currentBid: number): number => {
+    const valueNum = parseFloat(adGroupsBidValue);
+    if (isNaN(valueNum)) return currentBid;
+
+    let newBid = currentBid;
+
+    if (adGroupsBidAction === "increase") {
+      if (adGroupsBidUnit === "percent") {
+        newBid = currentBid * (1 + valueNum / 100);
+      } else {
+        newBid = currentBid + valueNum;
+      }
+      if (adGroupsBidUpperLimit) {
+        const upper = parseFloat(adGroupsBidUpperLimit);
+        if (!isNaN(upper)) {
+          newBid = Math.min(newBid, upper);
+        }
+      }
+    } else if (adGroupsBidAction === "decrease") {
+      if (adGroupsBidUnit === "percent") {
+        newBid = currentBid * (1 - valueNum / 100);
+      } else {
+        newBid = currentBid - valueNum;
+      }
+      if (adGroupsBidLowerLimit) {
+        const lower = parseFloat(adGroupsBidLowerLimit);
+        if (!isNaN(lower)) {
+          newBid = Math.max(newBid, lower);
+        }
+      }
+    } else if (adGroupsBidAction === "set") {
+      newBid = valueNum;
+    }
+
+    // Prevent negative
+    newBid = Math.max(newBid, 0);
+
+    return Math.round(newBid * 100) / 100;
   };
 
   const handleBulkAdGroupsBid = async () => {
@@ -5741,7 +5848,7 @@ export const CampaignDetail: React.FC = () => {
       setAdGroupsBulkLoading(true);
 
       const selectedAdGroupsData = adgroups.filter((ag) =>
-        selectedAdGroupIds.has(ag.id)
+        selectedAdGroupIds.has(ag.adGroupId || ag.id)
       );
       const updates: Array<{ adgroupId: string | number; newBid: number }> = [];
 
@@ -5751,42 +5858,11 @@ export const CampaignDetail: React.FC = () => {
         const currentBid = parseFloat(
           (adgroup.default_bid || "$0.00").replace(/[^0-9.]/g, "")
         );
-        let newBid = currentBid;
-
-        if (adGroupsBidAction === "set") {
-          newBid = valueNum;
-        } else if (adGroupsBidAction === "increase") {
-          if (adGroupsBidUnit === "percent") {
-            newBid = currentBid * (1 + valueNum / 100.0);
-          } else {
-            newBid = currentBid + valueNum;
-          }
-        } else if (adGroupsBidAction === "decrease") {
-          if (adGroupsBidUnit === "percent") {
-            newBid = currentBid * (1 - valueNum / 100.0);
-          } else {
-            newBid = currentBid - valueNum;
-          }
-        }
-
-        if (adGroupsBidUpperLimit) {
-          const upper = parseFloat(adGroupsBidUpperLimit);
-          if (!isNaN(upper)) {
-            newBid = Math.min(newBid, upper);
-          }
-        }
-        if (adGroupsBidLowerLimit) {
-          const lower = parseFloat(adGroupsBidLowerLimit);
-          if (!isNaN(lower)) {
-            newBid = Math.max(newBid, lower);
-          }
-        }
-
-        newBid = Math.max(newBid, 0);
+        const newBid = calculateNewAdGroupBid(currentBid);
 
         updates.push({
           adgroupId: adgroup.adGroupId,
-          newBid: Math.round(newBid * 100) / 100,
+          newBid: newBid,
         });
       }
 
@@ -6147,6 +6223,7 @@ export const CampaignDetail: React.FC = () => {
                 onBulkStatusAction={(action) => {
                   setShowAdGroupsBidPanel(false);
                   setPendingAdGroupsStatusAction(action);
+                  setIsAdGroupsBidChange(false);
                   setShowAdGroupsConfirmationModal(true);
                 }}
                 onBulkDelete={() => {
@@ -6179,6 +6256,8 @@ export const CampaignDetail: React.FC = () => {
                   setAdGroupsBidLowerLimit("");
                 }}
                 onBidPanelApply={() => {
+                  setIsAdGroupsBidChange(true);
+                  setPendingAdGroupsStatusAction(null);
                   setShowAdGroupsConfirmationModal(true);
                 }}
                 bulkLoading={adGroupsBulkLoading}
@@ -6360,7 +6439,7 @@ export const CampaignDetail: React.FC = () => {
                         <Button
                           type="button"
                           variant="ghost"
-                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                          className="font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center border border-gray-200 rounded-lg items-center hover:bg-gray-50 text-[#072929] focus:ring-[#136d6d] px-4 py-2 text-[16px]  px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowSBAdsBulkActions((prev) => !prev);
@@ -6385,7 +6464,7 @@ export const CampaignDetail: React.FC = () => {
                           </span>
                         </Button>
                         {showSBAdsBulkActions && (
-                          <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                          <div className="absolute top-[42px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                             <div className="overflow-y-auto">
                               {[
                                 { value: "enable", label: "Enabled" },
@@ -6654,69 +6733,74 @@ export const CampaignDetail: React.FC = () => {
                       </svg>
                     </button>
                     {/* Bulk Edit Button */}
-                    {selectedProductAdIds.size > 0 && (
-                      <div
-                        className="relative inline-flex justify-end"
-                        ref={productAdsBulkActionsRef}
+                    <div
+                      className="relative inline-flex justify-end"
+                      ref={productAdsBulkActionsRef}
+                    >
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowProductAdsBulkActions((prev) => !prev);
+                          setIsProductAdsFilterPanelOpen(false);
+                        }}
                       >
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowProductAdsBulkActions((prev) => !prev);
-                            setIsProductAdsFilterPanelOpen(false);
-                          }}
+                        <svg
+                          className="w-4 h-4 text-[#072929]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          <svg
-                            className="w-4 h-4 text-[#072929]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                            />
-                          </svg>
-                          <span className="text-[10.64px] text-[#072929] font-normal">
-                            Edit
-                          </span>
-                        </Button>
-                        {showProductAdsBulkActions && (
-                          <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                            <div className="overflow-y-auto">
-                              {[{ value: "delete", label: "Delete" }].map(
-                                (opt) => (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                    disabled={selectedProductAdIds.size === 0}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (selectedProductAdIds.size === 0)
-                                        return;
-                                      if (opt.value === "delete") {
-                                        setShowProductAdsDeleteConfirmation(
-                                          true
-                                        );
-                                      }
-                                      setShowProductAdsBulkActions(false);
-                                    }}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                )
-                              )}
-                            </div>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                          />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">
+                          Edit
+                        </span>
+                      </Button>
+                      {showProductAdsBulkActions && (
+                        <div className="absolute top-[42px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                          <div className="overflow-y-auto">
+                            {[
+                              { value: "enable", label: "Enabled" },
+                              { value: "pause", label: "Paused" },
+                              { value: "delete", label: "Delete" },
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                disabled={selectedProductAdIds.size === 0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (selectedProductAdIds.size === 0) return;
+                                  if (opt.value === "delete") {
+                                    setShowProductAdsDeleteConfirmation(true);
+                                  } else if (
+                                    opt.value === "enable" ||
+                                    opt.value === "pause"
+                                  ) {
+                                    setPendingProductAdsStatusAction(
+                                      opt.value as "enable" | "pause"
+                                    );
+                                    setShowProductAdsStatusConfirmation(true);
+                                  }
+                                  setShowProductAdsBulkActions(false);
+                                }}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
                           </div>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
+                    </div>
                     {/* Add Filter Button */}
                     <button
                       onClick={() =>
@@ -7111,85 +7195,81 @@ export const CampaignDetail: React.FC = () => {
                     <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
                       Negative Targets
                     </h2>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       {/* Bulk Actions Button */}
-                      {selectedNegativeTargetIds.size > 0 && (
-                        <div
-                          className="relative"
-                          ref={negativeTargetsBulkActionsRef}
+                      <div
+                        className="relative inline-flex justify-end"
+                        ref={negativeTargetsBulkActionsRef}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowNegativeTargetsBulkActions(
+                              !showNegativeTargetsBulkActions
+                            );
+                          }}
                         >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowNegativeTargetsBulkActions(
-                                !showNegativeTargetsBulkActions
-                              )
-                            }
-                            className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors text-[10.64px] font-normal"
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
                           >
-                            <svg
-                              className="w-4 h-4 text-[#072929]"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                              />
-                            </svg>
-                            <span className="text-[10.64px] text-[#072929] font-normal">
-                              Edit
-                            </span>
-                            {showNegativeTargetsBulkActions && (
-                              <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                                <div className="overflow-y-auto">
-                                  {[
-                                    { value: "enable", label: "Enabled" },
-                                    { value: "pause", label: "Paused" },
-                                    { value: "delete", label: "Delete" },
-                                  ].map((opt) => (
-                                    <button
-                                      key={opt.value}
-                                      type="button"
-                                      className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                      disabled={
-                                        selectedNegativeTargetIds.size === 0
-                                      }
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (
-                                          selectedNegativeTargetIds.size === 0
-                                        )
-                                          return;
-                                        if (opt.value === "delete") {
-                                          setShowNegativeTargetsDeleteConfirmation(
-                                            true
-                                          );
-                                        } else {
-                                          setPendingNegativeTargetsStatusAction(
-                                            opt.value as "enable" | "pause"
-                                          );
-                                          setShowNegativeTargetsConfirmationModal(
-                                            true
-                                          );
-                                        }
-                                        setShowNegativeTargetsBulkActions(
-                                          false
-                                        );
-                                      }}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </button>
-                        </div>
-                      )}
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Edit
+                          </span>
+                        </Button>
+                        {showNegativeTargetsBulkActions && (
+                          <div className="absolute top-[42px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                            <div className="overflow-y-auto">
+                              {[
+                                { value: "enable", label: "Enabled" },
+                                { value: "pause", label: "Paused" },
+                                { value: "delete", label: "Delete" },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  disabled={
+                                    selectedNegativeTargetIds.size === 0
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (selectedNegativeTargetIds.size === 0)
+                                      return;
+                                    if (opt.value === "delete") {
+                                      setShowNegativeTargetsDeleteConfirmation(
+                                        true
+                                      );
+                                    } else {
+                                      setPendingNegativeTargetsStatusAction(
+                                        opt.value as "enable" | "pause"
+                                      );
+                                      setShowNegativeTargetsConfirmationModal(
+                                        true
+                                      );
+                                    }
+                                    setShowNegativeTargetsBulkActions(false);
+                                  }}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       {/* Create Negative Target Button */}
                       <button
                         onClick={() =>
@@ -7197,7 +7277,7 @@ export const CampaignDetail: React.FC = () => {
                             !isCreateNegativeTargetPanelOpen
                           )
                         }
-                        className="px-3 py-2 bg-[#136D6D] text-white rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors text-[11.2px] font-semibold"
+                        className="px-3 py-2 bg-[#136D6D] text-white rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors text-[11.2px] font-normal"
                       >
                         <svg
                           className="w-4 h-4 !text-white"
@@ -7872,6 +7952,145 @@ export const CampaignDetail: React.FC = () => {
         </div>
       )}
 
+      {/* Status Confirmation Modal for Product Ads */}
+      {showProductAdsStatusConfirmation && pendingProductAdsStatusAction && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !productAdsBulkLoading) {
+              setShowProductAdsStatusConfirmation(false);
+              setPendingProductAdsStatusAction(null);
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+              Confirm Status Changes
+            </h3>
+
+            {/* Summary */}
+            <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[12.16px] text-[#556179]">
+                  {selectedProductAdIds.size} product ad
+                  {selectedProductAdIds.size !== 1 ? "s" : ""} will be updated:
+                </span>
+                <span className="text-[12.16px] font-semibold text-[#072929]">
+                  Status change
+                </span>
+              </div>
+            </div>
+
+            {/* Product Ads Preview Table */}
+            {(() => {
+              const selectedProductAdsData = productads.filter((pa) =>
+                selectedProductAdIds.has(pa.id)
+              );
+              const previewCount = Math.min(10, selectedProductAdsData.length);
+              const hasMore = selectedProductAdsData.length > 10;
+
+              return (
+                <div className="mb-6">
+                  <div className="mb-2">
+                    <span className="text-[10.64px] text-[#556179]">
+                      {hasMore
+                        ? `Showing ${previewCount} of ${selectedProductAdsData.length} selected product ads`
+                        : `${selectedProductAdsData.length} product ad${
+                            selectedProductAdsData.length !== 1 ? "s" : ""
+                          } selected`}
+                    </span>
+                  </div>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-sandstorm-s20">
+                        <tr>
+                          <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                            Product Ad Name
+                          </th>
+                          <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                            Old Value
+                          </th>
+                          <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                            New Value
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedProductAdsData
+                          .slice(0, previewCount)
+                          .map((pa) => {
+                            const oldStatus = pa.status || "Enabled";
+                            const newStatus =
+                              pendingProductAdsStatusAction === "enable"
+                                ? "Enabled"
+                                : "Paused";
+
+                            return (
+                              <tr
+                                key={pa.id}
+                                className="border-b border-gray-200 last:border-b-0"
+                              >
+                                <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                  {pa.adId || pa.id || "Unnamed Product Ad"}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                  {oldStatus}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                  {newStatus}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Action Details */}
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                <span className="text-[12.16px] text-[#556179]">
+                  New Status:
+                </span>
+                <span className="text-[12.16px] font-semibold text-[#072929]">
+                  {pendingProductAdsStatusAction === "enable"
+                    ? "Enabled"
+                    : "Paused"}
+                </span>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProductAdsStatusConfirmation(false);
+                  setPendingProductAdsStatusAction(null);
+                }}
+                disabled={productAdsBulkLoading}
+                className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleBulkProductAdsStatus(pendingProductAdsStatusAction)
+                }
+                disabled={productAdsBulkLoading}
+                className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {productAdsBulkLoading ? "Updating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal for Product Ads */}
       {showProductAdsDeleteConfirmation && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center">
@@ -8182,61 +8401,153 @@ export const CampaignDetail: React.FC = () => {
       {/* Confirmation Modal for Negative Keywords Bulk Actions */}
       {showNegativeKeywordsConfirmationModal &&
         pendingNegativeKeywordsStatusAction && (
-          <div className="fixed inset-0 z-[400] flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
-              onClick={() => {
-                if (!negativeKeywordsBulkLoading) {
-                  setShowNegativeKeywordsConfirmationModal(false);
-                  setPendingNegativeKeywordsStatusAction(null);
-                }
-              }}
-            />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
-              <div className="p-6">
-                <div className="mb-4 text-center">
-                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                    Confirm Action
-                  </h3>
-                  <p className="text-[14px] text-[#556179]">
-                    {pendingNegativeKeywordsStatusAction
-                      ? `Are you sure you want to ${
-                          pendingNegativeKeywordsStatusAction === "enable"
-                            ? "enable"
-                            : "pause"
-                        } ${
-                          selectedNegativeKeywordIds.size
-                        } negative keyword(s)?`
-                      : ""}
-                  </p>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+            onClick={(e) => {
+              if (
+                e.target === e.currentTarget &&
+                !negativeKeywordsBulkLoading
+              ) {
+                setShowNegativeKeywordsConfirmationModal(false);
+                setPendingNegativeKeywordsStatusAction(null);
+              }
+            }}
+          >
+            <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                Confirm Status Changes
+              </h3>
+
+              {/* Summary */}
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12.16px] text-[#556179]">
+                    {selectedNegativeKeywordIds.size} negative keyword
+                    {selectedNegativeKeywordIds.size !== 1 ? "s" : ""} will be
+                    updated:
+                  </span>
+                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                    Status change
+                  </span>
                 </div>
-                <div className="flex items-center justify-center gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNegativeKeywordsConfirmationModal(false);
-                      setPendingNegativeKeywordsStatusAction(null);
-                    }}
-                    disabled={negativeKeywordsBulkLoading}
-                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (pendingNegativeKeywordsStatusAction) {
-                        await handleBulkNegativeKeywordsStatus(
-                          pendingNegativeKeywordsStatusAction
-                        );
-                      }
-                    }}
-                    disabled={negativeKeywordsBulkLoading}
-                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {negativeKeywordsBulkLoading ? "Processing..." : "Confirm"}
-                  </button>
+              </div>
+
+              {/* Negative Keywords Preview Table */}
+              {(() => {
+                const selectedNegativeKeywordsData = negativeKeywords.filter(
+                  (nk) => selectedNegativeKeywordIds.has(nk.id)
+                );
+                const previewCount = Math.min(
+                  10,
+                  selectedNegativeKeywordsData.length
+                );
+                const hasMore = selectedNegativeKeywordsData.length > 10;
+
+                return (
+                  <div className="mb-6">
+                    <div className="mb-2">
+                      <span className="text-[10.64px] text-[#556179]">
+                        {hasMore
+                          ? `Showing ${previewCount} of ${selectedNegativeKeywordsData.length} selected negative keywords`
+                          : `${
+                              selectedNegativeKeywordsData.length
+                            } negative keyword${
+                              selectedNegativeKeywordsData.length !== 1
+                                ? "s"
+                                : ""
+                            } selected`}
+                      </span>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-sandstorm-s20">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              Negative Keyword
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              Old Value
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              New Value
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedNegativeKeywordsData
+                            .slice(0, previewCount)
+                            .map((nk) => {
+                              const oldStatus = nk.status || "Enabled";
+                              const newStatus =
+                                pendingNegativeKeywordsStatusAction === "enable"
+                                  ? "Enabled"
+                                  : "Paused";
+
+                              return (
+                                <tr
+                                  key={nk.id}
+                                  className="border-b border-gray-200 last:border-b-0"
+                                >
+                                  <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                    {nk.keywordText || "Unnamed Keyword"}
+                                  </td>
+                                  <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                    {oldStatus}
+                                  </td>
+                                  <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                    {newStatus}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Action Details */}
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-[12.16px] text-[#556179]">
+                    New Status:
+                  </span>
+                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                    {pendingNegativeKeywordsStatusAction === "enable"
+                      ? "Enabled"
+                      : "Paused"}
+                  </span>
                 </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNegativeKeywordsConfirmationModal(false);
+                    setPendingNegativeKeywordsStatusAction(null);
+                  }}
+                  disabled={negativeKeywordsBulkLoading}
+                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (pendingNegativeKeywordsStatusAction) {
+                      await handleBulkNegativeKeywordsStatus(
+                        pendingNegativeKeywordsStatusAction
+                      );
+                    }
+                  }}
+                  disabled={negativeKeywordsBulkLoading}
+                  className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {negativeKeywordsBulkLoading ? "Updating..." : "Confirm"}
+                </button>
               </div>
             </div>
           </div>
@@ -8245,104 +8556,132 @@ export const CampaignDetail: React.FC = () => {
       {/* Confirmation Modal for Negative Targets Bulk Actions */}
       {showNegativeTargetsConfirmationModal &&
         pendingNegativeTargetsStatusAction && (
-          <div className="fixed inset-0 z-[400] flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
-              onClick={() => {
-                if (!negativeTargetsBulkLoading) {
-                  setShowNegativeTargetsConfirmationModal(false);
-                  setPendingNegativeTargetsStatusAction(null);
-                }
-              }}
-            />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
-              <div className="p-6">
-                <div className="mb-4 text-center">
-                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                    Confirm Action
-                  </h3>
-                  <p className="text-[14px] text-[#556179]">
-                    {pendingNegativeTargetsStatusAction
-                      ? `Are you sure you want to ${
-                          pendingNegativeTargetsStatusAction === "enable"
-                            ? "enable"
-                            : "pause"
-                        } ${selectedNegativeTargetIds.size} negative target(s)?`
-                      : ""}
-                  </p>
-                </div>
-                <div className="flex items-center justify-center gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNegativeTargetsConfirmationModal(false);
-                      setPendingNegativeTargetsStatusAction(null);
-                    }}
-                    disabled={negativeTargetsBulkLoading}
-                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (pendingNegativeTargetsStatusAction) {
-                        await handleBulkNegativeTargetsStatus(
-                          pendingNegativeTargetsStatusAction
-                        );
-                      }
-                    }}
-                    disabled={negativeTargetsBulkLoading}
-                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {negativeTargetsBulkLoading ? "Processing..." : "Confirm"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-      {/* Confirmation Modal for Ad Groups Bulk Actions */}
-      {showAdGroupsConfirmationModal && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
-            onClick={() => {
-              if (!adGroupsBulkLoading) {
-                setShowAdGroupsConfirmationModal(false);
-                setPendingAdGroupsStatusAction(null);
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !negativeTargetsBulkLoading) {
+                setShowNegativeTargetsConfirmationModal(false);
+                setPendingNegativeTargetsStatusAction(null);
               }
             }}
-          />
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
-            <div className="p-6">
-              <div className="mb-4 text-center">
-                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                  Confirm Action
-                </h3>
-                <p className="text-[14px] text-[#556179]">
-                  {pendingAdGroupsStatusAction
-                    ? `Are you sure you want to ${
-                        pendingAdGroupsStatusAction === "enable"
-                          ? "enable"
-                          : pendingAdGroupsStatusAction === "pause"
-                          ? "pause"
-                          : "archive"
-                      } ${selectedAdGroupIds.size} ad group(s)?`
-                    : campaignType !== "SB"
-                    ? `Are you sure you want to update the default bid for ${selectedAdGroupIds.size} ad group(s)?`
-                    : ""}
-                </p>
+          >
+            <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                Confirm Status Changes
+              </h3>
+
+              {/* Summary */}
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12.16px] text-[#556179]">
+                    {selectedNegativeTargetIds.size} negative target
+                    {selectedNegativeTargetIds.size !== 1 ? "s" : ""} will be
+                    updated:
+                  </span>
+                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                    Status change
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center justify-center gap-3 mt-6">
+
+              {/* Negative Targets Preview Table */}
+              {(() => {
+                const selectedNegativeTargetsData = negativeTargets.filter(
+                  (nt) => selectedNegativeTargetIds.has(nt.id)
+                );
+                const previewCount = Math.min(
+                  10,
+                  selectedNegativeTargetsData.length
+                );
+                const hasMore = selectedNegativeTargetsData.length > 10;
+
+                return (
+                  <div className="mb-6">
+                    <div className="mb-2">
+                      <span className="text-[10.64px] text-[#556179]">
+                        {hasMore
+                          ? `Showing ${previewCount} of ${selectedNegativeTargetsData.length} selected negative targets`
+                          : `${
+                              selectedNegativeTargetsData.length
+                            } negative target${
+                              selectedNegativeTargetsData.length !== 1
+                                ? "s"
+                                : ""
+                            } selected`}
+                      </span>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-sandstorm-s20">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              Negative Target
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              Old Value
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              New Value
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedNegativeTargetsData
+                            .slice(0, previewCount)
+                            .map((nt) => {
+                              const oldStatus = nt.status || "Enabled";
+                              const newStatus =
+                                pendingNegativeTargetsStatusAction === "enable"
+                                  ? "Enabled"
+                                  : "Paused";
+
+                              return (
+                                <tr
+                                  key={nt.id}
+                                  className="border-b border-gray-200 last:border-b-0"
+                                >
+                                  <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                    {nt.targetId || nt.id || "Unnamed Target"}
+                                  </td>
+                                  <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                    {oldStatus}
+                                  </td>
+                                  <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                    {newStatus}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Action Details */}
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-[12.16px] text-[#556179]">
+                    New Status:
+                  </span>
+                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                    {pendingNegativeTargetsStatusAction === "enable"
+                      ? "Enabled"
+                      : "Paused"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
-                    setShowAdGroupsConfirmationModal(false);
-                    setPendingAdGroupsStatusAction(null);
+                    setShowNegativeTargetsConfirmationModal(false);
+                    setPendingNegativeTargetsStatusAction(null);
                   }}
-                  disabled={adGroupsBulkLoading}
+                  disabled={negativeTargetsBulkLoading}
                   className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
@@ -8350,21 +8689,243 @@ export const CampaignDetail: React.FC = () => {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (pendingAdGroupsStatusAction) {
-                      await handleBulkAdGroupsStatus(
-                        pendingAdGroupsStatusAction
+                    if (pendingNegativeTargetsStatusAction) {
+                      await handleBulkNegativeTargetsStatus(
+                        pendingNegativeTargetsStatusAction
                       );
-                    } else if (campaignType !== "SB") {
-                      // Only allow default bid edit for non-SB campaigns
-                      await handleBulkAdGroupsBid();
                     }
                   }}
-                  disabled={adGroupsBulkLoading}
+                  disabled={negativeTargetsBulkLoading}
                   className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {adGroupsBulkLoading ? "Processing..." : "Confirm"}
+                  {negativeTargetsBulkLoading ? "Updating..." : "Confirm"}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+      {/* Confirmation Modal for Ad Groups Bulk Actions */}
+      {showAdGroupsConfirmationModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !adGroupsBulkLoading) {
+              setShowAdGroupsConfirmationModal(false);
+              setPendingAdGroupsStatusAction(null);
+              setIsAdGroupsBidChange(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+              {isAdGroupsBidChange
+                ? "Confirm Default Bid Changes"
+                : "Confirm Status Changes"}
+            </h3>
+
+            {/* Summary */}
+            <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[12.16px] text-[#556179]">
+                  {selectedAdGroupIds.size} ad group
+                  {selectedAdGroupIds.size !== 1 ? "s" : ""} will be updated:
+                </span>
+                <span className="text-[12.16px] font-semibold text-[#072929]">
+                  {isAdGroupsBidChange ? "Default Bid" : "Status"} change
+                </span>
+              </div>
+            </div>
+
+            {/* AdGroup Preview Table */}
+            {(() => {
+              const selectedAdGroupsData = adgroups.filter((ag) =>
+                selectedAdGroupIds.has(ag.adGroupId || ag.id)
+              );
+              const previewCount = Math.min(10, selectedAdGroupsData.length);
+              const hasMore = selectedAdGroupsData.length > 10;
+
+              return (
+                <div className="mb-6">
+                  <div className="mb-2">
+                    <span className="text-[10.64px] text-[#556179]">
+                      {hasMore
+                        ? `Showing ${previewCount} of ${selectedAdGroupsData.length} selected ad groups`
+                        : `${selectedAdGroupsData.length} ad group${
+                            selectedAdGroupsData.length !== 1 ? "s" : ""
+                          } selected`}
+                    </span>
+                  </div>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-sandstorm-s20">
+                        <tr>
+                          <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                            Ad Group Name
+                          </th>
+                          <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                            Old Value
+                          </th>
+                          <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                            New Value
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedAdGroupsData
+                          .slice(0, previewCount)
+                          .map((ag) => {
+                            const oldBid = parseFloat(
+                              (ag.default_bid || "$0.00").replace(
+                                /[^0-9.]/g,
+                                ""
+                              )
+                            );
+                            const oldStatus = ag.status || "Enabled";
+                            const newBid = isAdGroupsBidChange
+                              ? calculateNewAdGroupBid(oldBid)
+                              : oldBid;
+                            const newStatus = pendingAdGroupsStatusAction
+                              ? pendingAdGroupsStatusAction
+                                  .charAt(0)
+                                  .toUpperCase() +
+                                pendingAdGroupsStatusAction.slice(1)
+                              : oldStatus;
+
+                            return (
+                              <tr
+                                key={ag.id}
+                                className="border-b border-gray-200 last:border-b-0"
+                              >
+                                <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                  {ag.name || "Unnamed Ad Group"}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                  {isAdGroupsBidChange
+                                    ? `$${oldBid.toFixed(2)}`
+                                    : oldStatus}
+                                </td>
+                                <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                  {isAdGroupsBidChange
+                                    ? `$${newBid.toFixed(2)}`
+                                    : newStatus}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Action Details */}
+            <div className="space-y-3 mb-6">
+              {isAdGroupsBidChange ? (
+                <>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-[12.16px] text-[#556179]">
+                      Action:
+                    </span>
+                    <span className="text-[12.16px] font-semibold text-[#072929]">
+                      {adGroupsBidAction === "increase"
+                        ? "Increase By"
+                        : adGroupsBidAction === "decrease"
+                        ? "Decrease By"
+                        : "Set To"}
+                    </span>
+                  </div>
+
+                  {(adGroupsBidAction === "increase" ||
+                    adGroupsBidAction === "decrease") && (
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                      <span className="text-[12.16px] text-[#556179]">
+                        Unit:
+                      </span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {adGroupsBidUnit === "percent"
+                          ? "Percentage (%)"
+                          : "Amount ($)"}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-[12.16px] text-[#556179]">
+                      Value:
+                    </span>
+                    <span className="text-[12.16px] font-semibold text-[#072929]">
+                      {adGroupsBidValue}{" "}
+                      {adGroupsBidUnit === "percent" ? "%" : "$"}
+                    </span>
+                  </div>
+
+                  {adGroupsBidAction === "increase" &&
+                    adGroupsBidUpperLimit && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-[12.16px] text-[#556179]">
+                          Upper Limit:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          ${adGroupsBidUpperLimit}
+                        </span>
+                      </div>
+                    )}
+
+                  {adGroupsBidAction === "decrease" &&
+                    adGroupsBidLowerLimit && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-[12.16px] text-[#556179]">
+                          Lower Limit:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          ${adGroupsBidLowerLimit}
+                        </span>
+                      </div>
+                    )}
+                </>
+              ) : (
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-[12.16px] text-[#556179]">
+                    New Status:
+                  </span>
+                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                    {pendingAdGroupsStatusAction
+                      ? pendingAdGroupsStatusAction.charAt(0).toUpperCase() +
+                        pendingAdGroupsStatusAction.slice(1)
+                      : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowAdGroupsConfirmationModal(false);
+                  setPendingAdGroupsStatusAction(null);
+                  setIsAdGroupsBidChange(false);
+                }}
+                disabled={adGroupsBulkLoading}
+                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (isAdGroupsBidChange) {
+                    await handleBulkAdGroupsBid();
+                  } else if (pendingAdGroupsStatusAction) {
+                    await handleBulkAdGroupsStatus(pendingAdGroupsStatusAction);
+                  }
+                }}
+                disabled={adGroupsBulkLoading}
+                className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
+              >
+                {adGroupsBulkLoading ? "Updating..." : "Confirm"}
+              </button>
             </div>
           </div>
         </div>
@@ -8461,7 +9022,7 @@ export const CampaignDetail: React.FC = () => {
                       {adgroupName}
                     </span>
                   </p>
-                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                  <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                     <div className="flex justify-between items-center">
                       <span className="text-[12.16px] text-[#556179]">
                         {fieldLabel}:
@@ -8483,14 +9044,14 @@ export const CampaignDetail: React.FC = () => {
                   <button
                     onClick={cancelAdGroupChange}
                     disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
-                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmAdGroupChange}
                     disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
-                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {adGroupEditLoading.has(pendingAdGroupChange.id)
                       ? "Updating..."

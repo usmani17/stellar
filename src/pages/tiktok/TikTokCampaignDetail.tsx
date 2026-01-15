@@ -363,7 +363,7 @@ export const TikTokCampaignDetail: React.FC = () => {
                                         Budget Type
                                     </div>
                                     <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
-                                        {campaignDetail.campaign.budget_mode 
+                                        {campaignDetail.campaign.budget_mode
                                             ? campaignDetail.campaign.budget_mode.replace(/_/g, " ").replace("BUDGET MODE ", "").replace("DYNAMIC DAILY BUDGET", "Daily").replace("TOTAL", "Lifetime").replace("DAY", "Daily")
                                             : "Daily"}
                                     </div>
@@ -390,7 +390,7 @@ export const TikTokCampaignDetail: React.FC = () => {
                                     <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
                                         {campaignDetail.campaign.start_date
                                             ? new Date(campaignDetail.campaign.start_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-                                            : (campaignDetail.campaign.create_time 
+                                            : (campaignDetail.campaign.create_time
                                                 ? new Date(campaignDetail.campaign.create_time).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
                                                 : "-")}
                                     </div>
@@ -404,22 +404,22 @@ export const TikTokCampaignDetail: React.FC = () => {
                                     <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
                                         Status
                                     </div>
-                                    <div 
+                                    <div
                                         data-campaign-status={campaignDetail.campaign.operation_status}
                                         className={`h-5 px-2 py-0.5 rounded-full inline-flex justify-center items-center gap-2.5 ${
                                             campaignDetail.campaign.operation_status === 'ENABLE' || campaignDetail.campaign.operation_status === 'ENABLED'
                                                 ? 'bg-zinc-200 text-teal-900'
                                                 : campaignDetail.campaign.operation_status === 'DISABLE' || campaignDetail.campaign.operation_status === 'PAUSED'
-                                                ? 'bg-gray-300 text-gray-700'
-                                                : 'bg-zinc-200 text-teal-900'
-                                        }`}
+                                                    ? 'bg-gray-300 text-gray-700'
+                                                    : 'bg-zinc-200 text-teal-900'
+                                            }`}
                                     >
                                         <div className="text-xs font-medium leading-4 tracking-tight">
-                                            {campaignDetail.campaign.operation_status === 'ENABLE' || campaignDetail.campaign.operation_status === 'ENABLED' 
-                                                ? 'Enable' 
+                                            {campaignDetail.campaign.operation_status === 'ENABLE' || campaignDetail.campaign.operation_status === 'ENABLED'
+                                                ? 'Enable'
                                                 : campaignDetail.campaign.operation_status === 'DISABLE' || campaignDetail.campaign.operation_status === 'PAUSED'
-                                                ? 'Pause'
-                                                : campaignDetail.campaign.operation_status}
+                                                    ? 'Pause'
+                                                    : campaignDetail.campaign.operation_status}
                                         </div>
                                     </div>
                                 </div>
@@ -430,7 +430,7 @@ export const TikTokCampaignDetail: React.FC = () => {
                                         Objective Type
                                     </div>
                                     <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
-                                        {campaignDetail.campaign.objective_type 
+                                        {campaignDetail.campaign.objective_type
                                             ? campaignDetail.campaign.objective_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
                                             : "-"}
                                     </div>
@@ -479,7 +479,7 @@ export const TikTokCampaignDetail: React.FC = () => {
                                         activeTab === tab
                                             ? "border-[#136D6D] text-[#136D6D]"
                                             : "border-transparent text-[#556179] hover:text-[#072929]"
-                                    }`}
+                                        }`}
                                 >
                                     {tab}
                                 </button>
@@ -591,6 +591,8 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 onCreateAd={handleCreateAd}
                                 createAdLoading={createAdLoading}
                                 createAdError={createAdError}
+                                accountId={parseInt(accountId || "0", 10)}
+                                onAdsUpdated={loadAds}
                             />
                         )}
 

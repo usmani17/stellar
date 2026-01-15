@@ -47,9 +47,7 @@ interface NegativeKeywordsTabProps {
   isCreatePanelOpen: boolean;
   onToggleCreatePanel: () => void;
   onCloseCreatePanel: () => void;
-  onCreateNegativeKeywords: (
-    keywords: NegativeKeywordInput[]
-  ) => Promise<void>;
+  onCreateNegativeKeywords: (keywords: NegativeKeywordInput[]) => Promise<void>;
   onLoadAllAdGroups: () => Promise<void>;
   createLoading: boolean;
   createError: string | null;
@@ -138,66 +136,67 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
           </h2>
           <div className="flex items-center gap-2">
             {/* Bulk Actions Dropdown */}
-            {selectedNegativeKeywordIds.size > 0 && (
-              <div className="relative" ref={bulkActionsRef}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleBulkActions();
-                  }}
+            <div
+              className="relative inline-flex justify-end"
+              ref={bulkActionsRef}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleBulkActions();
+                }}
+              >
+                <svg
+                  className="w-4 h-4 text-[#072929]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
-                  <svg
-                    className="w-4 h-4 text-[#072929]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                  <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
-                  </span>
-                </Button>
-                {showBulkActions && (
-                  <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    <div className="overflow-y-auto">
-                      {[
-                        { value: "enable", label: "Enabled" },
-                        { value: "pause", label: "Paused" },
-                        { value: "delete", label: "Delete" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          disabled={selectedNegativeKeywordIds.size === 0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedNegativeKeywordIds.size === 0) return;
-                            if (opt.value === "delete") {
-                              onBulkDelete();
-                            } else {
-                              onBulkStatusAction(opt.value as "enable" | "pause");
-                            }
-                            onCloseBulkActions();
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                  />
+                </svg>
+                <span className="text-[10.64px] text-[#072929] font-normal">
+                  Edit
+                </span>
+              </Button>
+              {showBulkActions && (
+                <div className="absolute top-[42px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                  <div className="overflow-y-auto">
+                    {[
+                      { value: "enable", label: "Enabled" },
+                      { value: "pause", label: "Paused" },
+                      { value: "delete", label: "Delete" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        disabled={selectedNegativeKeywordIds.size === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (selectedNegativeKeywordIds.size === 0) return;
+                          if (opt.value === "delete") {
+                            onBulkDelete();
+                          } else {
+                            onBulkStatusAction(opt.value as "enable" | "pause");
+                          }
+                          onCloseBulkActions();
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
             {/* Create Negative Keyword Button */}
             <button
               onClick={async () => {
@@ -209,7 +208,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                   await onLoadAllAdGroups();
                 }
               }}
-              className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+              className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-normal"
             >
               <svg
                 className="w-4 h-4 !text-white"
@@ -359,4 +358,3 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
     </>
   );
 };
-

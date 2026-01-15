@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -18,7 +18,7 @@ import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaig
 import { GoogleCampaignDetailNegativeKeywordsTab } from "./components/tabs/GoogleCampaignDetailNegativeKeywordsTab";
 import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
-import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
+// import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import type {
   GoogleAdGroup,
   GoogleAd,
@@ -250,23 +250,48 @@ export const GoogleCampaignDetail: React.FC = () => {
     }>;
   }>({ isOpen: false, message: "" });
 
+  // Track if component is mounted to prevent state updates on unmounted components
+  const isMountedRef = useRef(true);
+  const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      // Clear all pending timeouts
+      timeoutIdsRef.current.forEach(id => clearTimeout(id));
+      timeoutIdsRef.current = [];
+    };
+  }, []);
+
   // Compute available tabs based on campaign type
   const tabs = useMemo(() => {
     if (!campaignDetail?.campaign?.advertising_channel_type) {
-      return ["Overview", "Ad Groups", "Ads", "Keywords", "Logs"];
+      return ["Overview", "Ad Groups", "Ads", "Keywords"];
     }
 
-    const channelType = campaignDetail.campaign.advertising_channel_type.toUpperCase();
+    const channelType = (campaignDetail.campaign.advertising_channel_type || "").toUpperCase().trim();
 
     if (channelType === "PERFORMANCE_MAX") {
-      return ["Overview", "Asset Groups", "Logs"];
+      return ["Overview", "Asset Groups"];
     } else if (channelType === "SHOPPING") {
-      return ["Overview", "Ad Groups", "Product Groups", "Logs"];
+      return ["Overview", "Ad Groups", "Product Groups"];
     } else {
       // SEARCH or default
-      return ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords", "Logs"];
+      return ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords"];
     }
   }, [campaignDetail?.campaign?.advertising_channel_type]);
+
+  // Helper function to safely set timeout with cleanup
+  const safeSetTimeout = useCallback((callback: () => void, delay: number) => {
+    const timeoutId = setTimeout(() => {
+      if (isMountedRef.current) {
+        callback();
+      }
+    }, delay);
+    timeoutIdsRef.current.push(timeoutId);
+    return timeoutId;
+  }, []);
 
   // Set page title
   useEffect(() => {
@@ -303,7 +328,10 @@ export const GoogleCampaignDetail: React.FC = () => {
     setSyncMessage({ type: null, message: null });
 
     if (accountId && campaignId) {
+      setLoading(true);
       loadCampaignDetail();
+    } else {
+      setLoading(false);
     }
   }, [accountId, campaignId, startDate, endDate]);
 
@@ -557,7 +585,6 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const loadCampaignDetail = async () => {
     try {
-      setLoading(true);
       // Clear previous data immediately
       setCampaignDetail(null);
       const accountIdNum = parseInt(accountId!, 10);
@@ -583,14 +610,14 @@ export const GoogleCampaignDetail: React.FC = () => {
         endDate ? endDate.toISOString().split("T")[0] : undefined
       );
 
-      // Only set data if we're still on the same campaign (check for race conditions)
+      // Set data if campaign ID matches (race condition check)
       if (currentCampaignId === campaignId) {
         setCampaignDetail(data);
-      }
+      } 
+      setLoading(false);
     } catch (error) {
       console.error("Failed to load Google campaign detail:", error);
       setCampaignDetail(null);
-    } finally {
       setLoading(false);
     }
   };
@@ -1080,9 +1107,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadNegativeKeywords();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync negative keywords:", error);
@@ -1091,7 +1118,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync negative keywords from Google Ads";
       setSyncMessage({ type: "negative_keywords", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingNegativeKeywords(false);
     }
@@ -1125,11 +1152,46 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to create negative keywords";
       setCreateNegativeKeywordError(errorMessage);
+      setIsCreateNegativeKeywordPanelOpen(false); // Close panel on error
       if (error.response?.data?.failed_negative_keywords) {
         setFailedNegativeKeywords(error.response.data.failed_negative_keywords);
       }
     } finally {
       setCreateNegativeKeywordLoading(false);
+    }
+  };
+
+  const handleUpdateNegativeKeywordStatus = async (criterionId: string, status: string) => {
+    if (!accountId) return;
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
+        negativeKeywordIds: [criterionId],
+        action: "status",
+        value: status,
+      });
+      await loadNegativeKeywords();
+    } catch (error: any) {
+      console.error("Failed to update negative keyword status:", error);
+      throw error;
+    }
+  };
+
+  const handleUpdateNegativeKeywordMatchType = async (criterionId: string, matchType: string) => {
+    if (!accountId) return;
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
+        negativeKeywordIds: [criterionId],
+        action: "match_type",
+        value: matchType,
+      });
+      await loadNegativeKeywords();
+    } catch (error: any) {
+      console.error("Failed to update negative keyword match type:", error);
+      throw error;
     }
   };
 
@@ -1180,9 +1242,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAdGroups();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ad groups:", error);
@@ -1191,7 +1253,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ad groups from Google Ads";
       setSyncMessage({ type: "adgroups", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdGroups(false);
     }
@@ -1228,9 +1290,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAds();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ads:", error);
@@ -1239,7 +1301,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ads from Google Ads";
       setSyncMessage({ type: "ads", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAds(false);
     }
@@ -1276,9 +1338,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadKeywords();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync keywords:", error);
@@ -1287,7 +1349,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync keywords from Google Ads";
       setSyncMessage({ type: "keywords", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingKeywords(false);
     }
@@ -1309,8 +1371,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced adgroup analytics: ${
-          result.rows_inserted || 0
+        `Successfully synced adgroup analytics: ${result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1330,9 +1391,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync adgroup analytics:", error);
@@ -1341,7 +1402,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync adgroup analytics from Google Ads";
       setSyncMessage({ type: "adgroups", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdGroupsAnalytics(false);
     }
@@ -1363,8 +1424,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced ad analytics: ${
-          result.rows_inserted || 0
+        `Successfully synced ad analytics: ${result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1384,9 +1444,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ad analytics:", error);
@@ -1395,7 +1455,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ad analytics from Google Ads";
       setSyncMessage({ type: "ads", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdsAnalytics(false);
     }
@@ -1417,8 +1477,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced keyword analytics: ${
-          result.rows_inserted || 0
+        `Successfully synced keyword analytics: ${result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1438,9 +1497,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync keyword analytics:", error);
@@ -1449,7 +1508,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync keyword analytics from Google Ads";
       setSyncMessage({ type: "keywords", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingKeywordsAnalytics(false);
     }
@@ -1486,9 +1545,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAssetGroups();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync asset groups:", error);
@@ -1497,7 +1556,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync asset groups from Google Ads";
       setSyncMessage({ type: "assetgroups", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAssetGroups(false);
     }
@@ -1541,13 +1600,13 @@ export const GoogleCampaignDetail: React.FC = () => {
       const adCount = response.ad ? 1 : 0;
       const keywordCount = response.keywords ? response.keywords.length : 0;
       const errorCount = response.errors ? response.errors.length : 0;
-      
+
       // Only count entities that exist in response
       const createdEntities = [];
       if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
       if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
       if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
-      
+
       const totalCreated = adgroupCount + adCount + keywordCount;
 
       // Check for errors in response
@@ -1559,9 +1618,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         if (errorCount > 0) {
           summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
         }
-        
+
         const summaryMessage = summaryParts.join("\n\n");
-        
+
         // Close panel and show error modal
         setIsCreateSearchEntitiesPanelOpen(false);
         setCreateSearchEntitiesError(null);
@@ -1572,7 +1631,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           isSuccess: false,
           errorDetails: response.error_details || undefined,
         });
-        
+
         // Reload data to show new entities even if there are errors
         await loadAdGroups();
         await loadAds();
@@ -1641,13 +1700,13 @@ export const GoogleCampaignDetail: React.FC = () => {
       const adCount = response.ad ? 1 : 0;
       const keywordCount = response.keywords ? response.keywords.length : 0;
       const errorCount = response.errors ? response.errors.length : 0;
-      
+
       // Only count entities that exist in response
       const createdEntities = [];
       if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
       if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
       if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
-      
+
       const totalCreated = adgroupCount + adCount + keywordCount;
 
       // Check for errors in response
@@ -1659,9 +1718,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         if (errorCount > 0) {
           summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
         }
-        
+
         const summaryMessage = summaryParts.join("\n\n");
-        
+
         // Don't set submitError - errors are shown in modal
         setErrorModal({
           isOpen: true,
@@ -1670,7 +1729,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           isSuccess: false,
           errorDetails: response.error_details || undefined,
         });
-        
+
         // Reload data to show new entities even if there are errors
         await loadAdGroups();
         await loadAds();
@@ -1739,13 +1798,13 @@ export const GoogleCampaignDetail: React.FC = () => {
       const adCount = response.ad ? 1 : 0;
       const keywordCount = response.keywords ? response.keywords.length : 0;
       const errorCount = response.errors ? response.errors.length : 0;
-      
+
       // Only count entities that exist in response
       const createdEntities = [];
       if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
       if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
       if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
-      
+
       const totalCreated = adgroupCount + adCount + keywordCount;
 
       // Check for errors in response
@@ -1757,9 +1816,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         if (errorCount > 0) {
           summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
         }
-        
+
         const summaryMessage = summaryParts.join("\n\n");
-        
+
         // Close panel and show error modal
         setIsCreateSearchEntitiesPanelOpen(false);
         setCreateSearchEntitiesError(null);
@@ -1770,7 +1829,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           isSuccess: false,
           errorDetails: response.error_details || undefined,
         });
-        
+
         // Reload data to show new entities even if there are errors
         await loadAdGroups();
         await loadKeywords();
@@ -2173,8 +2232,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                 {loading
                   ? "Loading..."
                   : campaignDetail
-                  ? campaignDetail.campaign.name
-                  : "Campaign Not Found"}
+                    ? campaignDetail.campaign.name
+                    : "Campaign Not Found"}
               </h1>
             </div>
 
@@ -2255,8 +2314,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             campaignDetail.campaign.status === "ENABLED"
                               ? "Enabled"
                               : campaignDetail.campaign.status === "PAUSED"
-                              ? "Paused"
-                              : "Removed"
+                                ? "Paused"
+                                : "Removed"
                           }
                         />
                       </div>
@@ -2376,8 +2435,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.start_date
                               ? new Date(campaignDetail.campaign.start_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : "";
                             if (editedValue && editedValue !== oldDate) {
                               setInlineEditField("start_date");
@@ -2393,8 +2452,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             if (e.key === "Enter") {
                               const oldDate = campaignDetail.campaign.start_date
                                 ? new Date(campaignDetail.campaign.start_date)
-                                    .toISOString()
-                                    .split("T")[0]
+                                  .toISOString()
+                                  .split("T")[0]
                                 : "";
                               if (editedValue && editedValue !== oldDate) {
                                 setInlineEditField("start_date");
@@ -2419,16 +2478,16 @@ export const GoogleCampaignDetail: React.FC = () => {
                           setEditingField("start_date");
                           const startDate = campaignDetail.campaign.start_date
                             ? new Date(campaignDetail.campaign.start_date)
-                                .toISOString()
-                                .split("T")[0]
+                              .toISOString()
+                              .split("T")[0]
                             : "";
                           setEditedValue(startDate);
                         }}
                       >
                         {campaignDetail.campaign.start_date
                           ? new Date(
-                              campaignDetail.campaign.start_date
-                            ).toLocaleDateString()
+                            campaignDetail.campaign.start_date
+                          ).toLocaleDateString()
                           : "—"}
                       </div>
                     )}
@@ -2450,8 +2509,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.end_date
                               ? new Date(campaignDetail.campaign.end_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : "";
                             if (editedValue && editedValue !== oldDate) {
                               setInlineEditField("end_date");
@@ -2467,8 +2526,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             if (e.key === "Enter") {
                               const oldDate = campaignDetail.campaign.end_date
                                 ? new Date(campaignDetail.campaign.end_date)
-                                    .toISOString()
-                                    .split("T")[0]
+                                  .toISOString()
+                                  .split("T")[0]
                                 : "";
                               if (editedValue && editedValue !== oldDate) {
                                 setInlineEditField("end_date");
@@ -2493,16 +2552,16 @@ export const GoogleCampaignDetail: React.FC = () => {
                           setEditingField("end_date");
                           const endDate = campaignDetail.campaign.end_date
                             ? new Date(campaignDetail.campaign.end_date)
-                                .toISOString()
-                                .split("T")[0]
+                              .toISOString()
+                              .split("T")[0]
                             : "";
                           setEditedValue(endDate);
                         }}
                       >
                         {campaignDetail.campaign.end_date
                           ? new Date(
-                              campaignDetail.campaign.end_date
-                            ).toLocaleDateString()
+                            campaignDetail.campaign.end_date
+                          ).toLocaleDateString()
                           : "—"}
                       </div>
                     )}
@@ -2520,7 +2579,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               <div className="flex flex-col gap-4 mb-4">
                 <div className="flex flex-wrap gap-4 md:gap-7">
                   {campaignDetail.kpi_cards &&
-                  campaignDetail.kpi_cards.length > 0 ? (
+                    campaignDetail.kpi_cards.length > 0 ? (
                     campaignDetail.kpi_cards.map((card, index) => (
                       <KPICard
                         key={index}
@@ -2584,11 +2643,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
-                      activeTab === tab
+                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${activeTab === tab
                         ? "border-[#136D6D] text-[#136D6D]"
                         : "border-transparent text-[#556179] hover:text-[#072929]"
-                    }`}
+                      }`}
                   >
                     {tab}
                   </button>
@@ -2634,64 +2692,64 @@ export const GoogleCampaignDetail: React.FC = () => {
                     </>
                   )}
                   <GoogleCampaignDetailAssetGroupsTab
-                  assetGroups={assetGroups}
-                  loading={assetGroupsLoading}
-                  selectedAssetGroupIds={selectedAssetGroupIds}
-                  onSelectAll={(checked) => {
-                    if (checked) {
-                      setSelectedAssetGroupIds(new Set(assetGroups.map((ag) => ag.id)));
-                    } else {
-                      setSelectedAssetGroupIds(new Set());
-                    }
-                  }}
-                  onSelectAssetGroup={(id, checked) => {
-                    setSelectedAssetGroupIds((prev) => {
-                      const newSet = new Set(prev);
+                    assetGroups={assetGroups}
+                    loading={assetGroupsLoading}
+                    selectedAssetGroupIds={selectedAssetGroupIds}
+                    onSelectAll={(checked) => {
                       if (checked) {
-                        newSet.add(id);
+                        setSelectedAssetGroupIds(new Set(assetGroups.map((ag) => ag.id)));
                       } else {
-                        newSet.delete(id);
+                        setSelectedAssetGroupIds(new Set());
                       }
-                      return newSet;
-                    });
-                  }}
-                  sortBy={assetGroupsSortBy}
-                  sortOrder={assetGroupsSortOrder}
-                  onSort={(column) => {
-                    if (assetGroupsSortBy === column) {
-                      setAssetGroupsSortOrder(assetGroupsSortOrder === "asc" ? "desc" : "asc");
-                    } else {
-                      setAssetGroupsSortBy(column);
-                      setAssetGroupsSortOrder("asc");
+                    }}
+                    onSelectAssetGroup={(id, checked) => {
+                      setSelectedAssetGroupIds((prev) => {
+                        const newSet = new Set(prev);
+                        if (checked) {
+                          newSet.add(id);
+                        } else {
+                          newSet.delete(id);
+                        }
+                        return newSet;
+                      });
+                    }}
+                    sortBy={assetGroupsSortBy}
+                    sortOrder={assetGroupsSortOrder}
+                    onSort={(column) => {
+                      if (assetGroupsSortBy === column) {
+                        setAssetGroupsSortOrder(assetGroupsSortOrder === "asc" ? "desc" : "asc");
+                      } else {
+                        setAssetGroupsSortBy(column);
+                        setAssetGroupsSortOrder("asc");
+                      }
+                      setAssetGroupsCurrentPage(1);
+                    }}
+                    currentPage={assetGroupsCurrentPage}
+                    totalPages={assetGroupsTotalPages}
+                    onPageChange={setAssetGroupsCurrentPage}
+                    isFilterPanelOpen={isAssetGroupsFilterPanelOpen}
+                    onToggleFilterPanel={() =>
+                      setIsAssetGroupsFilterPanelOpen(!isAssetGroupsFilterPanelOpen)
                     }
-                    setAssetGroupsCurrentPage(1);
-                  }}
-                  currentPage={assetGroupsCurrentPage}
-                  totalPages={assetGroupsTotalPages}
-                  onPageChange={setAssetGroupsCurrentPage}
-                  isFilterPanelOpen={isAssetGroupsFilterPanelOpen}
-                  onToggleFilterPanel={() =>
-                    setIsAssetGroupsFilterPanelOpen(!isAssetGroupsFilterPanelOpen)
-                  }
-                  filters={assetGroupsFilters}
-                  onApplyFilters={(newFilters) => {
-                    setAssetGroupsFilters(newFilters);
-                    setAssetGroupsCurrentPage(1);
-                  }}
-                  syncing={syncingAssetGroups}
-                  onSync={handleSyncAssetGroups}
-                  syncingAnalytics={false}
-                  onSyncAnalytics={async () => {
-                    // TODO: Implement asset groups analytics sync
-                    console.log("Sync asset groups analytics not yet implemented");
-                  }}
-                  syncMessage={
-                    syncMessage.type === "assetgroups" ? syncMessage.message : null
-                  }
-                  formatPercentage={formatPercentage}
-                  formatCurrency2Decimals={formatCurrency2Decimals}
-                  getSortIcon={getSortIcon}
-                />
+                    filters={assetGroupsFilters}
+                    onApplyFilters={(newFilters) => {
+                      setAssetGroupsFilters(newFilters);
+                      setAssetGroupsCurrentPage(1);
+                    }}
+                    syncing={syncingAssetGroups}
+                    onSync={handleSyncAssetGroups}
+                    syncingAnalytics={false}
+                    onSyncAnalytics={async () => {
+                      // TODO: Implement asset groups analytics sync
+                      console.log("Sync asset groups analytics not yet implemented");
+                    }}
+                    syncMessage={
+                      syncMessage.type === "assetgroups" ? syncMessage.message : null
+                    }
+                    formatPercentage={formatPercentage}
+                    formatCurrency2Decimals={formatCurrency2Decimals}
+                    getSortIcon={getSortIcon}
+                  />
                 </>
               )}
 
@@ -2700,58 +2758,58 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {/* Create Ad Group Panel - For SEARCH and SHOPPING campaigns */}
                   {(campaignDetail?.campaign.advertising_channel_type === "SEARCH" ||
                     campaignDetail?.campaign.advertising_channel_type === "SHOPPING") && (
-                    <>
-                      <div className="mb-4 flex justify-end">
-                        <CreateGoogleAdGroupSection
-                          isOpen={
-                            campaignDetail?.campaign.advertising_channel_type === "SEARCH"
-                              ? isCreateSearchEntitiesPanelOpen
-                              : isCreateShoppingEntitiesPanelOpen
-                          }
-                          onToggle={() => {
-                            if (campaignDetail?.campaign.advertising_channel_type === "SEARCH") {
-                              setIsCreateSearchEntitiesPanelOpen(!isCreateSearchEntitiesPanelOpen);
-                            } else {
-                              setIsCreateShoppingEntitiesPanelOpen(!isCreateShoppingEntitiesPanelOpen);
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <CreateGoogleAdGroupSection
+                            isOpen={
+                              campaignDetail?.campaign.advertising_channel_type === "SEARCH"
+                                ? isCreateSearchEntitiesPanelOpen
+                                : isCreateShoppingEntitiesPanelOpen
                             }
-                            setIsAdGroupsFilterPanelOpen(false);
-                          }}
-                        />
-                      </div>
-                      {campaignDetail?.campaign.advertising_channel_type === "SEARCH" &&
-                        isCreateSearchEntitiesPanelOpen &&
-                        campaignId && (
-                          <CreateGoogleAdGroupPanel
-                            isOpen={isCreateSearchEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateSearchEntitiesPanelOpen(false);
-                              setCreateSearchEntitiesError(null);
+                            onToggle={() => {
+                              if (campaignDetail?.campaign.advertising_channel_type === "SEARCH") {
+                                setIsCreateSearchEntitiesPanelOpen(!isCreateSearchEntitiesPanelOpen);
+                              } else {
+                                setIsCreateShoppingEntitiesPanelOpen(!isCreateShoppingEntitiesPanelOpen);
+                              }
+                              setIsAdGroupsFilterPanelOpen(false);
                             }}
-                            onSubmit={handleCreateAdGroup}
-                            campaignId={campaignId}
-                            campaignName={campaignDetail?.campaign.name}
-                            loading={createSearchEntitiesLoading}
-                            submitError={null}
                           />
-                        )}
-                      {campaignDetail?.campaign.advertising_channel_type === "SHOPPING" &&
-                        isCreateShoppingEntitiesPanelOpen &&
-                        campaignId && (
-                          <CreateGoogleAdGroupPanel
-                            isOpen={isCreateShoppingEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateShoppingEntitiesPanelOpen(false);
-                              setCreateShoppingEntitiesError(null);
-                            }}
-                            onSubmit={handleCreateShoppingAdGroup}
-                            campaignId={campaignId}
-                            campaignName={campaignDetail?.campaign.name}
-                            loading={createShoppingEntitiesLoading}
-                            submitError={createShoppingEntitiesError}
-                          />
-                        )}
-                    </>
-                  )}
+                        </div>
+                        {campaignDetail?.campaign.advertising_channel_type === "SEARCH" &&
+                          isCreateSearchEntitiesPanelOpen &&
+                          campaignId && (
+                            <CreateGoogleAdGroupPanel
+                              isOpen={isCreateSearchEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateSearchEntitiesPanelOpen(false);
+                                setCreateSearchEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateAdGroup}
+                              campaignId={campaignId}
+                              campaignName={campaignDetail?.campaign.name}
+                              loading={createSearchEntitiesLoading}
+                              submitError={null}
+                            />
+                          )}
+                        {campaignDetail?.campaign.advertising_channel_type === "SHOPPING" &&
+                          isCreateShoppingEntitiesPanelOpen &&
+                          campaignId && (
+                            <CreateGoogleAdGroupPanel
+                              isOpen={isCreateShoppingEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateShoppingEntitiesPanelOpen(false);
+                                setCreateShoppingEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateShoppingAdGroup}
+                              campaignId={campaignId}
+                              campaignName={campaignDetail?.campaign.name}
+                              loading={createShoppingEntitiesLoading}
+                              submitError={createShoppingEntitiesError}
+                            />
+                          )}
+                      </>
+                    )}
                   <GoogleCampaignDetailAdGroupsTab
                     adgroups={adgroups}
                     loading={adgroupsLoading}
@@ -2784,95 +2842,95 @@ export const GoogleCampaignDetail: React.FC = () => {
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     getSortIcon={getSortIcon}
                     campaignType={campaignDetail?.campaign?.advertising_channel_type}
-                  onUpdateAdGroupStatus={async (
-                    adgroupId: number,
-                    status: string
-                  ) => {
-                    try {
-                      const accountIdNum = parseInt(accountId!, 10);
-                      if (isNaN(accountIdNum)) return;
+                    onUpdateAdGroupStatus={async (
+                      adgroupId: number,
+                      status: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
 
-                      // Find the adgroup to get adgroup_id
-                      const adgroup = adgroups.find(
-                        (ag) => ag.id === adgroupId
-                      );
-                      if (!adgroup || !adgroup.adgroup_id) {
-                        alert("Ad group not found");
-                        return;
-                      }
-
-                      // Call API
-                      await campaignsService.bulkUpdateGoogleAdGroups(
-                        accountIdNum,
-                        {
-                          adgroupIds: [adgroup.adgroup_id],
-                          action: "status",
-                          status: status as "ENABLED" | "PAUSED",
+                        // Find the adgroup to get adgroup_id
+                        const adgroup = adgroups.find(
+                          (ag) => ag.id === adgroupId
+                        );
+                        if (!adgroup || !adgroup.adgroup_id) {
+                          alert("Ad group not found");
+                          return;
                         }
-                      );
 
-                      // Update local state instead of reloading
-                      setAdgroups((prevAdgroups) =>
-                        prevAdgroups.map((ag) =>
-                          ag.id === adgroupId
-                            ? { ...ag, status: status }
-                            : ag
-                        )
-                      );
-                    } catch (error: any) {
-                      console.error("Failed to update adgroup status:", error);
-                      alert(
-                        error.response?.data?.error ||
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleAdGroups(
+                          accountIdNum,
+                          {
+                            adgroupIds: [adgroup.adgroup_id],
+                            action: "status",
+                            status: status as "ENABLED" | "PAUSED",
+                          }
+                        );
+
+                        // Update local state instead of reloading
+                        setAdgroups((prevAdgroups) =>
+                          prevAdgroups.map((ag) =>
+                            ag.id === adgroupId
+                              ? { ...ag, status: status }
+                              : ag
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update adgroup status:", error);
+                        alert(
+                          error.response?.data?.error ||
                           "Failed to update adgroup status"
-                      );
-                      throw error;
-                    }
-                  }}
-                  onUpdateAdGroupBid={async (
-                    adgroupId: number,
-                    bid: number
-                  ) => {
-                    try {
-                      const accountIdNum = parseInt(accountId!, 10);
-                      if (isNaN(accountIdNum)) return;
-
-                      // Find the adgroup to get adgroup_id
-                      const adgroup = adgroups.find(
-                        (ag) => ag.id === adgroupId
-                      );
-                      if (!adgroup || !adgroup.adgroup_id) {
-                        alert("Ad group not found");
-                        return;
+                        );
+                        throw error;
                       }
+                    }}
+                    onUpdateAdGroupBid={async (
+                      adgroupId: number,
+                      bid: number
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
 
-                      // Call API
-                      await campaignsService.bulkUpdateGoogleAdGroups(
-                        accountIdNum,
-                        {
-                          adgroupIds: [adgroup.adgroup_id],
-                          action: "bid",
-                          bid: bid,
+                        // Find the adgroup to get adgroup_id
+                        const adgroup = adgroups.find(
+                          (ag) => ag.id === adgroupId
+                        );
+                        if (!adgroup || !adgroup.adgroup_id) {
+                          alert("Ad group not found");
+                          return;
                         }
-                      );
 
-                      // Update local state
-                      setAdgroups((prevAdgroups) =>
-                        prevAdgroups.map((ag) =>
-                          ag.id === adgroupId
-                            ? { ...ag, cpc_bid_dollars: bid }
-                            : ag
-                        )
-                      );
-                    } catch (error: any) {
-                      console.error("Failed to update adgroup bid:", error);
-                      alert(
-                        error.response?.data?.error ||
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleAdGroups(
+                          accountIdNum,
+                          {
+                            adgroupIds: [adgroup.adgroup_id],
+                            action: "bid",
+                            bid: bid,
+                          }
+                        );
+
+                        // Update local state
+                        setAdgroups((prevAdgroups) =>
+                          prevAdgroups.map((ag) =>
+                            ag.id === adgroupId
+                              ? { ...ag, cpc_bid_dollars: bid }
+                              : ag
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update adgroup bid:", error);
+                        alert(
+                          error.response?.data?.error ||
                           "Failed to update adgroup bid"
-                      );
-                      throw error;
-                    }
-                  }}
-                />
+                        );
+                        throw error;
+                      }
+                    }}
+                  />
                 </>
               )}
 
@@ -2935,68 +2993,68 @@ export const GoogleCampaignDetail: React.FC = () => {
                     </>
                   )}
                   <GoogleCampaignDetailAdsTab
-                  ads={ads}
-                  loading={adsLoading}
-                  selectedAdIds={selectedAdIds}
-                  onSelectAll={handleSelectAllAds}
-                  onSelectAd={handleSelectAd}
-                  sortBy={adsSortBy}
-                  sortOrder={adsSortOrder}
-                  onSort={handleAdsSort}
-                  currentPage={adsCurrentPage}
-                  totalPages={adsTotalPages}
-                  onPageChange={handleAdsPageChange}
-                  isFilterPanelOpen={isAdsFilterPanelOpen}
-                  onToggleFilterPanel={() =>
-                    setIsAdsFilterPanelOpen(!isAdsFilterPanelOpen)
-                  }
-                  filters={adsFilters}
-                  onApplyFilters={(newFilters) => {
-                    setAdsFilters(newFilters);
-                    setAdsCurrentPage(1);
-                  }}
-                  syncing={syncingAds}
-                  onSync={handleSyncAds}
-                  syncingAnalytics={syncingAdsAnalytics}
-                  onSyncAnalytics={handleSyncAdsAnalytics}
-                  syncMessage={
-                    syncMessage.type === "ads" ? syncMessage.message : null
-                  }
-                  getSortIcon={getSortIcon}
-                  onUpdateAdStatus={async (adId: number, status: string) => {
-                    try {
-                      const accountIdNum = parseInt(accountId!, 10);
-                      if (isNaN(accountIdNum)) return;
-
-                      // Find the ad to get ad_id
-                      const ad = ads.find((a) => a.id === adId);
-                      if (!ad || !ad.ad_id) {
-                        alert("Ad not found");
-                        return;
-                      }
-
-                      // Call API
-                      await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
-                        adIds: [ad.ad_id],
-                        action: "status",
-                        status: status as "ENABLED" | "PAUSED" | "REMOVED",
-                      });
-
-                      // Update local state
-                      setAds((prevAds) =>
-                        prevAds.map((a) =>
-                          a.id === adId ? { ...a, status } : a
-                        )
-                      );
-                    } catch (error: any) {
-                      console.error("Failed to update ad status:", error);
-                      alert(
-                        error.response?.data?.error ||
-                          "Failed to update ad status"
-                      );
+                    ads={ads}
+                    loading={adsLoading}
+                    selectedAdIds={selectedAdIds}
+                    onSelectAll={handleSelectAllAds}
+                    onSelectAd={handleSelectAd}
+                    sortBy={adsSortBy}
+                    sortOrder={adsSortOrder}
+                    onSort={handleAdsSort}
+                    currentPage={adsCurrentPage}
+                    totalPages={adsTotalPages}
+                    onPageChange={handleAdsPageChange}
+                    isFilterPanelOpen={isAdsFilterPanelOpen}
+                    onToggleFilterPanel={() =>
+                      setIsAdsFilterPanelOpen(!isAdsFilterPanelOpen)
                     }
-                  }}
-                />
+                    filters={adsFilters}
+                    onApplyFilters={(newFilters) => {
+                      setAdsFilters(newFilters);
+                      setAdsCurrentPage(1);
+                    }}
+                    syncing={syncingAds}
+                    onSync={handleSyncAds}
+                    syncingAnalytics={syncingAdsAnalytics}
+                    onSyncAnalytics={handleSyncAdsAnalytics}
+                    syncMessage={
+                      syncMessage.type === "ads" ? syncMessage.message : null
+                    }
+                    getSortIcon={getSortIcon}
+                    onUpdateAdStatus={async (adId: number, status: string) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        // Find the ad to get ad_id
+                        const ad = ads.find((a) => a.id === adId);
+                        if (!ad || !ad.ad_id) {
+                          alert("Ad not found");
+                          return;
+                        }
+
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+                          adIds: [ad.ad_id],
+                          action: "status",
+                          status: status as "ENABLED" | "PAUSED" | "REMOVED",
+                        });
+
+                        // Update local state
+                        setAds((prevAds) =>
+                          prevAds.map((a) =>
+                            a.id === adId ? { ...a, status } : a
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update ad status:", error);
+                        alert(
+                          error.response?.data?.error ||
+                          "Failed to update ad status"
+                        );
+                      }
+                    }}
+                  />
                 </>
               )}
 
@@ -3031,156 +3089,156 @@ export const GoogleCampaignDetail: React.FC = () => {
                     </>
                   )}
                   <GoogleCampaignDetailKeywordsTab
-                  keywords={keywords}
-                  loading={keywordsLoading}
-                  selectedKeywordIds={selectedKeywordIds}
-                  onSelectAll={handleSelectAllKeywords}
-                  onSelectKeyword={handleSelectKeyword}
-                  sortBy={keywordsSortBy}
-                  sortOrder={keywordsSortOrder}
-                  onSort={handleKeywordsSort}
-                  currentPage={keywordsCurrentPage}
-                  totalPages={keywordsTotalPages}
-                  onPageChange={handleKeywordsPageChange}
-                  isFilterPanelOpen={isKeywordsFilterPanelOpen}
-                  onToggleFilterPanel={() =>
-                    setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen)
-                  }
-                  filters={keywordsFilters}
-                  onApplyFilters={(newFilters) => {
-                    setKeywordsFilters(newFilters);
-                    setKeywordsCurrentPage(1);
-                  }}
-                  syncing={syncingKeywords}
-                  onSync={handleSyncKeywords}
-                  syncingAnalytics={syncingKeywordsAnalytics}
-                  onSyncAnalytics={handleSyncKeywordsAnalytics}
-                  syncMessage={
-                    syncMessage.type === "keywords" ? syncMessage.message : null
-                  }
-                  getSortIcon={getSortIcon}
-                  onUpdateKeywordStatus={async (
-                    keywordId: number,
-                    status: string
-                  ) => {
-                    try {
-                      const accountIdNum = parseInt(accountId!, 10);
-                      if (isNaN(accountIdNum)) return;
+                    keywords={keywords}
+                    loading={keywordsLoading}
+                    selectedKeywordIds={selectedKeywordIds}
+                    onSelectAll={handleSelectAllKeywords}
+                    onSelectKeyword={handleSelectKeyword}
+                    sortBy={keywordsSortBy}
+                    sortOrder={keywordsSortOrder}
+                    onSort={handleKeywordsSort}
+                    currentPage={keywordsCurrentPage}
+                    totalPages={keywordsTotalPages}
+                    onPageChange={handleKeywordsPageChange}
+                    isFilterPanelOpen={isKeywordsFilterPanelOpen}
+                    onToggleFilterPanel={() =>
+                      setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen)
+                    }
+                    filters={keywordsFilters}
+                    onApplyFilters={(newFilters) => {
+                      setKeywordsFilters(newFilters);
+                      setKeywordsCurrentPage(1);
+                    }}
+                    syncing={syncingKeywords}
+                    onSync={handleSyncKeywords}
+                    syncingAnalytics={syncingKeywordsAnalytics}
+                    onSyncAnalytics={handleSyncKeywordsAnalytics}
+                    syncMessage={
+                      syncMessage.type === "keywords" ? syncMessage.message : null
+                    }
+                    getSortIcon={getSortIcon}
+                    onUpdateKeywordStatus={async (
+                      keywordId: number,
+                      status: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
 
-                      // Find the keyword to get keyword_id
-                      const keyword = keywords.find((k) => k.id === keywordId);
-                      if (!keyword || !keyword.keyword_id) {
-                        alert("Keyword not found");
-                        return;
-                      }
-
-                      // Call API
-                      await campaignsService.bulkUpdateGoogleKeywords(
-                        accountIdNum,
-                        {
-                          keywordIds: [keyword.keyword_id],
-                          action: "status",
-                          status: status as "ENABLED" | "PAUSED",
+                        // Find the keyword to get keyword_id
+                        const keyword = keywords.find((k) => k.id === keywordId);
+                        if (!keyword || !keyword.keyword_id) {
+                          alert("Keyword not found");
+                          return;
                         }
-                      );
 
-                      // Update local state
-                      setKeywords((prevKeywords) =>
-                        prevKeywords.map((k) =>
-                          k.id === keywordId ? { ...k, status } : k
-                        )
-                      );
-                    } catch (error: any) {
-                      console.error("Failed to update keyword status:", error);
-                      alert(
-                        error.response?.data?.error ||
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleKeywords(
+                          accountIdNum,
+                          {
+                            keywordIds: [keyword.keyword_id],
+                            action: "status",
+                            status: status as "ENABLED" | "PAUSED",
+                          }
+                        );
+
+                        // Update local state
+                        setKeywords((prevKeywords) =>
+                          prevKeywords.map((k) =>
+                            k.id === keywordId ? { ...k, status } : k
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update keyword status:", error);
+                        alert(
+                          error.response?.data?.error ||
                           "Failed to update keyword status"
-                      );
-                    }
-                  }}
-                  onUpdateKeywordBid={async (
-                    keywordId: number,
-                    bid: number
-                  ) => {
-                    try {
-                      const accountIdNum = parseInt(accountId!, 10);
-                      if (isNaN(accountIdNum)) return;
-
-                      // Find the keyword to get keyword_id
-                      const keyword = keywords.find((k) => k.id === keywordId);
-                      if (!keyword || !keyword.keyword_id) {
-                        alert("Keyword not found");
-                        return;
+                        );
                       }
+                    }}
+                    onUpdateKeywordBid={async (
+                      keywordId: number,
+                      bid: number
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
 
-                      // Call API
-                      await campaignsService.bulkUpdateGoogleKeywords(
-                        accountIdNum,
-                        {
-                          keywordIds: [keyword.keyword_id],
-                          action: "bid",
-                          bid: bid,
+                        // Find the keyword to get keyword_id
+                        const keyword = keywords.find((k) => k.id === keywordId);
+                        if (!keyword || !keyword.keyword_id) {
+                          alert("Keyword not found");
+                          return;
                         }
-                      );
 
-                      // Update local state
-                      setKeywords((prevKeywords) =>
-                        prevKeywords.map((k) =>
-                          k.id === keywordId
-                            ? { ...k, cpc_bid_dollars: bid }
-                            : k
-                        )
-                      );
-                    } catch (error: any) {
-                      console.error("Failed to update keyword bid:", error);
-                      alert(
-                        error.response?.data?.error ||
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleKeywords(
+                          accountIdNum,
+                          {
+                            keywordIds: [keyword.keyword_id],
+                            action: "bid",
+                            bid: bid,
+                          }
+                        );
+
+                        // Update local state
+                        setKeywords((prevKeywords) =>
+                          prevKeywords.map((k) =>
+                            k.id === keywordId
+                              ? { ...k, cpc_bid_dollars: bid }
+                              : k
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update keyword bid:", error);
+                        alert(
+                          error.response?.data?.error ||
                           "Failed to update keyword bid"
-                      );
-                    }
-                  }}
-                  onUpdateKeywordMatchType={async (
-                    keywordId: number,
-                    matchType: string
-                  ) => {
-                    try {
-                      const accountIdNum = parseInt(accountId!, 10);
-                      if (isNaN(accountIdNum)) return;
-
-                      // Find the keyword to get keyword_id
-                      const keyword = keywords.find((k) => k.id === keywordId);
-                      if (!keyword || !keyword.keyword_id) {
-                        alert("Keyword not found");
-                        return;
+                        );
                       }
+                    }}
+                    onUpdateKeywordMatchType={async (
+                      keywordId: number,
+                      matchType: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
 
-                      // Call API
-                      await campaignsService.bulkUpdateGoogleKeywords(
-                        accountIdNum,
-                        {
-                          keywordIds: [keyword.keyword_id],
-                          action: "match_type",
-                          match_type: matchType as 'EXACT' | 'PHRASE' | 'BROAD',
+                        // Find the keyword to get keyword_id
+                        const keyword = keywords.find((k) => k.id === keywordId);
+                        if (!keyword || !keyword.keyword_id) {
+                          alert("Keyword not found");
+                          return;
                         }
-                      );
 
-                      // Update local state
-                      setKeywords((prevKeywords) =>
-                        prevKeywords.map((k) =>
-                          k.id === keywordId
-                            ? { ...k, match_type: matchType }
-                            : k
-                        )
-                      );
-                    } catch (error: any) {
-                      console.error("Failed to update keyword match type:", error);
-                      alert(
-                        error.response?.data?.error ||
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleKeywords(
+                          accountIdNum,
+                          {
+                            keywordIds: [keyword.keyword_id],
+                            action: "match_type",
+                            match_type: matchType as 'EXACT' | 'PHRASE' | 'BROAD',
+                          }
+                        );
+
+                        // Update local state
+                        setKeywords((prevKeywords) =>
+                          prevKeywords.map((k) =>
+                            k.id === keywordId
+                              ? { ...k, match_type: matchType }
+                              : k
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update keyword match type:", error);
+                        alert(
+                          error.response?.data?.error ||
                           "Failed to update keyword match type"
-                      );
-                    }
-                  }}
-                />
+                        );
+                      }
+                    }}
+                  />
                 </>
               )}
 
@@ -3208,7 +3266,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       onSubmit={handleCreateNegativeKeywords}
                       campaignId={campaignId}
                       accountId={accountId}
-                      campaignType={campaignDetail?.campaign?.advertising_channel_type}
+                      campaignType={campaignDetail?.campaign.advertising_channel_type}
                       adgroups={adgroups}
                       loading={createNegativeKeywordLoading}
                       submitError={createNegativeKeywordError}
@@ -3243,58 +3301,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                       syncMessage.type === "negative_keywords" ? syncMessage.message : null
                     }
                     getSortIcon={getSortIcon}
-                    onUpdateNegativeKeywordStatus={async (
-                      criterionId: string,
-                      status: string
-                    ) => {
-                      try {
-                        const accountIdNum = parseInt(accountId!, 10);
-                        if (isNaN(accountIdNum)) return;
-
-                        await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
-                          accountIdNum,
-                          {
-                            negativeKeywordIds: [criterionId],
-                            action: "status",
-                            value: status,
-                          }
-                        );
-
-                        await loadNegativeKeywords();
-                      } catch (error: any) {
-                        console.error("Failed to update negative keyword status:", error);
-                        alert(
-                          error.response?.data?.error ||
-                            "Failed to update negative keyword status"
-                        );
-                      }
-                    }}
-                    onUpdateNegativeKeywordMatchType={async (
-                      criterionId: string,
-                      matchType: string
-                    ) => {
-                      try {
-                        const accountIdNum = parseInt(accountId!, 10);
-                        if (isNaN(accountIdNum)) return;
-
-                        await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
-                          accountIdNum,
-                          {
-                            negativeKeywordIds: [criterionId],
-                            action: "match_type",
-                            value: matchType,
-                          }
-                        );
-
-                        await loadNegativeKeywords();
-                      } catch (error: any) {
-                        console.error("Failed to update negative keyword match type:", error);
-                        alert(
-                          error.response?.data?.error ||
-                            "Failed to update negative keyword match type"
-                        );
-                      }
-                    }}
+                    onUpdateNegativeKeywordStatus={handleUpdateNegativeKeywordStatus}
+                    onUpdateNegativeKeywordMatchType={handleUpdateNegativeKeywordMatchType}
                   />
                 </>
               )}
@@ -3330,125 +3338,126 @@ export const GoogleCampaignDetail: React.FC = () => {
                     </>
                   )}
                   <GoogleCampaignDetailProductGroupsTab
-                  productGroups={productGroups}
-                  loading={productGroupsLoading}
-                  selectedProductGroupIds={selectedProductGroupIds}
-                  onSelectAll={(checked) => {
-                    if (checked) {
-                      setSelectedProductGroupIds(new Set(productGroups.map((pg) => pg.id)));
-                    } else {
-                      setSelectedProductGroupIds(new Set());
-                    }
-                  }}
-                  onSelectProductGroup={(id, checked) => {
-                    setSelectedProductGroupIds((prev) => {
-                      const newSet = new Set(prev);
+                    productGroups={productGroups}
+                    loading={productGroupsLoading}
+                    selectedProductGroupIds={selectedProductGroupIds}
+                    onSelectAll={(checked) => {
                       if (checked) {
-                        newSet.add(id);
+                        setSelectedProductGroupIds(new Set(productGroups.map((pg) => pg.id)));
                       } else {
-                        newSet.delete(id);
+                        setSelectedProductGroupIds(new Set());
                       }
-                      return newSet;
-                    });
-                  }}
-                  sortBy={productGroupsSortBy}
-                  sortOrder={productGroupsSortOrder}
-                  onSort={(column) => {
-                    if (productGroupsSortBy === column) {
-                      setProductGroupsSortOrder(productGroupsSortOrder === "asc" ? "desc" : "asc");
-                    } else {
-                      setProductGroupsSortBy(column);
-                      setProductGroupsSortOrder("asc");
-                    }
-                    setProductGroupsCurrentPage(1);
-                  }}
-                  currentPage={productGroupsCurrentPage}
-                  totalPages={productGroupsTotalPages}
-                  onPageChange={setProductGroupsCurrentPage}
-                  isFilterPanelOpen={isProductGroupsFilterPanelOpen}
-                  onToggleFilterPanel={() =>
-                    setIsProductGroupsFilterPanelOpen(!isProductGroupsFilterPanelOpen)
-                  }
-                  filters={productGroupsFilters}
-                  onApplyFilters={(newFilters) => {
-                    setProductGroupsFilters(newFilters);
-                    setProductGroupsCurrentPage(1);
-                  }}
-                  syncing={syncingAds}
-                  onSync={handleSyncAds}
-                  syncingAnalytics={syncingAdsAnalytics}
-                  onSyncAnalytics={handleSyncAdsAnalytics}
-                  syncMessage={
-                    syncMessage.type === "ads" ? syncMessage.message : null
-                  }
-                  getSortIcon={getSortIcon}
-                  formatCurrency2Decimals={formatCurrency2Decimals}
-                  formatPercentage={formatPercentage}
-                  onUpdateProductGroupStatus={async (
-                    productGroupId: number,
-                    status: string
-                  ) => {
-                    try {
-                      const accountIdNum = parseInt(accountId!, 10);
-                      if (isNaN(accountIdNum)) return;
-
-                      // Find the product group to get ad_id
-                      // Product groups are stored in the ads table, so they have ad_id (from GoogleAd interface)
-                      const productGroup = productGroups.find(
-                        (pg) => pg.id === productGroupId
-                      );
-                      if (!productGroup) {
-                        alert("Product group not found");
-                        return;
-                      }
-
-                      // Product groups come from the ads table, so they should have ad_id
-                      // Try both snake_case and camelCase field names
-                      const adId = (productGroup as any).ad_id || (productGroup as any).adId;
-                      if (!adId) {
-                        alert("Product group ad ID not found. Please sync product groups first.");
-                        return;
-                      }
-
-                      // Get campaign_id and adgroup_id to filter the update to only this specific instance
-                      const campaignId = productGroup.campaign_id || (productGroup as any).campaignId;
-                      const adGroupId = productGroup.adgroup_id || (productGroup as any).adGroupId;
-
-                      // Call API - product groups use the same bulkUpdateGoogleAds endpoint
-                      // Include campaignId and adGroupId to only update this specific instance
-                      await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
-                        adIds: [adId],
-                        action: "status",
-                        status: status as "ENABLED" | "PAUSED" | "REMOVED",
-                        campaignId: campaignId ? String(campaignId) : undefined,
-                        adGroupId: adGroupId ? String(adGroupId) : undefined,
+                    }}
+                    onSelectProductGroup={(id, checked) => {
+                      setSelectedProductGroupIds((prev) => {
+                        const newSet = new Set(prev);
+                        if (checked) {
+                          newSet.add(id);
+                        } else {
+                          newSet.delete(id);
+                        }
+                        return newSet;
                       });
-
-                      // Update local state
-                      setProductGroups((prevProductGroups) =>
-                        prevProductGroups.map((pg) =>
-                          pg.id === productGroupId ? { ...pg, status } : pg
-                        )
-                      );
-                    } catch (error: any) {
-                      console.error("Failed to update product group status:", error);
-                      alert(
-                        error.response?.data?.error ||
-                          "Failed to update product group status"
-                      );
-                      throw error;
+                    }}
+                    sortBy={productGroupsSortBy}
+                    sortOrder={productGroupsSortOrder}
+                    onSort={(column) => {
+                      if (productGroupsSortBy === column) {
+                        setProductGroupsSortOrder(productGroupsSortOrder === "asc" ? "desc" : "asc");
+                      } else {
+                        setProductGroupsSortBy(column);
+                        setProductGroupsSortOrder("asc");
+                      }
+                      setProductGroupsCurrentPage(1);
+                    }}
+                    currentPage={productGroupsCurrentPage}
+                    totalPages={productGroupsTotalPages}
+                    onPageChange={setProductGroupsCurrentPage}
+                    isFilterPanelOpen={isProductGroupsFilterPanelOpen}
+                    onToggleFilterPanel={() =>
+                      setIsProductGroupsFilterPanelOpen(!isProductGroupsFilterPanelOpen)
                     }
-                  }}
-                />
+                    filters={productGroupsFilters}
+                    onApplyFilters={(newFilters) => {
+                      setProductGroupsFilters(newFilters);
+                      setProductGroupsCurrentPage(1);
+                    }}
+                    syncing={syncingAds}
+                    onSync={handleSyncAds}
+                    syncingAnalytics={syncingAdsAnalytics}
+                    onSyncAnalytics={handleSyncAdsAnalytics}
+                    syncMessage={
+                      syncMessage.type === "ads" ? syncMessage.message : null
+                    }
+                    getSortIcon={getSortIcon}
+                    formatCurrency2Decimals={formatCurrency2Decimals}
+                    formatPercentage={formatPercentage}
+                    onUpdateProductGroupStatus={async (
+                      productGroupId: number,
+                      status: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        // Find the product group to get ad_id
+                        // Product groups are stored in the ads table, so they have ad_id (from GoogleAd interface)
+                        const productGroup = productGroups.find(
+                          (pg) => pg.id === productGroupId
+                        );
+                        if (!productGroup) {
+                          alert("Product group not found");
+                          return;
+                        }
+
+                        // Product groups come from the ads table, so they should have ad_id
+                        // Try both snake_case and camelCase field names
+                        const adId = (productGroup as any).ad_id || (productGroup as any).adId;
+                        if (!adId) {
+                          alert("Product group ad ID not found. Please sync product groups first.");
+                          return;
+                        }
+
+                        // Get campaign_id and adgroup_id to filter the update to only this specific instance
+                        const campaignId = productGroup.campaign_id || (productGroup as any).campaignId;
+                        const adGroupId = productGroup.adgroup_id || (productGroup as any).adGroupId;
+
+                        // Call API - product groups use the same bulkUpdateGoogleAds endpoint
+                        // Include campaignId and adGroupId to only update this specific instance
+                        await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+                          adIds: [adId],
+                          action: "status",
+                          status: status as "ENABLED" | "PAUSED" | "REMOVED",
+                          campaignId: campaignId ? String(campaignId) : undefined,
+                          adGroupId: adGroupId ? String(adGroupId) : undefined,
+                        });
+
+                        // Update local state
+                        setProductGroups((prevProductGroups) =>
+                          prevProductGroups.map((pg) =>
+                            pg.id === productGroupId ? { ...pg, status } : pg
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update product group status:", error);
+                        alert(
+                          error.response?.data?.error ||
+                          "Failed to update product group status"
+                        );
+                        throw error;
+                      }
+                    }}
+                  />
                 </>
               )}
 
-              {activeTab === "Logs" && accountId && (
+              {/* Logs tab disabled - component not yet implemented */}
+              {/* {activeTab === "Logs" && accountId && (
                 <GoogleCampaignDetailLogsTab
                   accountId={accountId}
                   campaignId={campaignId}
                 />
-              )}
+              )} */}
             </div>
           </div>
         </div>
@@ -3464,10 +3473,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                 {inlineEditField === "status"
                   ? "Status"
                   : inlineEditField === "budget"
-                  ? "Budget"
-                  : inlineEditField === "start_date"
-                  ? "Start Date"
-                  : "End Date"}
+                    ? "Budget"
+                    : inlineEditField === "start_date"
+                      ? "Start Date"
+                      : "End Date"}
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">From:</span>
@@ -3481,10 +3490,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {inlineEditField === "status"
                     ? inlineEditNewValue
                     : inlineEditField === "budget"
-                    ? `$${parseFloat(
+                      ? `$${parseFloat(
                         inlineEditNewValue || "0"
                       ).toLocaleString()}`
-                    : inlineEditNewValue}
+                      : inlineEditNewValue}
                 </span>
               </div>
             </div>
