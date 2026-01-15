@@ -110,22 +110,31 @@ export const TikTokCampaigns: React.FC = () => {
     const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
     const [inlineEditLoading, setInlineEditLoading] = useState(false);
 
-    // Close dropdown when clicking outside
+    // Close dropdowns when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target as Node)
+            ) {
                 setShowBulkActions(false);
+            }
+            if (
+                exportDropdownRef.current &&
+                !exportDropdownRef.current.contains(event.target as Node)
+            ) {
+                setShowExportDropdown(false);
             }
         };
 
-        if (showBulkActions) {
+        if (showBulkActions || showExportDropdown) {
             document.addEventListener("mousedown", handleClickOutside);
         }
 
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, [showBulkActions]);
+    }, [showBulkActions, showExportDropdown]);
 
     // Chart toggles
     const [chartToggles, setChartToggles] = useState({
