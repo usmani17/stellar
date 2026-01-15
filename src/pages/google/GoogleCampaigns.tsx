@@ -147,7 +147,7 @@ export const GoogleCampaigns: React.FC = () => {
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
     campaignId: string | number;
-    field: "budget" | "status" | "start_date" | "end_date";
+    field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
@@ -155,12 +155,12 @@ export const GoogleCampaigns: React.FC = () => {
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [updatingField, setUpdatingField] = useState<{
     campaignId: string | number;
-    field: "budget" | "status" | "start_date" | "end_date";
+    field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type";
   } | null>(null);
   const [inlineEditCampaign, setInlineEditCampaign] =
     useState<GoogleCampaign | null>(null);
   const [inlineEditField, setInlineEditField] = useState<
-    "budget" | "status" | "start_date" | "end_date" | null
+    "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type" | null
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
@@ -673,33 +673,162 @@ export const GoogleCampaigns: React.FC = () => {
         }
       }
 
+      // 7. Check if PMax Asset fields changed (only for PERFORMANCE_MAX campaigns)
+      if (data.campaign_type === "PERFORMANCE_MAX") {
+        const originalExtraData = (original as any).extra_data || {};
+        
+        // Check headlines
+        const originalHeadlines = original.headlines || originalExtraData.headlines || [];
+        const newHeadlines = data.headlines || [];
+        if (JSON.stringify(originalHeadlines.sort()) !== JSON.stringify(newHeadlines.sort())) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.headlines = newHeadlines;
+          hasChanges = true;
+        }
+        
+        // Check descriptions
+        const originalDescriptions = original.descriptions || originalExtraData.descriptions || [];
+        const newDescriptions = data.descriptions || [];
+        if (JSON.stringify(originalDescriptions.sort()) !== JSON.stringify(newDescriptions.sort())) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.descriptions = newDescriptions;
+          hasChanges = true;
+        }
+        
+        // Check final_url
+        const originalFinalUrl = original.final_url || originalExtraData.final_url || "";
+        const newFinalUrl = data.final_url || "";
+        if (newFinalUrl !== originalFinalUrl && newFinalUrl) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.final_url = newFinalUrl;
+          hasChanges = true;
+        }
+        
+        // Check business_name
+        const originalBusinessName = original.business_name || originalExtraData.business_name || "";
+        const newBusinessName = data.business_name || "";
+        if (newBusinessName !== originalBusinessName && newBusinessName) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.business_name = newBusinessName;
+          hasChanges = true;
+        }
+        
+        // Check logo_url
+        const originalLogoUrl = original.logo_url || originalExtraData.logo_url || "";
+        const newLogoUrl = data.logo_url || "";
+        if (newLogoUrl !== originalLogoUrl && newLogoUrl) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.logo_url = newLogoUrl;
+          hasChanges = true;
+        }
+        
+        // Check marketing_image_url
+        const originalMarketingImage = original.marketing_image_url || originalExtraData.marketing_image_url || "";
+        const newMarketingImage = data.marketing_image_url || "";
+        if (newMarketingImage !== originalMarketingImage && newMarketingImage) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.marketing_image_url = newMarketingImage;
+          hasChanges = true;
+        }
+        
+        // Check square_marketing_image_url
+        const originalSquareImage = original.square_marketing_image_url || originalExtraData.square_marketing_image_url || "";
+        const newSquareImage = data.square_marketing_image_url || "";
+        if (newSquareImage !== originalSquareImage && newSquareImage) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.square_marketing_image_url = newSquareImage;
+          hasChanges = true;
+        }
+        
+        // Check long_headline
+        const originalLongHeadline = original.long_headline || originalExtraData.long_headline || "";
+        const newLongHeadline = data.long_headline || "";
+        if (newLongHeadline !== originalLongHeadline && newLongHeadline) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.long_headline = newLongHeadline;
+          hasChanges = true;
+        }
+        
+        // Check asset_group_name
+        const originalAssetGroupName = original.asset_group_name || originalExtraData.asset_group_name || "";
+        const newAssetGroupName = data.asset_group_name || "";
+        if (newAssetGroupName !== originalAssetGroupName && newAssetGroupName) {
+          updatePayload.pmax_assets = updatePayload.pmax_assets || {};
+          updatePayload.pmax_assets.asset_group_name = newAssetGroupName;
+          hasChanges = true;
+        }
+      }
+
       console.log("Update payload:", updatePayload);
 
+      // Separate PMax assets from campaign update payload
+      const pmaxAssets = updatePayload.pmax_assets;
+      const campaignUpdatePayload = { ...updatePayload };
+      delete campaignUpdatePayload.pmax_assets;
+
+      // Check if we have any campaign-level changes (excluding PMax assets)
+      const hasCampaignChanges = Object.keys(campaignUpdatePayload).some(
+        key => key !== 'campaignIds' && campaignUpdatePayload[key] !== undefined
+      );
+      const hasPmaxChanges = !!pmaxAssets;
+
       // Execute single update if there are changes
-      if (!hasChanges) {
+      if (!hasCampaignChanges && !hasPmaxChanges) {
         // No changes detected, show message and don't close the panel
         console.log("No changes detected");
-        const errorMessage = "No changes detected. Please modify at least one field (name, status, budget, start date, end date, or Shopping Settings).";
+        const errorMessage = "No changes detected. Please modify at least one field (name, status, budget, start date, end date, Shopping Settings, or Performance Max assets).";
         setCreateCampaignError(errorMessage);
         setCreateCampaignLoading(false);
         throw new Error(errorMessage);
       }
 
-      console.log("Executing single update with all changes...");
-      const result = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, updatePayload);
-      console.log("Update completed successfully", result);
+      // Update campaign-level fields if there are any changes
+      if (hasCampaignChanges) {
+        console.log("Executing campaign update with changes...");
+        const result = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, campaignUpdatePayload);
+        console.log("Campaign update completed successfully", result);
+      }
+
+      // Update asset group if PMax assets changed
+      if (hasPmaxChanges && campaignFormMode === "edit") {
+        try {
+          console.log("Executing asset group update with changes...");
+          await campaignsService.updateGooglePmaxAssetGroup(
+            accountIdNum,
+            campaignId,
+            pmaxAssets
+          );
+          console.log("Asset group updated successfully");
+        } catch (assetError: any) {
+          console.error("Failed to update asset group:", assetError);
+          // Log error but don't fail the entire update
+          // The campaign update succeeded, asset group update is separate
+        }
+      }
+
+      console.log("Update completed successfully");
 
       // Show success message
       const updatedFields = [];
-      if (updatePayload.name) updatedFields.push("name");
-      if (updatePayload.status) updatedFields.push("status");
-      if (updatePayload.value !== undefined) updatedFields.push("budget");
-      if (updatePayload.start_date) updatedFields.push("start date");
-      if (updatePayload.end_date) updatedFields.push("end date");
-      if (updatePayload.merchant_id) updatedFields.push("merchant ID");
-      if (updatePayload.sales_country) updatedFields.push("sales country");
-      if (updatePayload.campaign_priority !== undefined) updatedFields.push("campaign priority");
-      if (updatePayload.enable_local !== undefined) updatedFields.push("enable local");
+      if (campaignUpdatePayload.name) updatedFields.push("name");
+      if (campaignUpdatePayload.status) updatedFields.push("status");
+      if (campaignUpdatePayload.value !== undefined) updatedFields.push("budget");
+      if (campaignUpdatePayload.start_date) updatedFields.push("start date");
+      if (campaignUpdatePayload.end_date) updatedFields.push("end date");
+      if (campaignUpdatePayload.merchant_id) updatedFields.push("merchant ID");
+      if (campaignUpdatePayload.sales_country) updatedFields.push("sales country");
+      if (campaignUpdatePayload.campaign_priority !== undefined) updatedFields.push("campaign priority");
+      if (campaignUpdatePayload.enable_local !== undefined) updatedFields.push("enable local");
+      // Add PMax asset fields
+      if (pmaxAssets?.headlines) updatedFields.push("headlines");
+      if (pmaxAssets?.descriptions) updatedFields.push("descriptions");
+      if (pmaxAssets?.final_url) updatedFields.push("final URL");
+      if (pmaxAssets?.business_name) updatedFields.push("business name");
+      if (pmaxAssets?.logo_url) updatedFields.push("logo URL");
+      if (pmaxAssets?.marketing_image_url) updatedFields.push("marketing image");
+      if (pmaxAssets?.square_marketing_image_url) updatedFields.push("square marketing image");
+      if (pmaxAssets?.long_headline) updatedFields.push("long headline");
+      if (pmaxAssets?.asset_group_name) updatedFields.push("asset group name");
       
       const fieldsText = updatedFields.length > 0 
         ? updatedFields.join(", ")
@@ -1163,7 +1292,7 @@ export const GoogleCampaigns: React.FC = () => {
   // Inline edit handlers
   const startInlineEdit = (
     campaign: GoogleCampaign,
-    field: "budget" | "status" | "start_date" | "end_date"
+    field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type"
   ) => {
     // Prevent editing start_date if it's in the past - silently do nothing
     if (field === "start_date") {
@@ -1190,6 +1319,8 @@ export const GoogleCampaigns: React.FC = () => {
     } else if (field === "end_date") {
       // Format date as YYYY-MM-DD for input using utility function to avoid timezone issues
       setEditedValue(parseDateToYYYYMMDD(campaign.end_date));
+    } else if (field === "bidding_strategy_type") {
+      setEditedValue(campaign.bidding_strategy_type || "");
     }
   };
 
@@ -1289,6 +1420,10 @@ export const GoogleCampaigns: React.FC = () => {
           return;
         }
       }
+    } else if (editingCell.field === "bidding_strategy_type") {
+      const oldValue = (campaign.bidding_strategy_type || "").trim();
+      const newValue = valueToCheck.trim();
+      hasChanged = newValue !== oldValue;
     }
 
     if (!hasChanged) {
@@ -1337,6 +1472,26 @@ export const GoogleCampaigns: React.FC = () => {
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(formatCurrency(oldBudget));
       setInlineEditNewValue(formatCurrency(newBudget));
+      setShowInlineEditModal(true);
+      setEditingCell(null);
+      return;
+    }
+
+    // For bidding_strategy_type, show modal
+    if (editingCell.field === "bidding_strategy_type") {
+      const oldValue = campaign.bidding_strategy_type || "—";
+      const newValue = valueToCheck.trim();
+      
+      // Format bidding strategy for display
+      const formatBiddingStrategy = (strategy: string) => {
+        if (!strategy) return "—";
+        return strategy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      };
+
+      setInlineEditCampaign(campaign);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(formatBiddingStrategy(oldValue));
+      setInlineEditNewValue(formatBiddingStrategy(newValue));
       setShowInlineEditModal(true);
       setEditingCell(null);
       return;
@@ -1479,8 +1634,37 @@ export const GoogleCampaigns: React.FC = () => {
           (error as any).response = { data: { errors: response.errors } };
           throw error;
         }
-      }
+      } else if (inlineEditField === "bidding_strategy_type") {
+        // Convert formatted display value back to API format (e.g., "Maximize Conversions" -> "MAXIMIZE_CONVERSIONS")
+        const biddingStrategyMap: Record<string, string> = {
+          "Maximize Conversions": "MAXIMIZE_CONVERSIONS",
+          "Maximize Conversion Value": "MAXIMIZE_CONVERSION_VALUE",
+          "Target Cpa": "TARGET_CPA",
+          "Target Roas": "TARGET_ROAS",
+          "Target Impression Share": "TARGET_IMPRESSION_SHARE",
+          "Target Spend": "TARGET_SPEND",
+          "Manual Cpc": "MANUAL_CPC",
+        };
+        
+        // Also handle if already in API format
+        const strategyValue = biddingStrategyMap[inlineEditNewValue] || inlineEditNewValue.toUpperCase().replace(/\s+/g, '_');
+        
+        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: "bidding_strategy",
+            bidding_strategy_type: strategyValue,
+          }
+        );
 
+        if (response.errors && response.errors.length > 0) {
+          const error = new Error(response.errors[0]);
+          (error as any).response = { data: { errors: response.errors } };
+          throw error;
+        }
+      }
+      
       await loadCampaigns(accountIdNum);
       setShowInlineEditModal(false);
       setInlineEditCampaign(null);
@@ -1956,25 +2140,30 @@ export const GoogleCampaigns: React.FC = () => {
 
             {/* Create / Edit Campaign Panel */}
             {isCreateCampaignPanelOpen && (
-              <CreateGoogleCampaignPanel
-                isOpen={isCreateCampaignPanelOpen}
-                onClose={() => {
-                  setIsCreateCampaignPanelOpen(false);
-                  setCreateCampaignError(null);
-                  setInitialCampaignData(null);
-                  setCampaignFormMode("create");
-                  setCampaignId(undefined);
-                  setRefreshMessage(null);
-                }}
-                onSubmit={handleCreateGoogleCampaign}
-                accountId={accountId}
-                loading={createCampaignLoading}
-                submitError={createCampaignError}
-                mode={campaignFormMode}
-                initialData={initialCampaignData}
-                campaignId={campaignId}
-                refreshMessage={refreshMessage}
-              />
+              <>
+                {/* Only show form when not loading (for edit mode) or in create mode */}
+                {(!refreshMessage || refreshMessage.type !== "loading" || campaignFormMode === "create") && (
+                  <CreateGoogleCampaignPanel
+                    isOpen={isCreateCampaignPanelOpen}
+                    onClose={() => {
+                      setIsCreateCampaignPanelOpen(false);
+                      setCreateCampaignError(null);
+                      setInitialCampaignData(null);
+                      setCampaignFormMode("create");
+                      setCampaignId(undefined);
+                      setRefreshMessage(null);
+                    }}
+                    onSubmit={handleCreateGoogleCampaign}
+                    accountId={accountId}
+                    loading={createCampaignLoading}
+                    submitError={createCampaignError}
+                    mode={campaignFormMode}
+                    initialData={initialCampaignData}
+                    campaignId={campaignId}
+                    refreshMessage={refreshMessage}
+                  />
+                )}
+              </>
             )}
 
             {/* Sync Messages */}
@@ -2622,7 +2811,9 @@ export const GoogleCampaigns: React.FC = () => {
                         ? "Status"
                         : inlineEditField === "start_date"
                         ? "Start Date"
-                        : "End Date"}{" "}
+                        : inlineEditField === "end_date"
+                        ? "End Date"
+                        : "Bidding Strategy"}{" "}
                       Change
                     </h3>
                     <div className="mb-4">
@@ -2642,7 +2833,9 @@ export const GoogleCampaigns: React.FC = () => {
                               ? "Status"
                               : inlineEditField === "start_date"
                               ? "Start Date"
-                              : "End Date"}
+                              : inlineEditField === "end_date"
+                              ? "End Date"
+                              : "Bidding Strategy"}
                             :
                           </span>
                           <div className="flex items-center gap-2">
@@ -2831,6 +3024,20 @@ export const GoogleCampaigns: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Fixed Loading Message Overlay - Centered in Viewport */}
+      {isCreateCampaignPanelOpen && refreshMessage && refreshMessage.type === "loading" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-lg shadow-lg border border-gray-200 pointer-events-auto">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#136D6D] border-t-transparent"></div>
+              <span className="text-sm font-medium text-[#072929]">
+                {refreshMessage.message}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

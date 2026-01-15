@@ -6,6 +6,7 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { KPICard } from "../../components/ui/KPICard";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
+import { Button } from "../../components/ui";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
@@ -14,16 +15,21 @@ import { OverviewTab } from "./components/tabs/OverviewTab";
 import { GoogleCampaignDetailAdGroupsTab } from "./components/tabs/GoogleCampaignDetailAdGroupsTab";
 import { GoogleCampaignDetailAdsTab } from "./components/tabs/GoogleCampaignDetailAdsTab";
 import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaignDetailKeywordsTab";
+import { GoogleCampaignDetailNegativeKeywordsTab } from "./components/tabs/GoogleCampaignDetailNegativeKeywordsTab";
 import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
+import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import type {
   GoogleAdGroup,
   GoogleAd,
   GoogleKeyword,
+  GoogleNegativeKeyword,
 } from "./components/tabs/types";
 import { CreateGoogleAdGroupPanel, type AdGroupInput } from "../../components/google/CreateGoogleAdGroupPanel";
 import { CreateGoogleAdPanel, type AdInput } from "../../components/google/CreateGoogleAdPanel";
 import { CreateGoogleKeywordPanel, type KeywordInput } from "../../components/google/CreateGoogleKeywordPanel";
+import { CreateGoogleNegativeKeywordPanel, type NegativeKeywordInput } from "../../components/google/CreateGoogleNegativeKeywordPanel";
+import { googleNegativeKeywordsService } from "../../services/googleNegativeKeywords";
 import { CreateGooglePmaxAssetGroupPanel, type PmaxAssetGroupInput } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
 import { CreateGoogleShoppingEntitiesPanel, type ShoppingEntityInput } from "../../components/google/CreateGoogleShoppingEntitiesPanel";
 import { CreateGooglePmaxAssetGroupSection } from "../../components/google/CreateGooglePmaxAssetGroupSection";
@@ -31,6 +37,7 @@ import { CreateGoogleShoppingEntitiesSection } from "../../components/google/Cre
 import { CreateGoogleAdGroupSection } from "../../components/google/CreateGoogleAdGroupSection";
 import { CreateGoogleAdSection } from "../../components/google/CreateGoogleAdSection";
 import { CreateGoogleKeywordSection } from "../../components/google/CreateGoogleKeywordSection";
+import { CreateGoogleNegativeKeywordSection } from "../../components/google/CreateGoogleNegativeKeywordSection";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 
 interface GoogleCampaignDetail {
@@ -135,6 +142,28 @@ export const GoogleCampaignDetail: React.FC = () => {
     useState(false);
   const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
 
+  // Negative Keywords state
+  const [negativeKeywords, setNegativeKeywords] = useState<GoogleNegativeKeyword[]>([]);
+  const [negativeKeywordsLoading, setNegativeKeywordsLoading] = useState(false);
+  const [selectedNegativeKeywordIds, setSelectedNegativeKeywordIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [negativeKeywordsCurrentPage, setNegativeKeywordsCurrentPage] = useState(1);
+  const [negativeKeywordsTotalPages, setNegativeKeywordsTotalPages] = useState(0);
+  const [negativeKeywordsSortBy, setNegativeKeywordsSortBy] = useState<string>("id");
+  const [negativeKeywordsSortOrder, setNegativeKeywordsSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+  const [isNegativeKeywordsFilterPanelOpen, setIsNegativeKeywordsFilterPanelOpen] =
+    useState(false);
+  const [negativeKeywordsFilters, setNegativeKeywordsFilters] = useState<FilterValues>([]);
+  const [syncingNegativeKeywords, setSyncingNegativeKeywords] = useState(false);
+  const [isCreateNegativeKeywordPanelOpen, setIsCreateNegativeKeywordPanelOpen] = useState(false);
+  const [createNegativeKeywordLoading, setCreateNegativeKeywordLoading] = useState(false);
+  const [createNegativeKeywordError, setCreateNegativeKeywordError] = useState<string | null>(null);
+  const [createdNegativeKeywords, setCreatedNegativeKeywords] = useState<any[]>([]);
+  const [failedNegativeKeywords, setFailedNegativeKeywords] = useState<any[]>([]);
+
   // Sync state
   const [syncingAdGroups, setSyncingAdGroups] = useState(false);
   const [syncingAds, setSyncingAds] = useState(false);
@@ -178,7 +207,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   const [productGroupsFilters, setProductGroupsFilters] = useState<FilterValues>([]);
 
   const [syncMessage, setSyncMessage] = useState<{
-    type: "adgroups" | "ads" | "keywords" | "assetgroups" | "productgroups" | null;
+    type: "adgroups" | "ads" | "keywords" | "negative_keywords" | "assetgroups" | "productgroups" | null;
     message: string | null;
   }>({ type: null, message: null });
 
@@ -224,18 +253,18 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Compute available tabs based on campaign type
   const tabs = useMemo(() => {
     if (!campaignDetail?.campaign?.advertising_channel_type) {
-      return ["Overview", "Ad Groups", "Ads", "Keywords"];
+      return ["Overview", "Ad Groups", "Ads", "Keywords", "Logs"];
     }
 
     const channelType = campaignDetail.campaign.advertising_channel_type.toUpperCase();
 
     if (channelType === "PERFORMANCE_MAX") {
-      return ["Overview", "Asset Groups"];
+      return ["Overview", "Asset Groups", "Logs"];
     } else if (channelType === "SHOPPING") {
-      return ["Overview", "Ad Groups", "Product Groups"];
+      return ["Overview", "Ad Groups", "Product Groups", "Logs"];
     } else {
       // SEARCH or default
-      return ["Overview", "Ad Groups", "Ads", "Keywords"];
+      return ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords", "Logs"];
     }
   }, [campaignDetail?.campaign?.advertising_channel_type]);
 
@@ -256,16 +285,19 @@ export const GoogleCampaignDetail: React.FC = () => {
     setAdgroups([]);
     setAds([]);
     setKeywords([]);
+    setNegativeKeywords([]);
     setAssetGroups([]);
     setProductGroups([]);
     setSelectedAdGroupIds(new Set());
     setSelectedAdIds(new Set());
     setSelectedKeywordIds(new Set());
+    setSelectedNegativeKeywordIds(new Set());
     setSelectedAssetGroupIds(new Set());
     setSelectedProductGroupIds(new Set());
     setAdgroupsCurrentPage(1);
     setAdsCurrentPage(1);
     setKeywordsCurrentPage(1);
+    setNegativeKeywordsCurrentPage(1);
     setAssetGroupsCurrentPage(1);
     setProductGroupsCurrentPage(1);
     setSyncMessage({ type: null, message: null });
@@ -293,6 +325,12 @@ export const GoogleCampaignDetail: React.FC = () => {
       setKeywordsCurrentPage(1);
     }
   }, [activeTab, startDate, endDate, keywordsFilters]);
+
+  useEffect(() => {
+    if (activeTab === "Negative Keywords") {
+      setNegativeKeywordsCurrentPage(1);
+    }
+  }, [activeTab, startDate, endDate, negativeKeywordsFilters]);
 
   useEffect(() => {
     if (activeTab === "Asset Groups") {
@@ -366,7 +404,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (accountId && campaignId && activeTab === "Ad Groups") {
+    if (accountId && campaignId && (activeTab === "Ad Groups" || activeTab === "Negative Keywords")) {
       loadAdGroups();
     }
   }, [
@@ -411,6 +449,22 @@ export const GoogleCampaignDetail: React.FC = () => {
     keywordsSortBy,
     keywordsSortOrder,
     keywordsFilters,
+  ]);
+
+  useEffect(() => {
+    if (accountId && campaignId && activeTab === "Negative Keywords") {
+      loadNegativeKeywords();
+    }
+  }, [
+    accountId,
+    campaignId,
+    activeTab,
+    startDate,
+    endDate,
+    negativeKeywordsCurrentPage,
+    negativeKeywordsSortBy,
+    negativeKeywordsSortOrder,
+    negativeKeywordsFilters,
   ]);
 
   const loadProductGroups = useCallback(async () => {
@@ -901,6 +955,184 @@ export const GoogleCampaignDetail: React.FC = () => {
     setKeywordsCurrentPage(1);
   };
 
+  const handleSelectAllNegativeKeywords = (checked: boolean) => {
+    if (checked) {
+      setSelectedNegativeKeywordIds(new Set(negativeKeywords.map((nkw) => nkw.id)));
+    } else {
+      setSelectedNegativeKeywordIds(new Set());
+    }
+  };
+
+  const handleSelectNegativeKeyword = (id: number, checked: boolean) => {
+    setSelectedNegativeKeywordIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleNegativeKeywordsSort = (column: string) => {
+    if (negativeKeywordsSortBy === column) {
+      setNegativeKeywordsSortOrder(negativeKeywordsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setNegativeKeywordsSortBy(column);
+      setNegativeKeywordsSortOrder("asc");
+    }
+    setNegativeKeywordsCurrentPage(1);
+  };
+
+  const loadNegativeKeywords = async () => {
+    try {
+      setNegativeKeywordsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setNegativeKeywordsLoading(false);
+        return;
+      }
+
+      const data = await googleNegativeKeywordsService.getGoogleNegativeKeywords(
+        accountIdNum,
+        {
+          filters: {
+            campaign_id: campaignId,
+            page: negativeKeywordsCurrentPage,
+            page_size: 10,
+            sort_by: negativeKeywordsSortBy,
+            order: negativeKeywordsSortOrder,
+            ...buildNegativeKeywordsFilterParams(negativeKeywordsFilters),
+          },
+        }
+      );
+
+      setNegativeKeywords(data.negative_keywords || []);
+      setNegativeKeywordsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load negative keywords:", error);
+      setNegativeKeywords([]);
+      setNegativeKeywordsTotalPages(0);
+    } finally {
+      setNegativeKeywordsLoading(false);
+    }
+  };
+
+  const buildNegativeKeywordsFilterParams = (filterList: FilterValues) => {
+    const params: any = {};
+    filterList.forEach((filter) => {
+      if (filter.field === "keyword_text" || filter.field === "name") {
+        // Map "name" field to "keyword_text" for Negative Keywords
+        if (filter.operator === "contains") {
+          params.keyword_text__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.keyword_text__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.keyword_text = filter.value;
+        }
+      } else if (filter.field === "match_type" || filter.field === "type") {
+        // Map "type" field to "match_type" for Negative Keywords
+        params.match_type = filter.value;
+      } else if (filter.field === "status") {
+        params.status = filter.value;
+      } else if ((filter.field as string) === "level") {
+        params.level = filter.value;
+      } else if (filter.field === "adgroup_name") {
+        if (filter.operator === "contains") {
+          params.adgroup_name__icontains = filter.value;
+        } else if (filter.operator === "not_contains") {
+          params.adgroup_name__not_icontains = filter.value;
+        } else if (filter.operator === "equals") {
+          params.adgroup_name = filter.value;
+        }
+      }
+    });
+    return params;
+  };
+
+  const handleSyncNegativeKeywords = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingNegativeKeywords(true);
+      setSyncMessage({ type: null, message: null });
+      const result = await googleNegativeKeywordsService.syncGoogleNegativeKeywords(accountIdNum);
+      let message = `Successfully synced ${result.synced} negative keywords`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorText = result.errors.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage({ type: "negative_keywords", message });
+
+      if (result.synced > 0) {
+        setNegativeKeywordsCurrentPage(1);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      await loadNegativeKeywords();
+
+      if (result.synced > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync negative keywords:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync negative keywords from Google Ads";
+      setSyncMessage({ type: "negative_keywords", message: errorMessage });
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+    } finally {
+      setSyncingNegativeKeywords(false);
+    }
+  };
+
+  const handleCreateNegativeKeywords = async (
+    data: { negativeKeywords: NegativeKeywordInput[]; level: "campaign" | "adgroup"; adGroupId?: string }
+  ) => {
+    if (!accountId || !campaignId) return;
+
+    try {
+      setCreateNegativeKeywordLoading(true);
+      setCreateNegativeKeywordError(null);
+      setCreatedNegativeKeywords([]);
+      setFailedNegativeKeywords([]);
+
+      const accountIdNum = parseInt(accountId, 10);
+      const result = await googleNegativeKeywordsService.createGoogleNegativeKeywords(
+        accountIdNum,
+        campaignId,
+        data
+      );
+
+      setCreatedNegativeKeywords(result.negative_keywords || []);
+      setIsCreateNegativeKeywordPanelOpen(false);
+      await loadNegativeKeywords();
+    } catch (error: any) {
+      console.error("Failed to create negative keywords:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to create negative keywords";
+      setCreateNegativeKeywordError(errorMessage);
+      if (error.response?.data?.failed_negative_keywords) {
+        setFailedNegativeKeywords(error.response.data.failed_negative_keywords);
+      }
+    } finally {
+      setCreateNegativeKeywordLoading(false);
+    }
+  };
+
   const handleAdGroupsPageChange = (page: number) => {
     setAdgroupsCurrentPage(page);
   };
@@ -911,6 +1143,10 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const handleKeywordsPageChange = (page: number) => {
     setKeywordsCurrentPage(page);
+  };
+
+  const handleNegativeKeywordsPageChange = (page: number) => {
+    setNegativeKeywordsCurrentPage(page);
   };
 
   const handleSyncAdGroups = async () => {
@@ -2948,6 +3184,121 @@ export const GoogleCampaignDetail: React.FC = () => {
                 </>
               )}
 
+              {activeTab === "Negative Keywords" && (
+                <>
+                  {/* Create Negative Keywords Panel */}
+                  <div className="mb-4 flex justify-end">
+                    <CreateGoogleNegativeKeywordSection
+                      isOpen={isCreateNegativeKeywordPanelOpen}
+                      onToggle={() => {
+                        setIsCreateNegativeKeywordPanelOpen(!isCreateNegativeKeywordPanelOpen);
+                        setIsNegativeKeywordsFilterPanelOpen(false);
+                      }}
+                    />
+                  </div>
+                  {isCreateNegativeKeywordPanelOpen && campaignId && accountId && (
+                    <CreateGoogleNegativeKeywordPanel
+                      isOpen={isCreateNegativeKeywordPanelOpen}
+                      onClose={() => {
+                        setIsCreateNegativeKeywordPanelOpen(false);
+                        setCreateNegativeKeywordError(null);
+                        setCreatedNegativeKeywords([]);
+                        setFailedNegativeKeywords([]);
+                      }}
+                      onSubmit={handleCreateNegativeKeywords}
+                      campaignId={campaignId}
+                      accountId={accountId}
+                      campaignType={campaignDetail?.campaign?.advertising_channel_type}
+                      adgroups={adgroups}
+                      loading={createNegativeKeywordLoading}
+                      submitError={createNegativeKeywordError}
+                      createdNegativeKeywords={createdNegativeKeywords}
+                      failedNegativeKeywords={failedNegativeKeywords}
+                    />
+                  )}
+                  <GoogleCampaignDetailNegativeKeywordsTab
+                    negativeKeywords={negativeKeywords}
+                    loading={negativeKeywordsLoading}
+                    selectedNegativeKeywordIds={selectedNegativeKeywordIds}
+                    onSelectAll={handleSelectAllNegativeKeywords}
+                    onSelectNegativeKeyword={handleSelectNegativeKeyword}
+                    sortBy={negativeKeywordsSortBy}
+                    sortOrder={negativeKeywordsSortOrder}
+                    onSort={handleNegativeKeywordsSort}
+                    currentPage={negativeKeywordsCurrentPage}
+                    totalPages={negativeKeywordsTotalPages}
+                    onPageChange={handleNegativeKeywordsPageChange}
+                    isFilterPanelOpen={isNegativeKeywordsFilterPanelOpen}
+                    onToggleFilterPanel={() =>
+                      setIsNegativeKeywordsFilterPanelOpen(!isNegativeKeywordsFilterPanelOpen)
+                    }
+                    filters={negativeKeywordsFilters}
+                    onApplyFilters={(newFilters) => {
+                      setNegativeKeywordsFilters(newFilters);
+                      setNegativeKeywordsCurrentPage(1);
+                    }}
+                    syncing={syncingNegativeKeywords}
+                    onSync={handleSyncNegativeKeywords}
+                    syncMessage={
+                      syncMessage.type === "negative_keywords" ? syncMessage.message : null
+                    }
+                    getSortIcon={getSortIcon}
+                    onUpdateNegativeKeywordStatus={async (
+                      criterionId: string,
+                      status: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
+                          accountIdNum,
+                          {
+                            negativeKeywordIds: [criterionId],
+                            action: "status",
+                            value: status,
+                          }
+                        );
+
+                        await loadNegativeKeywords();
+                      } catch (error: any) {
+                        console.error("Failed to update negative keyword status:", error);
+                        alert(
+                          error.response?.data?.error ||
+                            "Failed to update negative keyword status"
+                        );
+                      }
+                    }}
+                    onUpdateNegativeKeywordMatchType={async (
+                      criterionId: string,
+                      matchType: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
+                          accountIdNum,
+                          {
+                            negativeKeywordIds: [criterionId],
+                            action: "match_type",
+                            value: matchType,
+                          }
+                        );
+
+                        await loadNegativeKeywords();
+                      } catch (error: any) {
+                        console.error("Failed to update negative keyword match type:", error);
+                        alert(
+                          error.response?.data?.error ||
+                            "Failed to update negative keyword match type"
+                        );
+                      }
+                    }}
+                  />
+                </>
+              )}
+
               {activeTab === "Product Groups" && (
                 <>
                   {/* Create Shopping Entities Panel - Only for SHOPPING campaigns */}
@@ -3033,8 +3384,70 @@ export const GoogleCampaignDetail: React.FC = () => {
                   getSortIcon={getSortIcon}
                   formatCurrency2Decimals={formatCurrency2Decimals}
                   formatPercentage={formatPercentage}
+                  onUpdateProductGroupStatus={async (
+                    productGroupId: number,
+                    status: string
+                  ) => {
+                    try {
+                      const accountIdNum = parseInt(accountId!, 10);
+                      if (isNaN(accountIdNum)) return;
+
+                      // Find the product group to get ad_id
+                      // Product groups are stored in the ads table, so they have ad_id (from GoogleAd interface)
+                      const productGroup = productGroups.find(
+                        (pg) => pg.id === productGroupId
+                      );
+                      if (!productGroup) {
+                        alert("Product group not found");
+                        return;
+                      }
+
+                      // Product groups come from the ads table, so they should have ad_id
+                      // Try both snake_case and camelCase field names
+                      const adId = (productGroup as any).ad_id || (productGroup as any).adId;
+                      if (!adId) {
+                        alert("Product group ad ID not found. Please sync product groups first.");
+                        return;
+                      }
+
+                      // Get campaign_id and adgroup_id to filter the update to only this specific instance
+                      const campaignId = productGroup.campaign_id || (productGroup as any).campaignId;
+                      const adGroupId = productGroup.adgroup_id || (productGroup as any).adGroupId;
+
+                      // Call API - product groups use the same bulkUpdateGoogleAds endpoint
+                      // Include campaignId and adGroupId to only update this specific instance
+                      await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+                        adIds: [adId],
+                        action: "status",
+                        status: status as "ENABLED" | "PAUSED" | "REMOVED",
+                        campaignId: campaignId ? String(campaignId) : undefined,
+                        adGroupId: adGroupId ? String(adGroupId) : undefined,
+                      });
+
+                      // Update local state
+                      setProductGroups((prevProductGroups) =>
+                        prevProductGroups.map((pg) =>
+                          pg.id === productGroupId ? { ...pg, status } : pg
+                        )
+                      );
+                    } catch (error: any) {
+                      console.error("Failed to update product group status:", error);
+                      alert(
+                        error.response?.data?.error ||
+                          "Failed to update product group status"
+                      );
+                      throw error;
+                    }
+                  }}
                 />
                 </>
+              )}
+
+              {activeTab === "Logs" && accountId && (
+                <GoogleCampaignDetailLogsTab
+                  accountId={accountId}
+                  campaignId={campaignId}
+                />
               )}
             </div>
           </div>

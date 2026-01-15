@@ -63,13 +63,13 @@ interface GoogleCampaignsTableProps {
   sortOrder: "asc" | "desc";
   editingCell: {
     campaignId: string | number;
-    field: "budget" | "status" | "start_date" | "end_date";
+    field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type";
   } | null;
   editedValue: string;
   isCancelling: boolean;
   updatingField: {
     campaignId: string | number;
-    field: "budget" | "status" | "start_date" | "end_date";
+    field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type";
   } | null;
   summary: {
     total_campaigns: number;
@@ -91,7 +91,7 @@ interface GoogleCampaignsTableProps {
   onSelectAll: (checked: boolean) => void;
   onSelectCampaign: (campaignId: string | number, checked: boolean) => void;
   onSort: (column: string) => void;
-  onStartInlineEdit: (campaign: GoogleCampaign, field: "budget" | "status" | "start_date" | "end_date") => void;
+  onStartInlineEdit: (campaign: GoogleCampaign, field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type") => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
   onConfirmInlineEdit: (value: string) => void;
@@ -187,14 +187,14 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       render: (value: any, row: GoogleCampaign) => {
         const navPath = `/accounts/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
-        <div className="group relative flex items-center gap-2">
+          <div className="group relative flex items-center gap-2">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(navPath);
               }}
-              className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1 text-left hover:text-[#136d6d] hover:underline cursor-pointer block w-full"
+              className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1 text-left hover:text-[#136d6d] hover:underline cursor-pointer"
             >
               {value}
             </button>
@@ -203,32 +203,32 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                onEditCampaign(row);
-              }}
-              className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60 flex-shrink-0"
-              title="Edit campaign"
-              disabled={editLoadingCampaignId === row.campaign_id}
-            >
-              {editLoadingCampaignId === row.campaign_id ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
-              ) : (
-                <svg
-                  className="w-4 h-4 text-[#072929]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                  />
-                </svg>
-              )}
-            </button>
-          )}
-        </div>
+                  onEditCampaign(row);
+                }}
+                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60 flex-shrink-0"
+                title="Edit campaign"
+                disabled={editLoadingCampaignId === row.campaign_id}
+              >
+                {editLoadingCampaignId === row.campaign_id ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                ) : (
+                  <svg
+                    className="w-4 h-4 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
         );
       },
     },
@@ -292,6 +292,28 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       getValue: (row: GoogleCampaign) => row.end_date,
     },
     {
+      key: "bidding_strategy_type",
+      label: "Bid strategy type",
+      type: "text",
+      sortable: true,
+      editable: true,
+      statusOptions: [
+        { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
+        { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
+        { value: "TARGET_CPA", label: "Target CPA" },
+        { value: "TARGET_ROAS", label: "Target ROAS" },
+        { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
+        { value: "TARGET_SPEND", label: "Target Spend" },
+        { value: "MANUAL_CPC", label: "Manual CPC" },
+      ],
+      getValue: (row: GoogleCampaign) => {
+        const strategy = (row as any).bidding_strategy_type;
+        if (!strategy) return "—";
+        // Format bidding strategy type (e.g., MAXIMIZE_CONVERSIONS -> Maximize conversions)
+        return strategy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      },
+    },
+    {
       key: "interaction_rate",
       label: "Interaction rate",
       type: "percentage",
@@ -316,18 +338,6 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       type: "currency",
       sortable: true,
       getValue: (row: GoogleCampaign) => (row as any).spends || 0,
-    },
-    {
-      key: "bidding_strategy_type",
-      label: "Bid strategy type",
-      type: "text",
-      sortable: true,
-      getValue: (row: GoogleCampaign) => {
-        const strategy = (row as any).bidding_strategy_type;
-        if (!strategy) return "—";
-        // Format bidding strategy type (e.g., MAXIMIZE_CONVERSIONS -> Maximize conversions)
-        return strategy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
-      },
     },
     {
       key: "clicks",
@@ -436,7 +446,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       onSelectItem={onSelectCampaign}
       onSort={onSort}
       onStartInlineEdit={(item: GoogleCampaign, field: string) => {
-        return onStartInlineEdit(item, field as "budget" | "status" | "start_date" | "end_date");
+        return onStartInlineEdit(item, field as "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type");
       }}
       onCancelInlineEdit={onCancelInlineEdit}
       onInlineEditChange={onInlineEditChange}
