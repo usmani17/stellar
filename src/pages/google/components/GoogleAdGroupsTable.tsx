@@ -42,16 +42,6 @@ interface GoogleAdGroupsTableProps {
     adgroupId: string | number;
     field: "bid" | "status";
   } | null;
-  pendingBidChange: {
-    adgroupId: string | number;
-    newBid: number;
-    oldBid: number;
-  } | null;
-  pendingStatusChange: {
-    adgroupId: string | number;
-    newStatus: string;
-    oldStatus: string;
-  } | null;
   summary: {
     total_adgroups: number;
     total_spends: number;
@@ -68,10 +58,6 @@ interface GoogleAdGroupsTableProps {
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
   onConfirmInlineEdit: (value: string) => void;
-  onConfirmBidChange: (adgroupId: string | number, newBid: number) => void;
-  onCancelBidChange: () => void;
-  onConfirmStatusChange: (adgroupId: string | number, newStatus: string) => void;
-  onCancelStatusChange: () => void;
   formatCurrency: (value: number) => string;
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
@@ -92,8 +78,6 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   editedValue,
   isCancelling,
   updatingField,
-  pendingBidChange,
-  pendingStatusChange,
   summary,
   onSelectAll,
   onSelectAdgroup,
@@ -102,10 +86,6 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   onCancelInlineEdit,
   onInlineEditChange,
   onConfirmInlineEdit,
-  onConfirmBidChange,
-  onCancelBidChange,
-  onConfirmStatusChange,
-  onCancelStatusChange,
   formatCurrency,
   formatPercentage,
   getStatusBadge,
@@ -121,20 +101,6 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     itemId: updatingField.adgroupId,
     field: updatingField.field,
   } : null;
-
-  // Map pending changes to shared format
-  const pendingChanges = useMemo(() => ({
-    bid: pendingBidChange ? {
-      itemId: pendingBidChange.adgroupId,
-      newValue: pendingBidChange.newBid,
-      oldValue: pendingBidChange.oldBid,
-    } : null,
-    status: pendingStatusChange ? {
-      itemId: pendingStatusChange.adgroupId,
-      newValue: pendingStatusChange.newStatus,
-      oldValue: pendingStatusChange.oldStatus,
-    } : null,
-  }), [pendingBidChange, pendingStatusChange]);
 
   // Map summary to shared format
   const sharedSummary = summary ? {
@@ -248,23 +214,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     onConfirmInlineEdit(value);
   };
 
-  // Handle confirm change
-  const handleConfirmChange = (itemId: string | number, field: string, newValue: any) => {
-    if (field === "status") {
-      onConfirmStatusChange(itemId, newValue);
-    } else if (field === "bid") {
-      onConfirmBidChange(itemId, newValue);
-    }
-  };
-
-  // Handle cancel change
-  const handleCancelChange = (field: string) => {
-    if (field === "status") {
-      onCancelStatusChange();
-    } else if (field === "bid") {
-      onCancelBidChange();
-    }
-  };
+  // Empty pendingChanges since we're using modal confirmation now
+  const pendingChanges = useMemo(() => ({}), []);
 
   return (
     <GoogleAdsTable
@@ -297,8 +248,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       onCancelInlineEdit={onCancelInlineEdit}
       onInlineEditChange={onInlineEditChange}
       onConfirmInlineEdit={handleConfirmInlineEdit}
-      onConfirmChange={handleConfirmChange}
-      onCancelChange={handleCancelChange}
+      onConfirmChange={() => {}}
+      onCancelChange={() => {}}
       formatCurrency={formatCurrency}
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}

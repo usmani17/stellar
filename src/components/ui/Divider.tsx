@@ -13,8 +13,7 @@ export const Divider: React.FC<DividerProps> = ({
     <div className={`self-stretch inline-flex justify-start items-center gap-2.5 ${className}`}>
       <div className="flex-1 h-0 outline outline-1 outline-offset-[-0.50px] outline-black"></div>
       <span 
-        className="justify-start text-black text-sm font-medium leading-5"
-        className="font-inter font-medium"
+        className="justify-start text-black text-sm font-medium leading-5 font-inter"
       >
         {text}
       </span>

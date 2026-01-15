@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 
+interface RefreshMessage {
+  type: "loading" | "success" | "error";
+  message: string;
+  details?: string;
+}
+
 interface CreateGoogleCampaignPanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -11,6 +17,7 @@ interface CreateGoogleCampaignPanelProps {
   mode?: "create" | "edit";
   initialData?: Partial<CreateGoogleCampaignData> | null;
   campaignId?: string | number;
+  refreshMessage?: RefreshMessage | null;
 }
 
 export interface CreateGoogleCampaignData {
@@ -92,7 +99,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   mode = "create",
   initialData = null,
   campaignId,
+  refreshMessage = null,
 }) => {
+  const [showRefreshDetails, setShowRefreshDetails] = useState(false);
   const [formData, setFormData] = useState<CreateGoogleCampaignData>({
     campaign_type: "PERFORMANCE_MAX",
     name: "",
@@ -429,6 +438,98 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             {mode === "edit" ? "Edit Google Campaign" : "Create Google Campaign"}
           </h2>
 
+          {/* Refresh Message */}
+          {refreshMessage && mode === "edit" && (
+            <div
+              className={`mb-4 p-3 rounded-lg border cursor-pointer transition-all ${
+                refreshMessage.type === "loading"
+                  ? "bg-blue-50 border-blue-200 text-blue-800"
+                  : refreshMessage.type === "success"
+                  ? "bg-green-50 border-green-200 text-green-800"
+                  : "bg-yellow-50 border-yellow-200 text-yellow-800"
+              }`}
+              onClick={() => setShowRefreshDetails(!showRefreshDetails)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {refreshMessage.type === "loading" && (
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  )}
+                  {refreshMessage.type === "success" && (
+                    <svg
+                      className="h-4 w-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                  {refreshMessage.type === "error" && (
+                    <svg
+                      className="h-4 w-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                  <span className="text-[12px] font-medium">
+                    {refreshMessage.message}
+                  </span>
+                </div>
+                {refreshMessage.details && (
+                  <svg
+                    className={`h-4 w-4 transition-transform ${
+                      showRefreshDetails ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                )}
+              </div>
+              {showRefreshDetails && refreshMessage.details && (
+                <div className="mt-2 text-[11px] opacity-80">
+                  {refreshMessage.details}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Campaign Type */}
             <div>
@@ -442,8 +543,10 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   onChange={(value) => handleChange("campaign_type", value)}
                   placeholder="Select campaign type"
                   buttonClassName="w-full"
+                  disabled={mode === "edit"}
                 />
                 {/* Quick Fill Buttons for Testing */}
+                {mode !== "edit" && (
                 <div className="flex gap-2 flex-wrap">
                   <button
                     type="button"
@@ -470,6 +573,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     Quick Fill Search
                   </button>
                 </div>
+                )}
               </div>
               {errors.campaign_type && (
                 <p className="text-[10px] text-red-500 mt-1">
@@ -541,12 +645,29 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Start Date
               </label>
-              <input
-                type="date"
-                value={formData.start_date || ""}
-                onChange={(e) => handleChange("start_date", e.target.value)}
-                className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-              />
+              {(() => {
+                // Check if start date is today or in the past (only in edit mode)
+                const isReadonly = mode === "edit" && formData.start_date ? (() => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const startDate = new Date(formData.start_date);
+                  startDate.setHours(0, 0, 0, 0);
+                  return startDate <= today;
+                })() : false;
+                
+                return (
+                  <input
+                    type="date"
+                    value={formData.start_date || ""}
+                    onChange={(e) => handleChange("start_date", e.target.value)}
+                    disabled={isReadonly}
+                    className={`bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                      isReadonly ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
+                    }`}
+                    title={isReadonly ? "Start date cannot be changed if it's today or in the past" : ""}
+                  />
+                );
+              })()}
             </div>
 
             {/* End Date */}

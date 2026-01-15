@@ -15,6 +15,7 @@ interface GoogleAdsAccount {
   currency_code?: string;
   timezone?: string;
   is_manager?: boolean;
+  status?: string; // Account status: ENABLED, CANCELED, SUSPENDED, CLOSED, etc.
 }
 
 export const SelectGoogleAdsAccounts: React.FC = () => {
@@ -284,6 +285,11 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                               {account.is_manager && (
                                 <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F4F8] text-[#0066CC] rounded-full border border-[#B3D9E6]">
                                   Manager Account
+                                </span>
+                              )}
+                              {(account.status === "CLOSED" || account.status === "CANCELED") && (
+                                <span className="px-2 py-0.5 text-[11px] font-medium bg-red-50 text-red-600 rounded-full border border-red-200">
+                                  Closed
                                 </span>
                               )}
                             </div>

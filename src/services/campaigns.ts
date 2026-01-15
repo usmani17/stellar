@@ -2472,8 +2472,16 @@ export const campaignsService = {
       total_sales: number;
       total_impressions: number;
       total_clicks: number;
+      total_conversions?: number;
+      total_interactions?: number;
+      total_budget?: number;
       avg_acos: number;
       avg_roas: number;
+      avg_conversion_rate?: number;
+      avg_cost_per_conversion?: number;
+      avg_interaction_rate?: number;
+      avg_cost?: number;
+      avg_cpc?: number;
     };
   }> => {
     const filters: any = {};
@@ -2519,7 +2527,8 @@ export const campaignsService = {
     accountId: number,
     payload: {
       campaignIds: Array<string | number>;
-      action: "status" | "budget" | "start_date" | "end_date";
+      action: "name" | "status" | "budget" | "start_date" | "end_date";
+      name?: string;
       status?: "ENABLED" | "PAUSED" | "REMOVED";
       budget?: number;
       start_date?: string;
@@ -2624,7 +2633,7 @@ export const campaignsService = {
       account_name__not_icontains?: string;
     },
     exportType: "current_view" | "all_data" = "all_data"
-  ): Promise<void> => {
+  ): Promise<{ url: string; filename: string }> => {
     const filters: any = {};
 
     if (params?.sort_by) filters.sort_by = params.sort_by;
@@ -2657,36 +2666,13 @@ export const campaignsService = {
     if (params?.account_name__not_icontains)
       filters.account_name__not_icontains = params.account_name__not_icontains;
 
-    // Make request with responseType blob to handle CSV file
-    const response = await api.post(
-      `/accounts/${accountId}/google-campaigns/export/`,
-      { filters, export_type: exportType },
-      {
-        responseType: "blob",
-      }
-    );
-
-    // Create blob URL and trigger download
-    const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-
-    // Get filename from Content-Disposition header or use default
-    const contentDisposition = response.headers["content-disposition"];
-    let filename = "google_campaigns_export.csv";
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
-      if (filenameMatch) {
-        filename = filenameMatch[1];
-      }
-    }
-
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    // Send POST request with filters and export_type in body
+    const url = `/accounts/${accountId}/google-campaigns/export/`;
+    const response = await api.post<{ url: string; filename: string }>(url, {
+      filters,
+      export_type: exportType,
+    });
+    return response.data;
   },
 
   exportGoogleAdGroups: async (
@@ -2820,6 +2806,50 @@ export const campaignsService = {
       queryString ? `?${queryString}` : ""
     }`;
     const response = await api.get(url);
+    return response.data;
+  },
+
+  // Refresh Google Campaign from API
+  refreshGoogleCampaignFromAPI: async (
+    accountId: number,
+    campaignId: string | number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    campaign: {
+      campaign_id: string | number;
+      name: string;
+      status: string;
+      campaign_type: string;
+      budget_amount: number;
+      daily_budget: number;
+      start_date?: string;
+      end_date?: string;
+      extra_data: {
+        headlines?: string[];
+        descriptions?: string[];
+        final_url?: string;
+        business_name?: string;
+        logo_url?: string;
+        marketing_image_url?: string;
+        square_marketing_image_url?: string;
+        long_headline?: string;
+        asset_group_name?: string;
+        shopping_setting?: {
+          merchant_id?: string;
+          sales_country?: string;
+          campaign_priority?: number;
+          enable_local?: boolean;
+        };
+      };
+      merchant_id?: string;
+      sales_country?: string;
+      campaign_priority?: number;
+      enable_local?: boolean;
+    };
+  }> => {
+    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/refresh/`;
+    const response = await api.post(url);
     return response.data;
   },
 
@@ -2958,6 +2988,33 @@ export const campaignsService = {
         filters,
       }
     );
+    return response.data;
+  },
+
+  // Get asset group with assets (for Performance Max edit)
+  getGoogleAssetGroupAssets: async (
+    accountId: number,
+    assetGroupId: string | number,
+    campaignId?: string | number
+  ): Promise<{
+    asset_group_id: string | number;
+    headlines: string[];
+    descriptions: string[];
+    business_name?: string;
+    logo_url?: string;
+    long_headline?: string;
+    marketing_image_url?: string;
+    square_marketing_image_url?: string;
+    final_urls: string[];
+    asset_group_name?: string;
+  }> => {
+    const params = new URLSearchParams();
+    if (campaignId) params.append("campaign_id", String(campaignId));
+    const queryString = params.toString();
+    const url = `/accounts/${accountId}/google-asset-groups/${assetGroupId}/assets/${
+      queryString ? `?${queryString}` : ""
+    }`;
+    const response = await api.get(url);
     return response.data;
   },
 

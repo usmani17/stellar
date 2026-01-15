@@ -900,29 +900,29 @@ export const GoogleAds: React.FC = () => {
                 <Button
                   onClick={handleSync}
                   disabled={syncing || syncingAnalytics}
-                  className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold"
+                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
                 >
                   {syncing ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                       Syncing...
                     </span>
                   ) : (
-                    "Sync Ads"
+                    <span className="text-[10.64px] text-white font-normal">Sync Ads</span>
                   )}
                 </Button>
                 <Button
                   onClick={handleSyncAnalytics}
                   disabled={syncing || syncingAnalytics}
-                  className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold ml-2"
+                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
                 >
                   {syncingAnalytics ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                       Syncing Analytics...
                     </span>
                   ) : (
-                    "Sync Analytics"
+                    <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
                   )}
                 </Button>
               </div>
@@ -1374,7 +1374,7 @@ export const GoogleAds: React.FC = () => {
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
                         }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1382,7 +1382,7 @@ export const GoogleAds: React.FC = () => {
                         type="button"
                         onClick={runInlineEdit}
                         disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>

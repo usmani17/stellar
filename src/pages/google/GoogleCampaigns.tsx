@@ -42,8 +42,16 @@ export const GoogleCampaigns: React.FC = () => {
     total_sales: number;
     total_impressions: number;
     total_clicks: number;
+    total_conversions?: number;
+    total_interactions?: number;
+    total_budget?: number;
     avg_acos: number;
     avg_roas: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_interaction_rate?: number;
+    avg_cost?: number;
+    avg_cpc?: number;
   } | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
     Array<{
@@ -78,6 +86,11 @@ export const GoogleCampaigns: React.FC = () => {
   const [createCampaignError, setCreateCampaignError] = useState<string | null>(
     null
   );
+  const [refreshMessage, setRefreshMessage] = useState<{
+    type: "loading" | "success" | "error";
+    message: string;
+    details?: string;
+  } | null>(null);
   const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">("create");
   const [initialCampaignData, setInitialCampaignData] = useState<Partial<CreateGoogleCampaignData> | null>(null);
   const [campaignId, setCampaignId] = useState<string | number | undefined>(undefined);
@@ -87,6 +100,7 @@ export const GoogleCampaigns: React.FC = () => {
     message: string;
     title?: string;
     isSuccess?: boolean;
+    genericErrors?: string[];
     actionButton?: {
       text: string;
       onClick: () => void;
@@ -534,7 +548,12 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Handle campaign updates in edit mode
   const handleUpdateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
-    if (!accountId || !campaignId) return;
+    if (!accountId || !campaignId) {
+      console.error("Cannot update campaign: missing accountId or campaignId", { accountId, campaignId });
+      const errorMessage = "Missing account or campaign ID";
+      setCreateCampaignError(errorMessage);
+      throw new Error(errorMessage);
+    }
 
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) {
@@ -551,90 +570,152 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Original campaign data not available");
       }
 
-      // Track which fields have changed
-      const updates: Array<Promise<any>> = [];
+      console.log("Updating campaign:", { campaignId, original, newData: data });
 
-      // Note: Campaign name updates are not supported via bulk update API
-      // Only status, budget, start_date, and end_date can be updated
+      // Collect all changes to send in a single API call
+      const updatePayload: any = {
+        campaignIds: [campaignId],
+      };
 
-      // 1. Check if status changed
+      let hasChanges = false;
+
+      // 1. Check if name changed
+      const originalName = original.name || "";
+      const newName = data.name || "";
+      if (newName !== originalName && newName) {
+        console.log("Name changed:", { originalName, newName });
+        updatePayload.name = newName;
+        hasChanges = true;
+      }
+
+      // 2. Check if status changed
       const originalStatus = original.status || "";
       const newStatus = data.status || "";
       if (newStatus !== originalStatus && newStatus) {
-        updates.push(
-          campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-            campaignIds: [campaignId],
-            action: "status",
-            status: newStatus as "ENABLED" | "PAUSED",
-          })
-        );
+        console.log("Status changed:", { originalStatus, newStatus });
+        updatePayload.status = newStatus;
+        hasChanges = true;
       }
 
       // 3. Check if budget changed
       const originalBudget = original.budget_amount || 0;
       const newBudget = data.budget_amount || 0;
       if (Math.abs(newBudget - originalBudget) > 0.01) {
-        updates.push(
-          campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-            campaignIds: [campaignId],
-            action: "budget",
-            budgetAction: "set",
-            unit: "amount",
-            value: newBudget,
-          })
-        );
+        console.log("Budget changed:", { originalBudget, newBudget });
+        updatePayload.value = newBudget;
+        updatePayload.budgetAction = "set";
+        updatePayload.unit = "amount";
+        hasChanges = true;
       }
 
       // 4. Check if start_date changed
-      const originalStartDate = original.start_date || "";
-      const newStartDate = data.start_date || "";
-      if (newStartDate !== originalStartDate) {
-        updates.push(
-          campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-            campaignIds: [campaignId],
-            action: "start_date",
-            start_date: newStartDate || undefined,
-          })
-        );
+      const originalStartDate = parseDateToYYYYMMDD(original.start_date) || "";
+      const newStartDate = parseDateToYYYYMMDD(data.start_date) || "";
+      if (newStartDate !== originalStartDate && newStartDate) {
+        console.log("Start date changed:", { originalStartDate, newStartDate });
+        updatePayload.start_date = newStartDate;
+        hasChanges = true;
       }
 
       // 5. Check if end_date changed
-      const originalEndDate = original.end_date || "";
-      const newEndDate = data.end_date || "";
-      if (newEndDate !== originalEndDate) {
-        updates.push(
-          campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
-            campaignIds: [campaignId],
-            action: "end_date",
-            end_date: newEndDate || undefined,
-          })
-        );
+      const originalEndDate = parseDateToYYYYMMDD(original.end_date) || "";
+      const newEndDate = parseDateToYYYYMMDD(data.end_date) || "";
+      if (newEndDate !== originalEndDate && newEndDate) {
+        console.log("End date changed:", { originalEndDate, newEndDate });
+        updatePayload.end_date = newEndDate;
+        hasChanges = true;
       }
 
-      // Execute all updates
-      if (updates.length === 0) {
-        // No changes detected, just close the panel
-        setIsCreateCampaignPanelOpen(false);
-        setCreateCampaignError(null);
+      // 6. Check if Shopping Settings changed (only for SHOPPING campaigns)
+      if (data.campaign_type === "SHOPPING") {
+        // Check merchant_id
+        const originalMerchantId = original.merchant_id || "";
+        const newMerchantId = data.merchant_id || "";
+        if (newMerchantId !== originalMerchantId && newMerchantId) {
+          console.log("Merchant ID changed:", { originalMerchantId, newMerchantId });
+          updatePayload.merchant_id = newMerchantId;
+          hasChanges = true;
+        }
+
+        // Check sales_country
+        const originalSalesCountry = original.sales_country || "US";
+        const newSalesCountry = data.sales_country || "US";
+        if (newSalesCountry !== originalSalesCountry) {
+          console.log("Sales country changed:", { originalSalesCountry, newSalesCountry });
+          updatePayload.sales_country = newSalesCountry;
+          hasChanges = true;
+        }
+
+        // Check campaign_priority
+        const originalPriority = original.campaign_priority ?? 0;
+        const newPriority = data.campaign_priority ?? 0;
+        if (newPriority !== originalPriority) {
+          console.log("Campaign priority changed:", { originalPriority, newPriority });
+          updatePayload.campaign_priority = newPriority;
+          hasChanges = true;
+        }
+
+        // Check enable_local
+        const originalEnableLocal = original.enable_local ?? false;
+        const newEnableLocal = data.enable_local ?? false;
+        if (newEnableLocal !== originalEnableLocal) {
+          console.log("Enable local changed:", { originalEnableLocal, newEnableLocal });
+          updatePayload.enable_local = newEnableLocal;
+          hasChanges = true;
+        }
+      }
+
+      console.log("Update payload:", updatePayload);
+
+      // Execute single update if there are changes
+      if (!hasChanges) {
+        // No changes detected, show message and don't close the panel
+        console.log("No changes detected");
+        const errorMessage = "No changes detected. Please modify at least one field (name, status, budget, start date, end date, or Shopping Settings).";
+        setCreateCampaignError(errorMessage);
         setCreateCampaignLoading(false);
-        setInitialCampaignData(null);
-        setCampaignFormMode("create");
-        setCampaignId(undefined);
-        return;
+        throw new Error(errorMessage);
       }
 
-      await Promise.all(updates);
+      console.log("Executing single update with all changes...");
+      const result = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, updatePayload);
+      console.log("Update completed successfully", result);
+
+      // Show success message
+      const updatedFields = [];
+      if (updatePayload.name) updatedFields.push("name");
+      if (updatePayload.status) updatedFields.push("status");
+      if (updatePayload.value !== undefined) updatedFields.push("budget");
+      if (updatePayload.start_date) updatedFields.push("start date");
+      if (updatePayload.end_date) updatedFields.push("end date");
+      if (updatePayload.merchant_id) updatedFields.push("merchant ID");
+      if (updatePayload.sales_country) updatedFields.push("sales country");
+      if (updatePayload.campaign_priority !== undefined) updatedFields.push("campaign priority");
+      if (updatePayload.enable_local !== undefined) updatedFields.push("enable local");
+      
+      const fieldsText = updatedFields.length > 0 
+        ? updatedFields.join(", ")
+        : "campaign";
+      
+      setErrorModal({
+        isOpen: true,
+        title: "Success",
+        message: `Campaign updated successfully! Updated fields: ${fieldsText}.`,
+        isSuccess: true,
+      });
 
       // Reload campaigns
       await loadCampaigns(accountIdNum);
 
-      // Close the panel
-      setIsCreateCampaignPanelOpen(false);
-      setInitialCampaignData(null);
-      setCampaignFormMode("create");
-      setCampaignId(undefined);
-      setCreateCampaignLoading(false);
-      setCreateCampaignError(null);
+      // Close the panel after a short delay to show success message
+      setTimeout(() => {
+        setIsCreateCampaignPanelOpen(false);
+        setInitialCampaignData(null);
+        setCampaignFormMode("create");
+        setCampaignId(undefined);
+        setCreateCampaignLoading(false);
+        setCreateCampaignError(null);
+      }, 1500);
     } catch (error: any) {
       console.error("Failed to update campaign:", error);
       const errorMessage =
@@ -655,26 +736,152 @@ export const GoogleCampaigns: React.FC = () => {
       setEditLoadingCampaignId(row.campaign_id);
       setCampaignFormMode("edit");
       setIsCreateCampaignPanelOpen(true);
+      setCreateCampaignError(null);
+      setRefreshMessage({
+        type: "loading",
+        message: "Fetching latest campaign data from Google Ads API...",
+      });
 
       const accountIdNum = parseInt(accountId, 10);
-      const detail = await campaignsService.getGoogleCampaignDetail(
-        accountIdNum,
-        row.campaign_id,
-        undefined,
-        undefined
-      );
+      if (isNaN(accountIdNum)) {
+        setEditLoadingCampaignId(null);
+        setRefreshMessage(null);
+        return;
+      }
 
-      const campaign = detail.campaign;
+      // Step 1: Refresh campaign from Google API to get latest data
+      let refreshedCampaignData = null;
+      try {
+        const refreshResponse = await campaignsService.refreshGoogleCampaignFromAPI(
+          accountIdNum,
+          row.campaign_id
+        );
+        refreshedCampaignData = refreshResponse.campaign;
+        // Success - data refreshed from API
+        setRefreshMessage({
+          type: "success",
+          message: "Campaign data refreshed from Google Ads API",
+          details: refreshResponse.message || "Latest data loaded successfully",
+        });
+      } catch (refreshError: any) {
+        // Failed to refresh from API, use cached data from database
+        console.warn(
+          "Failed to refresh campaign from API, using cached data:",
+          refreshError
+        );
+        const errorMessage =
+          refreshError?.response?.data?.error ||
+          refreshError?.message ||
+          "Could not fetch latest from Google API";
+        setRefreshMessage({
+          type: "error",
+          message: "Using cached data",
+          details: errorMessage,
+        });
+        // Fallback: Fetch from database
+        try {
+          const campaignDetail = await campaignsService.getGoogleCampaignDetail(
+            accountIdNum,
+            row.campaign_id
+          );
+          refreshedCampaignData = campaignDetail?.campaign || null;
+        } catch (detailError) {
+          console.warn("Failed to fetch campaign detail:", detailError);
+        }
+      }
 
-      // Map campaign data to CreateGoogleCampaignData format
+      // Step 2: Use refreshed data or fallback to row data
+      const campaignData = refreshedCampaignData || row;
+      const extra_data = campaignData.extra_data || row.extra_data || {};
+      const shopping_setting = extra_data.shopping_setting || {};
+      const campaignType =
+        (campaignData.campaign_type ||
+          campaignData.advertising_channel_type ||
+          row.advertising_channel_type
+            ?.toUpperCase()) as any || "PERFORMANCE_MAX";
+
+      // Map campaign data to CreateGoogleCampaignData format using refreshed data
       const initial: Partial<CreateGoogleCampaignData> = {
-        name: campaign.name || row.campaign_name || "",
-        campaign_type: (row.advertising_channel_type?.toUpperCase() as any) || "PERFORMANCE_MAX",
-        budget_amount: campaign.daily_budget || row.daily_budget || 0,
-        status: (campaign.status?.toUpperCase() as any) || "PAUSED",
-        start_date: campaign.start_date || row.start_date || undefined,
-        end_date: campaign.end_date || row.end_date || undefined,
+        name:
+          campaignData.name ||
+          campaignData.campaign_name ||
+          row.campaign_name ||
+          "",
+        campaign_type: campaignType,
+        budget_amount:
+          campaignData.budget_amount ||
+          campaignData.daily_budget ||
+          row.daily_budget ||
+          0,
+        status:
+          (campaignData.status?.toUpperCase() as any) ||
+          (row.status?.toUpperCase() as any) ||
+          "PAUSED",
+        start_date:
+          parseDateToYYYYMMDD(campaignData.start_date) ||
+          parseDateToYYYYMMDD(row.start_date) ||
+          undefined,
+        end_date:
+          parseDateToYYYYMMDD(campaignData.end_date) ||
+          parseDateToYYYYMMDD(row.end_date) ||
+          undefined,
+        // Shopping-specific fields from extra_data or direct fields
+        merchant_id:
+          campaignData.merchant_id ||
+          shopping_setting.merchant_id,
+        sales_country:
+          campaignData.sales_country ||
+          shopping_setting.sales_country ||
+          "US",
+        campaign_priority:
+          campaignData.campaign_priority ??
+          shopping_setting.campaign_priority ??
+          0,
+        enable_local:
+          campaignData.enable_local ??
+          shopping_setting.enable_local ??
+          false,
       };
+
+      // For Performance Max campaigns, use data from refreshed extra_data
+      if (campaignType === "PERFORMANCE_MAX") {
+        // Use PMax data from refreshed extra_data (already fetched from API)
+        if (extra_data.business_name) {
+          initial.business_name = extra_data.business_name;
+        }
+        if (extra_data.logo_url) {
+          initial.logo_url = extra_data.logo_url;
+        }
+        if (extra_data.final_url) {
+          initial.final_url = extra_data.final_url;
+        }
+        if (extra_data.headlines && Array.isArray(extra_data.headlines)) {
+          initial.headlines = extra_data.headlines;
+        }
+        if (extra_data.descriptions && Array.isArray(extra_data.descriptions)) {
+          initial.descriptions = extra_data.descriptions;
+        }
+        if (extra_data.long_headline) {
+          initial.long_headline = extra_data.long_headline;
+        }
+        if (extra_data.marketing_image_url) {
+          initial.marketing_image_url = extra_data.marketing_image_url;
+        }
+        if (extra_data.square_marketing_image_url) {
+          initial.square_marketing_image_url = extra_data.square_marketing_image_url;
+        }
+        if (extra_data.asset_group_name) {
+          initial.asset_group_name = extra_data.asset_group_name;
+        }
+
+        // Ensure headlines and descriptions are arrays (even if empty)
+        if (!initial.headlines || !Array.isArray(initial.headlines)) {
+          initial.headlines = [""];
+        }
+        if (!initial.descriptions || !Array.isArray(initial.descriptions)) {
+          initial.descriptions = [""];
+        }
+      }
 
       setInitialCampaignData(initial);
       setCampaignId(row.campaign_id);
@@ -1202,7 +1409,9 @@ export const GoogleCampaigns: React.FC = () => {
         });
 
         if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+          const error = new Error(response.errors[0]);
+          (error as any).response = { data: { errors: response.errors } };
+          throw error;
         }
       } else if (inlineEditField === "budget") {
         const budgetValue = parseFloat(
@@ -1221,7 +1430,9 @@ export const GoogleCampaigns: React.FC = () => {
         });
 
         if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+          const error = new Error(response.errors[0]);
+          (error as any).response = { data: { errors: response.errors } };
+          throw error;
         }
       } else if (inlineEditField === "start_date" || inlineEditField === "end_date") {
         // inlineEditNewValue should already be in YYYY-MM-DD format from the date input
@@ -1237,7 +1448,9 @@ export const GoogleCampaigns: React.FC = () => {
         });
         
         if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+          const error = new Error(response.errors[0]);
+          (error as any).response = { data: { errors: response.errors } };
+          throw error;
         }
       }
 
@@ -1247,9 +1460,48 @@ export const GoogleCampaigns: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating campaign:", error);
-      alert("Failed to update campaign. Please try again.");
+      
+      // Close the confirmation modal when there's an error
+      setShowInlineEditModal(false);
+      
+      let errorMessage = "Failed to update campaign. Please try again.";
+      let genericErrors: string[] = [];
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        genericErrors = [error.message];
+      } else if (error?.response?.data) {
+        // Handle API error responses
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+          genericErrors = [error.response.data.error];
+        } else if (error.response.data.errors && Array.isArray(error.response.data.errors) && error.response.data.errors.length > 0) {
+          // Clean up error messages - remove "Campaign {id}:" prefix if present
+          genericErrors = error.response.data.errors.map((err: string) => {
+            // Remove "Campaign {id}:" prefix for cleaner messages
+            return err.replace(/^Campaign \d+:\s*/, '');
+          });
+          errorMessage = genericErrors[0];
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+          genericErrors = [error.response.data.message];
+        }
+      }
+      
+      // Show error modal instead of alert
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: genericErrors.length > 0 
+          ? genericErrors.length === 1 
+            ? genericErrors[0]
+            : `${genericErrors.length} error(s) occurred while updating the campaign.`
+          : errorMessage,
+        genericErrors: genericErrors.length > 1 ? genericErrors : undefined,
+        isSuccess: false,
+      });
     } finally {
       setInlineEditLoading(false);
     }
@@ -1391,7 +1643,16 @@ export const GoogleCampaigns: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleCampaigns(accountIdNum, params, exportType);
+      // Call export API
+      const result = await campaignsService.exportGoogleCampaigns(accountIdNum, params, exportType);
+
+      // Automatically download the file
+      const link = document.createElement("a");
+      link.href = result.url;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
       // Close dropdown after a short delay to show success
       setTimeout(() => {
@@ -1399,7 +1660,14 @@ export const GoogleCampaigns: React.FC = () => {
       }, 500);
     } catch (error: any) {
       console.error("Failed to export campaigns:", error);
-      alert("Failed to export campaigns. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to export campaigns. Please try again.";
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
       setShowExportDropdown(false);
     } finally {
       setExportLoading(false);
@@ -1555,6 +1823,7 @@ export const GoogleCampaigns: React.FC = () => {
         title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
         message={errorModal.message}
         isSuccess={errorModal.isSuccess}
+        genericErrors={errorModal.genericErrors}
         actionButton={errorModal.actionButton}
       />
 
@@ -1592,7 +1861,7 @@ export const GoogleCampaigns: React.FC = () => {
                     setIsFilterPanelOpen(!isFilterPanelOpen);
                     setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
                   }}
-                  className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -1629,29 +1898,29 @@ export const GoogleCampaigns: React.FC = () => {
                 <Button
                   onClick={handleSync}
                   disabled={syncing || syncingAnalytics}
-                  className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold"
+                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
                 >
                   {syncing ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                       Syncing...
                     </span>
                   ) : (
-                    "Sync Campaigns"
+                    <span className="text-[10.64px] text-white font-normal">Sync Campaigns</span>
                   )}
                 </Button>
                 <Button
                   onClick={handleSyncAnalytics}
                   disabled={syncing || syncingAnalytics}
-                  className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold ml-2"
+                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
                 >
                   {syncingAnalytics ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                       Syncing Analytics...
                     </span>
                   ) : (
-                    "Sync Analytics"
+                    <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
                   )}
                 </Button>
               </div>
@@ -1667,6 +1936,7 @@ export const GoogleCampaigns: React.FC = () => {
                   setInitialCampaignData(null);
                   setCampaignFormMode("create");
                   setCampaignId(undefined);
+                  setRefreshMessage(null);
                 }}
                 onSubmit={handleCreateGoogleCampaign}
                 accountId={accountId}
@@ -1675,6 +1945,7 @@ export const GoogleCampaigns: React.FC = () => {
                 mode={campaignFormMode}
                 initialData={initialCampaignData}
                 campaignId={campaignId}
+                refreshMessage={refreshMessage}
               />
             )}
 

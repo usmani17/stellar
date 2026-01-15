@@ -115,16 +115,6 @@ export const GoogleAdGroups: React.FC = () => {
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    adgroupId: string | number;
-    newStatus: string;
-    oldStatus: string;
-  } | null>(null);
-  const [pendingBidChange, setPendingBidChange] = useState<{
-    adgroupId: string | number;
-    newBid: number;
-    oldBid: number;
-  } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportType, setExportType] = useState<"current_view" | "all_data">(
@@ -660,7 +650,8 @@ export const GoogleAdGroups: React.FC = () => {
         cancelInlineEdit();
         return;
       }
-      hasChanged = Math.abs(newBid - oldBid) > 0.01;
+      // Use a smaller threshold (0.001) to detect small bid changes like 0.02 to 0.03
+      hasChanged = Math.abs(newBid - oldBid) > 0.001;
     } else if (editingCell.field === "status") {
       const oldValue = (adgroup.status || "ENABLED").trim();
       const newValue = valueToCheck.trim();
@@ -678,28 +669,41 @@ export const GoogleAdGroups: React.FC = () => {
       return;
     }
 
-    // For status changes, show inline confirmation instead of modal
+    // For status changes, show modal
     if (editingCell.field === "status") {
-      setPendingStatusChange({
-        adgroupId: editingCell.adgroupId,
-        newStatus: valueToCheck,
-        oldStatus: adgroup.status || "ENABLED",
-      });
-      // Keep editing cell open to show confirmation buttons
+      const oldStatusRaw = adgroup.status || "ENABLED";
+      const newStatusRaw = valueToCheck.trim();
+      
+      // Format status values for display
+      const statusDisplayMap: Record<string, string> = {
+        ENABLED: "Enabled",
+        PAUSED: "Paused",
+        Enabled: "Enabled",
+        Paused: "Paused",
+      };
+      const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
+      const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
+      
+      setInlineEditAdgroup(adgroup);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(oldValue);
+      setInlineEditNewValue(newValue);
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
-    // For bid, show inline confirmation buttons
+    // For bid, show modal
     if (editingCell.field === "bid") {
       const newBid = parseFloat(valueToCheck) || 0;
       const oldBid = adgroup.cpc_bid_dollars || 0;
-
-      setPendingBidChange({
-        adgroupId: editingCell.adgroupId,
-        newBid: newBid,
-        oldBid: oldBid,
-      });
-      // Keep editing cell open to show confirmation buttons
+      
+      setInlineEditAdgroup(adgroup);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(formatCurrency(oldBid));
+      setInlineEditNewValue(formatCurrency(newBid));
+      setShowInlineEditModal(true);
+      setEditingCell(null);
       return;
     }
 
@@ -715,131 +719,6 @@ export const GoogleAdGroups: React.FC = () => {
     setEditingCell(null);
   };
 
-  const runInlineBidUpdate = async (
-    adgroupId: string | number,
-    newBid: number
-  ) => {
-    if (!accountId) return;
-
-    const adgroup = adgroups.find((a) => a.adgroup_id === adgroupId);
-    if (!adgroup) return;
-
-    setUpdatingField({ adgroupId, field: "bid" });
-
-    // Optimistically update the local state
-    setAdgroups((prevAdgroups) =>
-      prevAdgroups.map((a) =>
-        a.adgroup_id === adgroupId ? { ...a, cpc_bid_dollars: newBid } : a
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      if (isNaN(newBid) || newBid <= 0) {
-        throw new Error("Invalid bid value");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleAdGroups(
-        accountIdNum,
-        {
-          adgroupIds: [adgroupId],
-          action: "bid",
-          bid: newBid,
-        }
-      );
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - keep the optimistic update
-      setPendingBidChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error("Error updating adgroup bid:", error);
-      // Revert optimistic update on error
-      setAdgroups((prevAdgroups) =>
-        prevAdgroups.map((a) => (a.adgroup_id === adgroupId ? adgroup : a))
-      );
-      alert("Failed to update adgroup bid. Please try again.");
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
-  const runInlineStatusUpdate = async (
-    adgroupId: string | number,
-    newStatus: string
-  ) => {
-    if (!accountId) return;
-
-    setUpdatingField({ adgroupId, field: "status" });
-
-    // Optimistically update the local state
-    setAdgroups((prevAdgroups) =>
-      prevAdgroups.map((adgroup) =>
-        adgroup.adgroup_id === adgroupId
-          ? { ...adgroup, status: newStatus }
-          : adgroup
-      )
-    );
-
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-        ENABLED: "ENABLED",
-        PAUSED: "PAUSED",
-        Enabled: "ENABLED",
-        Paused: "PAUSED",
-      };
-      const statusValue = statusMap[newStatus] || "ENABLED";
-
-      const response = await campaignsService.bulkUpdateGoogleAdGroups(
-        accountIdNum,
-        {
-          adgroupIds: [adgroupId],
-          action: "status",
-          status: statusValue,
-        }
-      );
-
-      // Check for errors in response
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      // Update successful - keep the optimistic update
-      setPendingStatusChange(null);
-      setEditingCell(null);
-      setEditedValue("");
-    } catch (error) {
-      console.error("Error updating adgroup status:", error);
-      // Revert optimistic update on error
-      setAdgroups((prevAdgroups) =>
-        prevAdgroups.map((adgroup) =>
-          adgroup.adgroup_id === adgroupId
-            ? {
-                ...adgroup,
-                status: pendingStatusChange?.oldStatus || adgroup.status,
-              }
-            : adgroup
-        )
-      );
-      alert("Failed to update adgroup status. Please try again.");
-    } finally {
-      setUpdatingField(null);
-    }
-  };
-
   const runInlineEdit = async () => {
     if (!inlineEditAdgroup || !inlineEditField || !accountId) return;
 
@@ -850,17 +729,40 @@ export const GoogleAdGroups: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "bid") {
+      if (inlineEditField === "status") {
+        // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+        };
+        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+
+        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [inlineEditAdgroup.adgroup_id],
+          action: "status",
+          status: statusValue,
+        });
+
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
+      } else if (inlineEditField === "bid") {
         const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
         if (isNaN(bidValue)) {
           throw new Error("Invalid bid value");
         }
 
-        await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
           adgroupIds: [inlineEditAdgroup.adgroup_id],
           action: "bid",
           bid: bidValue,
         });
+
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
       }
 
       await loadAdgroups(accountIdNum);
@@ -1104,12 +1006,10 @@ export const GoogleAdGroups: React.FC = () => {
   const someSelected =
     selectedAdgroups.size > 0 && selectedAdgroups.size < adgroups.length;
 
-  const toggleChartMetric = (
-    metric: "sales" | "spend" | "impressions" | "clicks" | "acos" | "roas"
-  ) => {
+  const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
       ...prev,
-      [metric]: !prev[metric],
+      [metric]: !prev[metric as keyof typeof prev],
     }));
   };
 
@@ -1226,29 +1126,29 @@ export const GoogleAdGroups: React.FC = () => {
                 <Button
                   onClick={handleSync}
                   disabled={syncing || syncingAnalytics}
-                  className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold"
+                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
                 >
                   {syncing ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                       Syncing...
                     </span>
                   ) : (
-                    "Sync AdGroups"
+                    <span className="text-[10.64px] text-white font-normal">Sync AdGroups</span>
                   )}
                 </Button>
                 <Button
                   onClick={handleSyncAnalytics}
                   disabled={syncing || syncingAnalytics}
-                  className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold ml-2"
+                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
                 >
                   {syncingAnalytics ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                       Syncing Analytics...
                     </span>
                   ) : (
-                    "Sync Analytics"
+                    <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
                   )}
                 </Button>
               </div>
@@ -1978,8 +1878,6 @@ export const GoogleAdGroups: React.FC = () => {
                     editedValue={editedValue}
                     isCancelling={isCancelling}
                     updatingField={updatingField}
-                    pendingBidChange={pendingBidChange}
-                    pendingStatusChange={pendingStatusChange}
                     summary={summary}
                     onSelectAll={handleSelectAll}
                     onSelectAdgroup={handleSelectAdgroup}
@@ -1988,16 +1886,6 @@ export const GoogleAdGroups: React.FC = () => {
                     onCancelInlineEdit={cancelInlineEdit}
                     onInlineEditChange={handleInlineEditChange}
                     onConfirmInlineEdit={confirmInlineEdit}
-                    onConfirmBidChange={runInlineBidUpdate}
-                    onCancelBidChange={() => {
-                      setPendingBidChange(null);
-                      cancelInlineEdit();
-                    }}
-                    onConfirmStatusChange={runInlineStatusUpdate}
-                    onCancelStatusChange={() => {
-                      setPendingStatusChange(null);
-                      cancelInlineEdit();
-                    }}
                     formatCurrency={formatCurrency}
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadge}
