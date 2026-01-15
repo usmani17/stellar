@@ -1023,9 +1023,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
           {/* Form Fields - Layout matching Figma */}
           <div className="space-y-6">
-            {/* Row 1: Profile | Campaign Type | State (only for SB) */}
+            {/* Row 1: Profile | Campaign Type (for SB) */}
             {formData.type === "SB" ? (
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 gap-6">
                 {/* Profile */}
                 <div>
                   <label className="block text-[13px] font-semibold text-[#072929] mb-2">
@@ -1080,33 +1080,67 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     </p>
                   )}
                 </div>
-
-                {/* State - Only shown in Row 1 for SB */}
+              </div>
+            ) : formData.type === "SD" ? (
+              // SD Campaign: Profile | Campaign Type (2 columns in 4-column grid for consistency)
+              <div className="grid grid-cols-4 gap-6">
+                {/* Profile */}
                 <div>
                   <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                    State
+                    Profile
                   </label>
                   <Dropdown<string>
-                    options={STATE_OPTIONS}
-                    value={
-                      formData.status === "ENABLED"
-                        ? "Enabled"
-                        : String(formData.status).toLowerCase() === "paused"
-                        ? "Paused"
-                        : formData.status
-                    }
-                    onChange={(value) => {
-                      handleChange(
-                        "status",
-                        value.toUpperCase() as "ENABLED" | "PAUSED"
-                      );
-                    }}
-                    placeholder="Select state"
+                    options={profileOptions}
+                    value={formData.profileId || undefined}
+                    onChange={(value) => handleChange("profileId", value)}
+                    placeholder="Select profile"
                     buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    disabled={mode === "edit"}
+                    emptyMessage={
+                      profileOptions.length === 0
+                        ? "Loading profiles..."
+                        : "No profiles available"
+                    }
                   />
+                  {mode === "edit" && (
+                    <p className="text-[10px] text-[#556179] mt-1 italic">
+                      Read-only in edit mode
+                    </p>
+                  )}
+                  {errors.profileId && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.profileId}
+                    </p>
+                  )}
+                </div>
+
+                {/* Campaign Type */}
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    Campaign Type
+                  </label>
+                  <Dropdown<string>
+                    options={CAMPAIGN_TYPES}
+                    value={formData.type}
+                    onChange={(value) => handleChange("type", value)}
+                    placeholder="Select campaign type"
+                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    disabled={mode === "edit"}
+                  />
+                  {mode === "edit" && (
+                    <p className="text-[10px] text-[#556179] mt-1 italic">
+                      Read-only in edit mode
+                    </p>
+                  )}
+                  {errors.type && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.type}
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
+              // SP Campaign: Profile | Campaign Type (3-column grid)
               <div className="grid grid-cols-3 gap-6">
                 {/* Profile */}
                 <div>
@@ -1201,11 +1235,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             {/* Show fields only when campaign type is selected */}
             {formData.type && (
               <>
-                {/* Row 2: Campaign Name | Budget | Budget Type | State (for SB: 4 columns, for others: 3 columns) */}
+                {/* Row 2: Campaign Name | Budget | Budget Type | State (for SB: 4 columns) */}
                 {formData.type === "SB" ? (
-                  <div className="grid grid-cols-12 gap-6">
-                    {/* Campaign Name - spans 4 columns */}
-                    <div className="col-span-4">
+                  <div className="grid grid-cols-4 gap-6">
+                    {/* Campaign Name */}
+                    <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Campaign Name
                       </label>
@@ -1229,8 +1263,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       )}
                     </div>
 
-                    {/* Budget - spans 2 columns */}
-                    <div className="col-span-2">
+                    {/* Budget */}
+                    <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Budget
                       </label>
@@ -1258,8 +1292,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       )}
                     </div>
 
-                    {/* Budget Type - spans 2 columns */}
-                    <div className="col-span-2">
+                    {/* Budget Type */}
+                    <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Budget Type
                       </label>
@@ -1287,8 +1321,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       />
                     </div>
 
-                    {/* State - spans 4 columns */}
-                    <div className="col-span-4">
+                    {/* State */}
+                    <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         State
                       </label>
@@ -1310,9 +1344,121 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         placeholder="Select state"
                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                       />
+                      {errors.status && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.status}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : formData.type === "SD" ? (
+                  // SD Campaign: Campaign Name | Budget | Budget Type | State (4 columns)
+                  <div className="grid grid-cols-4 gap-6">
+                    {/* Campaign Name */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Campaign Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.campaign_name}
+                        onChange={(e) =>
+                          handleChange("campaign_name", e.target.value)
+                        }
+                        placeholder="Enter campaign name"
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          errors.campaign_name
+                            ? "border-red-500"
+                            : "border-gray-200"
+                        }`}
+                      />
+                      {errors.campaign_name && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.campaign_name}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Budget */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Budget
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.budget || ""}
+                        onChange={(e) =>
+                          handleChange(
+                            "budget",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                        placeholder="Enter budget"
+                        min="0"
+                        step="0.01"
+                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          errors.budget ? "border-red-500" : "border-gray-200"
+                        }`}
+                      />
+                      {errors.budget && (
+                        <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
+                          <span>!</span>
+                          <span>{errors.budget}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Budget Type */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        Budget Type
+                      </label>
+                      <Dropdown<string>
+                        options={[
+                          { value: "daily", label: "DAILY" },
+                          // Note: SD campaigns only support "daily" budget type per Amazon API
+                        ]}
+                        value={formData.budgetType}
+                        onChange={(value) => handleChange("budgetType", value)}
+                        placeholder="Select budget type"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        disabled={false} // Budget Type is editable in edit mode
+                      />
+                    </div>
+
+                    {/* State */}
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        State
+                      </label>
+                      <Dropdown<string>
+                        options={STATE_OPTIONS}
+                        value={
+                          formData.status === "enabled"
+                            ? "Enabled"
+                            : String(formData.status).toLowerCase() ===
+                              "paused"
+                            ? "Paused"
+                            : formData.status
+                        }
+                        onChange={(value) => {
+                          handleChange(
+                            "status",
+                            value.toLowerCase() as "enabled" | "paused"
+                          );
+                        }}
+                        placeholder="Select state"
+                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                      />
+                      {errors.status && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.status}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ) : (
+                  // SP Campaign: Campaign Name | Budget | State (3 columns)
                   <div className="grid grid-cols-3 gap-6">
                     {/* Campaign Name */}
                     <div>
@@ -1375,26 +1521,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       </label>
                       <Dropdown<string>
                         options={STATE_OPTIONS}
-                        value={
-                          formData.type === "SD"
-                            ? formData.status === "enabled"
-                              ? "Enabled"
-                              : String(formData.status).toLowerCase() ===
-                                "paused"
-                              ? "Paused"
-                              : formData.status
-                            : formData.status
-                        }
-                        onChange={(value) => {
-                          if (formData.type === "SD") {
-                            handleChange(
-                              "status",
-                              value.toLowerCase() as "enabled" | "paused"
-                            );
-                          } else {
-                            handleChange("status", value);
-                          }
-                        }}
+                        value={formData.status}
+                        onChange={(value) => handleChange("status", value)}
                         placeholder="Select state"
                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                       />
@@ -1404,31 +1532,6 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         </p>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {/* Budget Type - Hidden for SP and SB campaigns (SB has it integrated in Budget field) */}
-                {/* Note: Budget Type is editable in edit mode for SD campaigns */}
-                {formData.type === "SD" && (
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                      Budget Type
-                    </label>
-                    <Dropdown<string>
-                      options={
-                        formData.type === "SD"
-                          ? [
-                              { value: "daily", label: "DAILY" },
-                              // Note: SD campaigns only support "daily" budget type per Amazon API
-                            ]
-                          : BUDGET_TYPES
-                      }
-                      value={formData.budgetType}
-                      onChange={(value) => handleChange("budgetType", value)}
-                      placeholder="Select budget type"
-                      buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                      disabled={false} // Budget Type is editable in edit mode
-                    />
                   </div>
                 )}
 
@@ -1573,7 +1676,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Start Date and End Date - For SD campaigns */}
                 {formData.type === "SD" && (
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-4 gap-6">
                     {/* Start Date */}
                     <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
@@ -2391,7 +2494,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* SD (Sponsored Display) Specific Fields */}
                 {formData.type === "SD" && (
-                  <>
+                  <div className="grid grid-cols-4 gap-6">
                     {/* Tactic */}
                     <div>
                       <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
@@ -2487,7 +2590,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         </p>
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* Row 4: Brand Entity ID | Targeted PG Deal ID (for SB campaigns) */}
