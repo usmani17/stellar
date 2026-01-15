@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -18,7 +18,7 @@ import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaig
 import { GoogleCampaignDetailNegativeKeywordsTab } from "./components/tabs/GoogleCampaignDetailNegativeKeywordsTab";
 import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
-import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
+// import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import type {
   GoogleAdGroup,
   GoogleAd,
@@ -250,23 +250,48 @@ export const GoogleCampaignDetail: React.FC = () => {
     }>;
   }>({ isOpen: false, message: "" });
 
+  // Track if component is mounted to prevent state updates on unmounted components
+  const isMountedRef = useRef(true);
+  const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      // Clear all pending timeouts
+      timeoutIdsRef.current.forEach(id => clearTimeout(id));
+      timeoutIdsRef.current = [];
+    };
+  }, []);
+
   // Compute available tabs based on campaign type
   const tabs = useMemo(() => {
     if (!campaignDetail?.campaign?.advertising_channel_type) {
-      return ["Overview", "Ad Groups", "Ads", "Keywords", "Logs"];
+      return ["Overview", "Ad Groups", "Ads", "Keywords"];
     }
 
-    const channelType = campaignDetail.campaign.advertising_channel_type.toUpperCase();
+    const channelType = (campaignDetail.campaign.advertising_channel_type || "").toUpperCase().trim();
 
     if (channelType === "PERFORMANCE_MAX") {
-      return ["Overview", "Asset Groups", "Logs"];
+      return ["Overview", "Asset Groups"];
     } else if (channelType === "SHOPPING") {
-      return ["Overview", "Ad Groups", "Product Groups", "Logs"];
+      return ["Overview", "Ad Groups", "Product Groups"];
     } else {
       // SEARCH or default
-      return ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords", "Logs"];
+      return ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords"];
     }
   }, [campaignDetail?.campaign?.advertising_channel_type]);
+
+  // Helper function to safely set timeout with cleanup
+  const safeSetTimeout = useCallback((callback: () => void, delay: number) => {
+    const timeoutId = setTimeout(() => {
+      if (isMountedRef.current) {
+        callback();
+      }
+    }, delay);
+    timeoutIdsRef.current.push(timeoutId);
+    return timeoutId;
+  }, []);
 
   // Set page title
   useEffect(() => {
@@ -583,15 +608,19 @@ export const GoogleCampaignDetail: React.FC = () => {
         endDate ? endDate.toISOString().split("T")[0] : undefined
       );
 
-      // Only set data if we're still on the same campaign (check for race conditions)
-      if (currentCampaignId === campaignId) {
+      // Only set data if component is still mounted and campaign ID matches (race condition check)
+      if (isMountedRef.current && currentCampaignId === campaignId) {
         setCampaignDetail(data);
       }
     } catch (error) {
       console.error("Failed to load Google campaign detail:", error);
-      setCampaignDetail(null);
+      if (isMountedRef.current) {
+        setCampaignDetail(null);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -1080,9 +1109,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadNegativeKeywords();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync negative keywords:", error);
@@ -1091,7 +1120,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync negative keywords from Google Ads";
       setSyncMessage({ type: "negative_keywords", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingNegativeKeywords(false);
     }
@@ -1125,6 +1154,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to create negative keywords";
       setCreateNegativeKeywordError(errorMessage);
+      setIsCreateNegativeKeywordPanelOpen(false); // Close panel on error
       if (error.response?.data?.failed_negative_keywords) {
         setFailedNegativeKeywords(error.response.data.failed_negative_keywords);
       }
@@ -1180,9 +1210,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAdGroups();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ad groups:", error);
@@ -1191,7 +1221,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ad groups from Google Ads";
       setSyncMessage({ type: "adgroups", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdGroups(false);
     }
@@ -1228,9 +1258,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAds();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ads:", error);
@@ -1239,7 +1269,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ads from Google Ads";
       setSyncMessage({ type: "ads", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAds(false);
     }
@@ -1276,9 +1306,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadKeywords();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync keywords:", error);
@@ -1287,7 +1317,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync keywords from Google Ads";
       setSyncMessage({ type: "keywords", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingKeywords(false);
     }
@@ -1330,9 +1360,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync adgroup analytics:", error);
@@ -1341,7 +1371,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync adgroup analytics from Google Ads";
       setSyncMessage({ type: "adgroups", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdGroupsAnalytics(false);
     }
@@ -1384,9 +1414,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ad analytics:", error);
@@ -1395,7 +1425,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ad analytics from Google Ads";
       setSyncMessage({ type: "ads", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdsAnalytics(false);
     }
@@ -1438,9 +1468,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync keyword analytics:", error);
@@ -1449,7 +1479,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync keyword analytics from Google Ads";
       setSyncMessage({ type: "keywords", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingKeywordsAnalytics(false);
     }
@@ -1486,9 +1516,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAssetGroups();
 
       if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync asset groups:", error);
@@ -1497,7 +1527,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync asset groups from Google Ads";
       setSyncMessage({ type: "assetgroups", message: errorMessage });
-      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAssetGroups(false);
     }
@@ -3194,6 +3224,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                         setIsCreateNegativeKeywordPanelOpen(!isCreateNegativeKeywordPanelOpen);
                         setIsNegativeKeywordsFilterPanelOpen(false);
                       }}
+                      onCreateClick={() => {
+                        // Create button handler
+                      }}
                     />
                   </div>
                   {isCreateNegativeKeywordPanelOpen && campaignId && accountId && (
@@ -3206,14 +3239,12 @@ export const GoogleCampaignDetail: React.FC = () => {
                         setFailedNegativeKeywords([]);
                       }}
                       onSubmit={handleCreateNegativeKeywords}
-                      campaignId={campaignId}
-                      accountId={accountId}
-                      campaignType={campaignDetail?.campaign?.advertising_channel_type}
-                      adgroups={adgroups}
+                      adGroups={adgroups.map((ag) => ({
+                        id: ag.id,
+                        name: ag.name || "",
+                      }))}
                       loading={createNegativeKeywordLoading}
-                      submitError={createNegativeKeywordError}
-                      createdNegativeKeywords={createdNegativeKeywords}
-                      failedNegativeKeywords={failedNegativeKeywords}
+                      error={createNegativeKeywordError}
                     />
                   )}
                   <GoogleCampaignDetailNegativeKeywordsTab
@@ -3243,58 +3274,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                       syncMessage.type === "negative_keywords" ? syncMessage.message : null
                     }
                     getSortIcon={getSortIcon}
-                    onUpdateNegativeKeywordStatus={async (
-                      criterionId: string,
-                      status: string
-                    ) => {
-                      try {
-                        const accountIdNum = parseInt(accountId!, 10);
-                        if (isNaN(accountIdNum)) return;
-
-                        await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
-                          accountIdNum,
-                          {
-                            negativeKeywordIds: [criterionId],
-                            action: "status",
-                            value: status,
-                          }
-                        );
-
-                        await loadNegativeKeywords();
-                      } catch (error: any) {
-                        console.error("Failed to update negative keyword status:", error);
-                        alert(
-                          error.response?.data?.error ||
-                            "Failed to update negative keyword status"
-                        );
-                      }
-                    }}
-                    onUpdateNegativeKeywordMatchType={async (
-                      criterionId: string,
-                      matchType: string
-                    ) => {
-                      try {
-                        const accountIdNum = parseInt(accountId!, 10);
-                        if (isNaN(accountIdNum)) return;
-
-                        await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
-                          accountIdNum,
-                          {
-                            negativeKeywordIds: [criterionId],
-                            action: "match_type",
-                            value: matchType,
-                          }
-                        );
-
-                        await loadNegativeKeywords();
-                      } catch (error: any) {
-                        console.error("Failed to update negative keyword match type:", error);
-                        alert(
-                          error.response?.data?.error ||
-                            "Failed to update negative keyword match type"
-                        );
-                      }
-                    }}
                   />
                 </>
               )}
@@ -3443,12 +3422,13 @@ export const GoogleCampaignDetail: React.FC = () => {
                 </>
               )}
 
-              {activeTab === "Logs" && accountId && (
+              {/* Logs tab disabled - component not yet implemented */}
+              {/* {activeTab === "Logs" && accountId && (
                 <GoogleCampaignDetailLogsTab
                   accountId={accountId}
                   campaignId={campaignId}
                 />
-              )}
+              )} */}
             </div>
           </div>
         </div>
