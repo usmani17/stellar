@@ -37,6 +37,7 @@ interface CreateTikTokCampaignPanelProps {
     onClose: () => void;
     onSubmit: (data: CreateTikTokCampaignData) => Promise<void>;
     loading?: boolean;
+    submitError?: string | null;
     profiles?: Array<{ advertiser_id: string; advertiser_name: string }>;
     mode?: "create" | "edit";
     initialData?: Partial<CreateTikTokCampaignData> | null;
@@ -88,8 +89,8 @@ const SALES_DESTINATIONS = [
 ];
 
 const STATUS_OPTIONS = [
-    { value: "ENABLED", label: "Enable" },
-    { value: "PAUSED", label: "Pause" },
+    { value: "ENABLE", label: "Enable" },
+    { value: "DISABLE", label: "Disable" },
 ];
 
 // Toggle Switch Component
@@ -125,6 +126,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
     onClose,
     onSubmit,
     loading = false,
+    submitError = null,
     profiles = [],
     mode = "create",
     initialData = null,
@@ -134,6 +136,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
     const [selectedProfile, setSelectedProfile] = useState<string>("");
     const [objectiveType, setObjectiveType] = useState<string>("");
     const [campaignName, setCampaignName] = useState<string>("");
+    const [errors, setErrors] = useState<Partial<Record<keyof CreateTikTokCampaignData, string>>>({});
+    const [genericErrors, setGenericErrors] = useState<string[]>([]);
     const [appPromotionType, setAppPromotionType] = useState<string>("UNSET");
     const [appPlatform, setAppPlatform] = useState<string>("");
     const [appSelection, setAppSelection] = useState<string>("");
@@ -154,9 +158,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
     const [budgetOptimizeOn, setBudgetOptimizeOn] = useState<boolean>(false);
     const [isDedicatedCampaign, setIsDedicatedCampaign] = useState<boolean>(false);
     const [disableSkanCampaign, setDisableSkanCampaign] = useState<boolean>(false);
-    const [status, setStatus] = useState<string>("ENABLED");
-    const [startDate, setStartDate] = useState<string>("");
-    const [endDate, setEndDate] = useState<string>("");
+    const [status, setStatus] = useState<string>("ENABLE");
 
     // Load initial data when in edit mode
     useEffect(() => {
@@ -168,8 +170,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             if (initialData.budget !== undefined) setBudget(String(initialData.budget));
             if (initialData.budget_optimize_on !== undefined) setBudgetOptimizeOn(initialData.budget_optimize_on);
             if ((initialData as any).operation_status) setStatus((initialData as any).operation_status);
-            if ((initialData as any).start_date) setStartDate((initialData as any).start_date);
-            if ((initialData as any).end_date) setEndDate((initialData as any).end_date);
         } else if (!isOpen || mode === "create") {
             // Reset form when closing or switching to create mode
             setSelectedProfile("");
@@ -178,28 +178,184 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             setBudgetMode("BUDGET_MODE_DAY");
             setBudget("");
             setBudgetOptimizeOn(false);
-            setStatus("ENABLED");
-            setStartDate("");
-            setEndDate("");
+            setStatus("ENABLE");
         }
     }, [isOpen, mode, initialData]);
 
-    const handleSubmit = async () => {
+    // Parse field errors and generic errors from submitError
+    useEffect(() => {
+        if (submitError) {
+            try {
+                // Try to parse as JSON (if it contains field errors and generic errors)
+                const parsed = JSON.parse(submitError);
+                if (parsed.fieldErrors && typeof parsed.fieldErrors === "object") {
+                    // Set field-specific errors
+                    setErrors(parsed.fieldErrors);
+                } else {
+                    setErrors({});
+                }
+
+                // Extract generic errors
+                if (parsed.genericErrors && Array.isArray(parsed.genericErrors)) {
+                    setGenericErrors(parsed.genericErrors);
+                } else if (parsed.message && !parsed.fieldErrors) {
+                    // If there's a message but no field errors, treat it as a generic error
+                    setGenericErrors([parsed.message]);
+                } else {
+                    setGenericErrors([]);
+                }
+            } catch (e) {
+                // If not JSON, it's just a plain error message
+                // Clear field errors but treat the message as a generic error
+                setErrors({});
+                setGenericErrors([submitError]);
+            }
+        } else {
+            // Clear errors when submitError is cleared
+            setErrors({});
+            setGenericErrors([]);
+        }
+    }, [submitError]);
+
+    // Auto-switch budget mode when CBO is toggled off for objectives where Daily is deprecated
+    useEffect(() => {
+        const deprecatedDailyObjectives = ["REACH", "VIDEO_VIEWS", "ENGAGEMENT"];
+        if (deprecatedDailyObjectives.includes(objectiveType) && 
+            !budgetOptimizeOn && 
+            budgetMode === "BUDGET_MODE_DAY") {
+            setBudgetMode("BUDGET_MODE_DYNAMIC_DAILY_BUDGET");
+        }
+    }, [budgetOptimizeOn, objectiveType, budgetMode]);
+
+    const validate = (): boolean => {
+        const newErrors: Partial<Record<keyof CreateTikTokCampaignData, string>> = {};
+
+        // In edit mode, only validate editable fields
         if (mode === "edit") {
-            // In edit mode, only send updatable fields (campaign_name, budget)
+            if (!campaignName.trim()) {
+                newErrors.campaign_name = "Campaign name is required";
+            } else if (campaignName.length > 512) {
+                newErrors.campaign_name = "Campaign name must be 512 characters or less";
+            }
+
+            if (budgetMode !== "BUDGET_MODE_INFINITE") {
+                const budgetValue = budget ? parseFloat(budget) : 0;
+                if (budgetValue <= 0) {
+                    newErrors.budget = "Budget must be greater than 0";
+                } else if (budgetValue < 0.01) {
+                    newErrors.budget = "Budget must be at least 0.01";
+                }
+            }
+
+            setErrors(newErrors);
+            return Object.keys(newErrors).length === 0;
+        }
+
+        // Create mode - full validation
+        if (!campaignName.trim()) {
+            newErrors.campaign_name = "Campaign name is required";
+        } else if (campaignName.length > 512) {
+            newErrors.campaign_name = "Campaign name must be 512 characters or less";
+        }
+
+        if (!objectiveType) {
+            newErrors.objective_type = "Campaign objective is required";
+        }
+
+        // Budget validation
+        if (budgetMode !== "BUDGET_MODE_INFINITE") {
+            if (!budget || budget.trim() === "") {
+                newErrors.budget = "Budget is required when budget mode is not 'No Limit'";
+            } else {
+                const budgetValue = parseFloat(budget);
+                if (isNaN(budgetValue)) {
+                    newErrors.budget = "Budget must be a valid number";
+                } else if (budgetValue <= 0) {
+                    newErrors.budget = "Budget must be greater than 0";
+                } else if (budgetValue < 0.01) {
+                    newErrors.budget = "Budget must be at least 0.01";
+                }
+            }
+        }
+
+        // Conditionally required fields based on objective_type
+        if (objectiveType === "APP_PROMOTION") {
+            if (!appPromotionType || appPromotionType === "UNSET") {
+                newErrors.app_promotion_type = "App promotion type is required for App Promotion objective";
+            }
+        }
+
+        if (objectiveType === "PRODUCT_SALES") {
+            if (!productSource) {
+                newErrors.campaign_product_source = "Product source is required for Product Sales objective";
+            }
+        }
+
+        if (objectiveType === "SALES_MERGED") {
+            if (!salesDestination) {
+                newErrors.sales_destination = "Sales destination is required for Sales (Merged) objective";
+            }
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const resetForm = () => {
+        setSelectedProfile("");
+        setObjectiveType("");
+        setCampaignName("");
+        setAppPromotionType("UNSET");
+        setAppPlatform("");
+        setAppSelection("");
+        setIos14Dedicated(false);
+        setSmartPlusCampaign(false);
+        setProductSource("");
+        setTiktokShopAccount("");
+        setProductCatalog("");
+        setProductCatalogAppPlatform("");
+        setAppId("");
+        setOptimizationLocation("Website (Read-only (Auto))");
+        setCurrency("USD (auto)");
+        setCheckout("In-app (auto)");
+        setUpgradeSalesObjective(true);
+        setSalesDestination("");
+        setBudgetMode("BUDGET_MODE_DAY");
+        setBudget("");
+        setBudgetOptimizeOn(false);
+        setIsDedicatedCampaign(false);
+        setDisableSkanCampaign(false);
+        setStatus("ENABLED");
+        setErrors({});
+        setGenericErrors([]);
+    };
+
+    const handleSubmit = async () => {
+        // Validate before submitting
+        if (!validate()) {
+            return;
+        }
+
+        if (mode === "edit") {
+            // In edit mode, only send updatable fields (campaign_name, budget, objective_type)
             const data: CreateTikTokCampaignData = {
-                campaign_name: campaignName,
+                campaign_name: campaignName.trim(),
                 budget: budget ? parseFloat(budget) : undefined,
+                objective_type: objectiveType,
             };
-            await onSubmit(data);
+            try {
+                await onSubmit(data);
+                // Only reset on success - parent component handles closing
+                resetForm();
+            } catch (error) {
+                // Error handling is done in parent component
+                // Don't reset form on error - let user fix and resubmit
+                console.error("Submit error:", error);
+            }
             return;
         }
 
         // Create mode - full validation and data
-        if (!objectiveType) {
-            alert("Please select a campaign objective");
-            return;
-        }
 
         const data: CreateTikTokCampaignData = {
             campaign_name: campaignName || `Campaign ${new Date().toLocaleDateString()}`,
@@ -228,8 +384,9 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
             if (appSelection) {
                 (data as any).app_id = appSelection;
             }
-            if (ios14Dedicated) {
-                data.disable_skan_campaign = !ios14Dedicated; // iOS14 Dedicated means SKAN is disabled
+            // Set campaign_type for iOS14 Dedicated campaigns
+            if (ios14Dedicated && appPlatform === "IOS" && appPromotionType === "APP_INSTALL") {
+                data.campaign_type = "IOS14_CAMPAIGN";
             }
             if (smartPlusCampaign) {
                 (data as any).smart_plus_campaign = smartPlusCampaign;
@@ -239,7 +396,14 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
         // Product Sales specific fields
         if (objectiveType === "PRODUCT_SALES") {
             if (productSource) {
-                (data as any).campaign_product_source = productSource;
+                // Map UI values to TikTok API values
+                const apiProductSource = productSource === "TIKTOK_SHOP" ? "STORE" : "CATALOG";
+                (data as any).campaign_product_source = apiProductSource;
+                
+                // Auto-enable catalog for catalog-based product sources
+                if (productSource === "PRODUCT_CATALOG_WEBSITE" || productSource === "PRODUCT_CATALOG_APP") {
+                    data.catalog_enabled = true;
+                }
             }
             if (isTikTokShop && tiktokShopAccount) {
                 (data as any).tiktok_shop_account = tiktokShopAccount;
@@ -265,48 +429,22 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
 
         // Sales Merged specific fields
         if (objectiveType === "SALES_MERGED") {
+            // Set virtual_objective_type for the new Sales objective
+            data.virtual_objective_type = "SALES";
             if (salesDestination) {
                 data.sales_destination = salesDestination;
             }
         }
 
-        // Add date fields (stored in extra_data for ad group creation)
-        if (startDate) {
-            (data as any).start_date = startDate;
+        try {
+            await onSubmit(data);
+            // Only reset form on success - parent component handles closing
+            resetForm();
+        } catch (error) {
+            // Error handling is done in parent component
+            // Don't reset form on error - let user fix and resubmit
+            console.error("Submit error:", error);
         }
-        if (endDate) {
-            (data as any).end_date = endDate;
-        }
-
-        await onSubmit(data);
-
-        // Reset form
-        setSelectedProfile("");
-        setObjectiveType("");
-        setCampaignName("");
-        setAppPromotionType("UNSET");
-        setAppPlatform("");
-        setAppSelection("");
-        setIos14Dedicated(false);
-        setSmartPlusCampaign(false);
-        setProductSource("");
-        setTiktokShopAccount("");
-        setProductCatalog("");
-        setProductCatalogAppPlatform("");
-        setAppId("");
-        setOptimizationLocation("Website (Read-only (Auto))");
-        setCurrency("USD (auto)");
-        setCheckout("In-app (auto)");
-        setUpgradeSalesObjective(true);
-        setSalesDestination("");
-        setBudgetMode("BUDGET_MODE_DAY");
-        setBudget("");
-        setBudgetOptimizeOn(false);
-        setIsDedicatedCampaign(false);
-        setDisableSkanCampaign(false);
-        setStatus("ENABLED");
-        setStartDate("");
-        setEndDate("");
     };
 
     if (!isOpen) return null;
@@ -357,6 +495,31 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                     {mode === "edit" ? "Edit Campaign" : "Create Campaign"}
                 </h2>
 
+                {/* Validation Errors Banner */}
+                {(Object.values(errors).filter(Boolean).length > 0 || genericErrors.length > 0) && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-[13px] font-semibold text-red-600 mb-2">
+                            Please fix the following errors:
+                        </p>
+                        {Object.values(errors).filter(Boolean).length > 0 && (
+                            <ul className="list-disc list-inside text-[12px] text-red-600 space-y-1 mb-2">
+                                {Object.entries(errors)
+                                    .filter(([_, error]) => error)
+                                    .map(([field, error]) => (
+                                        <li key={field}>{error}</li>
+                                    ))}
+                            </ul>
+                        )}
+                        {genericErrors.length > 0 && (
+                            <ul className="list-disc list-inside text-[12px] text-red-600 space-y-1">
+                                {genericErrors.map((error, index) => (
+                                    <li key={index}>{error}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
+
                 <div className="space-y-6">
                     {/* Profile & Campaign Objective Row */}
                     <div className="grid grid-cols-3 gap-6">
@@ -386,11 +549,21 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                             <Dropdown
                                 options={OBJECTIVE_TYPES}
                                 value={objectiveType}
-                                onChange={(val) => setObjectiveType(val as string)}
+                                onChange={(val) => {
+                                    setObjectiveType(val as string);
+                                    if (errors.objective_type) {
+                                        setErrors({ ...errors, objective_type: undefined });
+                                    }
+                                }}
                                 placeholder="Select Campaign Objective Type"
-                                buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${mode === "edit" ? "opacity-60 cursor-not-allowed" : ""}`}
+                                buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${mode === "edit" ? "opacity-60 cursor-not-allowed" : ""} ${
+                                    errors.objective_type ? 'border-red-500' : ''
+                                }`}
                                 disabled={mode === "edit"}
                             />
+                            {errors.objective_type && (
+                                <p className="mt-1 text-[12px] text-red-600">{errors.objective_type}</p>
+                            )}
                         </div>
                     </div>
 
@@ -409,10 +582,20 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             <input
                                                 type="text"
                                                 value={campaignName}
-                                                onChange={(e) => setCampaignName(e.target.value)}
+                                                onChange={(e) => {
+                                                    setCampaignName(e.target.value);
+                                                    if (errors.campaign_name) {
+                                                        setErrors({ ...errors, campaign_name: undefined });
+                                                    }
+                                                }}
                                                 placeholder="Some - TikTok - 22/12/2025"
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                                className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                                    errors.campaign_name ? 'border-red-500' : 'border-gray-200'
+                                                }`}
                                             />
+                                            {errors.campaign_name && (
+                                                <p className="mt-1 text-[12px] text-red-600">{errors.campaign_name}</p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -439,10 +622,20 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             <input
                                                 type="text"
                                                 value={budget}
-                                                onChange={(e) => setBudget(e.target.value)}
+                                                onChange={(e) => {
+                                                    setBudget(e.target.value);
+                                                    if (errors.budget) {
+                                                        setErrors({ ...errors, budget: undefined });
+                                                    }
+                                                }}
                                                 placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET" ? "Enter Dynamic Daily Budget" : "Enter Budget"}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                                className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                                    errors.budget ? 'border-red-500' : 'border-gray-200'
+                                                }`}
                                             />
+                                            {errors.budget && (
+                                                <p className="mt-1 text-[12px] text-red-600">{errors.budget}</p>
+                                            )}
                                         </div>
                                     </div>
                                 </>
@@ -457,10 +650,20 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             <input
                                                 type="text"
                                                 value={campaignName}
-                                                onChange={(e) => setCampaignName(e.target.value)}
+                                                onChange={(e) => {
+                                                    setCampaignName(e.target.value);
+                                                    if (errors.campaign_name) {
+                                                        setErrors({ ...errors, campaign_name: undefined });
+                                                    }
+                                                }}
                                                 placeholder="Some - TikTok - 22/12/2025"
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                                className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                                    errors.campaign_name ? 'border-red-500' : 'border-gray-200'
+                                                }`}
                                             />
+                                            {errors.campaign_name && (
+                                                <p className="mt-1 text-[12px] text-red-600">{errors.campaign_name}</p>
+                                            )}
                                         </div>
 
                                         <div>
@@ -673,8 +876,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 6: Status, Start Date, End Date - Product Sales Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 6: Status - Product Sales Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -685,32 +888,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -802,14 +979,14 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 type="text"
                                                 value={budget}
                                                 onChange={(e) => setBudget(e.target.value)}
-                                                placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : "Enter Average Daily Budget"}
+                                                placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : "Enter Dynamic Daily Budget"}
                                                 className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Sales Merged */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Sales Merged */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -820,32 +997,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -953,7 +1104,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                         onChange={(e) => setBudget(e.target.value)}
                                                         placeholder={
                                                             budgetMode === "BUDGET_MODE_DAY"
-                                                                ? "Enter Average Daily Budget"
+                                                                ? "Enter Daily Budget"
                                                                 : budgetMode === "BUDGET_MODE_TOTAL"
                                                                 ? "Enter Lifetime Budget"
                                                                 : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET"
@@ -965,8 +1116,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
                                             </div>
 
-                                            {/* Row 5: Status, Start Date, End Date - Android Only */}
-                                            <div className="grid grid-cols-3 gap-6">
+                                            {/* Row 5: Status - Android Only */}
+                                            <div className="grid grid-cols-1 gap-6">
                                                 <div>
                                                     <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                         Status
@@ -977,32 +1128,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                         onChange={(val) => setStatus(val as string)}
                                                         placeholder="Select Status"
                                                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                        Start Date
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={startDate}
-                                                        onChange={(e) => setStartDate(e.target.value)}
-                                                        min={new Date().toISOString().split("T")[0]}
-                                                        className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                        End Date
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={endDate}
-                                                        onChange={(e) => setEndDate(e.target.value)}
-                                                        min={startDate || new Date().toISOString().split("T")[0]}
-                                                        className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                                     />
                                                 </div>
                                             </div>
@@ -1097,8 +1222,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
                                             </div>
 
-                                            {/* Row 5: Status, Start Date, End Date - App Promotion iOS Only */}
-                                            <div className="grid grid-cols-3 gap-6">
+                                            {/* Row 5: Status - App Promotion iOS Only */}
+                                            <div className="grid grid-cols-1 gap-6">
                                                 <div>
                                                     <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                         Status
@@ -1109,32 +1234,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                         onChange={(val) => setStatus(val as string)}
                                                         placeholder="Select Status"
                                                         buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                        Start Date
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={startDate}
-                                                        onChange={(e) => setStartDate(e.target.value)}
-                                                        min={new Date().toISOString().split("T")[0]}
-                                                        className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                        End Date
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={endDate}
-                                                        onChange={(e) => setEndDate(e.target.value)}
-                                                        min={startDate || new Date().toISOString().split("T")[0]}
-                                                        className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                                     />
                                                 </div>
                                             </div>
@@ -1175,7 +1274,12 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 Budget Type
                                             </label>
                                             <Dropdown
-                                                options={BUDGET_MODES.filter(m => m.value !== "BUDGET_MODE_INFINITE")}
+                                                options={BUDGET_MODES.filter(m => {
+                                                    if (m.value === "BUDGET_MODE_INFINITE") return false;
+                                                    // BUDGET_MODE_DAY is deprecated for REACH when CBO is disabled
+                                                    if (!budgetOptimizeOn && m.value === "BUDGET_MODE_DAY") return false;
+                                                    return true;
+                                                })}
                                                 value={budgetMode}
                                                 onChange={(val) => setBudgetMode(val as string)}
                                                 placeholder="Select Budget Type"
@@ -1191,14 +1295,14 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 type="text"
                                                 value={budget}
                                                 onChange={(e) => setBudget(e.target.value)}
-                                                placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : "Enter Average Daily Budget"}
+                                                placeholder={budgetMode === "BUDGET_MODE_DAY" ? "Enter Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Enter Lifetime Budget" : "Enter Dynamic Daily Budget"}
                                                 className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Reach Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Reach Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1209,32 +1313,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1295,8 +1373,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Traffic Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Traffic Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1307,32 +1385,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1371,7 +1423,12 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 Budget Type
                                             </label>
                                             <Dropdown
-                                                options={BUDGET_MODES.filter(m => m.value !== "BUDGET_MODE_INFINITE")}
+                                                options={BUDGET_MODES.filter(m => {
+                                                    if (m.value === "BUDGET_MODE_INFINITE") return false;
+                                                    // BUDGET_MODE_DAY is deprecated for VIDEO_VIEWS when CBO is disabled
+                                                    if (!budgetOptimizeOn && m.value === "BUDGET_MODE_DAY") return false;
+                                                    return true;
+                                                })}
                                                 value={budgetMode}
                                                 onChange={(val) => setBudgetMode(val as string)}
                                                 placeholder="Select Budget Type"
@@ -1393,8 +1450,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Video Views Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Video Views Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1405,32 +1462,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1491,8 +1522,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Lead Generation Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Lead Generation Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1503,32 +1534,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1567,7 +1572,12 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 Budget Type
                                             </label>
                                             <Dropdown
-                                                options={BUDGET_MODES.filter(m => m.value !== "BUDGET_MODE_INFINITE")}
+                                                options={BUDGET_MODES.filter(m => {
+                                                    if (m.value === "BUDGET_MODE_INFINITE") return false;
+                                                    // BUDGET_MODE_DAY is deprecated for ENGAGEMENT when CBO is disabled
+                                                    if (!budgetOptimizeOn && m.value === "BUDGET_MODE_DAY") return false;
+                                                    return true;
+                                                })}
                                                 value={budgetMode}
                                                 onChange={(val) => setBudgetMode(val as string)}
                                                 placeholder="Select Budget Type"
@@ -1589,8 +1599,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Engagement Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Engagement Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1601,32 +1611,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>
@@ -1687,8 +1671,8 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
                                     </div>
 
-                                    {/* Row 4: Status, Start Date, End Date - Website Conversions Only */}
-                                    <div className="grid grid-cols-3 gap-6">
+                                    {/* Row 4: Status - Website Conversions Only */}
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                                                 Status
@@ -1699,32 +1683,6 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 onChange={(val) => setStatus(val as string)}
                                                 placeholder="Select Status"
                                                 buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                Start Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={startDate}
-                                                onChange={(e) => setStartDate(e.target.value)}
-                                                min={new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                                                End Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={endDate}
-                                                onChange={(e) => setEndDate(e.target.value)}
-                                                min={startDate || new Date().toISOString().split("T")[0]}
-                                                className="bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                                             />
                                         </div>
                                     </div>

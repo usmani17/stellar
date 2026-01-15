@@ -2866,6 +2866,177 @@ export const campaignsService = {
     return response.data;
   },
 
+  exportTikTokCampaigns: async (
+    accountId: number,
+    params?: {
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      page?: number;
+      page_size?: number;
+      campaign_name?: string;
+      operation_status?: string;
+      objective_type?: string;
+      advertiser_id?: string;
+      export_type?: "all_data" | "current_view";
+      include_deleted?: boolean;
+    }
+  ): Promise<void> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+
+    if (params?.sort_by) {
+      filters.sort_by = params.sort_by;
+    }
+    if (params?.order) {
+      filters.order = params.order;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+    if (params?.campaign_name) {
+      filters.campaign_name = params.campaign_name;
+    }
+    if (params?.operation_status) {
+      filters.operation_status = params.operation_status;
+    }
+    if (params?.objective_type) {
+      filters.objective_type = params.objective_type;
+    }
+    if (params?.advertiser_id) {
+      filters.advertiser_id = params.advertiser_id;
+    }
+    if (params?.include_deleted) {
+      filters.include_deleted = true;
+    }
+
+    // Make request with responseType blob to handle CSV file
+    const response = await api.post(
+      `/accounts/${accountId}/tiktok-campaigns/export/`,
+      { filters, export_type: params?.export_type || "all_data" },
+      {
+        responseType: "blob",
+      }
+    );
+
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = "tiktok_campaigns_export.csv";
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  exportTikTokAdGroups: async (
+    accountId: number,
+    params?: {
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      page?: number;
+      page_size?: number;
+      adgroup_name?: string;
+      campaign_name?: string;
+      operation_status?: string;
+      advertiser_id?: string;
+      export_type?: "all_data" | "current_view";
+      include_deleted?: boolean;
+    }
+  ): Promise<void> => {
+    // Build filters object for POST request body
+    const filters: any = {};
+
+    if (params?.sort_by) {
+      filters.sort_by = params.sort_by;
+    }
+    if (params?.order) {
+      filters.order = params.order;
+    }
+    if (params?.page) {
+      filters.page = params.page;
+    }
+    if (params?.page_size) {
+      filters.page_size = params.page_size;
+    }
+    if (params?.start_date) {
+      filters.start_date = params.start_date;
+    }
+    if (params?.end_date) {
+      filters.end_date = params.end_date;
+    }
+    if (params?.adgroup_name) {
+      filters.adgroup_name = params.adgroup_name;
+    }
+    if (params?.campaign_name) {
+      filters.campaign_name = params.campaign_name;
+    }
+    if (params?.operation_status) {
+      filters.operation_status = params.operation_status;
+    }
+    if (params?.advertiser_id) {
+      filters.advertiser_id = params.advertiser_id;
+    }
+    if (params?.include_deleted) {
+      filters.include_deleted = true;
+    }
+
+    // Make request with responseType blob to handle CSV file
+    const response = await api.post(
+      `/accounts/${accountId}/tiktok-adgroups/export/`,
+      { filters, export_type: params?.export_type || "all_data" },
+      {
+        responseType: "blob",
+      }
+    );
+
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = "tiktok_adgroups_export.csv";
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 
   exportGoogleAdGroups: async (
     accountId: number,
@@ -3550,6 +3721,9 @@ export const campaignsService = {
       page_size?: number;
       operation_status?: string;
       advertiser_id?: string;
+      start_date?: string;
+      end_date?: string;
+      include_deleted?: boolean;
     }
   ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number }> => {
     const queryParams = new URLSearchParams();
@@ -3557,6 +3731,9 @@ export const campaignsService = {
     if (params?.page_size) queryParams.append("page_size", String(params.page_size));
     if (params?.operation_status) queryParams.append("operation_status", params.operation_status);
     if (params?.advertiser_id) queryParams.append("advertiser_id", params.advertiser_id);
+    if (params?.start_date) queryParams.append("start_date", params.start_date);
+    if (params?.end_date) queryParams.append("end_date", params.end_date);
+    if (params?.include_deleted) queryParams.append("include_deleted", "true");
 
     const url = `/accounts/${accountId}/tiktok-campaigns/?${queryParams.toString()}`;
     const response = await api.get(url);
@@ -3748,6 +3925,50 @@ export const campaignsService = {
     return response.data;
   },
 
+  // TikTok Ad Group Update
+  updateTikTokAdGroup: async (
+    accountId: number,
+    adgroupId: string | number,
+    data: {
+      adgroup_name?: string;
+      operation_status?: "ENABLE" | "DISABLE" | "DELETE";
+      budget?: number;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-adgroups/${adgroupId}/update/`;
+    const response = await api.put(url, data);
+    return response.data;
+  },
+
+  // TikTok Ad Group Status Update
+  updateTikTokAdGroupStatus: async (
+    accountId: number,
+    data: {
+      adgroup_ids: Array<string | number>;
+      operation_status: "ENABLE" | "DISABLE" | "DELETE";
+      advertiser_id?: string;
+      allow_partial_success?: boolean;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-adgroups/status/update/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  // TikTok Ad Group Budget Update
+  updateTikTokAdGroupBudget: async (
+    accountId: number,
+    data: {
+      budget?: Array<{ adgroup_id: string | number; budget: number }>;
+      scheduled_budget?: Array<{ adgroup_id: string | number; scheduled_budget: number }>;
+      advertiser_id?: string;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-adgroups/budget/update/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
   // TikTok Ads
   getTikTokAds: async (
     accountId: number,
@@ -3846,6 +4067,110 @@ export const campaignsService = {
     const url = `/accounts/${accountId}/tiktok-ads/create/`;
     const response = await api.post(url, data);
     return response.data;
+  },
+
+  // TikTok Ad Update
+  updateTikTokAd: async (
+    accountId: number,
+    adId: string,
+    data: {
+      ad_name?: string;
+      operation_status?: "ENABLE" | "DISABLE" | "DELETE";
+      // Add other updateable fields as needed
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-ads/${adId}/update/`;
+    const response = await api.put(url, data);
+    return response.data;
+  },
+
+  // TikTok Ad Status Update
+  updateTikTokAdStatus: async (
+    accountId: number,
+    data: {
+      ad_ids: Array<string | number>;
+      operation_status: "ENABLE" | "DISABLE" | "DELETE";
+      advertiser_id?: string;
+      allow_partial_success?: boolean;
+    }
+  ): Promise<any> => {
+    const url = `/accounts/${accountId}/tiktok-ads/status/update/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  // Export TikTok Ads
+  exportTikTokAds: async (
+    accountId: number,
+    params?: {
+      sort_by?: string;
+      order?: "asc" | "desc";
+      start_date?: string;
+      end_date?: string;
+      page?: number;
+      page_size?: number;
+      ad_id?: string;
+      adgroup_id?: string;
+      campaign_id?: string;
+      advertiser_id?: string;
+      operation_status?: string;
+      ad_format?: string;
+      ad_name?: string;
+      ad_name__icontains?: string;
+      adgroup_name__icontains?: string;
+      campaign_name__icontains?: string;
+      filters?: any;
+    },
+    exportType: "current_view" | "all_data" = "all_data"
+  ): Promise<void> => {
+    const filters: any = {};
+
+    if (params?.page) filters.page = params.page;
+    if (params?.page_size) filters.page_size = params.page_size;
+    if (params?.sort_by) filters.sort_by = params.sort_by;
+    if (params?.order) filters.order = params.order;
+    if (params?.start_date) filters.start_date = params.start_date;
+    if (params?.end_date) filters.end_date = params.end_date;
+    if (params?.ad_id) filters.ad_id = params.ad_id;
+    if (params?.adgroup_id) filters.adgroup_id = params.adgroup_id;
+    if (params?.campaign_id) filters.campaign_id = params.campaign_id;
+    if (params?.advertiser_id) filters.advertiser_id = params.advertiser_id;
+    if (params?.operation_status) filters.operation_status = params.operation_status;
+    if (params?.ad_format) filters.ad_format = params.ad_format;
+    if (params?.ad_name) filters.ad_name = params.ad_name;
+    if (params?.ad_name__icontains)
+      filters.ad_name__icontains = params.ad_name__icontains;
+    if (params?.adgroup_name__icontains)
+      filters.adgroup_name__icontains = params.adgroup_name__icontains;
+    if (params?.campaign_name__icontains)
+      filters.campaign_name__icontains = params.campaign_name__icontains;
+
+    // Merge any additional filters from params.filters
+    if (params?.filters) {
+      Object.assign(filters, params.filters);
+    }
+
+    // Make request with responseType blob to handle CSV file
+    const response = await api.post(
+      `/accounts/${accountId}/tiktok-ads/export/`,
+      { filters, export_type: exportType },
+      {
+        responseType: "blob",
+      }
+    );
+
+    // Create a download link for the CSV file
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    const filename =
+      response.headers["content-disposition"]
+        ?.split("filename=")[1]
+        ?.replace(/"/g, "") || "tiktok_ads_export.csv";
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   },
 
 };
