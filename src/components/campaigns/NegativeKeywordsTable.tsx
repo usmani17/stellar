@@ -239,46 +239,6 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                     Campaign ID
                   </th>
 
-                  {/* Creation Date Time Header */}
-                  <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                    onClick={() => onSort?.("creationDateTime")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Creation Date
-                      {getSortIcon("creationDateTime")}
-                    </div>
-                  </th>
-
-                  {/* Last Update Date Time Header */}
-                  <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                    onClick={() => onSort?.("lastUpdateDateTime")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Last Updated
-                      {getSortIcon("lastUpdateDateTime")}
-                    </div>
-                  </th>
-
-                  {/* Serving Status Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                    Serving Status
-                  </th>
-
-                  {/* Serving Status Details Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                    Serving Status Details
-                  </th>
-
-                  {/* Last Updated Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                    Last Synced
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -479,40 +439,6 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                         </span>
                       </td>
 
-                      {/* Creation Date Time */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {formatDate(keyword.creationDateTime)}
-                        </span>
-                      </td>
-
-                      {/* Last Update Date Time */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {formatDate(keyword.lastUpdateDateTime)}
-                        </span>
-                      </td>
-
-                      {/* Serving Status */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {keyword.servingStatus || "—"}
-                        </span>
-                      </td>
-
-                      {/* Serving Status Details */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {keyword.servingStatusDetails || "—"}
-                        </span>
-                      </td>
-
-                      {/* Last Updated */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {formatDate(keyword.last_updated)}
-                        </span>
-                      </td>
                     </tr>
                   );
                 })}

@@ -563,13 +563,19 @@ export const Campaigns: React.FC = () => {
               const profileId =
                 profile.profileId || profile.id || profile.profile_id;
               const profileName = profile.name || profileId;
+              const countryCode =
+                profile.countryCode || profile.country_code || "";
               if (!profileId) {
                 console.warn("Profile missing ID:", profile);
                 return null;
               }
+              // Include country code in label if available
+              const label = countryCode
+                ? `${profileName} (${countryCode})`
+                : profileName;
               return {
                 value: String(profileId),
-                label: String(profileName || profileId),
+                label: String(label || profileId),
               };
             })
             .filter(
@@ -2343,7 +2349,7 @@ export const Campaigns: React.FC = () => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                    className="!h-10 px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowBulkActions((prev) => !prev);

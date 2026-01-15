@@ -179,7 +179,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
             <Button
               type="button"
               variant="ghost"
-              className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+              className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleBulkActions();
@@ -287,8 +287,8 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
 
       {/* Bid editor panel for Ad Groups */}
       {selectedAdGroupIds.size > 0 && showBidPanel && (
-        <div className="px-6 mb-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="mb-4">
+          <div className="border border-gray-200 rounded-xl p-4 bg-[#f9f9f6]">
             <div className="flex flex-wrap items-end gap-3 justify-between">
               <div className="w-[160px]">
                 <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
@@ -308,7 +308,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                       onBidUnitChange("amount");
                     }
                   }}
-                  buttonClassName="w-full"
+                  buttonClassName="w-full bg-[#FEFEFB]"
                   width="w-full"
                 />
               </div>
@@ -322,7 +322,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                       type="button"
                       className={`flex-1 px-3 py-2 rounded-lg border items-center ${
                         bidUnit === "percent"
-                          ? "bg-forest-f40 border-forest-f40"
+                          ? "bg-forest-f40  border-forest-f40"
                           : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
                       }`}
                       onClick={() => onBidUnitChange("percent")}
@@ -333,7 +333,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                       type="button"
                       className={`flex-1 px-3 py-2 rounded-lg border items-center ${
                         bidUnit === "amount"
-                          ? "bg-forest-f40 border-forest-f40"
+                          ? "bg-forest-f40  border-forest-f40"
                           : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
                       }`}
                       onClick={() => onBidUnitChange("amount")}
@@ -347,46 +347,49 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                 <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                   Value
                 </label>
-                <input
-                  type="number"
-                  value={bidValue}
-                  onChange={(e) => onBidValueChange(e.target.value)}
-                  className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                />
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={bidValue}
+                    onChange={(e) => onBidValueChange(e.target.value)}
+                    className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
+                    {bidUnit === "percent" ? "%" : "$"}
+                  </span>
+                </div>
               </div>
               {bidAction === "increase" && (
                 <div className="w-[160px]">
                   <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                    Upper Limit (Optional)
+                    Upper Limit (optional)
                   </label>
                   <input
                     type="number"
                     value={bidUpperLimit}
                     onChange={(e) => onBidUpperLimitChange(e.target.value)}
-                    placeholder="$0.00"
-                    className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                    className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                   />
                 </div>
               )}
               {bidAction === "decrease" && (
                 <div className="w-[160px]">
                   <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                    Lower Limit (Optional)
+                    Lower Limit (optional)
                   </label>
                   <input
                     type="number"
                     value={bidLowerLimit}
                     onChange={(e) => onBidLowerLimitChange(e.target.value)}
-                    placeholder="$0.00"
-                    className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
+                    className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                   />
                 </div>
               )}
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2 ml-auto">
                 <button
                   type="button"
                   onClick={onBidPanelCancel}
-                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+                  className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
                 >
                   Cancel
                 </button>

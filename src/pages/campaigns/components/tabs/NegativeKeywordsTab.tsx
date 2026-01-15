@@ -209,7 +209,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                   await onLoadAllAdGroups();
                 }
               }}
-              className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+              className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-normal"
             >
               <svg
                 className="w-4 h-4 !text-white"

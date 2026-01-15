@@ -1652,9 +1652,9 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </div>
                 )}
 
-                {/* Row 4: Portfolio ID - Full Width Dropdown */}
+                {/* Row 4: Portfolio ID - Match Profile Dropdown Width */}
                 {formData.type === "SP" && (
-                  <div>
+                  <div className="max-w-[calc(33.333%-1rem)]">
                     <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                       Portfolio ID
                     </label>
@@ -1775,7 +1775,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       {/* Strategy Tab Content */}
                       {activeBiddingTab === "strategy" && (
                         <div className="space-y-4">
-                          <div>
+                          <div className="max-w-[calc(33.333%-1rem)]">
                             <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                               Strategy
                             </label>
@@ -1818,7 +1818,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                 });
                               }}
                               placeholder="Select strategy"
-                              buttonClassName="w-full bg-[#FEFEFB] text-[14px] text-[#072929]"
+                              buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
                             />
                             {mode === "create" &&
                               formData.bidding &&
@@ -2281,7 +2281,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {formData.type === "SP" && (
                   <>
                     {/* Site Restrictions */}
-                    <div>
+                    <div className="max-w-[calc(33.333%-1rem)]">
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Site Restrictions
                       </label>

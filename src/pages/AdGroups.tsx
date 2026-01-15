@@ -918,6 +918,46 @@ export const AdGroups: React.FC = () => {
     return adgroups.filter((ag) => selectedAdgroups.has(ag.adGroupId || ag.id));
   };
 
+  const calculateNewBid = (currentBid: number): number => {
+    const valueNum = parseFloat(bidValue);
+    if (isNaN(valueNum)) return currentBid;
+
+    let newBid = currentBid;
+
+    if (bidAction === "increase") {
+      if (bidUnit === "percent") {
+        newBid = currentBid * (1 + valueNum / 100);
+      } else {
+        newBid = currentBid + valueNum;
+      }
+      if (upperLimit) {
+        const upper = parseFloat(upperLimit);
+        if (!isNaN(upper)) {
+          newBid = Math.min(newBid, upper);
+        }
+      }
+    } else if (bidAction === "decrease") {
+      if (bidUnit === "percent") {
+        newBid = currentBid * (1 - valueNum / 100);
+      } else {
+        newBid = currentBid - valueNum;
+      }
+      if (lowerLimit) {
+        const lower = parseFloat(lowerLimit);
+        if (!isNaN(lower)) {
+          newBid = Math.max(newBid, lower);
+        }
+      }
+    } else if (bidAction === "set") {
+      newBid = valueNum;
+    }
+
+    // Prevent negative
+    newBid = Math.max(newBid, 0);
+
+    return Math.round(newBid * 100) / 100;
+  };
+
   // Generate chart data based on adgroups and date range
   const chartData = useMemo(() => {
     // Use chart data from API if available, otherwise generate from adgroups
@@ -1098,7 +1138,7 @@ export const AdGroups: React.FC = () => {
                       {adgroupName}
                     </span>
                   </p>
-                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                  <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                     <div className="flex justify-between items-center">
                       <span className="text-[12.16px] text-[#556179]">
                         {fieldLabel}:
@@ -1120,14 +1160,14 @@ export const AdGroups: React.FC = () => {
                   <button
                     onClick={cancelAdGroupChange}
                     disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
-                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmAdGroupChange}
                     disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
-                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {adGroupEditLoading.has(pendingAdGroupChange.id)
                       ? "Updating..."
@@ -1568,35 +1608,139 @@ export const AdGroups: React.FC = () => {
                                   Ad Group Name
                                 </th>
                                 <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
-                                  Current{" "}
-                                  {isBidChange ? "Default Bid" : "Status"}
+                                  Old Value
+                                </th>
+                                <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                  New Value
                                 </th>
                               </tr>
                             </thead>
                             <tbody>
                               {selectedAdgroupsData
                                 .slice(0, previewCount)
-                                .map((ag) => (
-                                  <tr
-                                    key={ag.id}
-                                    className="border-b border-gray-200"
-                                  >
-                                    <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                      {ag.name || "Unnamed Ad Group"}
-                                    </td>
-                                    <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                      {isBidChange
-                                        ? ag.default_bid || "$0.00"
-                                        : ag.status || "Enabled"}
-                                    </td>
-                                  </tr>
-                                ))}
+                                .map((ag) => {
+                                  const oldBid = parseFloat(
+                                    (ag.default_bid || "$0.00").replace(
+                                      /[^0-9.]/g,
+                                      ""
+                                    )
+                                  );
+                                  const oldStatus = ag.status || "Enabled";
+                                  const newBid = isBidChange
+                                    ? calculateNewBid(oldBid)
+                                    : oldBid;
+                                  const newStatus = pendingStatusAction
+                                    ? pendingStatusAction
+                                        .charAt(0)
+                                        .toUpperCase() +
+                                      pendingStatusAction.slice(1)
+                                    : oldStatus;
+
+                                  return (
+                                    <tr
+                                      key={ag.id}
+                                      className="border-b border-gray-200 last:border-b-0"
+                                    >
+                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                        {ag.name || "Unnamed Ad Group"}
+                                      </td>
+                                      <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                        {isBidChange
+                                          ? `$${oldBid.toFixed(2)}`
+                                          : oldStatus}
+                                      </td>
+                                      <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                        {isBidChange
+                                          ? `$${newBid.toFixed(2)}`
+                                          : newStatus}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                             </tbody>
                           </table>
                         </div>
                       </div>
                     );
                   })()}
+
+                  {/* Action Details */}
+                  <div className="space-y-3 mb-6">
+                    {isBidChange ? (
+                      <>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            Action:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {bidAction === "increase"
+                              ? "Increase By"
+                              : bidAction === "decrease"
+                              ? "Decrease By"
+                              : "Set To"}
+                          </span>
+                        </div>
+
+                        {(bidAction === "increase" ||
+                          bidAction === "decrease") && (
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Unit:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {bidUnit === "percent"
+                                ? "Percentage (%)"
+                                : "Amount ($)"}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            Value:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {bidValue}{" "}
+                            {bidUnit === "percent" ? "%" : "$"}
+                          </span>
+                        </div>
+
+                        {bidAction === "increase" && upperLimit && (
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Upper Limit:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              ${upperLimit}
+                            </span>
+                          </div>
+                        )}
+
+                        {bidAction === "decrease" && lowerLimit && (
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Lower Limit:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              ${lowerLimit}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-[12.16px] text-[#556179]">
+                          New Status:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {pendingStatusAction
+                            ? pendingStatusAction.charAt(0).toUpperCase() +
+                              pendingStatusAction.slice(1)
+                            : ""}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Action Buttons */}
                   <div className="flex justify-end gap-3">

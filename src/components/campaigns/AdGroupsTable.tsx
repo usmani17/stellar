@@ -32,7 +32,7 @@ interface AdGroupsTableProps {
   inlineEditLoading?: Set<number>;
   pendingChange?: {
     id: number;
-    field: "status" | "name";
+    field: "status" | "default_bid" | "name";
     newValue: string;
     oldValue: string;
   } | null;
@@ -263,6 +263,19 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                     </div>
                   </th>
 
+                  {/* Default Bid Header */}
+                  <th
+                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                    onClick={() => onSort?.("default_bid")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Default Bid
+                      {getSortIcon("default_bid")}
+                    </div>
+                  </th>
+
                   {/* CTR Header */}
                   <th
                     className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
@@ -380,6 +393,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         <td className="py-[10px] px-[10px]"></td>
                       </>
                     )}
+                    <td className="py-[10px] px-[10px]"></td>
                     <td className="py-[10px] px-[10px]"></td>
                     <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {summary.total_impressions > 0
@@ -678,6 +692,83 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                             }}
                           >
                             <StatusBadge status={adgroup.status} />
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Default Bid */}
+                      <td className="py-[10px] px-[10px]">
+                        {inlineEditLoading.has(adgroup.id) ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {pendingChange?.field === "default_bid"
+                                ? pendingChange.newValue.startsWith("$")
+                                  ? pendingChange.newValue
+                                  : `$${parseFloat(pendingChange.newValue || "0").toLocaleString(undefined, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}`
+                                : adgroup.default_bid || "$0.00"}
+                            </span>
+                            <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        ) : pendingChange?.id === adgroup.id &&
+                          pendingChange?.field === "default_bid" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              {pendingChange.newValue.startsWith("$")
+                                ? pendingChange.newValue
+                                : `$${parseFloat(pendingChange.newValue || "0").toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}`}
+                            </span>
+                          </div>
+                        ) : editingField?.id === adgroup.id &&
+                          editingField?.field === "default_bid" ? (
+                          <div className="flex items-center">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={editedValue?.replace(/[^0-9.]/g, "") || ""}
+                              onChange={(e) => onEditChange?.(e.target.value)}
+                              onBlur={(e) => {
+                                const inputValue = e.target.value;
+                                onEditEnd?.(inputValue);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.currentTarget.blur();
+                                } else if (e.key === "Escape") {
+                                  onEditCancel?.();
+                                }
+                              }}
+                              className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
+                              autoFocus
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                              isArchived
+                                ? "cursor-not-allowed opacity-60"
+                                : "cursor-pointer hover:underline"
+                            }`}
+                            onClick={() => {
+                              if (!isArchived) {
+                                const currentBid = adgroup.default_bid
+                                  ? adgroup.default_bid.replace(/[^0-9.]/g, "")
+                                  : "0";
+                                onEditStart?.(
+                                  adgroup.id,
+                                  "default_bid",
+                                  currentBid
+                                );
+                              }
+                            }}
+                          >
+                            {adgroup.default_bid || "$0.00"}
                           </div>
                         )}
                       </td>
