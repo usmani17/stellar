@@ -28,9 +28,9 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({
         cursor-pointer
         shadow-sm hover:shadow-md
         transform hover:scale-[1.01]
+        font-poppins font-normal
         ${className}
       `}
-      className="font-poppins font-normal"
       {...props}
     >
       <div className="w-8 h-8 relative shrink-0">
@@ -60,8 +60,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({
         </svg>
       </div>
       <span
-        className="justify-center text-black text-base font-normal"
-        className="font-poppins"
+        className="justify-center text-black text-base font-normal font-poppins"
       >
         {children || "Continue with Google"}
       </span>

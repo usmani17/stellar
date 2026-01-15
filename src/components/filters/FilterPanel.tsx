@@ -28,8 +28,10 @@ export interface FilterItem {
     | "asin"
     | "adGroupId"
     | "keywordText"
+    | "keyword_text"
+    | "match_type"
     | "expression";
-  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, expression
+  operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, keyword_text, match_type, expression
   value: string | number | string[]; // Support arrays for multi-select fields (type, state, profile_name)
 }
 
@@ -91,6 +93,7 @@ const TIKTOK_TYPE_OPTIONS = [
 ];
 const TARGETING_TYPE_OPTIONS = ["AUTO", "MANUAL"];
 const STATUS_OPTIONS = ["ENABLED", "PAUSED", "REMOVED"];
+const MATCH_TYPE_OPTIONS = ["EXACT", "PHRASE", "BROAD"];
 // Expression types supported for negative targets
 const EXPRESSION_TYPE_OPTIONS = [
   { value: "ASIN_BRAND_SAME_AS", label: "ASIN Brand Same As" },
@@ -308,7 +311,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             firstField === "ctr" ||
             firstField === "bid" ||
             firstField === "adgroup_name" ||
-            firstField === "keywordText");
+            firstField === "keywordText" ||
+            firstField === "keyword_text");
 
         if (needsOp) {
           // For string fields, use "contains", for numeric use "eq"
@@ -380,6 +384,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         selectedField === "asin" ||
         selectedField === "adGroupId" ||
         selectedField === "keywordText" ||
+        selectedField === "keyword_text" ||
         selectedField === "expression") &&
       !selectedOperator
     ) {
@@ -433,24 +438,25 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       // Don't auto-select for profile dropdown
       const isProfileDropdownField =
         nextField === "profile_name" && channelType === "amazon";
-      const needsOp =
-        !isProfileDropdownField &&
-        (nextField === "campaign_name" ||
-          nextField === "budget" ||
-          nextField === "profile_name" ||
-          nextField === "account_name" ||
-          nextField === "name" ||
-          nextField === "default_bid" ||
-          nextField === "spends" ||
-          nextField === "sales" ||
-          nextField === "ctr" ||
-          nextField === "bid" ||
-          nextField === "adgroup_name" ||
-          nextField === "sku" ||
-          nextField === "adId" ||
-          nextField === "asin" ||
-          nextField === "adGroupId" ||
-          nextField === "keywordText");
+        const needsOp =
+          !isProfileDropdownField &&
+          (nextField === "campaign_name" ||
+            nextField === "budget" ||
+            nextField === "profile_name" ||
+            nextField === "account_name" ||
+            nextField === "name" ||
+            nextField === "default_bid" ||
+            nextField === "spends" ||
+            nextField === "sales" ||
+            nextField === "ctr" ||
+            nextField === "bid" ||
+            nextField === "adgroup_name" ||
+            nextField === "sku" ||
+            nextField === "adId" ||
+            nextField === "asin" ||
+            nextField === "adGroupId" ||
+            nextField === "keywordText" ||
+            nextField === "keyword_text");
 
       if (needsOp) {
         // For string fields, use "contains", for numeric use "eq"
@@ -556,6 +562,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     "asin",
     "adGroupId",
     "keywordText",
+    "keyword_text",
     "expression",
     "budget",
     "default_bid",
@@ -578,7 +585,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const isStateOrType = selectedField === "state" || selectedField === "type";
   const isTargetingType = selectedField === "targeting_type";
   const isStatusOrChannelType =
-    selectedField === "status" || selectedField === "advertising_channel_type";
+    selectedField === "status" ||
+    selectedField === "advertising_channel_type" ||
+    selectedField === "match_type";
   const isAssetType = selectedField === "assetType";
   const isExpression = selectedField === "expression";
 
@@ -658,7 +667,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     value === "adId" ||
                     value === "asin" ||
                     value === "adGroupId" ||
-                    value === "keywordText"
+                    value === "keywordText" ||
+                    value === "keyword_text"
                   ) {
                     setSelectedOperator(STRING_OPERATORS[0]?.value || "");
                   } else if (
@@ -695,7 +705,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   selectedField === "sku" ||
                   selectedField === "adId" ||
                   selectedField === "asin" ||
-                  selectedField === "adGroupId"
+                  selectedField === "adGroupId" ||
+                  selectedField === "keywordText" ||
+                  selectedField === "keyword_text" ||
+                  selectedField === "expression"
                     ? STRING_OPERATORS.map((op) => ({
                         value: op.value,
                         label: op.label,
@@ -891,16 +904,23 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 </div>
               ) : isStatusOrChannelType ? (
                 <Dropdown<string>
-                  options={(selectedField === "status"
-                    ? STATUS_OPTIONS
-                    : CHANNEL_TYPE_OPTIONS
+                  options={(
+                    selectedField === "status"
+                      ? STATUS_OPTIONS
+                      : selectedField === "match_type"
+                      ? MATCH_TYPE_OPTIONS
+                      : CHANNEL_TYPE_OPTIONS
                   ).map((opt) => ({
                     value: opt,
                     label: opt,
                   }))}
                   value={filterValue || undefined}
                   placeholder={`Select ${
-                    selectedField === "status" ? "Status" : "Channel Type"
+                    selectedField === "status"
+                      ? "Status"
+                      : selectedField === "match_type"
+                      ? "Match Type"
+                      : "Channel Type"
                   }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"

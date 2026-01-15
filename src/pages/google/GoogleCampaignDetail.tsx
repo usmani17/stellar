@@ -1326,7 +1326,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         
         const summaryMessage = summaryParts.join("\n\n");
         
-        // Don't set submitError - errors are shown in modal
+        // Close panel and show error modal
+        setIsCreateSearchEntitiesPanelOpen(false);
+        setCreateSearchEntitiesError(null);
         setErrorModal({
           isOpen: true,
           title: "Creation Summary",
@@ -1360,7 +1362,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create ad group. Please try again.";
-      // Don't set submitError - errors are shown in modal
+      // Close panel and show error modal
+      setIsCreateSearchEntitiesPanelOpen(false);
+      setCreateSearchEntitiesError(null);
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1456,7 +1460,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create ad. Please try again.";
-      // Don't set submitError - errors are shown in modal
+      // Close panel and show error modal
+      setIsCreateSearchEntitiesPanelOpen(false);
+      setCreateSearchEntitiesError(null);
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1518,7 +1524,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         
         const summaryMessage = summaryParts.join("\n\n");
         
-        // Don't set submitError - errors are shown in modal
+        // Close panel and show error modal
+        setIsCreateSearchEntitiesPanelOpen(false);
+        setCreateSearchEntitiesError(null);
         setErrorModal({
           isOpen: true,
           title: "Creation Summary",
@@ -1552,7 +1560,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create keywords. Please try again.";
-      // Don't set submitError - errors are shown in modal
+      // Close panel and show error modal
+      setIsCreateSearchEntitiesPanelOpen(false);
+      setCreateSearchEntitiesError(null);
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1589,7 +1599,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       );
 
       if (response.error) {
-        setCreatePmaxAssetGroupError(response.error);
+        // Close panel and show error modal
+        setIsCreatePmaxAssetGroupPanelOpen(false);
+        setCreatePmaxAssetGroupError(null);
         setErrorModal({
           isOpen: true,
           title: "Error",
@@ -1616,7 +1628,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create asset group. Please try again.";
-      setCreatePmaxAssetGroupError(errorMessage);
+      // Close panel and show error modal
+      setIsCreatePmaxAssetGroupPanelOpen(false);
+      setCreatePmaxAssetGroupError(null);
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1663,7 +1677,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       );
 
       if (response.error) {
-        setCreateShoppingEntitiesError(response.error);
+        // Close panel and show error modal
+        setIsCreateShoppingEntitiesPanelOpen(false);
+        setCreateShoppingEntitiesError(null);
         setErrorModal({
           isOpen: true,
           title: "Error",
@@ -1691,7 +1707,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create ad group. Please try again.";
-      setCreateShoppingEntitiesError(errorMessage);
+      // Close panel and show error modal
+      setIsCreateShoppingEntitiesPanelOpen(false);
+      setCreateShoppingEntitiesError(null);
       setErrorModal({
         isOpen: true,
         title: "Error",
@@ -1728,7 +1746,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       );
 
       if (response.error) {
-        setCreateShoppingEntitiesError(response.error);
+        // Close panel and show error modal
+        setIsCreateShoppingEntitiesPanelOpen(false);
+        setCreateShoppingEntitiesError(null);
         setErrorModal({
           isOpen: true,
           title: "Error",
@@ -1763,7 +1783,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.response?.data?.error ||
         error.message ||
         "Failed to create entities. Please try again.";
-      setCreateShoppingEntitiesError(errorMessage);
+      // Close panel and show error modal
+      setIsCreateShoppingEntitiesPanelOpen(false);
+      setCreateShoppingEntitiesError(null);
       setErrorModal({
         isOpen: true,
         title: "Error",

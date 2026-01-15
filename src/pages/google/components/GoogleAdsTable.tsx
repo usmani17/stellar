@@ -60,8 +60,16 @@ export interface GoogleAdsTableProps<T = any> {
     total_sales: number;
     total_impressions: number;
     total_clicks: number;
+    total_conversions?: number;
+    total_interactions?: number;
+    total_budget?: number;
     avg_acos: number;
     avg_roas: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_interaction_rate?: number;
+    avg_cost?: number;
+    avg_cpc?: number;
   } | null;
   columns: ColumnDefinition[];
   getId: (row: T) => string | number;
@@ -130,16 +138,16 @@ export function GoogleAdsTable<T = any>({
     const hasPendingChange = pendingChange?.itemId === itemId;
     const value = column.getValue(row);
 
-    // If custom render function provided, use it
-    if (column.render) {
-      return column.render(value, row);
+    // Handle editing state first (before custom render) so editable cells work properly
+    if (isEditing && column.editable) {
+      return renderEditableCell(column, value, row, itemId);
     }
 
     // Handle updating state
     if (isUpdating) {
       return (
         <div className="flex items-center gap-2">
-          {renderValue(column, value)}
+          {column.render ? column.render(value, row) : renderValue(column, value)}
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
         </div>
       );
@@ -149,7 +157,7 @@ export function GoogleAdsTable<T = any>({
     if (hasPendingChange) {
       return (
         <div className="flex items-center gap-2">
-          {renderValue(column, pendingChange.newValue)}
+          {column.render ? column.render(pendingChange.newValue, row) : renderValue(column, pendingChange.newValue)}
           <div className="flex items-center gap-1">
             <button
               onClick={() => onConfirmChange(itemId, column.key, pendingChange.newValue)}
@@ -174,13 +182,8 @@ export function GoogleAdsTable<T = any>({
       );
     }
 
-    // Handle editing state
-    if (isEditing && column.editable) {
-      return renderEditableCell(column, value, row, itemId);
-    }
-
     // Default render
-    const cellContent = renderValue(column, value);
+    const cellContent = column.render ? column.render(value, row) : renderValue(column, value);
     const isClickable = column.editable && !isEditing && !isPanelOpen; // Disable editing when panel is open
 
     if (column.navigateTo) {
@@ -224,6 +227,20 @@ export function GoogleAdsTable<T = any>({
   const renderValue = (column: ColumnDefinition, value: any): React.ReactNode => {
     switch (column.type) {
       case "status":
+        // Special handling for match_type to show as purple text instead of badge
+        if (column.key === "match_type") {
+          const matchTypeMap: Record<string, string> = {
+            EXACT: "Exact",
+            PHRASE: "Phrase",
+            BROAD: "Broad",
+          };
+          const label = matchTypeMap[value] || value || "—";
+          return (
+            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff] pointer-events-none">
+              {label}
+            </span>
+          );
+        }
         return getStatusBadge(value || "ENABLED");
       case "currency":
       case "budget":
@@ -460,6 +477,9 @@ export function GoogleAdsTable<T = any>({
                         summaryValue = (summary?.total_impressions || 0).toLocaleString();
                       } else if (column.key === "clicks") {
                         summaryValue = (summary?.total_clicks || 0).toLocaleString();
+                      } else if (column.key === "budget") {
+                        // Use total budget from summary
+                        summaryValue = formatCurrency(summary?.total_budget || 0);
                       } else if (column.key === "acos") {
                         summaryValue = `${(summary?.avg_acos || 0).toFixed(2)}%`;
                       } else if (column.key === "roas") {
@@ -470,12 +490,43 @@ export function GoogleAdsTable<T = any>({
                           ? (summary?.total_clicks / summary?.total_impressions) * 100 
                           : 0;
                         summaryValue = `${avgCtr.toFixed(2)}%`;
-                      } else if (column.key === "cpc") {
-                        // Calculate average CPC from summary
-                        const avgCpc = summary?.total_clicks > 0 
-                          ? summary?.total_spends / summary?.total_clicks 
-                          : 0;
-                        summaryValue = formatCurrency(avgCpc);
+                      } else if (column.key === "cpc" || column.key === "avg_cpc") {
+                        // Use avg_cpc from summary
+                        summaryValue = summary?.avg_cpc !== undefined
+                          ? formatCurrency(summary.avg_cpc)
+                          : formatCurrency(0);
+                      } else if (column.key === "conversions") {
+                        // Use total conversions from summary
+                        summaryValue = (summary?.total_conversions || 0).toLocaleString();
+                      } else if (column.key === "conversion_rate") {
+                        // Use avg conversion rate from summary
+                        summaryValue = summary?.avg_conversion_rate !== undefined 
+                          ? `${summary.avg_conversion_rate.toFixed(2)}%`
+                          : "0.00%";
+                      } else if (column.key === "cost_per_conversion") {
+                        // Use avg cost per conversion from summary
+                        summaryValue = summary?.avg_cost_per_conversion !== undefined
+                          ? formatCurrency(summary.avg_cost_per_conversion)
+                          : formatCurrency(0);
+                      } else if (column.key === "interaction_rate") {
+                        // Use avg interaction rate from summary
+                        summaryValue = summary?.avg_interaction_rate !== undefined
+                          ? `${summary.avg_interaction_rate.toFixed(2)}%`
+                          : "0.00%";
+                      } else if (column.key === "avg_cost") {
+                        // Use avg cost from summary
+                        summaryValue = summary?.avg_cost !== undefined
+                          ? formatCurrency(summary.avg_cost)
+                          : formatCurrency(0);
+                      } else if (
+                        column.key === "start_date" ||
+                        column.key === "end_date" ||
+                        column.key === "bidding_strategy_type" ||
+                        column.key === "advertising_channel_type" ||
+                        column.key === "status"
+                      ) {
+                        // Show "—" for date, type, bidding strategy, and status columns in total row
+                        summaryValue = "—";
                       }
                       
                       return (

@@ -19,6 +19,10 @@ export const useChannels = (accountId: number | undefined) => {
     enabled: !!accountId, // Only run query if accountId is provided
     staleTime: 5 * 60 * 1000, // 5 minutes - same as global config
     gcTime: 10 * 60 * 1000, // 10 minutes - same as global config
+    // Refetch on mount if data is stale (after staleTime)
+    refetchOnMount: true,
+    // Refetch on window focus if data is stale
+    refetchOnWindowFocus: true,
   });
 };
 
