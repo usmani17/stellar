@@ -186,7 +186,9 @@ export function GoogleAdsTable<T = any>({
     const cellContent = column.render ? column.render(value, row) : renderValue(column, value);
     const isClickable = column.editable && !isEditing && !isPanelOpen; // Disable editing when panel is open
 
-    if (column.navigateTo) {
+    // Only wrap in button if no custom render function is provided
+    // Custom render functions should handle their own navigation/click handling
+    if (column.navigateTo && !column.render) {
       const navPath = column.navigateTo(row, accountId);
       if (navPath) {
         return (
@@ -270,6 +272,32 @@ export function GoogleAdsTable<T = any>({
   };
 
   const renderEditableCell = (column: ColumnDefinition, value: any, row: T, itemId: string | number): React.ReactNode => {
+    // If column has statusOptions, show dropdown (for status, bidding_strategy_type, etc.)
+    if (column.statusOptions && column.statusOptions.length > 0) {
+      // Use wider width for bidding strategy (longer labels)
+      const dropdownWidth = column.key === "bidding_strategy_type" ? "w-[220px]" : "w-[120px]";
+      return (
+        <div className="relative w-full z-[100000]">
+          <Dropdown
+            options={column.statusOptions}
+            value={editedValue}
+            onChange={(val) => {
+              const newValue = val as string;
+              onInlineEditChange(newValue);
+              onConfirmInlineEdit(newValue, column.key);
+            }}
+            defaultOpen={true}
+            closeOnSelect={true}
+            buttonClassName="w-full text-[13.3px] px-2 py-1 min-w-0"
+            width={dropdownWidth}
+            align="left"
+            className="w-full"
+            menuClassName="z-[100000]"
+          />
+        </div>
+      );
+    }
+
     switch (column.type) {
       case "status":
         return (

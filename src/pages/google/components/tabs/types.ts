@@ -41,6 +41,19 @@ export interface GoogleKeyword {
   adgroup_name?: string;
 }
 
+export interface GoogleNegativeKeyword {
+  id: number;
+  criterion_id: string;
+  keyword_text?: string;
+  match_type?: string;
+  status?: string;
+  level?: "campaign" | "adgroup";
+  campaign_id?: string;
+  campaign_name?: string;
+  adgroup_id?: string;
+  adgroup_name?: string;
+}
+
 export type FilterValues = Array<{
   field: string;
   operator: string;

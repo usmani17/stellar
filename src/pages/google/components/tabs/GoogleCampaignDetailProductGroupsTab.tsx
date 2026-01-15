@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
+import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 
 interface GoogleProductGroup {
   id: number;
   product_group_id: number;
+  ad_id?: number; // ad_id from ads table (used for API calls)
   product_group_name?: string;
   product_group_type?: string;
   status?: string;
@@ -44,6 +46,7 @@ interface GoogleCampaignDetailProductGroupsTabProps {
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   formatCurrency2Decimals: (value: number | string | undefined) => string;
   formatPercentage: (value: number | string | undefined) => string;
+  onUpdateProductGroupStatus?: (productGroupId: number, status: string) => Promise<void>;
 }
 
 export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetailProductGroupsTabProps> = ({
@@ -70,7 +73,69 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
   getSortIcon,
   formatCurrency2Decimals,
   formatPercentage,
+  onUpdateProductGroupStatus,
 }) => {
+  const [editingProductGroupId, setEditingProductGroupId] = useState<number | null>(null);
+  const [editingStatus, setEditingStatus] = useState<string>("");
+  const [pendingChange, setPendingChange] = useState<{
+    id: number;
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
+  const [updatingProductGroupId, setUpdatingProductGroupId] = useState<number | null>(null);
+
+  const handleStatusClick = (productGroup: GoogleProductGroup) => {
+    if (onUpdateProductGroupStatus) {
+      setEditingProductGroupId(productGroup.id);
+      const currentStatus = (productGroup.status || "ENABLED").toUpperCase();
+      const normalizedStatus = currentStatus === "ENABLE" || currentStatus === "ENABLED" 
+        ? "ENABLED" 
+        : currentStatus === "PAUSE" || currentStatus === "PAUSED"
+        ? "PAUSED"
+        : currentStatus;
+      setEditingStatus(normalizedStatus);
+    }
+  };
+
+  const handleStatusChange = (productGroupId: number, newStatus: string) => {
+    const productGroup = productGroups.find((pg) => pg.id === productGroupId);
+    if (!productGroup) return;
+
+    const oldStatus = (productGroup.status || "ENABLED").toUpperCase();
+    const newStatusUpper = newStatus.toUpperCase();
+
+    if (newStatusUpper !== oldStatus) {
+      setPendingChange({
+        id: productGroupId,
+        newValue: newStatusUpper,
+        oldValue: oldStatus,
+      });
+    }
+    setEditingProductGroupId(null);
+    setEditingStatus("");
+  };
+
+  const confirmChange = async () => {
+    if (!pendingChange || !onUpdateProductGroupStatus) return;
+
+    setUpdatingProductGroupId(pendingChange.id);
+    try {
+      await onUpdateProductGroupStatus(pendingChange.id, pendingChange.newValue);
+      setPendingChange(null);
+    } catch (error) {
+      console.error("Failed to update product group status:", error);
+      alert("Failed to update product group status. Please try again.");
+    } finally {
+      setUpdatingProductGroupId(null);
+    }
+  };
+
+  const cancelChange = () => {
+    setPendingChange(null);
+    setEditingProductGroupId(null);
+    setEditingStatus("");
+  };
+
   return (
     <>
       {/* Sync Message */}
@@ -276,7 +341,81 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                         </span>
                       </td>
                       <td className="py-[10px] px-[10px] hidden md:table-cell">
-                        {productGroup.status && <StatusBadge status={productGroup.status} />}
+                        {updatingProductGroupId === productGroup.id && pendingChange ? (
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={pendingChange.newValue} />
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                          </div>
+                        ) : pendingChange?.id === productGroup.id ? (
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={pendingChange.newValue} />
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={confirmChange}
+                                className="p-1 hover:bg-green-50 rounded transition-colors"
+                                title="Confirm"
+                              >
+                                <svg
+                                  className="w-4 h-4 text-green-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={cancelChange}
+                                className="p-1 hover:bg-red-50 rounded transition-colors"
+                                title="Cancel"
+                              >
+                                <svg
+                                  className="w-4 h-4 text-red-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        ) : editingProductGroupId === productGroup.id && onUpdateProductGroupStatus ? (
+                          <div className="relative z-[100000]">
+                            <Dropdown
+                              options={[
+                                { value: "ENABLED", label: "Enabled" },
+                                { value: "PAUSED", label: "Paused" },
+                              ]}
+                              value={editingStatus}
+                              onChange={(val) => {
+                                const newValue = val as string;
+                                handleStatusChange(productGroup.id, newValue);
+                              }}
+                              defaultOpen={true}
+                              closeOnSelect={true}
+                              buttonClassName="text-[13.3px] px-2 py-1 min-w-0"
+                              width="w-[100px]"
+                            />
+                          </div>
+                        ) : productGroup.status ? (
+                          <div
+                            onClick={() => handleStatusClick(productGroup)}
+                            className={onUpdateProductGroupStatus ? "cursor-pointer" : ""}
+                          >
+                            <StatusBadge status={productGroup.status} />
+                          </div>
+                        ) : null}
                       </td>
                       <td className="py-[10px] px-[10px] hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">

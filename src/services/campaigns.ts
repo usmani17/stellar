@@ -2697,12 +2697,13 @@ export const campaignsService = {
     accountId: number,
     payload: {
       campaignIds: Array<string | number>;
-      action: "name" | "status" | "budget" | "start_date" | "end_date";
+      action: "name" | "status" | "budget" | "start_date" | "end_date" | "bidding_strategy";
       name?: string;
       status?: "ENABLED" | "PAUSED" | "REMOVED";
       budget?: number;
       start_date?: string;
       end_date?: string;
+      bidding_strategy_type?: string;
       budgetAction?: "increase" | "decrease" | "set";
       unit?: "percent" | "amount";
       value?: number;
@@ -2712,6 +2713,26 @@ export const campaignsService = {
   ) => {
     const url = `/accounts/${accountId}/google-campaigns/bulk-update/`;
     const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  updateGooglePmaxAssetGroup: async (
+    accountId: number,
+    campaignId: string | number,
+    assetData: {
+      asset_group_name?: string;
+      final_url?: string;
+      headlines?: string[];
+      descriptions?: string[];
+      long_headline?: string;
+      marketing_image_url?: string;
+      square_marketing_image_url?: string;
+      business_name?: string;
+      logo_url?: string;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/update-asset-group/`;
+    const response = await api.post(url, assetData);
     return response.data;
   },
 
@@ -3399,6 +3420,8 @@ export const campaignsService = {
       adIds: Array<string | number>;
       action: "status";
       status?: "ENABLED" | "PAUSED" | "REMOVED";
+      campaignId?: string;  // Optional: filter by campaign (for product groups)
+      adGroupId?: string;  // Optional: filter by ad group (for product groups)
     }
   ) => {
     const url = `/accounts/${accountId}/google-ads/bulk-update/`;
