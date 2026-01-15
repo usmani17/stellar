@@ -142,6 +142,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const isInitialMountRef = useRef(true);
+  const profilesLoadedRef = useRef(false);
+  const loadingProfilesRef = useRef(false);
 
   // Only sync on initial mount, not on every prop change
   // This prevents infinite loops - parent component manages filter state
@@ -156,7 +158,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const loadProfiles = useCallback(async () => {
     if (!accountId || channelType !== "amazon") return;
 
+    // Prevent concurrent requests
+    if (loadingProfilesRef.current) return;
+
+    // If already loaded, don't reload
+    if (profilesLoadedRef.current) return;
+
     try {
+      loadingProfilesRef.current = true;
       setLoadingProfiles(true);
       // Get channels for the account
       const channels = await accountsService.getAccountChannels(
@@ -189,35 +198,44 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         });
 
         setProfileOptions(options);
+        profilesLoadedRef.current = true;
       }
     } catch (error) {
       console.error("Failed to load profiles:", error);
       setProfileOptions([]);
+      profilesLoadedRef.current = false;
     } finally {
       setLoadingProfiles(false);
+      loadingProfilesRef.current = false;
     }
   }, [accountId, channelType]);
 
-  // Preload profiles when panel opens (if Amazon channel)
+  // Reset loaded flag when account or channel changes
+  useEffect(() => {
+    profilesLoadedRef.current = false;
+    setProfileOptions([]);
+  }, [accountId, channelType]);
+
+  // Preload profiles when panel opens (if Amazon channel) - only once
   useEffect(() => {
     if (
       isOpen &&
       accountId &&
       channelType === "amazon" &&
-      profileOptions.length === 0
+      !profilesLoadedRef.current &&
+      !loadingProfilesRef.current
     ) {
       loadProfiles();
     }
-  }, [isOpen, accountId, channelType, loadProfiles, profileOptions.length]);
+  }, [isOpen, accountId, channelType, loadProfiles]);
 
   // Fetch profiles immediately when profile_name is selected
   useEffect(() => {
     const isProfileDropdown =
       selectedField === "profile_name" && channelType === "amazon";
 
-    // If not profile dropdown, clear options and return
+    // If not profile dropdown, don't clear options (keep them for when user switches back)
     if (!isProfileDropdown) {
-      setProfileOptions([]);
       // Clear operator when switching away from profile dropdown
       if (selectedField !== "profile_name") {
         setSelectedOperator("");
@@ -225,11 +243,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       return;
     }
 
-    // Load profiles immediately when profile_name is selected
-    if (profileOptions.length === 0) {
+    // Load profiles immediately when profile_name is selected (if not already loaded)
+    if (!profilesLoadedRef.current && !loadingProfilesRef.current) {
       loadProfiles();
     }
-  }, [selectedField, channelType, loadProfiles, profileOptions.length]);
+  }, [selectedField, channelType, loadProfiles]);
 
   // Clear operator when profiles load and dropdown becomes available
   useEffect(() => {
