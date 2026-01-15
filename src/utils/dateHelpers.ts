@@ -63,7 +63,11 @@ export const parseDateToYYYYMMDD = (dateStr: string | null | undefined): string 
   }
   
   const trimmedDate = dateStr.trim();
-  const parts = trimmedDate.split("-");
+  
+  // Handle ISO format dates (e.g., "2025-12-24T00:00:00" or "2025-12-24T00:00:00Z")
+  // Extract just the date part before 'T' or space
+  const dateOnly = trimmedDate.split(/[T\s]/)[0];
+  const parts = dateOnly.split("-");
   
   // If already in YYYY-MM-DD format, parse manually to avoid timezone issues
   if (parts.length === 3) {

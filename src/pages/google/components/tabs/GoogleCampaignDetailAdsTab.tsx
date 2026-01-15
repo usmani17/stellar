@@ -3,6 +3,7 @@ import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
+import { Button } from "../../../../components/ui";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 import type { GoogleAd } from "./types";
 
@@ -165,35 +166,35 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
               />
             </svg>
           </button>
-          <button
+          <Button
             onClick={onSync}
             disabled={syncing || syncingAnalytics}
-            className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold"
+            className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
           >
             {syncing ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                 Syncing...
               </span>
             ) : (
-              "Sync Ads"
+              <span className="text-[10.64px] text-white font-normal">Sync Ads</span>
             )}
-          </button>
+          </Button>
           {onSyncAnalytics && (
-            <button
+            <Button
               onClick={onSyncAnalytics}
               disabled={syncing || syncingAnalytics}
-              className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] font-semibold ml-2"
+              className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
             >
               {syncingAnalytics ? (
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                   <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                   Syncing Analytics...
                 </span>
               ) : (
-                "Sync Analytics"
+                <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
               )}
-            </button>
+            </Button>
           )}
         </div>
       </div>

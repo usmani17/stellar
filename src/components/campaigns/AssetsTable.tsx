@@ -12,6 +12,23 @@ export interface Asset {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  storageLocationUrls?: {
+    defaultUrl?: string;
+    processedUrls?: {
+      IMAGE_THUMBNAIL_500?: string;
+      MODERATION?: string;
+    };
+  };
+  assetType?: string;
+  name?: string;
+  creationTime?: string;
+  fileMetadata?: {
+    sizeInBytes?: number;
+    contentType?: string;
+    width?: number;
+    height?: number;
+    aspectRatio?: string;
+  };
 }
 
 interface AssetsTableProps {
@@ -105,6 +122,17 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
+  const getThumbnailUrl = (asset: Asset): string | null => {
+    if (!asset.storageLocationUrls) return null;
+
+    // Prefer thumbnail if available, otherwise use default URL
+    const thumbnail =
+      asset.storageLocationUrls.processedUrls?.IMAGE_THUMBNAIL_500;
+    const defaultUrl = asset.storageLocationUrls.defaultUrl;
+
+    return thumbnail || defaultUrl || null;
+  };
+
   return (
     <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
       <div className="overflow-x-auto w-full">
@@ -129,6 +157,9 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                     />
                   </th>
                 )}
+                <th className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left">
+                  Preview
+                </th>
                 <th
                   className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("assetId")}
@@ -175,75 +206,153 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left">
-                  Created At
+                  Created
                 </th>
               </tr>
             </thead>
             <tbody>
-              {assets.map((asset) => (
-                <tr
-                  key={asset.id}
-                  className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
-                >
-                  {onSelect && (
+              {assets.map((asset) => {
+                const thumbnailUrl = getThumbnailUrl(asset);
+                const isImage =
+                  asset.assetType === "IMAGE" ||
+                  asset.contentType?.startsWith("image/");
+
+                return (
+                  <tr
+                    key={asset.id}
+                    className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
+                  >
+                    {onSelect && (
+                      <td className="py-[10px] px-[10px]">
+                        <Checkbox
+                          checked={selectedIds.has(asset.id)}
+                          onChange={(checked) =>
+                            handleSelect(asset.id, checked)
+                          }
+                        />
+                      </td>
+                    )}
                     <td className="py-[10px] px-[10px]">
-                      <Checkbox
-                        checked={selectedIds.has(asset.id)}
-                        onChange={(checked) => handleSelect(asset.id, checked)}
-                      />
-                    </td>
-                  )}
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                    <div className="flex items-center gap-2">
-                      {asset.assetId && onPreview && (
-                        <button
-                          onClick={() => onPreview(asset.assetId!)}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
-                          title="Preview asset"
-                        >
-                          <svg
-                            className="w-4 h-4 text-[#136D6D]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                            />
-                          </svg>
-                        </button>
+                      {thumbnailUrl && isImage ? (
+                        <div className="flex items-center justify-center relative">
+                          <img
+                            src={thumbnailUrl}
+                            alt={
+                              asset.name || asset.fileName || "Asset preview"
+                            }
+                            className="w-12 h-12 object-cover rounded border border-[#e8e8e3] cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => onPreview?.(asset.assetId!)}
+                            onError={(e) => {
+                              // Hide image and show placeholder on error
+                              const img = e.currentTarget;
+                              img.style.display = "none";
+                              const placeholder =
+                                img.parentElement?.querySelector(
+                                  ".thumbnail-placeholder"
+                                );
+                              if (placeholder) {
+                                placeholder.classList.remove("hidden");
+                              }
+                            }}
+                          />
+                          <div className="hidden thumbnail-placeholder w-12 h-12 bg-gray-100 border border-[#e8e8e3] rounded flex items-center justify-center absolute inset-0">
+                            <svg
+                              className="w-6 h-6 text-gray-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      ) : thumbnailUrl && asset.assetType === "VIDEO" ? (
+                        <div className="flex items-center justify-center">
+                          <div className="w-12 h-12 bg-gray-100 border border-[#e8e8e3] rounded flex items-center justify-center relative group">
+                            <svg
+                              className="w-6 h-6 text-gray-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <button
+                              onClick={() => onPreview?.(asset.assetId!)}
+                              className="absolute inset-0 flex items-center justify-center hover:bg-black hover:bg-opacity-20 rounded transition-colors"
+                              title="Preview video"
+                            >
+                              <svg
+                                className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center">
+                          <div className="w-12 h-12 bg-gray-100 border border-[#e8e8e3] rounded flex items-center justify-center">
+                            <svg
+                              className="w-6 h-6 text-gray-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                          </div>
+                        </div>
                       )}
-                      <span>{asset.assetId || "—"}</span>
-                    </div>
-                  </td>
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                    {asset.fileName || "—"}
-                  </td>
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                    {asset.mediaType || "—"}
-                  </td>
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                    {formatFileSize(asset.fileSize)}
-                  </td>
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                    {asset.contentType || "—"}
-                  </td>
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                    {asset.createdAt
-                      ? new Date(asset.createdAt).toLocaleString()
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <div className="flex items-center gap-2">
+                        <span>{asset.assetId || "—"}</span>
+                      </div>
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {asset.name || asset.fileName || "—"}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {asset.assetType || asset.mediaType || "—"}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {formatFileSize(
+                        asset.fileSize || asset.fileMetadata?.sizeInBytes
+                      )}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {asset.contentType ||
+                        asset.fileMetadata?.contentType ||
+                        "—"}
+                    </td>
+                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      {asset.createdAt || asset.creationTime
+                        ? new Date(
+                            asset.createdAt || asset.creationTime!
+                          ).toLocaleString()
+                        : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -251,6 +360,3 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
     </div>
   );
 };
-
-
-

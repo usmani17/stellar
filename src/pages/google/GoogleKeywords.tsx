@@ -648,7 +648,8 @@ export const GoogleKeywords: React.FC = () => {
         cancelInlineEdit();
         return;
       }
-      hasChanged = Math.abs(newBid - oldBid) > 0.01;
+      // Use a smaller threshold (0.001) to detect small bid changes like 0.02 to 0.03
+      hasChanged = Math.abs(newBid - oldBid) > 0.001;
     } else if (editingCell.field === "status") {
       const oldValue = (keyword.status || "ENABLED").trim();
       const newValue = valueToCheck.trim();
@@ -702,7 +703,8 @@ export const GoogleKeywords: React.FC = () => {
       setInlineEditKeyword(keyword);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(formatCurrency(oldBid));
-      setInlineEditNewValue(formatCurrency(newBid));
+      // Store raw numeric value for API call, but format for display in modal
+      setInlineEditNewValue(newBid.toString());
       setShowInlineEditModal(true);
       setEditingCell(null);
       return;
@@ -764,10 +766,9 @@ export const GoogleKeywords: React.FC = () => {
           throw new Error(response.errors[0]);
         }
       } else if (inlineEditField === "bid") {
-        const bidValue = parseFloat(
-          inlineEditNewValue.replace(/[^0-9.]/g, "")
-        );
-        if (isNaN(bidValue)) {
+        // inlineEditNewValue is stored as raw numeric string
+        const bidValue = parseFloat(inlineEditNewValue);
+        if (isNaN(bidValue) || bidValue <= 0) {
           throw new Error("Invalid bid value");
         }
 
@@ -1169,29 +1170,29 @@ export const GoogleKeywords: React.FC = () => {
                 <Button
                   onClick={handleSync}
                   disabled={syncing || syncingAnalytics}
-                  className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px]"
+                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
                 >
                   {syncing ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                       Syncing...
                     </span>
                   ) : (
-                    "Sync Keywords"
+                    <span className="text-[10.64px] text-white font-normal">Sync Keywords</span>
                   )}
                 </Button>
                 <Button
                   onClick={handleSyncAnalytics}
                   disabled={syncing || syncingAnalytics}
-                  className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 text-[10.64px] ml-2"
+                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
                 >
                   {syncingAnalytics ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                       Syncing Analytics...
                     </span>
                   ) : (
-                    "Sync Analytics"
+                    <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
                   )}
                 </Button>
               </div>
@@ -1858,7 +1859,9 @@ export const GoogleKeywords: React.FC = () => {
                               →
                             </span>
                             <span className="text-[12.8px] font-semibold text-[#072929]">
-                              {inlineEditNewValue}
+                              {inlineEditField === "bid"
+                                ? formatCurrency(parseFloat(inlineEditNewValue) || 0)
+                                : inlineEditNewValue}
                             </span>
                           </div>
                         </div>
@@ -1874,7 +1877,7 @@ export const GoogleKeywords: React.FC = () => {
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
                         }}
-                        className="px-4 py-2 bg-background-field border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
                       >
                         Cancel
                       </button>
@@ -1882,7 +1885,7 @@ export const GoogleKeywords: React.FC = () => {
                         type="button"
                         onClick={runInlineEdit}
                         disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>

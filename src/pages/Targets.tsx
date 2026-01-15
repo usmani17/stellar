@@ -1534,6 +1534,11 @@ export const Targets: React.FC = () => {
                           Profile
                         </th>
 
+                        {/* Country */}
+                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[100px]">
+                          Country
+                        </th>
+
                         {/* Type */}
                         <th
                           className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-100`}
@@ -1631,6 +1636,7 @@ export const Targets: React.FC = () => {
                           <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                             Total ({summary.total_targets})
                           </td>
+                          <td className="py-[10px] px-[10px]"></td>
                           <td className="py-[10px] px-[10px]"></td>
                           <td className="py-[10px] px-[10px]"></td>
                           <td className="py-[10px] px-[10px]"></td>
@@ -1858,6 +1864,16 @@ export const Targets: React.FC = () => {
                                 {target.profile_name &&
                                 target.profile_name.trim() !== ""
                                   ? target.profile_name
+                                  : "—"}
+                              </span>
+                            </td>
+
+                            {/* Country */}
+                            <td className="py-[10px] px-[10px] min-w-[100px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                {target.profile_country_code &&
+                                target.profile_country_code.trim() !== ""
+                                  ? target.profile_country_code
                                   : "—"}
                               </span>
                             </td>

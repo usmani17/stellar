@@ -229,6 +229,12 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       Profile
                     </th>
                   )}
+                  {/* Country Header - Only show when not in campaign detail */}
+                  {showCampaignColumn && (
+                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[100px]">
+                      Country
+                    </th>
+                  )}
 
                   {/* Type Header - Only show when not in campaign detail */}
                   {showCampaignColumn && (
@@ -372,9 +378,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         <td className="py-[10px] px-[10px]"></td>
                         <td className="py-[10px] px-[10px]"></td>
                         <td className="py-[10px] px-[10px]"></td>
+                        <td className="py-[10px] px-[10px]"></td>
                       </>
                     )}
-                    <td className="py-[10px] px-[10px]"></td>
                     <td className="py-[10px] px-[10px]"></td>
                     <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {summary.total_impressions > 0
@@ -410,7 +416,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           {summary.avg_acos.toFixed(2)}%
                         </td>
                         <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {summary.avg_roas.toFixed(2)}x
+                          {summary.avg_roas.toFixed(2)} x
                         </td>
                       </>
                     )}
@@ -542,6 +548,15 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         <td className="py-[10px] px-[10px]">
                           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block w-full whitespace-nowrap">
                             {adgroup.profile_name || "—"}
+                          </span>
+                        </td>
+                      )}
+
+                      {/* Country - Only show when not in campaign detail */}
+                      {showCampaignColumn && (
+                        <td className="py-[10px] px-[10px] min-w-[100px]">
+                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                            {adgroup.profile_country_code || "—"}
                           </span>
                         </td>
                       )}
@@ -711,7 +726,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       {showCampaignColumn && (
                         <td className="py-[10px] px-[10px]">
                           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {adgroup.acos || "—"}
+                            {adgroup.acos
+                              ? `${parseFloat(String(adgroup.acos)).toFixed(2)}%`
+                              : "0.00%"}
                           </span>
                         </td>
                       )}
@@ -720,7 +737,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       {showCampaignColumn && (
                         <td className="py-[10px] px-[10px]">
                           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                            {adgroup.roas || "—"}
+                            {adgroup.roas
+                              ? `${parseFloat(String(adgroup.roas)).toFixed(2)} x`
+                              : "0.00 x"}
                           </span>
                         </td>
                       )}

@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
 import type { ColumnDefinition } from "./GoogleAdsTable";
 
@@ -32,6 +33,22 @@ export interface GoogleCampaign {
   cost_per_conversion?: number;
   acos?: number;
   roas?: number;
+  // Extra data (JSONB) - contains shopping_setting, network_settings, etc.
+  extra_data?: {
+    shopping_setting?: {
+      merchant_id?: string;
+      sales_country?: string;
+      campaign_priority?: number;
+      enable_local?: boolean;
+    };
+    network_settings?: {
+      target_google_search?: boolean;
+      target_search_network?: boolean;
+      target_content_network?: boolean;
+      target_partner_search_network?: boolean;
+    };
+    [key: string]: any;
+  };
 }
 
 interface GoogleCampaignsTableProps {
@@ -60,8 +77,16 @@ interface GoogleCampaignsTableProps {
     total_sales: number;
     total_impressions: number;
     total_clicks: number;
+    total_conversions?: number;
+    total_interactions?: number;
+    total_budget?: number;
     avg_acos: number;
     avg_roas: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_interaction_rate?: number;
+    avg_cost?: number;
+    avg_cpc?: number;
   } | null;
   onSelectAll: (checked: boolean) => void;
   onSelectCampaign: (campaignId: string | number, checked: boolean) => void;
@@ -111,6 +136,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
   editLoadingCampaignId,
   isPanelOpen = false,
 }) => {
+  const navigate = useNavigate();
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
     itemId: editingCell.campaignId,
@@ -132,8 +158,16 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
     total_sales: summary.total_sales,
     total_impressions: summary.total_impressions,
     total_clicks: summary.total_clicks,
+    total_conversions: summary.total_conversions,
+    total_interactions: summary.total_interactions,
+    total_budget: summary.total_budget,
     avg_acos: summary.avg_acos,
     avg_roas: summary.avg_roas,
+    avg_conversion_rate: summary.avg_conversion_rate,
+    avg_cost_per_conversion: summary.avg_cost_per_conversion,
+    avg_interaction_rate: summary.avg_interaction_rate,
+    avg_cost: summary.avg_cost,
+    avg_cpc: summary.avg_cpc,
   } : null;
 
   // Define columns for campaigns
@@ -150,16 +184,25 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       navigateTo: (row: GoogleCampaign, accountId: string) => 
         `/accounts/${accountId}/google-campaigns/${row.campaign_id}`,
       getValue: (row: GoogleCampaign) => row.campaign_name || "Unnamed Campaign",
-      render: (value: any, row: GoogleCampaign) => (
+      render: (value: any, row: GoogleCampaign) => {
+        const navPath = `/accounts/${accountId}/google-campaigns/${row.campaign_id}`;
+        return (
         <div className="group relative flex items-center gap-2">
-          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1">
-            {value}
-          </span>
-          {onEditCampaign && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                navigate(navPath);
+              }}
+              className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1 text-left hover:text-[#136d6d] hover:underline cursor-pointer block w-full"
+            >
+              {value}
+            </button>
+            {onEditCampaign && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
                 onEditCampaign(row);
               }}
               className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60 flex-shrink-0"
@@ -186,7 +229,8 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
             </button>
           )}
         </div>
-      ),
+        );
+      },
     },
     {
       key: "account_name",

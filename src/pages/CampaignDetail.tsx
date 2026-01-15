@@ -2,10 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
-import { PerformanceChart } from "../components/charts/PerformanceChart";
 import { KPICard } from "../components/ui/KPICard";
-import { StatusBadge } from "../components/ui/StatusBadge";
-import { Checkbox } from "../components/ui/Checkbox";
 import { useDateRange } from "../contexts/DateRangeContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import {
@@ -17,13 +14,10 @@ import {
   type Target,
   type CampaignDetail,
 } from "../services/campaigns";
-import { AdGroupsTable } from "../components/campaigns/AdGroupsTable";
-import { KeywordsTable } from "../components/campaigns/KeywordsTable";
 import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
 import { SBAdsTable, type SBAd } from "../components/campaigns/SBAdsTable";
 import { AssetsTable, type Asset } from "../components/campaigns/AssetsTable";
 import { AssetPreviewModal } from "../components/campaigns/AssetPreviewModal";
-import { TargetsTable } from "../components/campaigns/TargetsTable";
 import { NegativeKeywordsTable } from "../components/campaigns/NegativeKeywordsTable";
 import { NegativeTargetsTable } from "../components/campaigns/NegativeTargetsTable";
 import { LogsTable } from "../components/campaigns/LogsTable";
@@ -31,19 +25,9 @@ import {
   FilterPanel,
   type FilterValues,
 } from "../components/filters/FilterPanel";
-import { CreateAdGroupSection } from "../components/adgroups/CreateAdGroupSection";
-import {
-  CreateAdGroupPanel,
-  type AdGroupInput,
-} from "../components/adgroups/CreateAdGroupPanel";
-import {
-  CreateKeywordPanel,
-  type KeywordInput,
-} from "../components/keywords/CreateKeywordPanel";
-import {
-  CreateTargetPanel,
-  type TargetInput,
-} from "../components/targets/CreateTargetPanel";
+import { type AdGroupInput } from "../components/adgroups/CreateAdGroupPanel";
+import { type KeywordInput } from "../components/keywords/CreateKeywordPanel";
+import { type TargetInput } from "../components/targets/CreateTargetPanel";
 import {
   CreateNegativeKeywordPanel,
   type NegativeKeywordInput,
@@ -68,6 +52,14 @@ import { ErrorModal } from "../components/ui/ErrorModal";
 import { Tooltip } from "../components/ui/Tooltip";
 import { Button } from "../components/ui";
 import { Dropdown } from "../components/ui/Dropdown";
+import {
+  OverviewTab,
+  AdGroupsTab,
+  KeywordsTab,
+  TargetsTab,
+  NegativeKeywordsTab,
+} from "./campaigns/components/tabs";
+import { CampaignInformation } from "./campaigns/components/CampaignInformation";
 
 export const CampaignDetail: React.FC = () => {
   const { accountId, campaignTypeAndId } = useParams<{
@@ -334,13 +326,17 @@ export const CampaignDetail: React.FC = () => {
   const [createAssetFieldErrors, setCreateAssetFieldErrors] = useState<
     Record<string, string>
   >({});
-  
+
   // Asset preview modal state
   const [isAssetPreviewModalOpen, setIsAssetPreviewModalOpen] = useState(false);
   const [assetPreviewUrl, setAssetPreviewUrl] = useState<string | null>(null);
-  const [assetPreviewContentType, setAssetPreviewContentType] = useState<string | null>(null);
+  const [assetPreviewContentType, setAssetPreviewContentType] = useState<
+    string | null
+  >(null);
   const [assetPreviewLoading, setAssetPreviewLoading] = useState(false);
-  const [assetPreviewError, setAssetPreviewError] = useState<string | null>(null);
+  const [assetPreviewError, setAssetPreviewError] = useState<string | null>(
+    null
+  );
 
   const [targets, setTargets] = useState<Target[]>([]);
   const [targetsLoading, setTargetsLoading] = useState(false);
@@ -433,6 +429,8 @@ export const CampaignDetail: React.FC = () => {
     title?: string;
     isSuccess?: boolean;
     details?: any;
+    fieldErrors?: Record<string, string>;
+    genericErrors?: string[];
   }>({ isOpen: false, message: "" });
   const [createAdGroupLoading, setCreateAdGroupLoading] = useState(false);
   const [createAdGroupError, setCreateAdGroupError] = useState<string | null>(
@@ -517,6 +515,24 @@ export const CampaignDetail: React.FC = () => {
     showNegativeKeywordsConfirmationModal,
     setShowNegativeKeywordsConfirmationModal,
   ] = useState(false);
+
+  // Product Ad inline edit state
+  const [editingProductAdField, setEditingProductAdField] = useState<{
+    id: number;
+    field: "status";
+  } | null>(null);
+  const [editedProductAdValue, setEditedProductAdValue] = useState<string>("");
+  const [pendingProductAdChange, setPendingProductAdChange] = useState<{
+    id: number;
+    field: "status";
+    newValue: string;
+    oldValue: string;
+  } | null>(null);
+  const [productAdEditLoading, setProductAdEditLoading] = useState<Set<number>>(
+    new Set()
+  );
+  const [showProductAdsConfirmationModal, setShowProductAdsConfirmationModal] =
+    useState(false);
 
   // Negative target inline edit state
   const [editingNegativeTargetField, setEditingNegativeTargetField] = useState<{
@@ -664,7 +680,10 @@ export const CampaignDetail: React.FC = () => {
       }
       // Insert Negative Targets right after Negative Keywords if not already present
       const negativeKeywordsIndex = filteredTabs.indexOf("Negative Keywords");
-      if (negativeKeywordsIndex !== -1 && !filteredTabs.includes("Negative Targets")) {
+      if (
+        negativeKeywordsIndex !== -1 &&
+        !filteredTabs.includes("Negative Targets")
+      ) {
         filteredTabs.splice(negativeKeywordsIndex + 1, 0, "Negative Targets");
       }
     } else {
@@ -1887,7 +1906,12 @@ export const CampaignDetail: React.FC = () => {
   const [failedTargets, setFailedTargets] = useState<any[]>([]);
 
   const handleCreateTargets = async (targets: TargetInput[]) => {
-    if (!accountId || !campaignId || (campaignType !== "SP" && campaignType !== "SB")) return;
+    if (
+      !accountId ||
+      !campaignId ||
+      (campaignType !== "SP" && campaignType !== "SB")
+    )
+      return;
 
     setCreateTargetLoading(true);
     setCreateTargetError(null);
@@ -2023,14 +2047,18 @@ export const CampaignDetail: React.FC = () => {
 
       if (error?.response?.data) {
         const errorData = error.response.data;
-        
+
         // Check for field errors first
         if (errorData.field_errors) {
           fieldErrors = errorData.field_errors;
         }
-        
+
         // Check for errors array (plural) - this contains the actual error messages
-        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+        if (
+          errorData.errors &&
+          Array.isArray(errorData.errors) &&
+          errorData.errors.length > 0
+        ) {
           // Use the first error message from the array
           errorMessage = errorData.errors[0];
         } else if (errorData.error) {
@@ -2039,9 +2067,12 @@ export const CampaignDetail: React.FC = () => {
         } else if (errorData.message) {
           errorMessage = errorData.message;
         }
-        
+
         // Extract failed targets if available
-        if (errorData.failed_targets && Array.isArray(errorData.failed_targets)) {
+        if (
+          errorData.failed_targets &&
+          Array.isArray(errorData.failed_targets)
+        ) {
           failedTargetsData = errorData.failed_targets;
         }
       } else if (error?.message) {
@@ -2230,6 +2261,9 @@ export const CampaignDetail: React.FC = () => {
       // Check for partial success
       const created = response.created || 0;
       const failed = response.failed || 0;
+      const failedProductAds = response.failed_productAds || [];
+      const fieldErrors = response.field_errors || {};
+      const errors = response.errors || [];
 
       if (failed === 0) {
         // Complete success - close panel and show success message
@@ -2245,16 +2279,62 @@ export const CampaignDetail: React.FC = () => {
         // Reload product ads to show the new ones
         await loadProductAds();
       } else {
-        // Partial success or all failed - show summary and keep panel open
-        // Show summary popup for partial success
+        // Partial success or all failed - show first error only
+        let errorMessage = "";
         if (created > 0 && failed > 0) {
-          setErrorModal({
-            isOpen: true,
-            title: "Summary",
-            message: `${created} product ad(s) created successfully. ${failed} product ad(s) failed.`,
-            isSuccess: false,
-          });
+          errorMessage = `${created} product ad(s) created successfully. ${failed} product ad(s) failed.`;
+        } else {
+          errorMessage = `Failed to create ${failed} product ad(s).`;
         }
+
+        // Get the first error - prioritize field errors, then generic errors, then failed_productAds errors
+        let firstError: string | undefined = undefined;
+        let firstFieldError: Record<string, string> | undefined = undefined;
+
+        // First, try to get the first field error
+        const fieldErrorEntries = Object.entries(fieldErrors);
+        if (fieldErrorEntries.length > 0) {
+          const [firstFieldKey, firstFieldValue] = fieldErrorEntries[0];
+          firstFieldError = { [firstFieldKey]: firstFieldValue as string };
+          firstError = firstFieldValue as string;
+        }
+
+        // If no field error, get the first generic error from errors array
+        if (
+          !firstError &&
+          errors &&
+          Array.isArray(errors) &&
+          errors.length > 0
+        ) {
+          firstError = errors[0];
+        }
+
+        // If still no error, get the first error from failed_productAds
+        if (!firstError && failedProductAds.length > 0) {
+          const firstFailedAd = failedProductAds[0];
+          if (
+            firstFailedAd.errors &&
+            Array.isArray(firstFailedAd.errors) &&
+            firstFailedAd.errors.length > 0
+          ) {
+            const firstErr = firstFailedAd.errors[0];
+            firstError =
+              firstErr.message || firstErr.errorType || "Unknown error";
+          }
+        }
+
+        // If we still don't have an error, use a default message
+        if (!firstError) {
+          firstError = "An error occurred while creating product ads.";
+        }
+
+        setErrorModal({
+          isOpen: true,
+          title: failed > 0 && created === 0 ? "Error" : "Summary",
+          message: `${errorMessage}\n\n${firstError}`,
+          isSuccess: false,
+          fieldErrors: firstFieldError,
+        });
 
         // Reload product ads even on partial success to show newly created ones
         if (created > 0) {
@@ -2264,13 +2344,56 @@ export const CampaignDetail: React.FC = () => {
     } catch (error: any) {
       console.error("Failed to create product ads:", error);
 
-      // Extract error message
+      // Extract the first error message only
       let errorMessage = "Failed to create product ads. Please try again.";
+      let fieldErrors: Record<string, string> | undefined = undefined;
 
       if (error?.response?.data) {
-        if (error.response.data.error) {
+        // First, try to get the first field error
+        if (error.response.data.field_errors) {
+          const fieldErrorEntries = Object.entries(
+            error.response.data.field_errors
+          );
+          if (fieldErrorEntries.length > 0) {
+            const [firstFieldKey, firstFieldValue] = fieldErrorEntries[0];
+            fieldErrors = { [firstFieldKey]: firstFieldValue as string };
+            errorMessage = firstFieldValue as string;
+          }
+        }
+
+        // If no field error, get the first generic error from errors array
+        if (
+          !fieldErrors &&
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          errorMessage = error.response.data.errors[0];
+        }
+
+        // If still no error, check failed_productAds for the first error
+        if (
+          !fieldErrors &&
+          error.response.data.failed_productAds &&
+          Array.isArray(error.response.data.failed_productAds) &&
+          error.response.data.failed_productAds.length > 0
+        ) {
+          const firstFailedAd = error.response.data.failed_productAds[0];
+          if (
+            firstFailedAd.errors &&
+            Array.isArray(firstFailedAd.errors) &&
+            firstFailedAd.errors.length > 0
+          ) {
+            const firstErr = firstFailedAd.errors[0];
+            errorMessage =
+              firstErr.message || firstErr.errorType || errorMessage;
+          }
+        }
+
+        // If we have a main error message, use it (but only if we don't already have a more specific error)
+        if (!fieldErrors && error.response.data.error) {
           errorMessage = error.response.data.error;
-        } else if (error.response.data.message) {
+        } else if (!fieldErrors && error.response.data.message) {
           errorMessage = error.response.data.message;
         }
       } else if (error?.message) {
@@ -2282,6 +2405,7 @@ export const CampaignDetail: React.FC = () => {
         title: "Error",
         message: errorMessage,
         isSuccess: false,
+        fieldErrors,
       });
     } finally {
       setCreateProductAdLoading(false);
@@ -2694,7 +2818,7 @@ export const CampaignDetail: React.FC = () => {
       }
 
       const formData = new FormData();
-      
+
       // Required fields
       formData.append("assetName", asset.assetName);
       formData.append("assetType", asset.assetType);
@@ -2703,44 +2827,58 @@ export const CampaignDetail: React.FC = () => {
         formData.append("assetSubTypeList", subType);
       });
       formData.append("brandEntityId", asset.brandEntityId);
-      
+
       // Optional fields - only append if provided
       if (asset.asinList && asset.asinList.length > 0) {
         asset.asinList.forEach((asin) => {
           formData.append("asinList", asin);
         });
       }
-      
+
       if (asset.tags && asset.tags.length > 0) {
         asset.tags.forEach((tag) => {
           formData.append("tags", tag);
         });
       }
-      
+
       if (asset.versionInfo) {
-        formData.append("versionInfo[linkedAssetId]", asset.versionInfo.linkedAssetId);
-        if (asset.versionInfo.versionNotes) {
-          formData.append("versionInfo[versionNotes]", asset.versionInfo.versionNotes);
-        }
-      }
-      
-      if (asset.registrationContext) {
         formData.append(
-          "registrationContext[associatedPrograms][0][programName]",
-          asset.registrationContext.associatedPrograms[0]?.programName || "A_PLUS"
+          "versionInfo[linkedAssetId]",
+          asset.versionInfo.linkedAssetId
         );
-        if (asset.registrationContext.associatedPrograms[0]?.metadata?.dspAdvertiserId) {
+        if (asset.versionInfo.versionNotes) {
           formData.append(
-            "registrationContext[associatedPrograms][0][metadata][dspAdvertiserId]",
-            asset.registrationContext.associatedPrograms[0].metadata.dspAdvertiserId
+            "versionInfo[versionNotes]",
+            asset.versionInfo.versionNotes
           );
         }
       }
-      
-      if (asset.skipAssetSubTypesDetection !== undefined) {
-        formData.append("skipAssetSubTypesDetection", asset.skipAssetSubTypesDetection.toString());
+
+      if (asset.registrationContext) {
+        formData.append(
+          "registrationContext[associatedPrograms][0][programName]",
+          asset.registrationContext.associatedPrograms[0]?.programName ||
+            "A_PLUS"
+        );
+        if (
+          asset.registrationContext.associatedPrograms[0]?.metadata
+            ?.dspAdvertiserId
+        ) {
+          formData.append(
+            "registrationContext[associatedPrograms][0][metadata][dspAdvertiserId]",
+            asset.registrationContext.associatedPrograms[0].metadata
+              .dspAdvertiserId
+          );
+        }
       }
-      
+
+      if (asset.skipAssetSubTypesDetection !== undefined) {
+        formData.append(
+          "skipAssetSubTypesDetection",
+          asset.skipAssetSubTypesDetection.toString()
+        );
+      }
+
       if (asset.url) {
         formData.append("url", asset.url);
       }
@@ -2886,7 +3024,10 @@ export const CampaignDetail: React.FC = () => {
         response.created += imageResponse.created || 0;
         response.failed += imageResponse.failed || 0;
         response.ads = [...(response.ads || []), ...(imageResponse.ads || [])];
-        response.failed_ads = [...(response.failed_ads || []), ...(imageResponse.failed_ads || [])];
+        response.failed_ads = [
+          ...(response.failed_ads || []),
+          ...(imageResponse.failed_ads || []),
+        ];
       }
 
       // Create video ads if any
@@ -2899,7 +3040,10 @@ export const CampaignDetail: React.FC = () => {
         response.created += videoResponse.created || 0;
         response.failed += videoResponse.failed || 0;
         response.ads = [...(response.ads || []), ...(videoResponse.ads || [])];
-        response.failed_ads = [...(response.failed_ads || []), ...(videoResponse.failed_ads || [])];
+        response.failed_ads = [
+          ...(response.failed_ads || []),
+          ...(videoResponse.failed_ads || []),
+        ];
       }
 
       // Check for partial success
@@ -2981,7 +3125,7 @@ export const CampaignDetail: React.FC = () => {
 
     // Toggle state between ENABLED and PAUSED
     const newState = ad.state === "ENABLED" ? "PAUSED" : "ENABLED";
-    
+
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
@@ -3084,8 +3228,7 @@ export const CampaignDetail: React.FC = () => {
     }
 
     // Use the passed value if provided, otherwise use the state value
-    const valueToCompare =
-      newValue !== undefined ? newValue : editedSBAdValue;
+    const valueToCompare = newValue !== undefined ? newValue : editedSBAdValue;
 
     let hasChanged = false;
     let oldValue = "";
@@ -3918,6 +4061,251 @@ export const CampaignDetail: React.FC = () => {
     setPendingKeywordChange(null);
   };
 
+  // Product Ad inline edit handlers
+  const handleProductAdEditStart = (
+    id: number,
+    field: "status",
+    currentValue: string
+  ) => {
+    setEditingProductAdField({ id, field });
+    setEditedProductAdValue(currentValue);
+    setPendingProductAdChange(null);
+  };
+
+  const handleProductAdEditChange = (value: string) => {
+    setEditedProductAdValue(value);
+  };
+
+  const handleProductAdEditEnd = (newValue?: string) => {
+    if (!editingProductAdField) return;
+    const productad = productads.find(
+      (pa) => pa.id === editingProductAdField.id
+    );
+    if (!productad) {
+      setEditingProductAdField(null);
+      setEditedProductAdValue("");
+      return;
+    }
+
+    // Use the passed value if provided, otherwise use the state value
+    const valueToCompare =
+      newValue !== undefined ? newValue : editedProductAdValue;
+
+    const statusLower = productad.status?.toLowerCase() || "enabled";
+    const currentStatus =
+      statusLower === "enable" || statusLower === "enabled"
+        ? "enabled"
+        : "paused";
+    const oldValue = currentStatus;
+    const hasChanged = valueToCompare !== currentStatus;
+
+    if (hasChanged) {
+      setPendingProductAdChange({
+        id: editingProductAdField.id,
+        field: editingProductAdField.field,
+        newValue: valueToCompare,
+        oldValue: oldValue,
+      });
+      setShowProductAdsConfirmationModal(true);
+    } else {
+      setEditingProductAdField(null);
+      setEditedProductAdValue("");
+    }
+  };
+
+  const confirmProductAdChange = async () => {
+    if (!pendingProductAdChange || !accountId || !campaignId) return;
+
+    const productad = productads.find(
+      (pa) => pa.id === pendingProductAdChange.id
+    );
+    if (!productad || !productad.adId) {
+      alert("Product Ad ID not found");
+      setPendingProductAdChange(null);
+      return;
+    }
+
+    setProductAdEditLoading((prev) =>
+      new Set(prev).add(pendingProductAdChange.id)
+    );
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Map status values to uppercase for API
+      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+        enabled: "ENABLED",
+        paused: "PAUSED",
+        enable: "ENABLED",
+        pause: "PAUSED",
+      };
+      const statusValue =
+        statusMap[pendingProductAdChange.newValue.toLowerCase()] || "ENABLED";
+
+      // Call API and check response for errors (partial success scenario)
+      const response = await campaignsService.updateProductAds(
+        accountIdNum,
+        campaignId,
+        {
+          productAds: [
+            {
+              adId: String(productad.adId),
+              state: statusValue,
+            },
+          ],
+        }
+      );
+
+      // Check if there were any failures
+      const failed = response.failed || 0;
+      const failedProductAds = response.failed_productAds || [];
+      const fieldErrors = response.field_errors || {};
+      const errors = response.errors || [];
+
+      if (failed > 0) {
+        // Extract the first error only
+        let firstError: string | undefined = undefined;
+        let firstFieldError: Record<string, string> | undefined = undefined;
+
+        // First, try to get the first field error
+        const fieldErrorEntries = Object.entries(fieldErrors);
+        if (fieldErrorEntries.length > 0) {
+          const [firstFieldKey, firstFieldValue] = fieldErrorEntries[0];
+          firstFieldError = { [firstFieldKey]: firstFieldValue as string };
+          firstError = firstFieldValue as string;
+        }
+
+        // If no field error, get the first generic error from errors array
+        if (
+          !firstError &&
+          errors &&
+          Array.isArray(errors) &&
+          errors.length > 0
+        ) {
+          firstError = errors[0];
+        }
+
+        // If still no error, get the first error from failed_productAds
+        if (!firstError && failedProductAds.length > 0) {
+          const firstFailedAd = failedProductAds[0];
+          if (
+            firstFailedAd.errors &&
+            Array.isArray(firstFailedAd.errors) &&
+            firstFailedAd.errors.length > 0
+          ) {
+            const firstErr = firstFailedAd.errors[0];
+            firstError =
+              firstErr.message || firstErr.errorType || "Unknown error";
+          }
+        }
+
+        // If we still don't have an error, use a default message
+        if (!firstError) {
+          firstError = "An error occurred while updating product ad.";
+        }
+
+        setErrorModal({
+          isOpen: true,
+          title: "Error",
+          message: firstError,
+          isSuccess: false,
+          fieldErrors: firstFieldError,
+        });
+        setShowProductAdsConfirmationModal(false);
+        return;
+      }
+
+      // Reload product ads
+      await loadProductAds();
+      setPendingProductAdChange(null);
+      setEditingProductAdField(null);
+      setEditedProductAdValue("");
+      setShowProductAdsConfirmationModal(false);
+    } catch (error: any) {
+      console.error("Error updating product ad:", error);
+
+      // Extract the first error message only
+      let errorMessage = "Failed to update product ad. Please try again.";
+      let fieldErrors: Record<string, string> | undefined = undefined;
+
+      if (error?.response?.data) {
+        // First, try to get the first field error
+        if (error.response.data.field_errors) {
+          const fieldErrorEntries = Object.entries(
+            error.response.data.field_errors
+          );
+          if (fieldErrorEntries.length > 0) {
+            const [firstFieldKey, firstFieldValue] = fieldErrorEntries[0];
+            fieldErrors = { [firstFieldKey]: firstFieldValue as string };
+            errorMessage = firstFieldValue as string;
+          }
+        }
+
+        // If no field error, get the first generic error from errors array
+        if (
+          !fieldErrors &&
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          errorMessage = error.response.data.errors[0];
+        }
+
+        // If still no error, check failed_productAds for the first error
+        if (
+          !fieldErrors &&
+          error.response.data.failed_productAds &&
+          Array.isArray(error.response.data.failed_productAds) &&
+          error.response.data.failed_productAds.length > 0
+        ) {
+          const firstFailedAd = error.response.data.failed_productAds[0];
+          if (
+            firstFailedAd.errors &&
+            Array.isArray(firstFailedAd.errors) &&
+            firstFailedAd.errors.length > 0
+          ) {
+            const firstErr = firstFailedAd.errors[0];
+            errorMessage =
+              firstErr.message || firstErr.errorType || errorMessage;
+          }
+        }
+
+        // If we have a main error message, use it (but only if we don't already have a more specific error)
+        if (!fieldErrors && error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (!fieldErrors && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+        fieldErrors,
+      });
+      setShowProductAdsConfirmationModal(false);
+    } finally {
+      setProductAdEditLoading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(pendingProductAdChange.id);
+        return newSet;
+      });
+    }
+  };
+
+  const handleProductAdEditCancel = () => {
+    setEditingProductAdField(null);
+    setEditedProductAdValue("");
+    setPendingProductAdChange(null);
+    setShowProductAdsConfirmationModal(false);
+  };
+
   // Target inline edit handlers
   const handleTargetEditStart = (
     id: number,
@@ -3980,10 +4368,13 @@ export const CampaignDetail: React.FC = () => {
 
   const confirmTargetChange = async () => {
     if (!pendingTargetChange || !accountId) {
-      console.error("confirmTargetChange: Missing pendingTargetChange or accountId", {
-        pendingTargetChange,
-        accountId,
-      });
+      console.error(
+        "confirmTargetChange: Missing pendingTargetChange or accountId",
+        {
+          pendingTargetChange,
+          accountId,
+        }
+      );
       return;
     }
 
@@ -4036,7 +4427,10 @@ export const CampaignDetail: React.FC = () => {
         });
       } else if (pendingTargetChange.field === "bid") {
         // Extract numeric value - clean any formatting
-        const cleanedValue = pendingTargetChange.newValue.replace(/[^0-9.]/g, "");
+        const cleanedValue = pendingTargetChange.newValue.replace(
+          /[^0-9.]/g,
+          ""
+        );
         const bidValue = parseFloat(cleanedValue);
         if (isNaN(bidValue) || bidValue < 0) {
           throw new Error("Invalid bid value");
@@ -4420,7 +4814,12 @@ export const CampaignDetail: React.FC = () => {
       state?: "ENABLED" | "PAUSED";
     }>
   ) => {
-    if (!accountId || !campaignId || (campaignType !== "SP" && campaignType !== "SB")) return;
+    if (
+      !accountId ||
+      !campaignId ||
+      (campaignType !== "SP" && campaignType !== "SB")
+    )
+      return;
 
     setCreateNegativeTargetLoading(true);
     setCreateNegativeTargetError(null);
@@ -5511,296 +5910,65 @@ export const CampaignDetail: React.FC = () => {
           </div>
 
           {/* Campaign Entity Information Card */}
-          {campaignDetail && (
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6">
-              <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
-                Campaign Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Campaign Name */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                    Campaign Name
-                  </label>
-                  <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                    {campaignDetail.campaign.name || "—"}
-                  </div>
-                </div>
-
-                {/* Campaign ID */}
-                {campaignDetail.campaign.campaignId && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Campaign ID
-                    </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                      {campaignDetail.campaign.campaignId}
-                    </div>
-                  </div>
-                )}
-
-                {/* Status - Editable */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Status
-                    </label>
-                    <button
-                      onClick={() => {
-                        setEditingField("status");
-                        // Map status to lowercase for the select dropdown
-                        const statusLower =
-                          campaignDetail.campaign.status?.toLowerCase() ||
-                          "enabled";
-                        setEditedValue(
-                          statusLower === "enable" || statusLower === "enabled"
-                            ? "enabled"
-                            : statusLower === "paused"
-                            ? "paused"
-                            : "archived"
-                        );
-                      }}
-                      className="p-1 hover:bg-gray-100 rounded"
-                      title="Edit status"
-                    >
-                      <svg
-                        className="w-4 h-4 text-[#556179]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                  {editingField === "status" ? (
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={editedValue}
-                        onChange={(e) => setEditedValue(e.target.value)}
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1"
-                        autoFocus
-                        onBlur={() => {
-                          // Normalize both values to lowercase for comparison
-                          const currentStatus =
-                            campaignDetail.campaign.status?.toLowerCase() ||
-                            "enabled";
-                          const newEditedValue = editedValue.toLowerCase();
-
-                          if (newEditedValue !== currentStatus) {
-                            setInlineEditField("status");
-                            setInlineEditOldValue(
-                              campaignDetail.campaign.status || "Enabled"
-                            );
-                            setInlineEditNewValue(editedValue);
-                            setShowInlineEditModal(true);
-                          } else {
-                            setEditingField(null);
-                            setEditedValue("");
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            // Normalize both values to lowercase for comparison
-                            const currentStatus =
-                              campaignDetail.campaign.status?.toLowerCase() ||
-                              "enabled";
-                            const newEditedValue = editedValue.toLowerCase();
-
-                            if (newEditedValue !== currentStatus) {
-                              setInlineEditField("status");
-                              setInlineEditOldValue(
-                                campaignDetail.campaign.status || "Enabled"
-                              );
-                              setInlineEditNewValue(editedValue);
-                              setShowInlineEditModal(true);
-                            } else {
-                              setEditingField(null);
-                              setEditedValue("");
-                            }
-                          } else if (e.key === "Escape") {
-                            setEditingField(null);
-                            setEditedValue("");
-                          }
-                        }}
-                      >
-                        <option value="enabled">Enabled</option>
-                        <option value="paused">Paused</option>
-                        <option value="archived">Archived</option>
-                      </select>
-                    </div>
-                  ) : (
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                      <StatusBadge
-                        status={
-                          campaignDetail.campaign.status?.toLowerCase() ===
-                            "enabled" ||
-                          campaignDetail.campaign.status === "Enable"
-                            ? "Enable"
-                            : campaignDetail.campaign.status?.toLowerCase() ===
-                                "paused" ||
-                              campaignDetail.campaign.status === "Paused"
-                            ? "Paused"
-                            : "Archived"
-                        }
-                        uppercase={true}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Budget - Editable */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Budget
-                    </label>
-                    <button
-                      onClick={() => {
-                        setEditingField("budget");
-                        setEditedValue(
-                          (campaignDetail.campaign.budget || 0).toString()
-                        );
-                      }}
-                      className="p-1 hover:bg-gray-100 rounded"
-                      title="Edit budget"
-                    >
-                      <svg
-                        className="w-4 h-4 text-[#556179]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                  {editingField === "budget" ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={editedValue}
-                        onChange={(e) => setEditedValue(e.target.value)}
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
-                        autoFocus
-                        onBlur={() => {
-                          const budgetValue = parseFloat(editedValue);
-                          const oldBudget = campaignDetail.campaign.budget || 0;
-                          if (
-                            !isNaN(budgetValue) &&
-                            budgetValue !== oldBudget
-                          ) {
-                            setInlineEditField("budget");
-                            setInlineEditOldValue(
-                              `$${oldBudget.toLocaleString()}`
-                            );
-                            setInlineEditNewValue(editedValue);
-                            setShowInlineEditModal(true);
-                          } else {
-                            setEditingField(null);
-                            setEditedValue("");
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            const budgetValue = parseFloat(editedValue);
-                            const oldBudget =
-                              campaignDetail.campaign.budget || 0;
-                            if (
-                              !isNaN(budgetValue) &&
-                              budgetValue !== oldBudget
-                            ) {
-                              setInlineEditField("budget");
-                              setInlineEditOldValue(
-                                `$${oldBudget.toLocaleString()}`
-                              );
-                              setInlineEditNewValue(editedValue);
-                              setShowInlineEditModal(true);
-                            } else {
-                              setEditingField(null);
-                              setEditedValue("");
-                            }
-                          } else if (e.key === "Escape") {
-                            setEditingField(null);
-                            setEditedValue("");
-                          }
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                      ${(campaignDetail.campaign.budget || 0).toLocaleString()}
-                    </div>
-                  )}
-                </div>
-
-                {/* Start Date */}
-                {campaignDetail.campaign.startDate && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Start Date
-                    </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                      {new Date(
-                        campaignDetail.campaign.startDate
-                      ).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
-
-                {/* End Date */}
-                {campaignDetail.campaign.endDate && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      End Date
-                    </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                      {new Date(
-                        campaignDetail.campaign.endDate
-                      ).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
-
-                {/* Targeting Type - Only for SP campaigns */}
-                {(campaignDetail.campaign.targetingType ||
-                  campaignDetail.campaign.targeting_type) && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Targeting Type
-                    </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                      {campaignDetail.campaign.targetingType ||
-                        campaignDetail.campaign.targeting_type ||
-                        "—"}
-                    </div>
-                  </div>
-                )}
-
-                {/* Budget Type */}
-                {campaignDetail.campaign.budgetType && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Budget Type
-                    </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                      {campaignDetail.campaign.budgetType}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          <CampaignInformation
+            campaignDetail={campaignDetail}
+            editingField={editingField}
+            editedValue={editedValue}
+            onEditField={(field) => {
+              setEditingField(field);
+              if (field === "status" && campaignDetail) {
+                const statusLower =
+                  campaignDetail.campaign.status?.toLowerCase() || "enabled";
+                setEditedValue(
+                  statusLower === "enable" || statusLower === "enabled"
+                    ? "enabled"
+                    : statusLower === "paused"
+                    ? "paused"
+                    : "archived"
+                );
+              } else if (field === "budget" && campaignDetail) {
+                setEditedValue(
+                  (campaignDetail.campaign.budget || 0).toString()
+                );
+              }
+            }}
+            onEditValueChange={setEditedValue}
+            onEditEnd={() => {
+              if (!campaignDetail) return;
+              if (editingField === "status") {
+                const currentStatus =
+                  campaignDetail.campaign.status?.toLowerCase() || "enabled";
+                const newEditedValue = editedValue.toLowerCase();
+                if (newEditedValue !== currentStatus) {
+                  setInlineEditField("status");
+                  setInlineEditOldValue(
+                    campaignDetail.campaign.status || "Enabled"
+                  );
+                  setInlineEditNewValue(editedValue);
+                  setShowInlineEditModal(true);
+                } else {
+                  setEditingField(null);
+                  setEditedValue("");
+                }
+              } else if (editingField === "budget") {
+                const budgetValue = parseFloat(editedValue);
+                const oldBudget = campaignDetail.campaign.budget || 0;
+                if (!isNaN(budgetValue) && budgetValue !== oldBudget) {
+                  setInlineEditField("budget");
+                  setInlineEditOldValue(`$${oldBudget.toLocaleString()}`);
+                  setInlineEditNewValue(editedValue);
+                  setShowInlineEditModal(true);
+                } else {
+                  setEditingField(null);
+                  setEditedValue("");
+                }
+              }
+            }}
+            onEditCancel={() => {
+              setEditingField(null);
+              setEditedValue("");
+            }}
+          />
 
           {/* KPI Cards */}
           {loading ? (
@@ -5894,1154 +6062,244 @@ export const CampaignDetail: React.FC = () => {
 
             {/* Tab Content */}
             {activeTab === "Overview" && (
-              <>
-                {/* Chart Section */}
-                <PerformanceChart
-                  data={chartData}
-                  toggles={chartToggles}
-                  onToggle={toggleChartMetric}
-                  title="Performance Trends"
-                />
-
-                {/* Top Keywords & Top Products */}
-                <div className="flex gap-6 mb-4">
-                  {/* Top Keywords Table - Hidden for SD campaigns */}
-                  {campaignType !== "SD" && (
-                    <div className="flex-1">
-                      <div className="mb-2">
-                        <h3 className="text-[#072929] text-[18px] font-semibold leading-[100%]">
-                          Top Keywords
-                        </h3>
-                      </div>
-                      <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
-                        <div className="overflow-x-auto w-full">
-                          {loading ? (
-                            <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                              Loading keywords...
-                            </div>
-                          ) : campaignDetail &&
-                            campaignDetail.top_keywords.length > 0 ? (
-                            <table className="min-w-full w-full">
-                              <thead>
-                                <tr className="border-b border-[#e8e8e3]">
-                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
-                                    <div className="flex items-center justify-center">
-                                      <Checkbox
-                                        checked={false}
-                                        onChange={() => {}}
-                                        size="small"
-                                      />
-                                    </div>
-                                  </th>
-                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Keyword Name
-                                  </th>
-                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    CTR
-                                  </th>
-                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Status
-                                  </th>
-                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Spends
-                                  </th>
-                                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                    Sales
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {campaignDetail.top_keywords.map(
-                                  (keyword, index) => {
-                                    const isLastRow =
-                                      index ===
-                                      campaignDetail.top_keywords.length - 1;
-                                    return (
-                                      <tr
-                                        key={index}
-                                        className={`${
-                                          !isLastRow
-                                            ? "border-b border-[#e8e8e3]"
-                                            : ""
-                                        } hover:bg-gray-50 transition-colors`}
-                                      >
-                                        <td className="py-[10px] px-[10px]">
-                                          <div className="flex items-center justify-center">
-                                            <Checkbox
-                                              checked={false}
-                                              onChange={() => {}}
-                                              size="small"
-                                            />
-                                          </div>
-                                        </td>
-                                        <td className="py-[10px] px-[10px]">
-                                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            {keyword.name}
-                                          </span>
-                                        </td>
-                                        <td className="py-[10px] px-[10px]">
-                                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            {keyword.ctr}
-                                          </span>
-                                        </td>
-                                        <td className="py-[10px] px-[10px]">
-                                          <StatusBadge
-                                            status={keyword.status}
-                                          />
-                                        </td>
-                                        <td className="py-[10px] px-[10px]">
-                                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            {keyword.spends}
-                                          </span>
-                                        </td>
-                                        <td className="py-[10px] px-[10px]">
-                                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                            {keyword.sales}
-                                          </span>
-                                        </td>
-                                      </tr>
-                                    );
-                                  }
-                                )}
-                              </tbody>
-                            </table>
-                          ) : (
-                            <div className="text-center py-8">
-                              <p className="text-[13.3px] text-[#556179] mb-4">
-                                No keywords data available
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Top Products Table */}
-                  <div className={campaignType === "SD" ? "w-full" : "flex-1"}>
-                    <div className="mb-2">
-                      <h3 className="text-[#072929] text-[18px] font-semibold leading-[100%]">
-                        Top Products
-                      </h3>
-                    </div>
-                    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
-                      <div className="overflow-x-auto w-full">
-                        {loading ? (
-                          <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                            Loading products...
-                          </div>
-                        ) : campaignDetail &&
-                          campaignDetail.top_products.length > 0 ? (
-                          <table className="min-w-full w-full">
-                            <thead>
-                              <tr className="border-b border-[#e8e8e3]">
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
-                                  <div className="flex items-center justify-center">
-                                    <Checkbox
-                                      checked={false}
-                                      onChange={() => {}}
-                                      size="small"
-                                    />
-                                  </div>
-                                </th>
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                  Product Name
-                                </th>
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                  ASIN
-                                </th>
-                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                                  Sales
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {campaignDetail.top_products.map(
-                                (product, index) => {
-                                  const isLastRow =
-                                    index ===
-                                    campaignDetail.top_products.length - 1;
-                                  return (
-                                    <tr
-                                      key={index}
-                                      className={`${
-                                        !isLastRow
-                                          ? "border-b border-[#e8e8e3]"
-                                          : ""
-                                      } hover:bg-gray-50 transition-colors`}
-                                    >
-                                      <td className="py-[10px] px-[10px]">
-                                        <div className="flex items-center justify-center">
-                                          <Checkbox
-                                            checked={false}
-                                            onChange={() => {}}
-                                            size="small"
-                                          />
-                                        </div>
-                                      </td>
-                                      <td className="py-[10px] px-[10px]">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                          {product.name}
-                                        </span>
-                                      </td>
-                                      <td className="py-[10px] px-[10px]">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                          {product.asin}
-                                        </span>
-                                      </td>
-                                      <td className="py-[10px] px-[10px]">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                                          {product.sales}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                              )}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <div className="text-center py-8">
-                            <p className="text-[13.3px] text-[#556179] mb-4">
-                              No products data available
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
+              <OverviewTab
+                chartData={chartData}
+                chartToggles={chartToggles}
+                onToggleChartMetric={toggleChartMetric}
+                campaignDetail={campaignDetail}
+                loading={loading}
+                campaignType={campaignType}
+              />
             )}
 
             {activeTab === "Ad Groups" && (
-              <>
-                {/* Header with Create Adgroup, Bulk Edit, and Filter Buttons */}
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-                    Ad Groups
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    {/* Create Adgroup Button */}
-                    <CreateAdGroupSection
-                      isOpen={isCreateAdGroupPanelOpen}
-                      onToggle={() => {
-                        setIsCreateAdGroupPanelOpen(!isCreateAdGroupPanelOpen);
-                        setIsAdGroupsFilterPanelOpen(false); // Close filter panel when opening create panel
-                        setShowAdGroupsBulkActions(false); // Close bulk actions when opening create panel
-                      }}
-                    />
-                    {/* Bulk Edit Button */}
-                    <div
-                      className="relative inline-flex justify-end"
-                      ref={adGroupsBulkActionsRef}
-                    >
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowAdGroupsBulkActions((prev) => !prev);
-                          setShowAdGroupsBidPanel(false);
-                          setIsAdGroupsFilterPanelOpen(false);
-                        }}
-                      >
-                        <svg
-                          className="w-4 h-4 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Edit
-                        </span>
-                      </Button>
-                      {showAdGroupsBulkActions && (
-                        <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                          <div className="overflow-y-auto">
-                            {[
-                              { value: "enable", label: "Enabled" },
-                              { value: "pause", label: "Paused" },
-                              // Only show "Archived" and "Edit Default Bid" for SP campaigns
-                              ...(campaignType !== "SB"
-                                ? [
-                                    { value: "archive", label: "Archived" },
-                                    {
-                                      value: "edit_bid",
-                                      label: "Edit Default Bid",
-                                    },
-                                  ]
-                                : []),
-                              { value: "delete", label: "Delete" },
-                            ].map((opt) => (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                disabled={selectedAdGroupIds.size === 0}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (selectedAdGroupIds.size === 0) return;
-                                  if (opt.value === "edit_bid") {
-                                    setShowAdGroupsBidPanel(true);
-                                  } else if (opt.value === "delete") {
-                                    setShowAdGroupsBidPanel(false);
-                                    setShowAdGroupsDeleteConfirmation(true);
-                                  } else {
-                                    setShowAdGroupsBidPanel(false);
-                                    setPendingAdGroupsStatusAction(
-                                      opt.value as
-                                        | "enable"
-                                        | "pause"
-                                        | "archive"
-                                    );
-                                    setShowAdGroupsConfirmationModal(true);
-                                  }
-                                  setShowAdGroupsBulkActions(false);
-                                }}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {/* Add Filter Button */}
-                    <button
-                      onClick={() => {
-                        setIsAdGroupsFilterPanelOpen(
-                          !isAdGroupsFilterPanelOpen
-                        );
-                        setIsCreateAdGroupPanelOpen(false); // Close create panel when opening filter panel
-                        setShowAdGroupsBulkActions(false); // Close bulk actions when opening filter panel
-                      }}
-                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Add Filter
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                          isAdGroupsFilterPanelOpen ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Bid editor panel for Ad Groups */}
-                {selectedAdGroupIds.size > 0 && showAdGroupsBidPanel && (
-                  <div className="px-6 mb-4">
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="flex flex-wrap items-end gap-3 justify-between">
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Action
-                          </label>
-                          <Dropdown
-                            options={[
-                              { value: "increase", label: "Increase By" },
-                              { value: "decrease", label: "Decrease By" },
-                              { value: "set", label: "Set To" },
-                            ]}
-                            value={adGroupsBidAction}
-                            onChange={(val) => {
-                              const action = val as typeof adGroupsBidAction;
-                              setAdGroupsBidAction(action);
-                              if (action === "set") {
-                                setAdGroupsBidUnit("amount");
-                              }
-                            }}
-                            buttonClassName="w-full"
-                            width="w-full"
-                          />
-                        </div>
-                        {(adGroupsBidAction === "increase" ||
-                          adGroupsBidAction === "decrease") && (
-                          <div className="w-[140px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Unit
-                            </label>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                  adGroupsBidUnit === "percent"
-                                    ? "bg-forest-f40  border-forest-f40"
-                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setAdGroupsBidUnit("percent")}
-                              >
-                                %
-                              </button>
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                  adGroupsBidUnit === "amount"
-                                    ? "bg-forest-f40  border-forest-f40"
-                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setAdGroupsBidUnit("amount")}
-                              >
-                                $
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Value
-                          </label>
-                          <input
-                            type="number"
-                            value={adGroupsBidValue}
-                            onChange={(e) =>
-                              setAdGroupsBidValue(e.target.value)
-                            }
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                        </div>
-                        {adGroupsBidAction === "increase" && (
-                          <div className="w-[160px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Upper Limit (Optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={adGroupsBidUpperLimit}
-                              onChange={(e) =>
-                                setAdGroupsBidUpperLimit(e.target.value)
-                              }
-                              placeholder="$0.00"
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                          </div>
-                        )}
-                        {adGroupsBidAction === "decrease" && (
-                          <div className="w-[160px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Lower Limit (Optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={adGroupsBidLowerLimit}
-                              onChange={(e) =>
-                                setAdGroupsBidLowerLimit(e.target.value)
-                              }
-                              placeholder="$0.00"
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowAdGroupsBidPanel(false);
-                              setAdGroupsBidValue("");
-                              setAdGroupsBidUpperLimit("");
-                              setAdGroupsBidLowerLimit("");
-                            }}
-                            className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setShowAdGroupsConfirmationModal(true);
-                            }}
-                            disabled={!adGroupsBidValue || adGroupsBulkLoading}
-                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Create Adgroup Panel */}
-                {isCreateAdGroupPanelOpen && campaignId && (
-                  <CreateAdGroupPanel
-                    isOpen={isCreateAdGroupPanelOpen}
-                    onClose={() => {
-                      setIsCreateAdGroupPanelOpen(false);
-                      // Reset error states when closing
-                      setCreateAdGroupError(null);
-                      setCreateAdGroupFieldErrors({});
-                      setCreatedAdGroups([]);
-                      setFailedAdGroupCount(0);
-                      setFailedAdGroups([]);
-                    }}
-                    onSubmit={handleCreateAdGroups}
-                    campaignId={campaignId}
-                    campaignType={campaignType || "SP"}
-                    loading={createAdGroupLoading}
-                    submitError={createAdGroupError}
-                    fieldErrors={createAdGroupFieldErrors}
-                    createdAdGroups={createdAdGroups}
-                    failedCount={failedAdGroupCount}
-                    failedAdGroups={failedAdGroups}
-                  />
-                )}
-
-                {/* Filter Panel */}
-                {isAdGroupsFilterPanelOpen && (
-                  <div className="mb-4">
-                    <FilterPanel
-                      key={`adgroups-filter-${adgroupsFiltersString}`}
-                      isOpen={true}
-                      onClose={() => {
-                        // Check if filters changed before closing
-                        // The FilterPanel will have already applied changes via onApply when chips are removed
-                        setIsAdGroupsFilterPanelOpen(false);
-                      }}
-                      onApply={(newFilters) => {
-                        // Create a stable string representation of the filters
-                        const filtersStr = JSON.stringify(
-                          [...newFilters].sort((a, b) => {
-                            if (a.field !== b.field)
-                              return a.field.localeCompare(b.field);
-                            const aOp = a.operator || "";
-                            const bOp = b.operator || "";
-                            if (aOp !== bOp) return aOp.localeCompare(bOp);
-                            return String(a.value).localeCompare(
-                              String(b.value)
-                            );
-                          })
-                        );
-
-                        // Prevent applying the same filters multiple times
-                        if (lastAppliedFiltersRef.current === filtersStr) {
-                          return;
-                        }
-
-                        lastAppliedFiltersRef.current = filtersStr;
-                        setAdgroupsFilters(newFilters);
-                        setAdgroupsCurrentPage(1); // Reset to first page when applying filters
-                      }}
-                      initialFilters={adgroupsFilters}
-                      filterFields={[
-                        { value: "name", label: "Ad Group Name" },
-                        { value: "state", label: "State" },
-                        { value: "default_bid", label: "Default Bid" },
-                      ]}
-                    />
-                  </div>
-                )}
-
-                <div className="mb-4">
-                  <AdGroupsTable
-                    adgroups={adgroups}
-                    loading={adgroupsLoading}
-                    campaignDetail={campaignDetail}
-                    campaignId={campaignId} // Pass campaignId to hide Campaign Name column
-                    onSelectAll={handleSelectAllAdGroups}
-                    onSelect={handleSelectAdGroup}
-                    selectedIds={selectedAdGroupIds}
-                    sortBy={adgroupsSortBy}
-                    sortOrder={adgroupsSortOrder}
-                    onSort={handleAdGroupsSort}
-                    editingField={editingAdGroupField}
-                    editedValue={editedAdGroupValue}
-                    onEditStart={handleAdGroupEditStart}
-                    onEditChange={handleAdGroupEditChange}
-                    onEditEnd={handleAdGroupEditEnd}
-                    onEditCancel={handleAdGroupEditCancel}
-                    inlineEditLoading={adGroupEditLoading}
-                    pendingChange={pendingAdGroupChange}
-                    onConfirmChange={confirmAdGroupChange}
-                    onCancelChange={cancelAdGroupChange}
-                    showTotalRow={adgroups.length > 0}
-                    totalRow={adGroupsTotalRow || undefined}
-                  />
-                </div>
-                {/* Pagination */}
-                {!adgroupsLoading &&
-                  adgroups.length > 0 &&
-                  adgroupsTotalPages > 0 && (
-                    <div className="flex items-center justify-end mt-4">
-                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
-                        <button
-                          onClick={() =>
-                            handleAdGroupsPageChange(
-                              Math.max(1, adgroupsCurrentPage - 1)
-                            )
-                          }
-                          disabled={adgroupsCurrentPage === 1}
-                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                        >
-                          Previous
-                        </button>
-                        {Array.from(
-                          { length: Math.min(5, adgroupsTotalPages) },
-                          (_, i) => {
-                            let pageNum;
-                            if (adgroupsTotalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (adgroupsCurrentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (
-                              adgroupsCurrentPage >=
-                              adgroupsTotalPages - 2
-                            ) {
-                              pageNum = adgroupsTotalPages - 4 + i;
-                            } else {
-                              pageNum = adgroupsCurrentPage - 2 + i;
-                            }
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() =>
-                                  handleAdGroupsPageChange(pageNum)
-                                }
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                  adgroupsCurrentPage === pageNum
-                                    ? "bg-white text-[#136D6D] font-semibold"
-                                    : "text-black hover:bg-gray-50"
-                                }`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          }
-                        )}
-                        {adgroupsTotalPages > 5 &&
-                          adgroupsCurrentPage < adgroupsTotalPages - 2 && (
-                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
-                              ...
-                            </span>
-                          )}
-                        {adgroupsTotalPages > 5 && (
-                          <button
-                            onClick={() =>
-                              handleAdGroupsPageChange(adgroupsTotalPages)
-                            }
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                              adgroupsCurrentPage === adgroupsTotalPages
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
-                            }`}
-                          >
-                            {adgroupsTotalPages}
-                          </button>
-                        )}
-                        <button
-                          onClick={() =>
-                            handleAdGroupsPageChange(
-                              Math.min(
-                                adgroupsTotalPages,
-                                adgroupsCurrentPage + 1
-                              )
-                            )
-                          }
-                          disabled={adgroupsCurrentPage === adgroupsTotalPages}
-                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
-              </>
+              <AdGroupsTab
+                adgroups={adgroups}
+                adgroupsLoading={adgroupsLoading}
+                campaignDetail={campaignDetail}
+                campaignId={campaignId}
+                campaignType={campaignType}
+                selectedAdGroupIds={selectedAdGroupIds}
+                onSelectAll={handleSelectAllAdGroups}
+                onSelect={handleSelectAdGroup}
+                currentPage={adgroupsCurrentPage}
+                totalPages={adgroupsTotalPages}
+                onPageChange={handleAdGroupsPageChange}
+                sortBy={adgroupsSortBy}
+                sortOrder={adgroupsSortOrder}
+                onSort={handleAdGroupsSort}
+                isFilterPanelOpen={isAdGroupsFilterPanelOpen}
+                onToggleFilterPanel={() => {
+                  setIsAdGroupsFilterPanelOpen(!isAdGroupsFilterPanelOpen);
+                }}
+                onCloseFilterPanel={() => {
+                  setIsAdGroupsFilterPanelOpen(false);
+                }}
+                filters={adgroupsFilters}
+                onApplyFilters={(newFilters) => {
+                  const filtersStr = JSON.stringify(
+                    [...newFilters].sort((a, b) => {
+                      if (a.field !== b.field)
+                        return a.field.localeCompare(b.field);
+                      const aOp = a.operator || "";
+                      const bOp = b.operator || "";
+                      if (aOp !== bOp) return aOp.localeCompare(bOp);
+                      return String(a.value).localeCompare(String(b.value));
+                    })
+                  );
+                  if (lastAppliedFiltersRef.current === filtersStr) {
+                    return;
+                  }
+                  lastAppliedFiltersRef.current = filtersStr;
+                  setAdgroupsFilters(newFilters);
+                  setAdgroupsCurrentPage(1);
+                }}
+                filtersString={adgroupsFiltersString}
+                lastAppliedFiltersRef={lastAppliedFiltersRef}
+                isCreatePanelOpen={isCreateAdGroupPanelOpen}
+                onToggleCreatePanel={() => {
+                  setIsCreateAdGroupPanelOpen(!isCreateAdGroupPanelOpen);
+                }}
+                onCloseCreatePanel={() => {
+                  setIsCreateAdGroupPanelOpen(false);
+                  setCreateAdGroupError(null);
+                  setCreateAdGroupFieldErrors({});
+                  setCreatedAdGroups([]);
+                  setFailedAdGroupCount(0);
+                  setFailedAdGroups([]);
+                }}
+                onCreateAdGroups={handleCreateAdGroups}
+                createLoading={createAdGroupLoading}
+                createError={createAdGroupError}
+                createFieldErrors={createAdGroupFieldErrors}
+                createdAdGroups={createdAdGroups}
+                failedCount={failedAdGroupCount}
+                failedAdGroups={failedAdGroups}
+                showBulkActions={showAdGroupsBulkActions}
+                onToggleBulkActions={() => {
+                  setShowAdGroupsBulkActions((prev) => !prev);
+                }}
+                onCloseBulkActions={() => {
+                  setShowAdGroupsBulkActions(false);
+                  setShowAdGroupsBidPanel(false);
+                }}
+                bulkActionsRef={adGroupsBulkActionsRef}
+                onBulkStatusAction={(action) => {
+                  setShowAdGroupsBidPanel(false);
+                  setPendingAdGroupsStatusAction(action);
+                  setShowAdGroupsConfirmationModal(true);
+                }}
+                onBulkDelete={() => {
+                  setShowAdGroupsBidPanel(false);
+                  setShowAdGroupsDeleteConfirmation(true);
+                }}
+                onBulkEditBid={() => {
+                  setShowAdGroupsBidPanel(true);
+                }}
+                showBidPanel={showAdGroupsBidPanel}
+                bidAction={adGroupsBidAction}
+                bidUnit={adGroupsBidUnit}
+                bidValue={adGroupsBidValue}
+                bidUpperLimit={adGroupsBidUpperLimit}
+                bidLowerLimit={adGroupsBidLowerLimit}
+                onBidActionChange={(action) => {
+                  setAdGroupsBidAction(action);
+                  if (action === "set") {
+                    setAdGroupsBidUnit("amount");
+                  }
+                }}
+                onBidUnitChange={setAdGroupsBidUnit}
+                onBidValueChange={setAdGroupsBidValue}
+                onBidUpperLimitChange={setAdGroupsBidUpperLimit}
+                onBidLowerLimitChange={setAdGroupsBidLowerLimit}
+                onBidPanelCancel={() => {
+                  setShowAdGroupsBidPanel(false);
+                  setAdGroupsBidValue("");
+                  setAdGroupsBidUpperLimit("");
+                  setAdGroupsBidLowerLimit("");
+                }}
+                onBidPanelApply={() => {
+                  setShowAdGroupsConfirmationModal(true);
+                }}
+                bulkLoading={adGroupsBulkLoading}
+                editingField={editingAdGroupField}
+                editedValue={editedAdGroupValue}
+                onEditStart={handleAdGroupEditStart}
+                onEditChange={handleAdGroupEditChange}
+                onEditEnd={handleAdGroupEditEnd}
+                onEditCancel={handleAdGroupEditCancel}
+                editLoading={adGroupEditLoading}
+                pendingChange={pendingAdGroupChange}
+                onConfirmChange={confirmAdGroupChange}
+                onCancelChange={cancelAdGroupChange}
+                totalRow={adGroupsTotalRow || undefined}
+              />
             )}
 
             {activeTab === "Keywords" && (
-              <>
-                {/* Header with Filter Button and Create Keyword Button */}
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-                    Keywords
-                  </h2>
-                  <div className="flex items-center gap-3">
-                    {/* Bulk Actions Dropdown */}
-                    {selectedKeywordIds.size > 0 && (
-                      <div className="relative" ref={keywordsBulkActionsRef}>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowKeywordsBulkActions((prev) => !prev);
-                            setShowKeywordsBidPanel(false);
-                            setIsKeywordsFilterPanelOpen(false);
-                          }}
-                        >
-                          <svg
-                            className="w-4 h-4 text-[#072929]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                            />
-                          </svg>
-                          <span className="text-[10.64px] text-[#072929] font-normal">
-                            Edit
-                          </span>
-                        </Button>
-                        {showKeywordsBulkActions && (
-                          <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                            <div className="overflow-y-auto">
-                              {[
-                                { value: "enable", label: "Enabled" },
-                                { value: "pause", label: "Paused" },
-                                { value: "edit_bid", label: "Edit Bid" },
-                                { value: "archive", label: "Archive" },
-                              ].map((opt) => (
-                                <button
-                                  key={opt.value}
-                                  type="button"
-                                  className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                  disabled={selectedKeywordIds.size === 0}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (selectedKeywordIds.size === 0) return;
-                                    if (opt.value === "edit_bid") {
-                                      setShowKeywordsBidPanel(true);
-                                    } else if (opt.value === "archive") {
-                                      setShowKeywordsBidPanel(false);
-                                      setShowKeywordsDeleteConfirmation(true);
-                                    } else {
-                                      setShowKeywordsBidPanel(false);
-                                      setPendingKeywordsStatusAction(
-                                        opt.value as "enable" | "pause"
-                                      );
-                                      setShowKeywordsConfirmationModal(true);
-                                    }
-                                    setShowKeywordsBulkActions(false);
-                                  }}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {/* Create Keyword Button */}
-                    <button
-                      onClick={async () => {
-                        const newState = !isCreateKeywordPanelOpen;
-                        setIsCreateKeywordPanelOpen(newState);
-                        if (newState) {
-                          await loadAllAdGroups();
-                        }
-                      }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
-                    >
-                      <svg
-                        className="w-4 h-4 !text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                      Create Keywords
-                      <svg
-                        className={`w-4 h-4 !text-white transition-transform ${
-                          isCreateKeywordPanelOpen ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                    {/* Add Filter Button */}
-                    <button
-                      onClick={() =>
-                        setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen)
-                      }
-                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Add Filter
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                          isKeywordsFilterPanelOpen ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Bid editor panel for Keywords */}
-                {selectedKeywordIds.size > 0 && showKeywordsBidPanel && (
-                  <div className="px-6 mb-4">
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="flex flex-wrap items-end gap-3 justify-between">
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Action
-                          </label>
-                          <Dropdown
-                            options={[
-                              { value: "increase", label: "Increase By" },
-                              { value: "decrease", label: "Decrease By" },
-                              { value: "set", label: "Set To" },
-                            ]}
-                            value={keywordsBidAction}
-                            onChange={(val) => {
-                              const action = val as typeof keywordsBidAction;
-                              setKeywordsBidAction(action);
-                              if (action === "set") {
-                                setKeywordsBidUnit("amount");
-                              }
-                            }}
-                            buttonClassName="w-full"
-                            width="w-full"
-                          />
-                        </div>
-                        {(keywordsBidAction === "increase" ||
-                          keywordsBidAction === "decrease") && (
-                          <div className="w-[140px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Unit
-                            </label>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                  keywordsBidUnit === "percent"
-                                    ? "bg-forest-f40  border-forest-f40"
-                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setKeywordsBidUnit("percent")}
-                              >
-                                %
-                              </button>
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                  keywordsBidUnit === "amount"
-                                    ? "bg-forest-f40  border-forest-f40"
-                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setKeywordsBidUnit("amount")}
-                              >
-                                $
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Value
-                          </label>
-                          <input
-                            type="number"
-                            value={keywordsBidValue}
-                            onChange={(e) =>
-                              setKeywordsBidValue(e.target.value)
-                            }
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                        </div>
-                        {keywordsBidAction === "increase" && (
-                          <div className="w-[160px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Upper Limit (Optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={keywordsBidUpperLimit}
-                              onChange={(e) =>
-                                setKeywordsBidUpperLimit(e.target.value)
-                              }
-                              placeholder="$0.00"
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                          </div>
-                        )}
-                        {keywordsBidAction === "decrease" && (
-                          <div className="w-[160px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Lower Limit (Optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={keywordsBidLowerLimit}
-                              onChange={(e) =>
-                                setKeywordsBidLowerLimit(e.target.value)
-                              }
-                              placeholder="$0.00"
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowKeywordsBidPanel(false);
-                              setKeywordsBidValue("");
-                              setKeywordsBidUpperLimit("");
-                              setKeywordsBidLowerLimit("");
-                            }}
-                            className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setShowKeywordsConfirmationModal(true);
-                            }}
-                            disabled={!keywordsBidValue || keywordsBulkLoading}
-                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Filter Panel */}
-                {isKeywordsFilterPanelOpen && (
-                  <div className="mb-4">
-                    <FilterPanel
-                      isOpen={true}
-                      onClose={() => {
-                        // Check if filters changed before closing
-                        // The FilterPanel will have already applied changes via onApply when chips are removed
-                        setIsKeywordsFilterPanelOpen(false);
-                      }}
-                      onApply={(newFilters) => {
-                        setKeywordsFilters(newFilters);
-                        setKeywordsCurrentPage(1); // Reset to first page when applying filters
-                        // Data will refresh automatically via useEffect dependency on keywordsFilters
-                      }}
-                      initialFilters={keywordsFilters}
-                      filterFields={[
-                        { value: "name", label: "Keyword" },
-                        { value: "state", label: "State" },
-                        { value: "bid", label: "Bid" },
-                        { value: "adgroup_name", label: "Ad Group" },
-                      ]}
-                    />
-                  </div>
-                )}
-
-                {/* Create Keyword Panel */}
-                {isCreateKeywordPanelOpen && (
-                  <CreateKeywordPanel
-                    isOpen={isCreateKeywordPanelOpen}
-                    onClose={() => {
-                      setIsCreateKeywordPanelOpen(false);
-                      setCreateKeywordError(null);
-                      setCreateKeywordFieldErrors({});
-                      setCreatedKeywords([]);
-                      setFailedKeywordCount(0);
-                      setFailedKeywords([]);
-                    }}
-                    onSubmit={handleCreateKeywords}
-                    adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)
-                      .filter((ag) => {
-                        // Only show ENABLED adgroups for keyword creation
-                        const status = ag.status || ag.state || "";
-                        return status.toUpperCase() === "ENABLED";
-                      })
-                      .map((ag) => ({
-                        adGroupId: ag.adGroupId || String(ag.id),
-                        name: ag.name,
-                      }))}
-                    campaignId={campaignId || ""}
-                    loading={createKeywordLoading}
-                    submitError={createKeywordError}
-                    fieldErrors={createKeywordFieldErrors}
-                    createdKeywords={createdKeywords}
-                    failedCount={failedKeywordCount}
-                    failedKeywords={failedKeywords}
-                  />
-                )}
-
-                <div className="mb-4">
-                  <KeywordsTable
-                    keywords={keywords}
-                    loading={keywordsLoading}
-                    onSelectAll={handleSelectAllKeywords}
-                    onSelect={handleSelectKeyword}
-                    selectedIds={selectedKeywordIds}
-                    sortBy={keywordsSortBy}
-                    sortOrder={keywordsSortOrder}
-                    onSort={handleKeywordsSort}
-                    editingField={editingKeywordField}
-                    editedValue={editedKeywordValue}
-                    onEditStart={handleKeywordEditStart}
-                    onEditChange={handleKeywordEditChange}
-                    onEditEnd={handleKeywordEditEnd}
-                    onEditCancel={handleKeywordEditCancel}
-                    inlineEditLoading={keywordEditLoading}
-                    pendingChange={pendingKeywordChange}
-                  />
-                </div>
-                {/* Pagination */}
-                {!keywordsLoading &&
-                  keywords.length > 0 &&
-                  keywordsTotalPages > 0 && (
-                    <div className="flex items-center justify-end mt-4">
-                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
-                        <button
-                          onClick={() =>
-                            handleKeywordsPageChange(
-                              Math.max(1, keywordsCurrentPage - 1)
-                            )
-                          }
-                          disabled={keywordsCurrentPage === 1}
-                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                        >
-                          Previous
-                        </button>
-                        {Array.from(
-                          { length: Math.min(5, keywordsTotalPages) },
-                          (_, i) => {
-                            let pageNum;
-                            if (keywordsTotalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (keywordsCurrentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (
-                              keywordsCurrentPage >=
-                              keywordsTotalPages - 2
-                            ) {
-                              pageNum = keywordsTotalPages - 4 + i;
-                            } else {
-                              pageNum = keywordsCurrentPage - 2 + i;
-                            }
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() =>
-                                  handleKeywordsPageChange(pageNum)
-                                }
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                  keywordsCurrentPage === pageNum
-                                    ? "bg-white text-[#136D6D] font-semibold"
-                                    : "text-black hover:bg-gray-50"
-                                }`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          }
-                        )}
-                        {keywordsTotalPages > 5 &&
-                          keywordsCurrentPage < keywordsTotalPages - 2 && (
-                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
-                              ...
-                            </span>
-                          )}
-                        {keywordsTotalPages > 5 && (
-                          <button
-                            onClick={() =>
-                              handleKeywordsPageChange(keywordsTotalPages)
-                            }
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                              keywordsCurrentPage === keywordsTotalPages
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
-                            }`}
-                          >
-                            {keywordsTotalPages}
-                          </button>
-                        )}
-                        <button
-                          onClick={() =>
-                            handleKeywordsPageChange(
-                              Math.min(
-                                keywordsTotalPages,
-                                keywordsCurrentPage + 1
-                              )
-                            )
-                          }
-                          disabled={keywordsCurrentPage === keywordsTotalPages}
-                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
-              </>
+              <KeywordsTab
+                keywords={keywords}
+                keywordsLoading={keywordsLoading}
+                allAdgroups={allAdgroups}
+                adgroups={adgroups}
+                campaignId={campaignId}
+                selectedKeywordIds={selectedKeywordIds}
+                onSelectAll={handleSelectAllKeywords}
+                onSelect={handleSelectKeyword}
+                currentPage={keywordsCurrentPage}
+                totalPages={keywordsTotalPages}
+                onPageChange={handleKeywordsPageChange}
+                sortBy={keywordsSortBy}
+                sortOrder={keywordsSortOrder}
+                onSort={handleKeywordsSort}
+                isFilterPanelOpen={isKeywordsFilterPanelOpen}
+                onToggleFilterPanel={() => {
+                  setIsKeywordsFilterPanelOpen(!isKeywordsFilterPanelOpen);
+                }}
+                onCloseFilterPanel={() => {
+                  setIsKeywordsFilterPanelOpen(false);
+                }}
+                filters={keywordsFilters}
+                onApplyFilters={(newFilters) => {
+                  setKeywordsFilters(newFilters);
+                  setKeywordsCurrentPage(1);
+                }}
+                isCreatePanelOpen={isCreateKeywordPanelOpen}
+                onToggleCreatePanel={() => {
+                  setIsCreateKeywordPanelOpen(!isCreateKeywordPanelOpen);
+                }}
+                onCloseCreatePanel={() => {
+                  setIsCreateKeywordPanelOpen(false);
+                  setCreateKeywordError(null);
+                  setCreateKeywordFieldErrors({});
+                  setCreatedKeywords([]);
+                  setFailedKeywordCount(0);
+                  setFailedKeywords([]);
+                }}
+                onCreateKeywords={handleCreateKeywords}
+                onLoadAllAdGroups={loadAllAdGroups}
+                createLoading={createKeywordLoading}
+                createError={createKeywordError}
+                createFieldErrors={createKeywordFieldErrors}
+                createdKeywords={createdKeywords}
+                failedCount={failedKeywordCount}
+                failedKeywords={failedKeywords}
+                showBulkActions={showKeywordsBulkActions}
+                onToggleBulkActions={() => {
+                  setShowKeywordsBulkActions((prev) => !prev);
+                }}
+                onCloseBulkActions={() => {
+                  setShowKeywordsBulkActions(false);
+                  setShowKeywordsBidPanel(false);
+                }}
+                bulkActionsRef={keywordsBulkActionsRef}
+                onBulkStatusAction={(action) => {
+                  setShowKeywordsBidPanel(false);
+                  setPendingKeywordsStatusAction(action);
+                  setShowKeywordsConfirmationModal(true);
+                }}
+                onBulkArchive={() => {
+                  setShowKeywordsBidPanel(false);
+                  setShowKeywordsDeleteConfirmation(true);
+                }}
+                onBulkEditBid={() => {
+                  setShowKeywordsBidPanel(true);
+                }}
+                showBidPanel={showKeywordsBidPanel}
+                bidAction={keywordsBidAction}
+                bidUnit={keywordsBidUnit}
+                bidValue={keywordsBidValue}
+                bidUpperLimit={keywordsBidUpperLimit}
+                bidLowerLimit={keywordsBidLowerLimit}
+                onBidActionChange={(action) => {
+                  setKeywordsBidAction(action);
+                  if (action === "set") {
+                    setKeywordsBidUnit("amount");
+                  }
+                }}
+                onBidUnitChange={setKeywordsBidUnit}
+                onBidValueChange={setKeywordsBidValue}
+                onBidUpperLimitChange={setKeywordsBidUpperLimit}
+                onBidLowerLimitChange={setKeywordsBidLowerLimit}
+                onBidPanelCancel={() => {
+                  setShowKeywordsBidPanel(false);
+                  setKeywordsBidValue("");
+                  setKeywordsBidUpperLimit("");
+                  setKeywordsBidLowerLimit("");
+                }}
+                onBidPanelApply={() => {
+                  setShowKeywordsConfirmationModal(true);
+                }}
+                bulkLoading={keywordsBulkLoading}
+                editingField={editingKeywordField}
+                editedValue={editedKeywordValue}
+                onEditStart={handleKeywordEditStart}
+                onEditChange={handleKeywordEditChange}
+                onEditEnd={handleKeywordEditEnd}
+                onEditCancel={handleKeywordEditCancel}
+                editLoading={keywordEditLoading}
+                pendingChange={pendingKeywordChange}
+              />
             )}
 
             {activeTab === "Ads Collection" && (
@@ -7363,7 +6621,7 @@ export const CampaignDetail: React.FC = () => {
                           await loadAllAdGroups();
                         }
                       }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-normal"
                     >
                       <svg
                         className="w-4 h-4 !text-white"
@@ -7558,6 +6816,14 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={productadsSortBy}
                     sortOrder={productadsSortOrder}
                     onSort={handleProductAdsSort}
+                    editingField={editingProductAdField}
+                    editedValue={editedProductAdValue}
+                    onEditStart={handleProductAdEditStart}
+                    onEditChange={handleProductAdEditChange}
+                    onEditEnd={handleProductAdEditEnd}
+                    onEditCancel={handleProductAdEditCancel}
+                    editLoading={productAdEditLoading}
+                    pendingChange={pendingProductAdChange}
                   />
                 </div>
                 {/* Pagination */}
@@ -7653,806 +6919,189 @@ export const CampaignDetail: React.FC = () => {
             )}
 
             {activeTab === "Targets" && (
-              <>
-                {/* Header with Filter Button and Create Target Button */}
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-                    Targets
-                  </h2>
-                  <div className="flex items-center gap-3">
-                    {/* Bulk Actions Dropdown */}
-                    {selectedTargetIds.size > 0 && (
-                      <div className="relative" ref={targetsBulkActionsRef}>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowTargetsBulkActions((prev) => !prev);
-                            setShowTargetsBidPanel(false);
-                            setIsTargetsFilterPanelOpen(false);
-                          }}
-                        >
-                          <svg
-                            className="w-4 h-4 text-[#072929]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                            />
-                          </svg>
-                          <span className="text-[10.64px] text-[#072929] font-normal">
-                            Edit
-                          </span>
-                        </Button>
-                        {showTargetsBulkActions && (
-                          <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                            <div className="overflow-y-auto">
-                              {[
-                                { value: "enable", label: "Enabled" },
-                                { value: "pause", label: "Paused" },
-                                { value: "edit_bid", label: "Edit Bid" },
-                                { value: "delete", label: "Delete" },
-                              ].map((opt) => (
-                                <button
-                                  key={opt.value}
-                                  type="button"
-                                  className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                  disabled={selectedTargetIds.size === 0}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (selectedTargetIds.size === 0) return;
-                                    if (opt.value === "edit_bid") {
-                                      setShowTargetsBidPanel(true);
-                                    } else if (opt.value === "delete") {
-                                      setShowTargetsBidPanel(false);
-                                      setShowTargetsDeleteConfirmation(true);
-                                    } else {
-                                      setShowTargetsBidPanel(false);
-                                      setPendingTargetsStatusAction(
-                                        opt.value as "enable" | "pause"
-                                      );
-                                      setShowTargetsConfirmationModal(true);
-                                    }
-                                    setShowTargetsBulkActions(false);
-                                  }}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {/* Create Target Button */}
-                    <button
-                      onClick={async () => {
-                        const newState = !isCreateTargetPanelOpen;
-                        setIsCreateTargetPanelOpen(newState);
-                        if (newState) {
-                          await loadAllAdGroups();
-                        }
-                      }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
-                    >
-                      <svg
-                        className="w-4 h-4 !text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                      Create Targets
-                      <svg
-                        className={`w-4 h-4 !text-white transition-transform ${
-                          isCreateTargetPanelOpen ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                    {/* Add Filter Button */}
-                    <button
-                      onClick={() =>
-                        setIsTargetsFilterPanelOpen(!isTargetsFilterPanelOpen)
-                      }
-                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Add Filter
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                          isTargetsFilterPanelOpen ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Create Target Panel */}
-                {isCreateTargetPanelOpen && (
-                  <CreateTargetPanel
-                    isOpen={isCreateTargetPanelOpen}
-                    campaignType={campaignType}
-                    onClose={() => {
-                      setIsCreateTargetPanelOpen(false);
-                      // Reset error states when closing
-                      setCreateTargetError(null);
-                      setCreateTargetFieldErrors({});
-                      setCreatedTargets([]);
-                      setFailedTargetCount(0);
-                      setFailedTargets([]);
-                    }}
-                    onSubmit={handleCreateTargets}
-                    adgroups={(allAdgroups.length > 0
-                      ? allAdgroups
-                      : adgroups
-                    ).map((ag) => ({
-                      adGroupId: ag.adGroupId || String(ag.id),
-                      name: ag.name,
-                    }))}
-                    campaignId={campaignId || ""}
-                    loading={createTargetLoading}
-                    submitError={createTargetError}
-                    fieldErrors={createTargetFieldErrors}
-                    createdTargets={createdTargets}
-                    failedCount={failedTargetCount}
-                    failedTargets={failedTargets}
-                  />
-                )}
-
-                {/* Bid editor panel for Targets */}
-                {selectedTargetIds.size > 0 && showTargetsBidPanel && (
-                  <div className="px-6 mb-4">
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="flex flex-wrap items-end gap-3 justify-between">
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Action
-                          </label>
-                          <Dropdown
-                            options={[
-                              { value: "increase", label: "Increase By" },
-                              { value: "decrease", label: "Decrease By" },
-                              { value: "set", label: "Set To" },
-                            ]}
-                            value={targetsBidAction}
-                            onChange={(val) => {
-                              const action = val as typeof targetsBidAction;
-                              setTargetsBidAction(action);
-                              if (action === "set") {
-                                setTargetsBidUnit("amount");
-                              }
-                            }}
-                            buttonClassName="w-full"
-                            width="w-full"
-                          />
-                        </div>
-                        {(targetsBidAction === "increase" ||
-                          targetsBidAction === "decrease") && (
-                          <div className="w-[140px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Unit
-                            </label>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                  targetsBidUnit === "percent"
-                                    ? "bg-forest-f40  border-forest-f40"
-                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setTargetsBidUnit("percent")}
-                              >
-                                %
-                              </button>
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                  targetsBidUnit === "amount"
-                                    ? "bg-forest-f40  border-forest-f40"
-                                    : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setTargetsBidUnit("amount")}
-                              >
-                                $
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        <div className="w-[160px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Value
-                          </label>
-                          <input
-                            type="number"
-                            value={targetsBidValue}
-                            onChange={(e) => setTargetsBidValue(e.target.value)}
-                            className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                          />
-                        </div>
-                        {targetsBidAction === "increase" && (
-                          <div className="w-[160px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Upper Limit (Optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={targetsBidUpperLimit}
-                              onChange={(e) =>
-                                setTargetsBidUpperLimit(e.target.value)
-                              }
-                              placeholder="$0.00"
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                          </div>
-                        )}
-                        {targetsBidAction === "decrease" && (
-                          <div className="w-[160px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Lower Limit (Optional)
-                            </label>
-                            <input
-                              type="number"
-                              value={targetsBidLowerLimit}
-                              onChange={(e) =>
-                                setTargetsBidLowerLimit(e.target.value)
-                              }
-                              placeholder="$0.00"
-                              className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:border-forest-f40"
-                            />
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowTargetsBidPanel(false);
-                              setTargetsBidValue("");
-                              setTargetsBidUpperLimit("");
-                              setTargetsBidLowerLimit("");
-                            }}
-                            className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setShowTargetsConfirmationModal(true);
-                            }}
-                            disabled={!targetsBidValue || targetsBulkLoading}
-                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Filter Panel */}
-                {isTargetsFilterPanelOpen && (
-                  <div className="mb-4">
-                    <FilterPanel
-                      isOpen={true}
-                      onClose={() => {
-                        // Check if filters changed before closing
-                        // The FilterPanel will have already applied changes via onApply when chips are removed
-                        setIsTargetsFilterPanelOpen(false);
-                      }}
-                      onApply={(newFilters) => {
-                        setTargetsFilters(newFilters);
-                        setTargetsCurrentPage(1); // Reset to first page when applying filters
-                        // Data will refresh automatically via useEffect dependency on targetsFilters
-                      }}
-                      initialFilters={targetsFilters}
-                      filterFields={[
-                        { value: "name", label: "Target" },
-                        { value: "state", label: "State" },
-                        { value: "bid", label: "Bid" },
-                        { value: "adgroup_name", label: "Ad Group" },
-                      ]}
-                    />
-                  </div>
-                )}
-
-                <div className="mb-4">
-                  <TargetsTable
-                    targets={targets}
-                    loading={targetsLoading}
-                    onSelectAll={handleSelectAllTargets}
-                    onSelect={handleSelectTarget}
-                    selectedIds={selectedTargetIds}
-                    sortBy={targetsSortBy}
-                    sortOrder={targetsSortOrder}
-                    onSort={handleTargetsSort}
-                    editingField={editingTargetField}
-                    editedValue={editedTargetValue}
-                    onEditStart={handleTargetEditStart}
-                    onEditChange={handleTargetEditChange}
-                    onEditEnd={handleTargetEditEnd}
-                    onEditCancel={handleTargetEditCancel}
-                    inlineEditLoading={targetEditLoading}
-                    pendingChange={pendingTargetChange}
-                  />
-                </div>
-                {/* Pagination */}
-                {!targetsLoading &&
-                  targets.length > 0 &&
-                  targetsTotalPages > 0 && (
-                    <div className="flex items-center justify-end mt-4">
-                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
-                        <button
-                          onClick={() =>
-                            handleTargetsPageChange(
-                              Math.max(1, targetsCurrentPage - 1)
-                            )
-                          }
-                          disabled={targetsCurrentPage === 1}
-                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                        >
-                          Previous
-                        </button>
-                        {Array.from(
-                          { length: Math.min(5, targetsTotalPages) },
-                          (_, i) => {
-                            let pageNum;
-                            if (targetsTotalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (targetsCurrentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (
-                              targetsCurrentPage >=
-                              targetsTotalPages - 2
-                            ) {
-                              pageNum = targetsTotalPages - 4 + i;
-                            } else {
-                              pageNum = targetsCurrentPage - 2 + i;
-                            }
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() => handleTargetsPageChange(pageNum)}
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                  targetsCurrentPage === pageNum
-                                    ? "bg-white text-[#136D6D] font-semibold"
-                                    : "text-black hover:bg-gray-50"
-                                }`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          }
-                        )}
-                        {targetsTotalPages > 5 &&
-                          targetsCurrentPage < targetsTotalPages - 2 && (
-                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
-                              ...
-                            </span>
-                          )}
-                        {targetsTotalPages > 5 && (
-                          <button
-                            onClick={() =>
-                              handleTargetsPageChange(targetsTotalPages)
-                            }
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                              targetsCurrentPage === targetsTotalPages
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
-                            }`}
-                          >
-                            {targetsTotalPages}
-                          </button>
-                        )}
-                        <button
-                          onClick={() =>
-                            handleTargetsPageChange(
-                              Math.min(
-                                targetsTotalPages,
-                                targetsCurrentPage + 1
-                              )
-                            )
-                          }
-                          disabled={targetsCurrentPage === targetsTotalPages}
-                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
-              </>
+              <TargetsTab
+                targets={targets}
+                targetsLoading={targetsLoading}
+                allAdgroups={allAdgroups}
+                adgroups={adgroups}
+                campaignId={campaignId}
+                campaignType={campaignType}
+                selectedTargetIds={selectedTargetIds}
+                onSelectAll={handleSelectAllTargets}
+                onSelect={handleSelectTarget}
+                currentPage={targetsCurrentPage}
+                totalPages={targetsTotalPages}
+                onPageChange={handleTargetsPageChange}
+                sortBy={targetsSortBy}
+                sortOrder={targetsSortOrder}
+                onSort={handleTargetsSort}
+                isFilterPanelOpen={isTargetsFilterPanelOpen}
+                onToggleFilterPanel={() => {
+                  setIsTargetsFilterPanelOpen(!isTargetsFilterPanelOpen);
+                }}
+                onCloseFilterPanel={() => {
+                  setIsTargetsFilterPanelOpen(false);
+                }}
+                filters={targetsFilters}
+                onApplyFilters={(newFilters) => {
+                  setTargetsFilters(newFilters);
+                  setTargetsCurrentPage(1);
+                }}
+                isCreatePanelOpen={isCreateTargetPanelOpen}
+                onToggleCreatePanel={() => {
+                  setIsCreateTargetPanelOpen(!isCreateTargetPanelOpen);
+                }}
+                onCloseCreatePanel={() => {
+                  setIsCreateTargetPanelOpen(false);
+                  setCreateTargetError(null);
+                  setCreateTargetFieldErrors({});
+                  setCreatedTargets([]);
+                  setFailedTargetCount(0);
+                  setFailedTargets([]);
+                }}
+                onCreateTargets={handleCreateTargets}
+                onLoadAllAdGroups={loadAllAdGroups}
+                createLoading={createTargetLoading}
+                createError={createTargetError}
+                createFieldErrors={createTargetFieldErrors}
+                createdTargets={createdTargets}
+                failedCount={failedTargetCount}
+                failedTargets={failedTargets}
+                showBulkActions={showTargetsBulkActions}
+                onToggleBulkActions={() => {
+                  setShowTargetsBulkActions((prev) => !prev);
+                }}
+                onCloseBulkActions={() => {
+                  setShowTargetsBulkActions(false);
+                  setShowTargetsBidPanel(false);
+                }}
+                bulkActionsRef={targetsBulkActionsRef}
+                onBulkStatusAction={(action) => {
+                  setShowTargetsBidPanel(false);
+                  setPendingTargetsStatusAction(action);
+                  setShowTargetsConfirmationModal(true);
+                }}
+                onBulkDelete={() => {
+                  setShowTargetsBidPanel(false);
+                  setShowTargetsDeleteConfirmation(true);
+                }}
+                onBulkEditBid={() => {
+                  setShowTargetsBidPanel(true);
+                }}
+                showBidPanel={showTargetsBidPanel}
+                bidAction={targetsBidAction}
+                bidUnit={targetsBidUnit}
+                bidValue={targetsBidValue}
+                bidUpperLimit={targetsBidUpperLimit}
+                bidLowerLimit={targetsBidLowerLimit}
+                onBidActionChange={(action) => {
+                  setTargetsBidAction(action);
+                  if (action === "set") {
+                    setTargetsBidUnit("amount");
+                  }
+                }}
+                onBidUnitChange={setTargetsBidUnit}
+                onBidValueChange={setTargetsBidValue}
+                onBidUpperLimitChange={setTargetsBidUpperLimit}
+                onBidLowerLimitChange={setTargetsBidLowerLimit}
+                onBidPanelCancel={() => {
+                  setShowTargetsBidPanel(false);
+                  setTargetsBidValue("");
+                  setTargetsBidUpperLimit("");
+                  setTargetsBidLowerLimit("");
+                }}
+                onBidPanelApply={() => {
+                  setShowTargetsConfirmationModal(true);
+                }}
+                bulkLoading={targetsBulkLoading}
+                editingField={editingTargetField}
+                editedValue={editedTargetValue}
+                onEditStart={handleTargetEditStart}
+                onEditChange={handleTargetEditChange}
+                onEditEnd={handleTargetEditEnd}
+                onEditCancel={handleTargetEditCancel}
+                editLoading={targetEditLoading}
+                pendingChange={pendingTargetChange}
+              />
             )}
 
             {activeTab === "Negative Keywords" && (
-              <>
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
-                      Negative Keywords
-                    </h2>
-                    <div className="flex items-center gap-2">
-                      {/* Bulk Actions Dropdown */}
-                      {selectedNegativeKeywordIds.size > 0 && (
-                        <div
-                          className="relative"
-                          ref={negativeKeywordsBulkActionsRef}
-                        >
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowNegativeKeywordsBulkActions(
-                                (prev) => !prev
-                              );
-                            }}
-                          >
-                            <svg
-                              className="w-4 h-4 text-[#072929]"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                              />
-                            </svg>
-                            <span className="text-[10.64px] text-[#072929] font-normal">
-                              Edit
-                            </span>
-                          </Button>
-                          {showNegativeKeywordsBulkActions && (
-                            <div className="absolute top-[38px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                              <div className="overflow-y-auto">
-                                {[
-                                  { value: "enable", label: "Enabled" },
-                                  { value: "pause", label: "Paused" },
-                                  { value: "delete", label: "Delete" },
-                                ].map((opt) => (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                    disabled={
-                                      selectedNegativeKeywordIds.size === 0
-                                    }
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (selectedNegativeKeywordIds.size === 0)
-                                        return;
-                                      if (opt.value === "delete") {
-                                        setShowNegativeKeywordsDeleteConfirmation(
-                                          true
-                                        );
-                                      } else {
-                                        setPendingNegativeKeywordsStatusAction(
-                                          opt.value as "enable" | "pause"
-                                        );
-                                        setShowNegativeKeywordsConfirmationModal(
-                                          true
-                                        );
-                                      }
-                                      setShowNegativeKeywordsBulkActions(false);
-                                    }}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {/* Create Negative Keyword Button */}
-                      <button
-                        onClick={async () => {
-                          const newState = !isCreateNegativeKeywordPanelOpen;
-                          setIsCreateNegativeKeywordPanelOpen(newState);
-                          if (newState) {
-                            await loadAllAdGroups();
-                          }
-                        }}
-                        className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
-                      >
-                        <svg
-                          className="w-4 h-4 !text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 4v16m8-8H4"
-                          />
-                        </svg>
-                        Create Negative Keywords
-                        <svg
-                          className={`w-4 h-4 !text-white transition-transform ${
-                            isCreateNegativeKeywordPanelOpen ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                      {/* Add Filter Button */}
-                      <button
-                        onClick={() =>
-                          setIsNegativeKeywordsFilterPanelOpen(
-                            !isNegativeKeywordsFilterPanelOpen
-                          )
-                        }
-                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
-                      >
-                        <svg
-                          className="w-5 h-5 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Add Filter
-                        </span>
-                        <svg
-                          className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                            isNegativeKeywordsFilterPanelOpen
-                              ? "rotate-180"
-                              : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Filter Panel */}
-                  {isNegativeKeywordsFilterPanelOpen && (
-                    <div className="mb-4">
-                      <FilterPanel
-                        isOpen={true}
-                        onClose={() => {
-                          setIsNegativeKeywordsFilterPanelOpen(false);
-                        }}
-                        onApply={(newFilters) => {
-                          setNegativeKeywordsFilters(newFilters);
-                          setNegativeKeywordsCurrentPage(1); // Reset to first page when applying filters
-                          // Data will refresh automatically via useEffect dependency on negativeKeywordsFilters
-                        }}
-                        initialFilters={negativeKeywordsFilters}
-                        filterFields={[
-                          { value: "keywordText", label: "Text" },
-                          { value: "state", label: "Status" },
-                        ]}
-                        useUppercaseState={true}
-                      />
-                    </div>
-                  )}
-
-                  {/* Create Negative Keyword Panel */}
-                  {isCreateNegativeKeywordPanelOpen && (
-                    <CreateNegativeKeywordPanel
-                      isOpen={isCreateNegativeKeywordPanelOpen}
-                      onClose={() => {
-                        setIsCreateNegativeKeywordPanelOpen(false);
-                        // Reset error states when closing
-                        setCreateNegativeKeywordError(null);
-                        setCreateNegativeKeywordFieldErrors({});
-                        setCreatedNegativeKeywords([]);
-                        setFailedNegativeKeywordCount(0);
-                        setFailedNegativeKeywords([]);
-                      }}
-                      onSubmit={handleCreateNegativeKeywords}
-                      adgroups={(allAdgroups.length > 0
-                        ? allAdgroups
-                        : adgroups
-                      ).map((ag) => ({
-                        adGroupId: ag.adGroupId || String(ag.id),
-                        name: ag.name,
-                      }))}
-                      campaignId={campaignId || ""}
-                      campaignType={campaignType || undefined}
-                      loading={createNegativeKeywordLoading}
-                      submitError={createNegativeKeywordError}
-                      fieldErrors={createNegativeKeywordFieldErrors}
-                      createdNegativeKeywords={createdNegativeKeywords}
-                      failedCount={failedNegativeKeywordCount}
-                      failedNegativeKeywords={failedNegativeKeywords}
-                    />
-                  )}
-
-                  <div className="mb-4">
-                    <NegativeKeywordsTable
-                      negativeKeywords={negativeKeywords}
-                      loading={negativeKeywordsLoading}
-                      onSelectAll={handleSelectAllNegativeKeywords}
-                      onSelect={handleSelectNegativeKeyword}
-                      selectedIds={selectedNegativeKeywordIds}
-                      sortBy={negativeKeywordsSortBy}
-                      sortOrder={negativeKeywordsSortOrder}
-                      onSort={handleNegativeKeywordsSort}
-                      editingField={editingNegativeKeywordField}
-                      editedValue={editedNegativeKeywordValue}
-                      onEditStart={handleNegativeKeywordEditStart}
-                      onEditChange={handleNegativeKeywordEditChange}
-                      onEditEnd={handleNegativeKeywordEditEnd}
-                      onEditCancel={handleNegativeKeywordEditCancel}
-                      inlineEditLoading={negativeKeywordEditLoading}
-                      pendingChange={pendingNegativeKeywordChange}
-                    />
-                  </div>
-                </div>
-                {/* Pagination */}
-                {!negativeKeywordsLoading &&
-                  negativeKeywords.length > 0 &&
-                  negativeKeywordsTotalPages > 0 && (
-                    <div className="flex items-center justify-end mt-4">
-                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
-                        <button
-                          onClick={() =>
-                            handleNegativeKeywordsPageChange(
-                              Math.max(1, negativeKeywordsCurrentPage - 1)
-                            )
-                          }
-                          disabled={negativeKeywordsCurrentPage === 1}
-                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                        >
-                          Previous
-                        </button>
-                        {Array.from(
-                          { length: Math.min(5, negativeKeywordsTotalPages) },
-                          (_, i) => {
-                            let pageNum;
-                            if (negativeKeywordsTotalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (negativeKeywordsCurrentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (
-                              negativeKeywordsCurrentPage >=
-                              negativeKeywordsTotalPages - 2
-                            ) {
-                              pageNum = negativeKeywordsTotalPages - 4 + i;
-                            } else {
-                              pageNum = negativeKeywordsCurrentPage - 2 + i;
-                            }
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() =>
-                                  handleNegativeKeywordsPageChange(pageNum)
-                                }
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                  negativeKeywordsCurrentPage === pageNum
-                                    ? "bg-white text-[#136D6D] font-semibold"
-                                    : "text-black hover:bg-gray-50"
-                                }`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          }
-                        )}
-                        {negativeKeywordsTotalPages > 5 &&
-                          negativeKeywordsCurrentPage <
-                            negativeKeywordsTotalPages - 2 && (
-                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
-                              ...
-                            </span>
-                          )}
-                        {negativeKeywordsTotalPages > 5 && (
-                          <button
-                            onClick={() =>
-                              handleNegativeKeywordsPageChange(
-                                negativeKeywordsTotalPages
-                              )
-                            }
-                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                              negativeKeywordsCurrentPage ===
-                              negativeKeywordsTotalPages
-                                ? "bg-white text-[#136D6D] font-semibold"
-                                : "text-black hover:bg-gray-50"
-                            }`}
-                          >
-                            {negativeKeywordsTotalPages}
-                          </button>
-                        )}
-                        <button
-                          onClick={() =>
-                            handleNegativeKeywordsPageChange(
-                              Math.min(
-                                negativeKeywordsTotalPages,
-                                negativeKeywordsCurrentPage + 1
-                              )
-                            )
-                          }
-                          disabled={
-                            negativeKeywordsCurrentPage ===
-                            negativeKeywordsTotalPages
-                          }
-                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
-              </>
+              <NegativeKeywordsTab
+                negativeKeywords={negativeKeywords}
+                negativeKeywordsLoading={negativeKeywordsLoading}
+                allAdgroups={allAdgroups}
+                adgroups={adgroups}
+                campaignId={campaignId}
+                campaignType={campaignType}
+                selectedNegativeKeywordIds={selectedNegativeKeywordIds}
+                onSelectAll={handleSelectAllNegativeKeywords}
+                onSelect={handleSelectNegativeKeyword}
+                currentPage={negativeKeywordsCurrentPage}
+                totalPages={negativeKeywordsTotalPages}
+                onPageChange={handleNegativeKeywordsPageChange}
+                sortBy={negativeKeywordsSortBy}
+                sortOrder={negativeKeywordsSortOrder}
+                onSort={handleNegativeKeywordsSort}
+                isFilterPanelOpen={isNegativeKeywordsFilterPanelOpen}
+                onToggleFilterPanel={() => {
+                  setIsNegativeKeywordsFilterPanelOpen(
+                    !isNegativeKeywordsFilterPanelOpen
+                  );
+                }}
+                onCloseFilterPanel={() => {
+                  setIsNegativeKeywordsFilterPanelOpen(false);
+                }}
+                filters={negativeKeywordsFilters}
+                onApplyFilters={(newFilters) => {
+                  setNegativeKeywordsFilters(newFilters);
+                  setNegativeKeywordsCurrentPage(1);
+                }}
+                isCreatePanelOpen={isCreateNegativeKeywordPanelOpen}
+                onToggleCreatePanel={() => {
+                  setIsCreateNegativeKeywordPanelOpen(
+                    !isCreateNegativeKeywordPanelOpen
+                  );
+                }}
+                onCloseCreatePanel={() => {
+                  setIsCreateNegativeKeywordPanelOpen(false);
+                  setCreateNegativeKeywordError(null);
+                  setCreateNegativeKeywordFieldErrors({});
+                  setCreatedNegativeKeywords([]);
+                  setFailedNegativeKeywordCount(0);
+                  setFailedNegativeKeywords([]);
+                }}
+                onCreateNegativeKeywords={handleCreateNegativeKeywords}
+                onLoadAllAdGroups={loadAllAdGroups}
+                createLoading={createNegativeKeywordLoading}
+                createError={createNegativeKeywordError}
+                createFieldErrors={createNegativeKeywordFieldErrors}
+                createdNegativeKeywords={createdNegativeKeywords}
+                failedCount={failedNegativeKeywordCount}
+                failedNegativeKeywords={failedNegativeKeywords}
+                showBulkActions={showNegativeKeywordsBulkActions}
+                onToggleBulkActions={() => {
+                  setShowNegativeKeywordsBulkActions((prev) => !prev);
+                }}
+                onCloseBulkActions={() => {
+                  setShowNegativeKeywordsBulkActions(false);
+                }}
+                bulkActionsRef={negativeKeywordsBulkActionsRef}
+                onBulkStatusAction={(action) => {
+                  setPendingNegativeKeywordsStatusAction(action);
+                  setShowNegativeKeywordsConfirmationModal(true);
+                }}
+                onBulkDelete={() => {
+                  setShowNegativeKeywordsDeleteConfirmation(true);
+                }}
+                editingField={editingNegativeKeywordField}
+                editedValue={editedNegativeKeywordValue}
+                onEditStart={handleNegativeKeywordEditStart}
+                onEditChange={handleNegativeKeywordEditChange}
+                onEditEnd={handleNegativeKeywordEditEnd}
+                onEditCancel={handleNegativeKeywordEditCancel}
+                editLoading={negativeKeywordEditLoading}
+                pendingChange={pendingNegativeKeywordChange}
+              />
             )}
 
             {activeTab === "Negative Targets" && (
@@ -9106,6 +7755,8 @@ export const CampaignDetail: React.FC = () => {
         title={errorModal.title || (errorModal.isSuccess ? "Success" : "Error")}
         message={errorModal.message}
         isSuccess={errorModal.isSuccess}
+        fieldErrors={errorModal.fieldErrors}
+        genericErrors={errorModal.genericErrors}
       />
 
       {/* Confirmation Modal for Keywords Bulk Actions */}
@@ -9465,66 +8116,68 @@ export const CampaignDetail: React.FC = () => {
       )}
 
       {/* Confirmation Modal for Targets Bulk Actions */}
-      {showTargetsConfirmationModal && 
-       !pendingTargetChange && 
-       (pendingTargetsStatusAction || selectedTargetIds.size > 0) && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
-            onClick={() => {
-              if (!targetsBulkLoading) {
-                setShowTargetsConfirmationModal(false);
-                setPendingTargetsStatusAction(null);
-              }
-            }}
-          />
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
-            <div className="p-6">
-              <div className="mb-4 text-center">
-                <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                  Confirm Action
-                </h3>
-                <p className="text-[14px] text-[#556179]">
-                  {pendingTargetsStatusAction
-                    ? `Are you sure you want to ${
-                        pendingTargetsStatusAction === "enable"
-                          ? "enable"
-                          : "pause"
-                      } ${selectedTargetIds.size} target(s)?`
-                    : `Are you sure you want to update the bid for ${selectedTargetIds.size} target(s)?`}
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTargetsConfirmationModal(false);
-                    setPendingTargetsStatusAction(null);
-                  }}
-                  disabled={targetsBulkLoading}
-                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (pendingTargetsStatusAction) {
-                      await handleBulkTargetsStatus(pendingTargetsStatusAction);
-                    } else {
-                      await handleBulkTargetsBid();
-                    }
-                  }}
-                  disabled={targetsBulkLoading}
-                  className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {targetsBulkLoading ? "Processing..." : "Confirm"}
-                </button>
+      {showTargetsConfirmationModal &&
+        !pendingTargetChange &&
+        (pendingTargetsStatusAction || selectedTargetIds.size > 0) && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
+              onClick={() => {
+                if (!targetsBulkLoading) {
+                  setShowTargetsConfirmationModal(false);
+                  setPendingTargetsStatusAction(null);
+                }
+              }}
+            />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
+              <div className="p-6">
+                <div className="mb-4 text-center">
+                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
+                    Confirm Action
+                  </h3>
+                  <p className="text-[14px] text-[#556179]">
+                    {pendingTargetsStatusAction
+                      ? `Are you sure you want to ${
+                          pendingTargetsStatusAction === "enable"
+                            ? "enable"
+                            : "pause"
+                        } ${selectedTargetIds.size} target(s)?`
+                      : `Are you sure you want to update the bid for ${selectedTargetIds.size} target(s)?`}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTargetsConfirmationModal(false);
+                      setPendingTargetsStatusAction(null);
+                    }}
+                    disabled={targetsBulkLoading}
+                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (pendingTargetsStatusAction) {
+                        await handleBulkTargetsStatus(
+                          pendingTargetsStatusAction
+                        );
+                      } else {
+                        await handleBulkTargetsBid();
+                      }
+                    }}
+                    disabled={targetsBulkLoading}
+                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {targetsBulkLoading ? "Processing..." : "Confirm"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Confirmation Modal for Negative Keywords Bulk Actions */}
       {showNegativeKeywordsConfirmationModal &&
@@ -9969,6 +8622,109 @@ export const CampaignDetail: React.FC = () => {
           );
         })()}
 
+      {/* Inline Edit Confirmation Modal for Product Ads */}
+      {pendingProductAdChange &&
+        showProductAdsConfirmationModal &&
+        (() => {
+          const productad = productads.find(
+            (pa) => pa.id === pendingProductAdChange.id
+          );
+          const productAdName =
+            productad?.asin ||
+            productad?.sku ||
+            `Product Ad ${productad?.adId || ""}`;
+          const fieldLabel = "Status";
+
+          // Format old value
+          let oldValueDisplay = "";
+          if (pendingProductAdChange.field === "status") {
+            oldValueDisplay =
+              pendingProductAdChange.oldValue === "enabled"
+                ? "Enabled"
+                : "Paused";
+          }
+
+          // Format new value
+          let newValueDisplay = "";
+          if (pendingProductAdChange.field === "status") {
+            newValueDisplay =
+              pendingProductAdChange.newValue === "enabled"
+                ? "Enabled"
+                : "Paused";
+          }
+
+          return (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              onClick={(e) => {
+                if (
+                  e.target === e.currentTarget &&
+                  !productAdEditLoading.has(pendingProductAdChange.id)
+                ) {
+                  handleProductAdEditCancel();
+                }
+              }}
+            >
+              <div
+                className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                  Confirm {fieldLabel} Change
+                </h3>
+
+                <div className="mb-4">
+                  <p className="text-[12.16px] text-[#556179] mb-2">
+                    Product Ad:{" "}
+                    <span className="font-semibold text-[#072929]">
+                      {productAdName}
+                    </span>
+                  </p>
+                  <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {fieldLabel}:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12.16px] text-[#556179]">
+                          {oldValueDisplay}
+                        </span>
+                        <span className="text-[12.16px] text-[#556179]">→</span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {newValueDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={handleProductAdEditCancel}
+                    disabled={productAdEditLoading.has(
+                      pendingProductAdChange.id
+                    )}
+                    className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmProductAdChange}
+                    disabled={productAdEditLoading.has(
+                      pendingProductAdChange.id
+                    )}
+                    className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+                  >
+                    {productAdEditLoading.has(pendingProductAdChange.id)
+                      ? "Updating..."
+                      : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
       {/* Inline Edit Confirmation Modal for Negative Keywords */}
       {pendingNegativeKeywordChange &&
         showNegativeKeywordsConfirmationModal &&
@@ -10299,9 +9055,7 @@ export const CampaignDetail: React.FC = () => {
           let oldValueDisplay = "";
           if (pendingSBAdChange.field === "status") {
             oldValueDisplay =
-              pendingSBAdChange.oldValue === "enabled"
-                ? "Enabled"
-                : "Paused";
+              pendingSBAdChange.oldValue === "enabled" ? "Enabled" : "Paused";
           } else if (pendingSBAdChange.field === "name") {
             oldValueDisplay = pendingSBAdChange.oldValue || "—";
           }
@@ -10310,9 +9064,7 @@ export const CampaignDetail: React.FC = () => {
           let newValueDisplay = "";
           if (pendingSBAdChange.field === "status") {
             newValueDisplay =
-              pendingSBAdChange.newValue === "enabled"
-                ? "Enabled"
-                : "Paused";
+              pendingSBAdChange.newValue === "enabled" ? "Enabled" : "Paused";
           } else if (pendingSBAdChange.field === "name") {
             newValueDisplay = pendingSBAdChange.newValue || "—";
           }
@@ -10407,9 +9159,7 @@ export const CampaignDetail: React.FC = () => {
                   </h3>
                   <p className="text-[14px] text-[#556179]">
                     Are you sure you want to{" "}
-                    {pendingSBAdsStatusAction === "enable"
-                      ? "enable"
-                      : "pause"}{" "}
+                    {pendingSBAdsStatusAction === "enable" ? "enable" : "pause"}{" "}
                     {selectedSBAdIds.size} ad(s)?
                   </p>
                 </div>

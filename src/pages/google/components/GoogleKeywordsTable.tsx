@@ -206,11 +206,8 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
         { value: "PHRASE", label: "Phrase" },
         { value: "BROAD", label: "Broad" },
       ],
-      render: (_value: any, row: GoogleKeyword) => (
-        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
-          {getMatchTypeLabel(row.match_type) || "—"}
-        </span>
-      ),
+      // Remove custom render to allow editable behavior - use default status rendering
+      // The purple styling can be added via CSS if needed
       getValue: (row: GoogleKeyword) => row.match_type || "EXACT",
     },
     {
