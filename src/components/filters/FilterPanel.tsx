@@ -80,6 +80,7 @@ const NUMERIC_OPERATORS = [
 ];
 
 const STATE_OPTIONS = ["Enabled", "Paused", "Archived"];
+const TIKTOK_STATE_OPTIONS = ["Enabled", "Paused", "Deleted"];
 const TYPE_OPTIONS = ["SP", "SB", "SD"];
 const TIKTOK_TYPE_OPTIONS = [
   "TRAFFIC",
