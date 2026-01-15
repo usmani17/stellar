@@ -182,9 +182,8 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
             </p>
           </div>
         ) : (
-          <div className="max-h-[600px] overflow-y-auto">
-            <table className="min-w-[1200px] w-full">
-              <thead className="sticky top-0 bg-sandstorm-s20 z-10">
+          <table className="min-w-[1200px] w-full">
+            <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
@@ -748,7 +747,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                 })}
               </tbody>
             </table>
-          </div>
         )}
       </div>
     </div>
