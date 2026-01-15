@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Dropdown, type DropdownOption } from "../ui/Dropdown";
 import { Chip } from "../ui/Chip";
 import { Checkbox } from "../ui/Checkbox";
@@ -143,6 +143,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const isInitialMountRef = useRef(true);
+  const profilesLoadedRef = useRef(false);
+  const loadingProfilesRef = useRef(false);
 
   // Only sync on initial mount, not on every prop change
   // This prevents infinite loops - parent component manages filter state
@@ -153,20 +155,24 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     }
   }, []); // Empty deps - only run on mount
 
-  // Fetch profiles when profile_name is selected and it's an Amazon channel
-  useEffect(() => {
-    const loadProfiles = async () => {
-      if (!accountId) return;
+  // Shared function to load profiles
+  const loadProfiles = useCallback(async () => {
+    if (!accountId || channelType !== "amazon") return;
+
+    // Prevent concurrent requests
+    if (loadingProfilesRef.current) return;
+
+    // If already loaded, don't reload
+    if (profilesLoadedRef.current) return;
 
       try {
+      loadingProfilesRef.current = true;
         setLoadingProfiles(true);
         // Get channels for the account
         const channels = await accountsService.getAccountChannels(
           parseInt(accountId)
         );
-        const amazonChannel = channels.find(
-          (ch) => ch.channel_type === "amazon"
-        );
+      const amazonChannel = channels.find((ch) => ch.channel_type === "amazon");
 
         if (amazonChannel) {
           // Fetch active profiles (is_selected=true, deleted_at is null)
@@ -175,47 +181,74 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             (profile: any) => profile.is_selected && !profile.deleted_at
           );
 
-          const options = activeProfiles.map((profile: any) => {
-            const profileName = profile.name || profile.profileId || "";
-            const profileId = profile.profileId || profile.id || "";
-            const countryCode =
-              profile.countryCode || profile.country_code || "";
-            const label = countryCode
-              ? `${profileName} (${countryCode})`
-              : profileName;
-            // Use profileId as value to ensure uniqueness, or fallback to composite key
-            const uniqueValue = profileId || `${profileName}|${countryCode}`;
-            return {
-              value: uniqueValue,
-              label: label,
-              profileName: profileName,
-              profileId: profileId,
-            };
-          });
+        const options = activeProfiles.map((profile: any) => {
+          const profileName = profile.name || profile.profileId || "";
+          const profileId = profile.profileId || profile.id || "";
+          const countryCode = profile.countryCode || profile.country_code || "";
+          const label = countryCode
+            ? `${profileName} (${countryCode})`
+            : profileName;
+          // Use profileId as value to ensure uniqueness, or fallback to composite key
+          const uniqueValue = profileId || `${profileName}|${countryCode}`;
+          return {
+            value: uniqueValue,
+            label: label,
+            profileName: profileName,
+            profileId: profileId,
+          };
+        });
 
           setProfileOptions(options);
+        profilesLoadedRef.current = true;
         }
       } catch (error) {
         console.error("Failed to load profiles:", error);
         setProfileOptions([]);
+      profilesLoadedRef.current = false;
       } finally {
         setLoadingProfiles(false);
+      loadingProfilesRef.current = false;
       }
-    };
+  }, [accountId, channelType]);
 
-    const isProfileDropdown =
-      selectedField === "profile_name" && channelType === "amazon" && accountId;
+  // Reset loaded flag when account or channel changes
+  useEffect(() => {
+    profilesLoadedRef.current = false;
+    setProfileOptions([]);
+  }, [accountId, channelType]);
 
-    if (isProfileDropdown && profileOptions.length === 0) {
+  // Preload profiles when panel opens (if Amazon channel) - only once
+  useEffect(() => {
+    if (
+      isOpen &&
+      accountId &&
+      channelType === "amazon" &&
+      !profilesLoadedRef.current &&
+      !loadingProfilesRef.current
+    ) {
       loadProfiles();
-    } else if (!isProfileDropdown) {
-      setProfileOptions([]);
+    }
+  }, [isOpen, accountId, channelType, loadProfiles]);
+
+  // Fetch profiles immediately when profile_name is selected
+  useEffect(() => {
+    const isProfileDropdown =
+      selectedField === "profile_name" && channelType === "amazon";
+
+    // If not profile dropdown, don't clear options (keep them for when user switches back)
+    if (!isProfileDropdown) {
       // Clear operator when switching away from profile dropdown
       if (selectedField !== "profile_name") {
         setSelectedOperator("");
       }
+      return;
     }
-  }, [selectedField, channelType, accountId, profileOptions.length]);
+
+    // Load profiles immediately when profile_name is selected (if not already loaded)
+    if (!profilesLoadedRef.current && !loadingProfilesRef.current) {
+      loadProfiles();
+    }
+  }, [selectedField, channelType, loadProfiles]);
 
   // Clear operator when profiles load and dropdown becomes available
   useEffect(() => {
@@ -394,14 +427,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
     // For profile_name filters, convert unique values back to profile names
     let filterValueToStore: any = isMultiSelectField
-      ? selectedMultiValues // Store array for multi-select fields
-      : selectedField === "budget" ||
-        selectedField === "default_bid" ||
-        selectedField === "spends" ||
-        selectedField === "sales" ||
-        selectedField === "ctr" ||
-        selectedField === "bid"
-      ? parseFloat(filterValue) || 0
+        ? selectedMultiValues // Store array for multi-select fields
+        : selectedField === "budget" ||
+          selectedField === "default_bid" ||
+          selectedField === "spends" ||
+          selectedField === "sales" ||
+          selectedField === "ctr" ||
+          selectedField === "bid"
+        ? parseFloat(filterValue) || 0
       : filterValue;
 
     if (selectedField === "profile_name" && isProfileDropdown) {
@@ -439,25 +472,25 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       // Don't auto-select for profile dropdown
       const isProfileDropdownField =
         nextField === "profile_name" && channelType === "amazon";
-        const needsOp =
-          !isProfileDropdownField &&
-          (nextField === "campaign_name" ||
-            nextField === "budget" ||
-            nextField === "profile_name" ||
-            nextField === "account_name" ||
-            nextField === "name" ||
-            nextField === "default_bid" ||
-            nextField === "spends" ||
-            nextField === "sales" ||
-            nextField === "ctr" ||
-            nextField === "bid" ||
-            nextField === "adgroup_name" ||
-            nextField === "sku" ||
-            nextField === "adId" ||
-            nextField === "asin" ||
-            nextField === "adGroupId" ||
-            nextField === "keywordText" ||
-            nextField === "keyword_text");
+      const needsOp =
+        !isProfileDropdownField &&
+        (nextField === "campaign_name" ||
+          nextField === "budget" ||
+          nextField === "profile_name" ||
+          nextField === "account_name" ||
+          nextField === "name" ||
+          nextField === "default_bid" ||
+          nextField === "spends" ||
+          nextField === "sales" ||
+          nextField === "ctr" ||
+          nextField === "bid" ||
+          nextField === "adgroup_name" ||
+          nextField === "sku" ||
+          nextField === "adId" ||
+          nextField === "asin" ||
+          nextField === "adGroupId" ||
+          nextField === "keywordText" ||
+          nextField === "keyword_text");
 
       if (needsOp) {
         // For string fields, use "contains", for numeric use "eq"
@@ -699,25 +732,25 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Dropdown<string>
                 options={
                   selectedField === "campaign_name" ||
-                  selectedField === "profile_name" ||
-                  selectedField === "account_name" ||
-                  selectedField === "name" ||
-                  selectedField === "adgroup_name" ||
-                  selectedField === "sku" ||
-                  selectedField === "adId" ||
-                  selectedField === "asin" ||
+                    selectedField === "profile_name" ||
+                    selectedField === "account_name" ||
+                    selectedField === "name" ||
+                    selectedField === "adgroup_name" ||
+                    selectedField === "sku" ||
+                    selectedField === "adId" ||
+                    selectedField === "asin" ||
                   selectedField === "adGroupId" ||
                   selectedField === "keywordText" ||
                   selectedField === "keyword_text" ||
                   selectedField === "expression"
                     ? STRING_OPERATORS.map((op) => ({
-                        value: op.value,
-                        label: op.label,
-                      }))
+                      value: op.value,
+                      label: op.label,
+                    }))
                     : NUMERIC_OPERATORS.map((op) => ({
-                        value: op.value,
-                        label: op.label,
-                      }))
+                      value: op.value,
+                      label: op.label,
+                    }))
                 }
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
@@ -905,12 +938,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 </div>
               ) : isStatusOrChannelType ? (
                 <Dropdown<string>
-                  options={(
-                    selectedField === "status"
-                      ? STATUS_OPTIONS
-                      : selectedField === "match_type"
-                      ? MATCH_TYPE_OPTIONS
-                      : CHANNEL_TYPE_OPTIONS
+                  options={(selectedField === "status"
+                    ? STATUS_OPTIONS
+                    : selectedField === "match_type"
+                    ? MATCH_TYPE_OPTIONS
+                    : CHANNEL_TYPE_OPTIONS
                   ).map((opt) => ({
                     value: opt,
                     label: opt,
@@ -922,7 +954,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                       : selectedField === "match_type"
                       ? "Match Type"
                       : "Channel Type"
-                  }`}
+                    }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="w-full bg-[#FEFEFB]"
                 />

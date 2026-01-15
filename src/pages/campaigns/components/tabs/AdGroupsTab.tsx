@@ -348,12 +348,12 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                   Value
                 </label>
                 <div className="relative">
-                  <input
-                    type="number"
-                    value={bidValue}
-                    onChange={(e) => onBidValueChange(e.target.value)}
+                <input
+                  type="number"
+                  value={bidValue}
+                  onChange={(e) => onBidValueChange(e.target.value)}
                     className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                  />
+                />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
                     {bidUnit === "percent" ? "%" : "$"}
                   </span>

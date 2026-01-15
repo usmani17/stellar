@@ -182,7 +182,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
             </p>
           </div>
         ) : (
-          <table className="min-w-[1200px] w-full">
+            <table className="min-w-[1200px] w-full">
             <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
