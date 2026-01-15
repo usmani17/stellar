@@ -87,6 +87,11 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
     const dropdownRef = useRef<HTMLDivElement>(null);
     const isStartingEditRef = useRef(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+    // Bulk Status Confirmation Modal State
+    const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+    const [pendingBulkAction, setPendingBulkAction] = useState<"ENABLE" | "DISABLE" | "DELETE" | null>(null);
 
     // Click outside handler for bulk actions dropdown
     useEffect(() => {
@@ -142,27 +147,34 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
         }
     }, [editingCell, showInlineEditConfirm]);
 
-    // Bulk Action Handler
-    const handleBulkAction = async (action: "ENABLE" | "DISABLE" | "DELETE") => {
+    // Bulk Action Handler - Now opens confirmation modal
+    const handleBulkAction = (action: "ENABLE" | "DISABLE" | "DELETE") => {
         if (!accountId || selectedAdIds.size === 0) return;
+        setShowBulkActions(false);
+        setPendingBulkAction(action);
+        setShowBulkStatusModal(true);
+    };
 
-        if (!window.confirm(`Are you sure you want to ${action.toLowerCase()} details for ${selectedAdIds.size} ads?`)) {
-            return;
-        }
+    // Execute bulk action after modal confirmation
+    const handleBulkActionConfirm = async () => {
+        if (!accountId || !pendingBulkAction || selectedAdIds.size === 0) return;
 
+        setBulkActionLoading(true);
         try {
             await campaignsService.updateTikTokAdStatus(accountId, {
                 ad_ids: Array.from(selectedAdIds),
-                operation_status: action,
+                operation_status: pendingBulkAction,
             });
 
             onAdsUpdated();
             onSelectAll(false); // Clear selection
+            setShowBulkStatusModal(false);
+            setPendingBulkAction(null);
         } catch (error) {
-            console.error(`Bulk ${action} failed:`, error);
-            alert(`Failed to ${action.toLowerCase()} ads`);
+            console.error(`Bulk ${pendingBulkAction} failed:`, error);
+            alert(`Failed to ${pendingBulkAction.toLowerCase()} ads`);
         } finally {
-            setShowBulkActions(false);
+            setBulkActionLoading(false);
         }
     };
 
@@ -731,6 +743,142 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                                 className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {inlineEditLoading ? "Saving..." : "Confirm"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Status Confirmation Modal */}
+            {showBulkStatusModal && pendingBulkAction && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !bulkActionLoading) {
+                            setShowBulkStatusModal(false);
+                            setPendingBulkAction(null);
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Confirm Status Change
+                        </h3>
+
+                        {/* Summary */}
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[12.16px] text-[#556179]">
+                                    {selectedAdIds.size} ad{selectedAdIds.size !== 1 ? "s" : ""} will be updated:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {pendingBulkAction === "ENABLE"
+                                        ? "Enable"
+                                        : pendingBulkAction === "DISABLE"
+                                            ? "Pause"
+                                            : "Delete"}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Ad Preview Table */}
+                        {(() => {
+                            const selectedAdsData = ads.filter(ad => selectedAdIds.has(ad.ad_id));
+                            const previewCount = Math.min(10, selectedAdsData.length);
+                            const hasMore = selectedAdsData.length > 10;
+
+                            return (
+                                <div className="mb-6">
+                                    <div className="mb-2">
+                                        <span className="text-[10.64px] text-[#556179]">
+                                            {hasMore
+                                                ? `Showing ${previewCount} of ${selectedAdsData.length} selected ads`
+                                                : `${selectedAdsData.length} ad${selectedAdsData.length !== 1 ? "s" : ""} selected`}
+                                        </span>
+                                    </div>
+                                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                        <table className="w-full">
+                                            <thead className="bg-sandstorm-s20">
+                                                <tr>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        Ad Name
+                                                    </th>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        Old Status
+                                                    </th>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        New Status
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {selectedAdsData.slice(0, 10).map((ad) => {
+                                                    const oldStatus = ad.operation_status || "ENABLE";
+                                                    const oldStatusDisplay =
+                                                        oldStatus === "ENABLE"
+                                                            ? "Enable"
+                                                            : oldStatus === "DISABLE"
+                                                                ? "Pause"
+                                                                : oldStatus;
+                                                    const newStatusDisplay =
+                                                        pendingBulkAction === "ENABLE"
+                                                            ? "Enable"
+                                                            : pendingBulkAction === "DISABLE"
+                                                                ? "Pause"
+                                                                : "Delete";
+
+                                                    return (
+                                                        <tr
+                                                            key={ad.ad_id}
+                                                            className="border-b border-gray-200 last:border-b-0"
+                                                        >
+                                                            <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                                                {ad.ad_name || "Unnamed Ad"}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                                                {oldStatusDisplay}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                                                {newStatusDisplay}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {pendingBulkAction === "DELETE" && (
+                            <p className="mb-4 text-[11px] text-red-600 italic">
+                                * Deleting ads cannot be undone. Deleted ads will stop serving immediately.
+                            </p>
+                        )}
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowBulkStatusModal(false);
+                                    setPendingBulkAction(null);
+                                }}
+                                disabled={bulkActionLoading}
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleBulkActionConfirm}
+                                disabled={bulkActionLoading}
+                                className={`px-4 py-2 text-white text-[10.64px] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${pendingBulkAction === "DELETE"
+                                        ? "bg-red-600 hover:bg-red-700"
+                                        : "bg-[#136D6D] hover:bg-[#0e5a5a]"
+                                    }`}
+                            >
+                                {bulkActionLoading ? "Applying..." : "Confirm"}
                             </button>
                         </div>
                     </div>

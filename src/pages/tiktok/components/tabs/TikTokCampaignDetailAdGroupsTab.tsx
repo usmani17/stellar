@@ -96,6 +96,10 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
     const [bulkEditLoading, setBulkEditLoading] = useState(false);
     const bulkEditDropdownRef = React.useRef<HTMLDivElement>(null);
 
+    // Bulk status confirmation modal state
+    const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+    const [pendingBulkStatusAction, setPendingBulkStatusAction] = useState<"ENABLE" | "DISABLE" | "DELETE" | null>(null);
+
     // Sync external filter panel state with internal state
     React.useEffect(() => {
         setIsFilterPanelOpen(externalIsFilterPanelOpen);
@@ -333,12 +337,20 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
         }
     };
 
-    // Bulk edit handlers
-    const handleBulkStatusUpdate = async (operationStatus: "ENABLE" | "DISABLE" | "DELETE") => {
+    // Bulk edit handlers - Now opens confirmation modal
+    const handleBulkStatusUpdate = (operationStatus: "ENABLE" | "DISABLE" | "DELETE") => {
         if (!accountId || selectedAdGroupIds.size === 0) {
             alert("Please select at least one ad group to update.");
             return;
         }
+        setShowBulkEditDropdown(false);
+        setPendingBulkStatusAction(operationStatus);
+        setShowBulkStatusModal(true);
+    };
+
+    // Execute bulk status update after modal confirmation
+    const handleBulkStatusConfirm = async () => {
+        if (!accountId || !pendingBulkStatusAction || selectedAdGroupIds.size === 0) return;
 
         const accountIdNum = parseInt(accountId, 10);
         if (isNaN(accountIdNum)) {
@@ -347,26 +359,19 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
         }
 
         const selectedIds = Array.from(selectedAdGroupIds);
-        const selectedAdGroups = adgroups.filter(ag => selectedAdGroupIds.has(ag.adgroup_id));
-
-        // Show confirmation
-        const confirmMessage = `Are you sure you want to ${operationStatus.toLowerCase()} ${selectedIds.length} ad group(s)?`;
-        if (!window.confirm(confirmMessage)) {
-            return;
-        }
-
         setBulkEditLoading(true);
-        setShowBulkEditDropdown(false);
 
         try {
             await campaignsService.updateTikTokAdGroupStatus(accountIdNum, {
                 adgroup_ids: selectedIds,
-                operation_status: operationStatus,
+                operation_status: pendingBulkStatusAction,
             });
 
-            // Clear selection and refresh
-            const idsToClear = Array.from(selectedAdGroupIds);
-            idsToClear.forEach(id => onSelectAdGroup(id, false));
+            // Clear selection and close modal
+            selectedIds.forEach(id => onSelectAdGroup(id, false));
+            setShowBulkStatusModal(false);
+            setPendingBulkStatusAction(null);
+
             if (onRefresh) {
                 onRefresh();
             }
@@ -467,13 +472,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                     <div className="relative" ref={bulkEditDropdownRef}>
                         <button
                             onClick={() => {
-                                if (selectedAdGroupIds.size === 0) {
-                                    alert("Please select at least one ad group to edit.");
-                                    return;
-                                }
                                 setShowBulkEditDropdown(!showBulkEditDropdown);
                             }}
-                            disabled={bulkEditLoading || selectedAdGroupIds.size === 0}
+                            disabled={bulkEditLoading}
                             className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <svg className="w-4 h-4 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -736,10 +737,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                     />
                                                 ) : (
                                                     <div
-                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
-                                                            false // isArchived - add this check if needed
-                                                                ? "text-gray-400 cursor-not-allowed"
-                                                                : "text-[#0b0f16] cursor-pointer hover:underline"
+                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${false // isArchived - add this check if needed
+                                                            ? "text-gray-400 cursor-not-allowed"
+                                                            : "text-[#0b0f16] cursor-pointer hover:underline"
                                                             }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -773,10 +773,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                     </div>
                                                 ) : (
                                                     <div
-                                                        className={`text-[13.3px] leading-[1.26] ${
-                                                            false // isArchived - add this check if needed
-                                                                ? "cursor-not-allowed opacity-60"
-                                                                : "cursor-pointer hover:underline"
+                                                        className={`text-[13.3px] leading-[1.26] ${false // isArchived - add this check if needed
+                                                            ? "cursor-not-allowed opacity-60"
+                                                            : "cursor-pointer hover:underline"
                                                             }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -818,10 +817,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                     />
                                                 ) : (
                                                     <div
-                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
-                                                            false // isArchived - add this check if needed
-                                                                ? "text-gray-400 cursor-not-allowed"
-                                                                : "text-[#0b0f16] cursor-pointer hover:underline"
+                                                        className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${false // isArchived - add this check if needed
+                                                            ? "text-gray-400 cursor-not-allowed"
+                                                            : "text-[#0b0f16] cursor-pointer hover:underline"
                                                             }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -901,10 +899,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                     <button
                                         key={pageNum}
                                         onClick={() => onPageChange(pageNum)}
-                                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                            currentPage === pageNum
-                                                ? "bg-white text-[#136D6D] font-semibold"
-                                                : "text-black hover:bg-gray-50"
+                                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                                            ? "bg-white text-[#136D6D] font-semibold"
+                                            : "text-black hover:bg-gray-50"
                                             }`}
                                     >
                                         {pageNum}
@@ -920,10 +917,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                         {totalPages > 5 && (
                             <button
                                 onClick={() => onPageChange(totalPages)}
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                                    currentPage === totalPages
-                                        ? "bg-white text-[#136D6D] font-semibold"
-                                        : "text-black hover:bg-gray-50"
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
                                     }`}
                             >
                                 {totalPages}
@@ -1019,6 +1015,145 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                 className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {inlineEditLoading ? "Saving..." : "Confirm"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Status Confirmation Modal */}
+            {showBulkStatusModal && pendingBulkStatusAction && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !bulkEditLoading) {
+                            setShowBulkStatusModal(false);
+                            setPendingBulkStatusAction(null);
+                        }
+                    }}
+                >
+                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                            Confirm Status Change
+                        </h3>
+
+                        {/* Summary */}
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[12.16px] text-[#556179]">
+                                    {selectedAdGroupIds.size} ad group
+                                    {selectedAdGroupIds.size !== 1 ? "s" : ""} will be updated:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {pendingBulkStatusAction === "ENABLE"
+                                        ? "Enable"
+                                        : pendingBulkStatusAction === "DISABLE"
+                                            ? "Pause"
+                                            : "Delete"}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Ad Group Preview Table */}
+                        {(() => {
+                            const selectedAdGroupsData = adgroups.filter(ag =>
+                                selectedAdGroupIds.has(ag.adgroup_id)
+                            );
+                            const previewCount = Math.min(10, selectedAdGroupsData.length);
+                            const hasMore = selectedAdGroupsData.length > 10;
+
+                            return (
+                                <div className="mb-6">
+                                    <div className="mb-2">
+                                        <span className="text-[10.64px] text-[#556179]">
+                                            {hasMore
+                                                ? `Showing ${previewCount} of ${selectedAdGroupsData.length} selected ad groups`
+                                                : `${selectedAdGroupsData.length} ad group${selectedAdGroupsData.length !== 1 ? "s" : ""} selected`}
+                                        </span>
+                                    </div>
+                                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                        <table className="w-full">
+                                            <thead className="bg-sandstorm-s20">
+                                                <tr>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        Ad Group Name
+                                                    </th>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        Old Status
+                                                    </th>
+                                                    <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                                                        New Status
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {selectedAdGroupsData.slice(0, 10).map((adgroup) => {
+                                                    const oldStatus = adgroup.operation_status || "ENABLE";
+                                                    const oldStatusDisplay =
+                                                        oldStatus === "ENABLE"
+                                                            ? "Enable"
+                                                            : oldStatus === "DISABLE"
+                                                                ? "Pause"
+                                                                : oldStatus;
+                                                    const newStatusDisplay =
+                                                        pendingBulkStatusAction === "ENABLE"
+                                                            ? "Enable"
+                                                            : pendingBulkStatusAction === "DISABLE"
+                                                                ? "Pause"
+                                                                : "Delete";
+
+                                                    return (
+                                                        <tr
+                                                            key={adgroup.adgroup_id}
+                                                            className="border-b border-gray-200 last:border-b-0"
+                                                        >
+                                                            <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                                                {adgroup.adgroup_name || "Unnamed Ad Group"}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                                                {oldStatusDisplay}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                                                {newStatusDisplay}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {pendingBulkStatusAction === "DELETE" && (
+                            <p className="mb-4 text-[11px] text-red-600 italic">
+                                * Deleting ad groups cannot be undone. Deleted ad groups will stop serving immediately.
+                            </p>
+                        )}
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowBulkStatusModal(false);
+                                    setPendingBulkStatusAction(null);
+                                }}
+                                disabled={bulkEditLoading}
+                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleBulkStatusConfirm}
+                                disabled={bulkEditLoading}
+                                className={`px-4 py-2 text-white text-[10.64px] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${pendingBulkStatusAction === "DELETE"
+                                    ? "bg-red-600 hover:bg-red-700"
+                                    : "bg-[#136D6D] hover:bg-[#0e5a5a]"
+                                    }`}
+                            >
+                                {bulkEditLoading ? "Applying..." : "Confirm"}
                             </button>
                         </div>
                     </div>
