@@ -1887,7 +1887,7 @@ export const Keywords: React.FC = () => {
                       {summary && (
                         <tr className="table-summary-row">
                           <td className="table-cell"></td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             Total ({summary.total_keywords})
                           </td>
                           <td className="table-cell"></td>
@@ -1896,23 +1896,23 @@ export const Keywords: React.FC = () => {
                           <td className="table-cell"></td>
                           <td className="table-cell"></td>
                           <td className="table-cell"></td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {formatCurrency(summary.total_spends)}
                           </td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {formatCurrency(summary.total_sales)}
                           </td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.total_impressions.toLocaleString()}
                           </td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.total_clicks.toLocaleString()}
                           </td>
                           <td className="table-cell"></td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.avg_acos.toFixed(2)}%
                           </td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.avg_roas.toFixed(2)}x
                           </td>
                         </tr>
@@ -1963,7 +1963,7 @@ export const Keywords: React.FC = () => {
 
                             {/* Keyword Name */}
                             <td className="table-cell min-w-[150px] max-w-[200px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
+                              <span className="table-text leading-[1.26] text-left truncate block w-full">
                                 {keyword.name || "Unnamed Keyword"}
                               </span>
                             </td>
@@ -2075,7 +2075,7 @@ export const Keywords: React.FC = () => {
                                   onClick={() =>
                                     startInlineEdit(keyword, "bid")
                                   }
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
+                                  className="table-text leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                 >
                                   {keyword.bid || "$0.00"}
                                 </p>
@@ -2107,7 +2107,7 @@ export const Keywords: React.FC = () => {
 
                             {/* Profile */}
                             <td className="table-cell min-w-[150px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                              <span className="table-text leading-[1.26] whitespace-nowrap">
                                 {keyword.profile_name &&
                                 keyword.profile_name.trim() !== ""
                                   ? keyword.profile_name
@@ -2117,7 +2117,7 @@ export const Keywords: React.FC = () => {
 
                             {/* Country */}
                             <td className="table-cell min-w-[100px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                              <span className="table-text leading-[1.26] whitespace-nowrap">
                                 {keyword.profile_country_code &&
                                 keyword.profile_country_code.trim() !== ""
                                   ? keyword.profile_country_code
@@ -2127,49 +2127,49 @@ export const Keywords: React.FC = () => {
 
                             {/* Type */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.type || "SP"}
                               </span>
                             </td>
 
                             {/* Spends */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.spends || "$0.00"}
                               </span>
                             </td>
 
                             {/* Sales */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.sales || "$0.00"}
                               </span>
                             </td>
 
                             {/* Impressions */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {(keyword.impressions || 0).toLocaleString()}
                               </span>
                             </td>
 
                             {/* Clicks */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {(keyword.clicks || 0).toLocaleString()}
                               </span>
                             </td>
 
                             {/* CTR */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.ctr || "0.00%"}
                               </span>
                             </td>
 
                             {/* ACOS */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.acos
                                   ? `${parseFloat(keyword.acos).toFixed(2)}%`
                                   : "0.00%"}
@@ -2178,7 +2178,7 @@ export const Keywords: React.FC = () => {
 
                             {/* ROAS */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.roas
                                   ? `${parseFloat(keyword.roas).toFixed(2)} x`
                                   : "0.00 x"}

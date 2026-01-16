@@ -3230,22 +3230,22 @@ export const Campaigns: React.FC = () => {
                             <td className="table-cell"></td>
                             <td className="table-cell"></td>
                             <td className="table-cell"></td>
-                            <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {formatCurrency(summary.total_spends)}
                             </td>
-                            <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {formatCurrency(summary.total_sales)}
                             </td>
-                            <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {summary.total_impressions.toLocaleString()}
                             </td>
-                            <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {summary.total_clicks.toLocaleString()}
                             </td>
-                            <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {summary.avg_acos.toFixed(2)}%
                             </td>
-                            <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {summary.avg_roas.toFixed(2)}x
                             </td>
                           </tr>
@@ -3374,7 +3374,7 @@ export const Campaigns: React.FC = () => {
 
                               {/* Profile */}
                               <td className="table-cell min-w-[200px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                <span className="table-text leading-[1.26] whitespace-nowrap">
                                   {campaign.profile_name &&
                                   campaign.profile_name.trim() !== ""
                                     ? campaign.profile_name
@@ -3384,7 +3384,7 @@ export const Campaigns: React.FC = () => {
 
                               {/* Country */}
                               <td className="table-cell min-w-[100px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                <span className="table-text leading-[1.26] whitespace-nowrap">
                                   {campaign.profile_country_code &&
                                   campaign.profile_country_code.trim() !== ""
                                     ? campaign.profile_country_code
@@ -3394,7 +3394,7 @@ export const Campaigns: React.FC = () => {
 
                               {/* Type */}
                               <td className="table-cell">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                <span className="table-text leading-[1.26]">
                                   {campaign.type || "SP"}
                                 </span>
                               </td>
@@ -3513,7 +3513,7 @@ export const Campaigns: React.FC = () => {
                                       }
                                       startInlineEdit(campaign, "budget");
                                     }}
-                                    className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
+                                    className={`table-text leading-[1.26] rounded px-2 py-1 ${
                                       (
                                         campaign.status || "Enabled"
                                       ).toUpperCase() === "ARCHIVED"
@@ -3575,7 +3575,7 @@ export const Campaigns: React.FC = () => {
                                       }
                                       startInlineEdit(campaign, "budgetType");
                                     }}
-                                    className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
+                                    className={`table-text leading-[1.26] rounded px-2 py-1 ${
                                       (
                                         campaign.status || "Enabled"
                                       ).toUpperCase() === "ARCHIVED"
@@ -3597,7 +3597,7 @@ export const Campaigns: React.FC = () => {
 
                               {/* Start Date */}
                               <td className="table-cell">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                <span className="table-text leading-[1.26] whitespace-nowrap">
                                   {campaign.startDate
                                     ? new Date(
                                         campaign.startDate
@@ -3612,42 +3612,42 @@ export const Campaigns: React.FC = () => {
 
                               {/* Spends */}
                               <td className="table-cell">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                <span className="table-text leading-[1.26]">
                                   {formatCurrency(campaign.spends || 0)}
                                 </span>
                               </td>
 
                               {/* Sales */}
                               <td className="table-cell">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                <span className="table-text leading-[1.26]">
                                   {formatCurrency(campaign.sales || 0)}
                                 </span>
                               </td>
 
                               {/* Impressions */}
                               <td className="table-cell">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                <span className="table-text leading-[1.26]">
                                   {(campaign.impressions || 0).toLocaleString()}
                                 </span>
                               </td>
 
                               {/* Clicks */}
                               <td className="table-cell">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                <span className="table-text leading-[1.26]">
                                   {(campaign.clicks || 0).toLocaleString()}
                                 </span>
                               </td>
 
                               {/* ACOS */}
                               <td className="table-cell">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                <span className="table-text leading-[1.26]">
                                   {formatPercentage(campaign.acos || 0)}
                                 </span>
                               </td>
 
                               {/* ROAS */}
                               <td className="table-cell">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                <span className="table-text leading-[1.26]">
                                   {campaign.roas
                                     ? `${campaign.roas.toFixed(2)} x`
                                     : "0.00 x"}

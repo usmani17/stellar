@@ -178,7 +178,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 type="text"
                 value={currentProductAd.asin}
                 onChange={(e) => handleChange("asin", e.target.value)}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] text-[#0b0f16] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter ASIN"
               />
               {errors.asin && (
@@ -195,7 +195,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 type="text"
                 value={currentProductAd.sku || ""}
                 onChange={(e) => handleChange("sku", e.target.value)}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] text-[#0b0f16] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter SKU (optional)"
               />
             </div>
@@ -210,7 +210,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 value={currentProductAd.customText || ""}
                 onChange={(e) => handleChange("customText", e.target.value)}
                 maxLength={150}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] text-[#0b0f16] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter custom text (optional, max 150 chars)"
               />
               {errors.customText && (
@@ -231,7 +231,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 onChange={(e) =>
                   handleChange("catalogSourceCountryCode", e.target.value)
                 }
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] text-[#0b0f16] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="e.g., US (optional)"
                 maxLength={2}
               />
@@ -310,32 +310,32 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                             className="table-row group"
                           >
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {adGroupName}
                               </span>
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.asin}
                               </span>
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.sku || "—"}
                               </span>
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.customText || "—"}
                               </span>
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.catalogSourceCountryCode || "—"}
                               </span>
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.state}
                               </span>
                             </td>

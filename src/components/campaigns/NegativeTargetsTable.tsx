@@ -293,35 +293,35 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       )}
                       {/* ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {target.id || "—"}
                         </span>
                       </td>
 
                       {/* Profile ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {target.profileId || "—"}
                         </span>
                       </td>
 
                       {/* Target ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {target.targetId || "—"}
                         </span>
                       </td>
 
                       {/* Expression */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {expression || "—"}
                         </span>
                       </td>
 
                       {/* Resolved Expression */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {resolvedExpression || "—"}
                         </span>
                       </td>
@@ -383,49 +383,49 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
 
                       {/* Ad Group ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {target.adGroupId || "—"}
                         </span>
                       </td>
 
                       {/* Campaign ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {target.campaignId || "—"}
                         </span>
                       </td>
 
                       {/* Creation Date Time */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatDate(target.creationDateTime)}
                         </span>
                       </td>
 
                       {/* Last Update Date Time */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatDate(target.lastUpdateDateTime)}
                         </span>
                       </td>
 
                       {/* Serving Status */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {target.servingStatus || "—"}
                         </span>
                       </td>
 
                       {/* Serving Status Details */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {target.servingStatusDetails || "—"}
                         </span>
                       </td>
 
                       {/* Last Updated */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatDate(target.last_updated)}
                         </span>
                       </td>

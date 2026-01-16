@@ -300,10 +300,10 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
                             : ""
                         } hover:bg-gray-50 transition-colors`}
                       >
-                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell table-text">
                           {kw.text}
                         </td>
-                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell table-text">
                           {kw.match_type}
                         </td>
                         <td className="table-cell">

@@ -427,7 +427,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           onClick={() =>
                             onStartNameEdit && handleNameClick(adgroup)
                           }
-                          className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                          className={`table-text leading-[1.26] ${
                             onStartNameEdit
                               ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                               : ""
@@ -562,7 +562,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                         {updatingAdGroupId === adgroup.id &&
                         pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {formatCurrency2Decimals(
                                 parseFloat(pendingChange.newValue)
                               )}
@@ -572,7 +572,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                         ) : pendingChange?.id === adgroup.id &&
                           pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {formatCurrency2Decimals(
                                 parseFloat(pendingChange.newValue)
                               )}
@@ -622,7 +622,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           editingField === "bid" &&
                           onUpdateAdGroupBid ? (
                           <div className="flex items-center">
-                            <span className="text-[13.3px] text-[#0b0f16] mr-1">
+                            <span className="table-text mr-1">
                               $
                             </span>
                             <input
@@ -650,24 +650,24 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                             onClick={() =>
                               onUpdateAdGroupBid && handleBidClick(adgroup)
                             }
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
+                            className="table-text leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                           >
                             {formatCurrency2Decimals(adgroup.cpc_bid_dollars)}
                           </p>
                         )}
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatPercentage(adgroup.ctr)}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.spends)}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.sales)}
                         </span>
                       </td>

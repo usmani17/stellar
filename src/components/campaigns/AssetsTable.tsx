@@ -322,28 +322,28 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                         </div>
                       )}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       <div className="flex items-center gap-2">
                         <span>{asset.assetId || "—"}</span>
                       </div>
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {asset.name || asset.fileName || "—"}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {asset.assetType || asset.mediaType || "—"}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {formatFileSize(
                         asset.fileSize || asset.fileMetadata?.sizeInBytes
                       )}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {asset.contentType ||
                         asset.fileMetadata?.contentType ||
                         "—"}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {asset.createdAt || asset.creationTime
                         ? new Date(
                             asset.createdAt || asset.creationTime!

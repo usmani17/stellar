@@ -387,29 +387,29 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                 {summary && (
                                     <tr className="table-summary-row">
                                         <td className="table-cell"></td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell table-text leading-[1.26]">
                                             Total ({summary.total_ads})
                                         </td>
                                         <td className="table-cell"></td>
                                         <td className="table-cell"></td>
                                         <td className="table-cell"></td>
                                         <td className="table-cell"></td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell table-text leading-[1.26]">
                                             {formatCurrency(summary.total_spend)}
                                         </td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell table-text leading-[1.26]">
                                             {formatNumber(summary.total_impressions)}
                                         </td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell table-text leading-[1.26]">
                                             {formatNumber(summary.total_clicks)}
                                         </td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell table-text leading-[1.26]">
                                             {formatNumber(summary.total_conversions)}
                                         </td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell table-text leading-[1.26]">
                                             {formatPercentage(summary.avg_ctr)}
                                         </td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell table-text leading-[1.26]">
                                             {formatCurrency(summary.avg_cpc)}
                                         </td>
                                     </tr>
@@ -451,11 +451,11 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                         }}
                                                         autoFocus
                                                         maxLength={512}
-                                                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                        className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
                                                     />
                                                 ) : (
                                                     <div
-                                                        className={`text-[13.3px] text-[#0b0f16] leading-[1.26] font-medium text-left truncate block w-full whitespace-nowrap ${onUpdateAdName
+                                                        className={`table-text leading-[1.26] font-medium text-left truncate block w-full whitespace-nowrap ${onUpdateAdName
                                                             ? "cursor-pointer hover:underline"
                                                             : ""
                                                             }`}
@@ -472,12 +472,12 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                 )}
                                             </td>
                                             <td className="table-cell">
-                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left">
+                                                <div className="table-text leading-[1.26] text-left">
                                                     {item.adgroup_name}
                                                 </div>
                                             </td>
                                             <td className="table-cell">
-                                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left">
+                                                <div className="table-text leading-[1.26] text-left">
                                                     {item.campaign_id ? (
                                                         <Link to={`/accounts/${1}/tiktok/campaigns/${item.campaign_id}`} className="hover:underline hover:text-[#136D6D]">
                                                             {item.campaign_name}
@@ -488,7 +488,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                 </div>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {item.ad_format}
                                                 </span>
                                             </td>
@@ -530,32 +530,32 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                 )}
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatCurrency(item.spend)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatNumber(item.impressions)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatNumber(item.clicks)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatNumber(item.conversions)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatPercentage(item.ctr)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatCurrency(item.cpc)}
                                                 </span>
                                             </td>

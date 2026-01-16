@@ -246,7 +246,7 @@ className="table-edit-icon flex-shrink-0"
       type: "text",
       sortable: true,
       render: (_value: any, row: GoogleCampaign) => (
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
+                        <span className="table-text leading-[1.26] font-semibold text-[#7a4dff]">
           {getChannelTypeLabel(row.advertising_channel_type) || "—"}
                         </span>
       ),

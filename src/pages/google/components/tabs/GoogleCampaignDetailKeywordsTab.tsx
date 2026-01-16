@@ -475,7 +475,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             onStartKeywordTextEdit &&
                             handleKeywordTextClick(keyword)
                           }
-                          className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                          className={`table-text leading-[1.26] ${
                             onStartKeywordTextEdit
                               ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                               : ""
@@ -488,7 +488,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         {updatingKeywordId === keyword.id &&
                         pendingChange?.field === "match_type" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
@@ -496,7 +496,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         ) : pendingChange?.id === keyword.id &&
                           pendingChange?.field === "match_type" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
                             <div className="flex items-center gap-1">
@@ -560,7 +560,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           />
                         ) : (
                           <span
-                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                            className={`table-text leading-[1.26] ${
                               onUpdateKeywordMatchType
                                 ? "cursor-pointer hover:underline"
                                 : ""
@@ -575,7 +575,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         )}
                       </td>
                       <td className="table-cell hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.adgroup_name || "—"}
                         </span>
                       </td>
@@ -671,7 +671,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         {updatingKeywordId === keyword.id &&
                         pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               ${parseFloat(pendingChange.newValue).toFixed(2)}
                             </span>
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
@@ -680,7 +680,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                           editingField === "bid" &&
                           onUpdateKeywordBid ? (
                           <div className="flex items-center">
-                            <span className="text-[13.3px] text-[#0b0f16] mr-1">
+                            <span className="table-text mr-1">
                               $
                             </span>
                             <input
@@ -708,7 +708,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             onClick={() =>
                               onUpdateKeywordBid && handleBidClick(keyword)
                             }
-                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                            className={`table-text leading-[1.26] ${
                               onUpdateKeywordBid
                                 ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                 : ""
@@ -759,7 +759,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                       Desktop:
                                     </span>
                                     <span
-                                      className="text-[13.3px] text-[#0b0f16] truncate"
+                                      className="table-text truncate"
                                       title={urlsArray.join(", ")}
                                     >
                                       {urlsArray.length > 1
@@ -776,7 +776,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                       Mobile:
                                     </span>
                                     <span
-                                      className="text-[13.3px] text-[#0b0f16] truncate"
+                                      className="table-text truncate"
                                       title={mobileUrlsArray.join(", ")}
                                     >
                                       {mobileUrlsArray.length > 1
@@ -788,7 +788,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                   </div>
                                 )}
                                 {!hasUrls && !hasMobileUrls && (
-                                  <span className="text-[13.3px] text-[#0b0f16]">
+                                  <span className="table-text">
                                     —
                                   </span>
                                 )}

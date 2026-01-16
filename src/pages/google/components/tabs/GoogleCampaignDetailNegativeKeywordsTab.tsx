@@ -508,7 +508,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                         {updatingNegativeKeywordId === negativeKeyword.id &&
                         pendingChange?.field === "keyword_text" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
@@ -516,7 +516,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                         ) : pendingChange?.id === negativeKeyword.id &&
                           pendingChange?.field === "keyword_text" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
                             <div className="flex items-center gap-1">
@@ -562,7 +562,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                           </div>
                         ) : (
                           <span
-                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                            className={`table-text leading-[1.26] ${
                               onUpdateNegativeKeywordText
                                 ? "cursor-pointer hover:underline"
                                 : ""
@@ -580,7 +580,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                         {updatingNegativeKeywordId === negativeKeyword.id &&
                         pendingChange?.field === "match_type" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
@@ -588,7 +588,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                         ) : pendingChange?.id === negativeKeyword.id &&
                           pendingChange?.field === "match_type" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
                             <div className="flex items-center gap-1">
@@ -662,7 +662,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                           />
                         ) : (
                           <span
-                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${
+                            className={`table-text leading-[1.26] ${
                               onUpdateNegativeKeywordMatchType
                                 ? "cursor-pointer hover:underline"
                                 : ""
@@ -677,14 +677,14 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                         )}
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {negativeKeyword.level === "campaign"
                             ? "Campaign"
                             : "Ad Group"}
                         </span>
                       </td>
                       <td className="table-cell hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {negativeKeyword.adgroup_name ||
                             (negativeKeyword.level === "campaign" ? "—" : "—")}
                         </span>

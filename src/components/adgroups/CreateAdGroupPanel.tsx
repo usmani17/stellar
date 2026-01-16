@@ -444,7 +444,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                       >
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {adgroup.name}
                             </span>
                             {adGroupRowErrors
@@ -462,7 +462,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                         {campaignType !== "SB" && (
                           <td className="table-cell">
                             <div className="flex flex-col">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 ${(adgroup.defaultBid || 0).toFixed(2)}
                               </span>
                               {adGroupRowErrors
@@ -480,7 +480,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                         )}
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {adgroup.state}
                             </span>
                             {adGroupRowErrors

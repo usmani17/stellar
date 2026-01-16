@@ -538,11 +538,11 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                                                         }}
                                                         autoFocus
                                                         maxLength={512}
-                                                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                        className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
                                                     />
                                                 ) : (
                                                     <div
-                                                        className="text-[13.3px] text-[#0b0f16] font-medium cursor-pointer hover:underline truncate block w-full whitespace-nowrap"
+                                                        className="table-text font-medium cursor-pointer hover:underline truncate block w-full whitespace-nowrap"
                                                         onClick={() => startInlineEdit(item, "ad_name")}
                                                         title={item.ad_name}
                                                     >
@@ -579,22 +579,22 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                                            <td className="table-cell table-text">
                                                 {formatCurrency(item.spend)}
                                             </td>
-                                            <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                                            <td className="table-cell table-text">
                                                 {formatNumber(item.impressions)}
                                             </td>
-                                            <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                                            <td className="table-cell table-text">
                                                 {formatNumber(item.clicks)}
                                             </td>
-                                            <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                                            <td className="table-cell table-text">
                                                 {formatNumber(item.conversions)}
                                             </td>
-                                            <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                                            <td className="table-cell table-text">
                                                 {formatPercentage(item.ctr)}
                                             </td>
-                                            <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                                            <td className="table-cell table-text">
                                                 {formatCurrency(item.cpc)}
                                             </td>
                                         </tr>

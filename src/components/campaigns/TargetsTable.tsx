@@ -273,14 +273,14 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
 
                     {/* Target Name */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.name}
                       </span>
                     </td>
 
                     {/* Ad Group */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.adgroup_name || "—"}
                       </span>
                     </td>
@@ -289,7 +289,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                     <td className="table-cell min-w-[115px]">
                       {inlineEditLoading.has(target.id) ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             {pendingChange?.field === "status"
                               ? pendingChange.newValue === "enabled"
                                 ? "Enabled"
@@ -301,7 +301,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                       ) : pendingChange?.id === target.id &&
                         pendingChange?.field === "status" ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             {pendingChange.newValue === "enabled"
                               ? "Enabled"
                               : "Paused"}
@@ -387,7 +387,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                     <td className="table-cell">
                       {inlineEditLoading.has(target.id) ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             $
                             {parseFloat(
                               pendingChange?.newValue || "0"
@@ -401,7 +401,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                       ) : pendingChange?.id === target.id &&
                         pendingChange?.field === "bid" ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             $
                             {parseFloat(
                               pendingChange.newValue || "0"
@@ -420,7 +420,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                             min="0"
                             value={editedValue}
                             onChange={(e) => onEditChange?.(e.target.value)}
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
+                            className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
                             autoFocus
                             onBlur={(e) => onEditEnd?.(e.target.value)}
                             onKeyDown={(e) => {
@@ -455,63 +455,63 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
 
                     {/* Profile Name */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.profile_name || "—"}
                       </span>
                     </td>
 
                     {/* Keyword */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.keyword || "—"}
                       </span>
                     </td>
 
                     {/* Keyword Type */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.keyword_type || "—"}
                       </span>
                     </td>
 
                     {/* Keyword Bid */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.keyword_bid || "$0.00"}
                       </span>
                     </td>
 
                     {/* Match Type */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.match_type || "—"}
                       </span>
                     </td>
 
                     {/* Targeting */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.targeting || "—"}
                       </span>
                     </td>
 
                     {/* CTR */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.ctr}
                       </span>
                     </td>
 
                     {/* Spends */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.spends}
                       </span>
                     </td>
 
                     {/* Sales */}
                     <td className="table-cell">
-                      <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <span className="table-text leading-[1.26]">
                         {target.sales}
                       </span>
                     </td>

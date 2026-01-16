@@ -2722,7 +2722,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Campaign Name
                     </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <div className="table-text leading-[1.26]">
                       {campaignDetail.campaign.name || "—"}
                     </div>
                   </div>
@@ -2732,7 +2732,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Campaign ID
                     </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <div className="table-text leading-[1.26]">
                       {campaignDetail.campaign.campaign_id}
                     </div>
                   </div>
@@ -2774,7 +2774,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        className="table-text leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("status");
                           setEditedValue(
@@ -2806,7 +2806,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="number"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
+                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
                           autoFocus
                           onBlur={() => {
                             const budgetValue = parseFloat(editedValue);
@@ -2853,7 +2853,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        className="table-text leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("budget");
                           setEditedValue(
@@ -2875,7 +2875,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Channel Type
                     </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <div className="table-text leading-[1.26]">
                       {campaignDetail.campaign.advertising_channel_type || "—"}
                     </div>
                   </div>
@@ -2885,7 +2885,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Account
                     </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <div className="table-text leading-[1.26]">
                       {campaignDetail.campaign.account_name ||
                         campaignDetail.campaign.customer_id ||
                         "—"}
@@ -2903,7 +2903,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="date"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
+                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
                           autoFocus
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.start_date
@@ -2946,7 +2946,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        className="table-text leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("start_date");
                           const startDate = campaignDetail.campaign.start_date
@@ -2977,7 +2977,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="date"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
+                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
                           autoFocus
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.end_date
@@ -3020,7 +3020,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        className="table-text leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("end_date");
                           const endDate = campaignDetail.campaign.end_date

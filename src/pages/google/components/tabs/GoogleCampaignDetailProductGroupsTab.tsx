@@ -331,12 +331,12 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] underline cursor-pointer">
+                        <span className="table-text leading-[1.26] underline cursor-pointer">
                           All products
                         </span>
                       </td>
                       <td className="table-cell hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {productGroup.adgroup_name || "—"}
                         </span>
                       </td>
@@ -418,22 +418,22 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                         ) : null}
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(productGroup.cpc_bid_dollars)}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatPercentage(productGroup.ctr)}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(productGroup.spends)}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(productGroup.sales)}
                         </span>
                       </td>

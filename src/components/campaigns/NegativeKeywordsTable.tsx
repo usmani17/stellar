@@ -266,21 +266,21 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       )}
                       {/* ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.id || "—"}
                         </span>
                       </td>
 
                       {/* Profile ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.profileId || "—"}
                         </span>
                       </td>
 
                       {/* Keyword ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.keywordId || "—"}
                         </span>
                       </td>
@@ -295,13 +295,13 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                             position="bottomMiddle"
                           >
                             <div className="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.keywordText || keyword.name}
                               </span>
                             </div>
                           </Tooltip>
                         ) : (
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             —
                           </span>
                         )}
@@ -309,7 +309,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                       {/* Match Type */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.matchType || "—"}
                         </span>
                       </td>
@@ -427,14 +427,14 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                       {/* Ad Group ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.adGroupId || "—"}
                         </span>
                       </td>
 
                       {/* Campaign ID */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.campaignId || "—"}
                         </span>
                       </td>

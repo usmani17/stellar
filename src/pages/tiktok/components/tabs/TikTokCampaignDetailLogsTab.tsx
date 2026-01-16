@@ -50,13 +50,13 @@ export const TikTokCampaignDetailLogsTab: React.FC = () => {
                                         key={log.id}
                                         className={`hover:bg-gray-50 transition-colors ${!isLastRow ? "border-b border-[#e8e8e3]" : ""}`}
                                     >
-                                        <td className="py-[10px] px-[20px] text-[13.3px] text-[#0b0f16]">
+                                        <td className="py-[10px] px-[20px] table-text">
                                             {log.timestamp}
                                         </td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                                        <td className="table-cell table-text">
                                             {log.user}
                                         </td>
-                                        <td className="table-cell text-[13.3px] text-[#0b0f16] font-medium">
+                                        <td className="table-cell table-text font-medium">
                                             {log.action}
                                         </td>
                                         <td className="table-cell text-[13.3px] text-[#556179]">

@@ -525,7 +525,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                       >
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {getAdGroupName(target.adGroupId)}
                             </span>
                             {targetRowErrors
@@ -542,7 +542,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {EXPRESSION_TYPE_OPTIONS.find(
                                 (opt) => opt.value === target.expressionType
                               )?.label || target.expressionType}
@@ -561,7 +561,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {target.expressionValue}
                             </span>
                             {targetRowErrors
@@ -578,7 +578,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               ${target.bid.toFixed(2)}
                             </span>
                             {targetRowErrors
@@ -595,7 +595,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {target.state}
                             </span>
                             {targetRowErrors

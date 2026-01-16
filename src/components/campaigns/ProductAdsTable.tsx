@@ -204,27 +204,27 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                       />
                     </td>
                   )}
-                  <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                  <td className="table-cell table-text leading-[1.26]">
                     {productad.adId || "—"}
                   </td>
-                  <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                  <td className="table-cell table-text leading-[1.26]">
                     {productad.asin || "—"}
                   </td>
-                  <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                  <td className="table-cell table-text leading-[1.26]">
                     {productad.sku || "—"}
                   </td>
                   <td className="table-cell min-w-[115px]">
                     {editLoading?.has(productad.id) ? (
                       <div className="flex items-center gap-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           Updating...
                         </span>
                       </div>
                     ) : pendingChange?.id === productad.id &&
                       pendingChange?.field === "status" ? (
                       <div className="flex items-center gap-2">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {pendingChange.newValue === "enabled" ||
                           pendingChange.newValue === "ENABLED"
                             ? "Enabled"
@@ -295,7 +295,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                  <td className="table-cell table-text leading-[1.26]">
                     {productad.adGroupId || "—"}
                   </td>
                 </tr>

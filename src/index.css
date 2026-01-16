@@ -502,3 +502,9 @@ body input[type="submit"]:disabled {
   color: #a3a8b3;
 }
 
+/* Common text styling - used for table cells, spans, and divs */
+.table-text {
+  font-size: 13.3px;
+  color: #0b0f16;
+}
+

@@ -1633,7 +1633,7 @@ export const Targets: React.FC = () => {
                       {summary && (
                         <tr className="table-summary-row">
                           <td className="table-cell"></td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             Total ({summary.total_targets})
                           </td>
                           <td className="table-cell"></td>
@@ -1643,23 +1643,23 @@ export const Targets: React.FC = () => {
                           <td className="table-cell"></td>
                           <td className="table-cell"></td>
                           <td className="table-cell"></td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {formatCurrency(summary.total_spends)}
                           </td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {formatCurrency(summary.total_sales)}
                           </td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.total_impressions.toLocaleString()}
                           </td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.total_clicks.toLocaleString()}
                           </td>
                           <td className="table-cell"></td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.avg_acos.toFixed(2)}%
                           </td>
-                          <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.avg_roas.toFixed(2)}x
                           </td>
                         </tr>
@@ -1710,7 +1710,7 @@ export const Targets: React.FC = () => {
 
                             {/* Target Name */}
                             <td className="table-cell min-w-[150px] max-w-[200px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
+                              <span className="table-text leading-[1.26] text-left truncate block w-full">
                                 {target.name || "Unnamed Target"}
                               </span>
                             </td>
@@ -1821,7 +1821,7 @@ export const Targets: React.FC = () => {
                               ) : (
                                 <p
                                   onClick={() => startInlineEdit(target, "bid")}
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
+                                  className="table-text leading-[1.26] cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
                                 >
                                   {target.bid || "$0.00"}
                                 </p>
@@ -1830,7 +1830,7 @@ export const Targets: React.FC = () => {
 
                             {/* Ad Group Name */}
                             <td className="table-cell min-w-[150px] max-w-[200px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
+                              <span className="table-text leading-[1.26] text-left truncate block w-full">
                                 {target.adgroup_name || "—"}
                               </span>
                             </td>
@@ -1860,7 +1860,7 @@ export const Targets: React.FC = () => {
 
                             {/* Profile */}
                             <td className="table-cell min-w-[150px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                              <span className="table-text leading-[1.26] whitespace-nowrap">
                                 {target.profile_name &&
                                 target.profile_name.trim() !== ""
                                   ? target.profile_name
@@ -1870,7 +1870,7 @@ export const Targets: React.FC = () => {
 
                             {/* Country */}
                             <td className="table-cell min-w-[100px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                              <span className="table-text leading-[1.26] whitespace-nowrap">
                                 {target.profile_country_code &&
                                 target.profile_country_code.trim() !== ""
                                   ? target.profile_country_code
@@ -1880,49 +1880,49 @@ export const Targets: React.FC = () => {
 
                             {/* Type */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {target.type || "SP"}
                               </span>
                             </td>
 
                             {/* Spends */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {target.spends || "$0.00"}
                               </span>
                             </td>
 
                             {/* Sales */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {target.sales || "$0.00"}
                               </span>
                             </td>
 
                             {/* Impressions */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {(target.impressions || 0).toLocaleString()}
                               </span>
                             </td>
 
                             {/* Clicks */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {(target.clicks || 0).toLocaleString()}
                               </span>
                             </td>
 
                             {/* CTR */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {target.ctr || "0.00%"}
                               </span>
                             </td>
 
                             {/* ACOS */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {target.acos
                                   ? `${parseFloat(target.acos).toFixed(2)}%`
                                   : "0.00%"}
@@ -1931,7 +1931,7 @@ export const Targets: React.FC = () => {
 
                             {/* ROAS */}
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {target.roas
                                   ? `${parseFloat(target.roas).toFixed(2)} x`
                                   : "0.00 x"}

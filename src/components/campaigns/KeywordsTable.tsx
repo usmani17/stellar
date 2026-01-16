@@ -246,14 +246,14 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
 
                       {/* Keyword Name */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.name}
                         </span>
                       </td>
 
                       {/* Ad Group */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.adgroup_name || "—"}
                         </span>
                       </td>
@@ -262,7 +262,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                       <td className="table-cell min-w-[115px]">
                         {inlineEditLoading.has(keyword.id) ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {pendingChange?.field === "status"
                                 ? pendingChange.newValue === "enabled"
                                   ? "Enabled"
@@ -276,7 +276,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                         ) : pendingChange?.id === keyword.id &&
                           pendingChange?.field === "status" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {pendingChange.newValue === "enabled"
                                 ? "Enabled"
                                 : pendingChange.newValue === "paused"
@@ -365,7 +365,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                       <td className="table-cell">
                         {inlineEditLoading.has(keyword.id) ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               $
                               {parseFloat(
                                 pendingChange?.newValue || "0"
@@ -379,7 +379,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                         ) : pendingChange?.id === keyword.id &&
                           pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               $
                               {parseFloat(
                                 pendingChange.newValue || "0"
@@ -398,7 +398,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               min="0"
                               value={editedValue}
                               onChange={(e) => onEditChange?.(e.target.value)}
-                              className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
+                              className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
                               autoFocus
                               onBlur={(e) => onEditEnd?.(e.target.value)}
                               onKeyDown={(e) => {
@@ -433,21 +433,21 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
 
                       {/* CTR */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.ctr}
                         </span>
                       </td>
 
                       {/* Spends */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.spends}
                         </span>
                       </td>
 
                       {/* Sales */}
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {keyword.sales}
                         </span>
                       </td>

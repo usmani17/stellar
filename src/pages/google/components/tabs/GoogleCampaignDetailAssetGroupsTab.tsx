@@ -257,7 +257,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {assetGroup.name || "—"}
                         </span>
                       </td>
@@ -265,24 +265,24 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                         <StatusBadge status={assetGroup.status} />
                       </td>
                       <td className="table-cell hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
+                        <span className="table-text leading-[1.26] truncate block max-w-[300px]">
                           {assetGroup.final_urls && assetGroup.final_urls.length > 0
                             ? assetGroup.final_urls[0]
                             : "—"}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatPercentage(assetGroup.ctr)}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(assetGroup.spends)}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(assetGroup.sales)}
                         </span>
                       </td>

@@ -516,7 +516,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                       >
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {getAdGroupName(keyword.adGroupId)}
                             </span>
                             {rowErrors.find((e) => e.field === "adGroupId") && (
@@ -531,7 +531,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {keyword.keywordText}
                             </span>
                             {rowErrors.find(
@@ -549,7 +549,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {keyword.matchType}
                             </span>
                             {rowErrors.find((e) => e.field === "matchType") && (
@@ -564,7 +564,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               ${keyword.bid.toFixed(2)}
                             </span>
                             {rowErrors.find((e) => e.field === "bid") && (
@@ -579,7 +579,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {keyword.state}
                             </span>
                             {rowErrors.find((e) => e.field === "state") && (

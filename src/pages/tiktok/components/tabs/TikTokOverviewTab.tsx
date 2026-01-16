@@ -117,12 +117,12 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                         </div>
                                                     </td>
                                                     <td className="table-cell">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                        <span className="table-text leading-[1.26]">
                                                             {ad.ad_name}
                                                         </span>
                                                     </td>
                                                     <td className="table-cell">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                        <span className="table-text leading-[1.26]">
                                                             {ad.ctr}
                                                         </span>
                                                     </td>
@@ -132,12 +132,12 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                         />
                                                     </td>
                                                     <td className="table-cell">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                        <span className="table-text leading-[1.26]">
                                                             {ad.spends}
                                                         </span>
                                                     </td>
                                                     <td className="table-cell">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                        <span className="table-text leading-[1.26]">
                                                             {ad.sales}
                                                         </span>
                                                     </td>
@@ -218,19 +218,19 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                         </div>
                                                     </td>
                                                     <td className="table-cell">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                        <span className="table-text leading-[1.26]">
                                                             {product.name}
                                                         </span>
                                                     </td>
                                                     {product.asin && (
                                                         <td className="table-cell">
-                                                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                            <span className="table-text leading-[1.26]">
                                                                 {product.asin}
                                                             </span>
                                                         </td>
                                                     )}
                                                     <td className="table-cell">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                        <span className="table-text leading-[1.26]">
                                                             {product.sales}
                                                         </span>
                                                     </td>

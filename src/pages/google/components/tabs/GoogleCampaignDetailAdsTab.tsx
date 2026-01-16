@@ -317,12 +317,12 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {ad.ad_type || "—"}
                         </span>
                       </td>
                       <td className="table-cell hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {ad.adgroup_name || "—"}
                         </span>
                       </td>
@@ -403,17 +403,17 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                         {ad.headlines && Array.isArray(ad.headlines) && ad.headlines.length > 0 ? (
                           <div className="flex flex-col gap-1">
                             {ad.headlines.map((h: any, index: number) => (
-                              <span key={index} className="text-[13.3px] text-[#0b0f16] leading-[1.26] block">
+                              <span key={index} className="table-text leading-[1.26] block">
                                 {h.text || h}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">—</span>
+                          <span className="table-text leading-[1.26]">—</span>
                         )}
                       </td>
                       <td className="table-cell hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
+                        <span className="table-text leading-[1.26] truncate block max-w-[300px]">
                           {ad.final_urls && Array.isArray(ad.final_urls) && ad.final_urls.length > 0
                             ? ad.final_urls[0]
                             : "—"}

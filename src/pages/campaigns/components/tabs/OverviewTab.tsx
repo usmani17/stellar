@@ -127,12 +127,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                               </div>
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.name}
                               </span>
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.ctr}
                               </span>
                             </td>
@@ -140,12 +140,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                               <StatusBadge status={keyword.status} />
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.spends}
                               </span>
                             </td>
                             <td className="table-cell">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.sales}
                               </span>
                             </td>
@@ -225,17 +225,17 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                             </div>
                           </td>
                           <td className="table-cell">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {product.name}
                             </span>
                           </td>
                           <td className="table-cell">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {product.asin}
                             </span>
                           </td>
                           <td className="table-cell">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {product.sales}
                             </span>
                           </td>

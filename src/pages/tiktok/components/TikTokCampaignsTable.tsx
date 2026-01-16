@@ -415,14 +415,14 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                         </div>
                                     </td>
                                     <td className="table-cell min-w-[200px] text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                        <span className="table-text leading-[1.26] whitespace-nowrap">
                                             {campaign.profile_name && campaign.profile_name.trim() !== ""
                                                 ? campaign.profile_name
                                                 : "—"}
                                         </span>
                                     </td>
                                     <td className="table-cell text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <span className="table-text leading-[1.26]">
                                             {getObjectiveLabel(campaign.objective_type)}
                                         </span>
                                     </td>
@@ -486,7 +486,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                     <td className="table-cell text-left">
                                         {/* Deleted campaigns cannot be edited - show budget only, mimic Amazon archived behavior */}
                                         {campaignIsDeleted ? (
-                                            <p className="text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 cursor-not-allowed opacity-60" title="Deleted campaigns cannot be modified.">
+                                            <p className="table-text leading-[1.26] rounded px-2 py-1 cursor-not-allowed opacity-60" title="Deleted campaigns cannot be modified.">
                                                 {formatCurrency(campaign.budget)}
                                             </p>
                                         ) : editingCell?.campaign_id === campaign.campaign_id && editingCell?.field === "budget" ? (
@@ -524,7 +524,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             </div>
                                         ) : (
                                             <p
-                                                className="text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 cursor-pointer hover:bg-gray-50"
+                                                className="table-text leading-[1.26] rounded px-2 py-1 cursor-pointer hover:bg-gray-50"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     if (onStartInlineEdit) {
@@ -537,27 +537,27 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                         )}
                                     </td>
                                     <td className="table-cell text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <span className="table-text leading-[1.26]">
                                             {formatBudgetType(campaign.budget_mode)}
                                         </span>
                                     </td>
                                     <td className="table-cell text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <span className="table-text leading-[1.26]">
                                             {campaign.spend !== undefined && campaign.spend !== null ? formatCurrency(campaign.spend) : "—"}
                                         </span>
                                     </td>
                                     <td className="table-cell text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <span className="table-text leading-[1.26]">
                                             {campaign.conversions !== undefined && campaign.conversions !== null ? campaign.conversions.toLocaleString() : "—"}
                                         </span>
                                     </td>
                                     <td className="table-cell text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <span className="table-text leading-[1.26]">
                                             {campaign.cpa !== undefined && campaign.cpa !== null && campaign.cpa > 0 ? formatCurrency(campaign.cpa) : "—"}
                                         </span>
                                     </td>
                                     <td className="table-cell text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <span className="table-text leading-[1.26]">
                                             {campaign.roas !== undefined && campaign.roas !== null && campaign.roas > 0 ? campaign.roas.toFixed(2) : "—"}
                                         </span>
                                     </td>

@@ -567,13 +567,13 @@ export const CreateGoogleKeywordPanel: React.FC<
                             : ""
                         } hover:bg-gray-50 transition-colors`}
                       >
-                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell table-text">
                           {keyword.text}
                         </td>
-                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell table-text">
                           {keyword.match_type}
                         </td>
-                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell table-text">
                           {keyword.cpc_bid
                             ? `$${keyword.cpc_bid.toFixed(2)}`
                             : "—"}

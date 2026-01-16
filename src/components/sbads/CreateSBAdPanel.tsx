@@ -1748,17 +1748,17 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                       } hover:bg-gray-50 transition-colors`}
                     >
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {ad.name}
                         </span>
                       </td>
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {ad.state}
                         </span>
                       </td>
                       <td className="table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26]">
                           {getAdGroupName(ad.adGroupId)}
                         </span>
                       </td>

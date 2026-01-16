@@ -455,7 +455,7 @@ export const CreateNegativeKeywordPanel: React.FC<
                       >
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {getAdGroupName(negativeKeyword.adGroupId)}
                             </span>
                             {rowErrors.find((e) => e.field === "adGroupId") && (
@@ -470,7 +470,7 @@ export const CreateNegativeKeywordPanel: React.FC<
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {negativeKeyword.keywordText}
                             </span>
                             {rowErrors.find(
@@ -487,13 +487,13 @@ export const CreateNegativeKeywordPanel: React.FC<
                           </div>
                         </td>
                         <td className="table-cell">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             {negativeKeyword.matchType}
                           </span>
                         </td>
                         {!isSB && (
                           <td className="table-cell">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {negativeKeyword.state || "ENABLED"}
                             </span>
                           </td>

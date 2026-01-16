@@ -294,13 +294,13 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         />
                       </td>
                     )}
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {ad.adId || "—"}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26] min-w-[150px] max-w-[200px]">
+                    <td className="table-cell table-text leading-[1.26] min-w-[150px] max-w-[200px]">
                       {inlineEditLoading.has(ad.id) ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             {pendingChange?.field === "name"
                               ? pendingChange.newValue
                               : ad.name || "—"}
@@ -310,7 +310,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                       ) : pendingChange?.id === ad.id &&
                         pendingChange?.field === "name" ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             {pendingChange.newValue}
                           </span>
                         </div>
@@ -321,7 +321,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                             type="text"
                             value={editedValue}
                             onChange={(e) => onEditChange?.(e.target.value)}
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                            className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
                             autoFocus
                             onBlur={() => onEditEnd?.()}
                             onKeyDown={(e) => {
@@ -353,10 +353,10 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       )}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26] min-w-[115px]">
+                    <td className="table-cell table-text leading-[1.26] min-w-[115px]">
                       {inlineEditLoading.has(ad.id) ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             {pendingChange?.field === "status"
                               ? pendingChange.newValue === "enabled"
                                 ? "Enabled"
@@ -368,7 +368,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                       ) : pendingChange?.id === ad.id &&
                         pendingChange?.field === "status" ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             {pendingChange.newValue === "enabled"
                               ? "Enabled"
                               : "Paused"}
@@ -455,23 +455,23 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       )}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {ad.adGroupId != null && ad.adGroupId !== ""
                         ? String(ad.adGroupId)
                         : "—"}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {ad.campaignId != null && ad.campaignId !== ""
                         ? String(ad.campaignId)
                         : "—"}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {ad.servingStatus || "—"}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {formatDate(ad.creationDateTime)}
                     </td>
-                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {formatDate(ad.lastUpdateDateTime)}
                     </td>
                   </tr>

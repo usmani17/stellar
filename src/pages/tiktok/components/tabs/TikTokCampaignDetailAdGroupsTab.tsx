@@ -496,13 +496,13 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                 <div className="py-1">
                                     <button
                                         onClick={() => handleBulkStatusUpdate("ENABLE")}
-                                        className="w-full text-left px-4 py-2 text-[13.3px] text-[#0b0f16] hover:bg-gray-100 flex items-center gap-2"
+                                        className="w-full text-left px-4 py-2 table-text hover:bg-gray-100 flex items-center gap-2"
                                     >
                                         <span>Enable</span>
                                     </button>
                                     <button
                                         onClick={() => handleBulkStatusUpdate("DISABLE")}
-                                        className="w-full text-left px-4 py-2 text-[13.3px] text-[#0b0f16] hover:bg-gray-100 flex items-center gap-2"
+                                        className="w-full text-left px-4 py-2 table-text hover:bg-gray-100 flex items-center gap-2"
                                     >
                                         <span>Disable</span>
                                     </button>
@@ -732,7 +732,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                         }}
                                                         autoFocus
                                                         maxLength={512}
-                                                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                        className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
                                                     />
                                                 ) : (
                                                     <div
@@ -814,7 +814,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                             }
                                                         }}
                                                         autoFocus
-                                                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                        className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
                                                     />
                                                 ) : (
                                                     <div
@@ -833,32 +833,32 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                 )}
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatCurrency(item.spend)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatNumber(item.impressions)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatNumber(item.clicks)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatNumber(item.conversions)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatPercentage(item.ctr)}
                                                 </span>
                                             </td>
                                             <td className="table-cell">
-                                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                <span className="table-text leading-[1.26]">
                                                     {formatCurrency(item.cpc)}
                                                 </span>
                                             </td>
