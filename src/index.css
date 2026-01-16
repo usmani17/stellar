@@ -400,3 +400,62 @@ body input[type="submit"]:disabled {
   background-color: #f9fafb;
 }
 
+/* Edit button/link styling - used for clickable text elements in tables */
+.table-edit-link {
+  flex: 1;
+  font-size: 13.3px;
+  color: #0b0f16;
+  line-height: 1.26;
+  text-align: left;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.table-edit-link:hover {
+  color: #136d6d;
+  text-decoration: underline;
+}
+
+/* Edit icon button - appears on hover in table rows */
+.table-edit-icon {
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.group:hover .table-edit-icon {
+  opacity: 1;
+}
+
+.table-edit-icon:hover {
+  background-color: #f3f4f6;
+}
+
+.table-edit-icon:disabled {
+  opacity: 0.6;
+}
+
+/* Checkbox button base styling - used for all checkbox buttons in data tables */
+.checkbox-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #A3A8B3;
+  transition: background-color 0.2s, border-color 0.2s;
+  outline: none;
+  cursor: pointer;
+}
+
+.checkbox-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px #fff, 0 0 0 3px #136d6d;
+}
+
+.checkbox-button:disabled {
+  cursor: not-allowed;
+}
+

@@ -389,7 +389,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                                         onEditCampaign(campaign);
                                                     }
                                                 }}
-                                                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                className="table-edit-icon"
                                                 title="Edit campaign"
                                             >
                                                 <svg
@@ -408,7 +408,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             </button>
                                             <button
                                                 onClick={() => handleCampaignClick(campaign.campaign_id)}
-                                                className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
+                                                className="table-edit-link"
                                             >
                                                 {campaign.campaign_name || "Unnamed Campaign"}
                                             </button>

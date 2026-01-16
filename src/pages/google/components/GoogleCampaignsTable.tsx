@@ -194,7 +194,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
                 e.stopPropagation();
                 navigate(navPath);
               }}
-              className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1 text-left hover:text-[#136d6d] hover:underline cursor-pointer"
+              className="table-edit-link"
             >
               {value}
             </button>
@@ -205,7 +205,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
                   e.stopPropagation();
                   onEditCampaign(row);
                 }}
-                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60 flex-shrink-0"
+className="table-edit-icon flex-shrink-0"
                 title="Edit campaign"
                 disabled={editLoadingCampaignId === row.campaign_id}
               >

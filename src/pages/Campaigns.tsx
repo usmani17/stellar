@@ -3305,7 +3305,7 @@ export const Campaigns: React.FC = () => {
                                       e.stopPropagation();
                                       handleOpenEditCampaign(campaign);
                                     }}
-                                    className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60"
+                                    className="table-edit-icon"
                                     title="Edit campaign"
                                     disabled={
                                       editLoadingCampaignId ===
@@ -3366,7 +3366,7 @@ export const Campaigns: React.FC = () => {
                                         );
                                       }
                                     }}
-                                    className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
+                                    className="table-edit-link"
                                   >
                                     {campaign.campaign_name ||
                                       "Unnamed Campaign"}

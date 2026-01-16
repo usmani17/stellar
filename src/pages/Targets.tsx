@@ -1852,7 +1852,7 @@ export const Targets: React.FC = () => {
                                     );
                                   }
                                 }}
-                                className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
+                                className="table-edit-link block w-full"
                               >
                                 {target.campaign_name || "—"}
                               </button>
