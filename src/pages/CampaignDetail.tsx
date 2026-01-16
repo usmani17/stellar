@@ -6398,7 +6398,7 @@ export const CampaignDetail: React.FC = () => {
                           await loadAllAdGroups();
                         }
                       }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+                      className="create-entity-button text-[10.64px] font-semibold"
                     >
                       <svg
                         className="w-4 h-4 !text-white"
@@ -6439,7 +6439,7 @@ export const CampaignDetail: React.FC = () => {
                         <Button
                           type="button"
                           variant="ghost"
-                          className="font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center border border-gray-200 rounded-lg items-center hover:bg-gray-50 text-[#072929] focus:ring-[#136d6d] px-4 py-2 text-[16px]  px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                          className="edit-button-large"
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowSBAdsBulkActions((prev) => !prev);
@@ -6503,7 +6503,7 @@ export const CampaignDetail: React.FC = () => {
                       onClick={() =>
                         setIsSBAdsFilterPanelOpen(!isSBAdsFilterPanelOpen)
                       }
-                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                      className="edit-button"
                     >
                       <svg
                         className="w-5 h-5 text-[#072929]"
@@ -6700,7 +6700,7 @@ export const CampaignDetail: React.FC = () => {
                           await loadAllAdGroups();
                         }
                       }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-normal"
+                      className="create-entity-button text-[10.64px] font-normal"
                     >
                       <svg
                         className="w-4 h-4 !text-white"
@@ -6808,7 +6808,7 @@ export const CampaignDetail: React.FC = () => {
                           !isProductAdsFilterPanelOpen
                         )
                       }
-                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                      className="edit-button"
                     >
                       <svg
                         className="w-5 h-5 text-[#072929]"
@@ -7277,7 +7277,7 @@ export const CampaignDetail: React.FC = () => {
                             !isCreateNegativeTargetPanelOpen
                           )
                         }
-                        className="px-3 py-2 bg-[#136D6D] text-white rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors text-[11.2px] font-normal"
+                        className="create-entity-button text-[11.2px] font-normal"
                       >
                         <svg
                           className="w-4 h-4 !text-white"
@@ -7316,7 +7316,7 @@ export const CampaignDetail: React.FC = () => {
                             !isNegativeTargetsFilterPanelOpen
                           )
                         }
-                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                        className="edit-button"
                       >
                         <svg
                           className="w-5 h-5 text-[#072929]"
@@ -7537,7 +7537,7 @@ export const CampaignDetail: React.FC = () => {
                       onClick={() => {
                         setIsCreateAssetPanelOpen(!isCreateAssetPanelOpen);
                       }}
-                      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+                      className="create-entity-button text-[10.64px] font-semibold"
                     >
                       <svg
                         className="w-4 h-4 !text-white"
@@ -7574,7 +7574,7 @@ export const CampaignDetail: React.FC = () => {
                       onClick={() =>
                         setIsAssetsFilterPanelOpen(!isAssetsFilterPanelOpen)
                       }
-                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                      className="edit-button"
                     >
                       <svg
                         className="w-5 h-5 text-[#072929]"

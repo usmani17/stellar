@@ -1234,7 +1234,7 @@ export const Keywords: React.FC = () => {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                  className="edit-button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowBulkActions((prev) => !prev);
@@ -1309,7 +1309,7 @@ export const Keywords: React.FC = () => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="edit-button"
                     onClick={(e) => {
                       if (exportLoading) return;
                       e.stopPropagation();

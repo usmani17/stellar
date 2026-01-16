@@ -245,7 +245,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                 await onLoadAllAdGroups();
               }
             }}
-            className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-semibold"
+            className="create-entity-button text-[10.64px] font-semibold"
           >
             <svg
               className="w-4 h-4 !text-white"
@@ -284,7 +284,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
               onCloseCreatePanel();
               onCloseBulkActions();
             }}
-            className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="edit-button"
           >
             <svg
               className="w-5 h-5 text-[#072929]"

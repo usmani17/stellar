@@ -311,7 +311,7 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                 {onToggleCreateAdPanel && adgroupId && (
                     <button
                         onClick={onToggleCreateAdPanel}
-                        className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors"
+                        className="create-entity-button"
                     >
                         <svg className="w-5 h-5 !text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -332,7 +332,7 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
                 <div className="relative inline-flex" ref={dropdownRef}>
                     <button
                         onClick={() => setShowBulkActions(!showBulkActions)}
-                        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                        className="edit-button"
                     >
                         <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z" />
@@ -359,7 +359,7 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
 
                 <button
                     onClick={onToggleFilterPanel}
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                    className="edit-button"
                 >
                     <svg className="w-5 h-5 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
