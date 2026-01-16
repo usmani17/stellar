@@ -34,13 +34,13 @@ interface GoogleAdGroupsTableProps {
   sortOrder: "asc" | "desc";
   editingCell: {
     adgroupId: string | number;
-    field: "bid" | "status";
+    field: "bid" | "status" | "name" | "adgroup_name";
   } | null;
   editedValue: string;
   isCancelling: boolean;
   updatingField: {
     adgroupId: string | number;
-    field: "bid" | "status";
+    field: "bid" | "status" | "name" | "adgroup_name";
   } | null;
   summary: {
     total_adgroups: number;
@@ -54,7 +54,7 @@ interface GoogleAdGroupsTableProps {
   onSelectAll: (checked: boolean) => void;
   onSelectAdgroup: (adgroupId: string | number, checked: boolean) => void;
   onSort: (column: string) => void;
-  onStartInlineEdit: (adgroup: GoogleAdGroup, field: "bid" | "status") => void;
+  onStartInlineEdit: (adgroup: GoogleAdGroup, field: "bid" | "status" | "name" | "adgroup_name") => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
   onConfirmInlineEdit: (value: string) => void;
@@ -123,7 +123,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       sticky: true,
       minWidth: "min-w-[300px]",
       maxWidth: "max-w-[400px]",
-      editable: false,
+      editable: true,
       getValue: (row: GoogleAdGroup) => row.adgroup_name || row.name || "Unnamed Ad Group",
     },
     {
@@ -133,18 +133,25 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       sortable: true,
       minWidth: "min-w-[200px]",
       getValue: (row: GoogleAdGroup) => row.campaign_name || "—",
+      navigateTo: (row: GoogleAdGroup, accountId: string) => {
+        if (row.campaign_id) {
+          return `/accounts/${accountId}/google/campaigns/${row.campaign_id}`;
+        }
+        return null;
+      },
     },
     {
       key: "account_name",
       label: "Account Name",
       type: "text",
       sortable: true,
-      minWidth: "min-w-[200px]",
+      width: "w-[120px]",
+      maxWidth: "max-w-[120px]",
       getValue: (row: GoogleAdGroup) => row.account_name || row.customer_id || "—",
     },
     {
       key: "status",
-      label: "State",
+      label: "Status",
       type: "status",
       sortable: true,
       width: "w-[140px]",
@@ -158,10 +165,12 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
     {
       key: "bid",
-      label: "Bid",
+      label: "Default max. CPC",
       type: "bid",
       sortable: true,
       editable: true,
+      width: "w-[120px]",
+      minWidth: "min-w-[120px]",
       getValue: (row: GoogleAdGroup) => row.cpc_bid_dollars || 0,
     },
     {
@@ -206,7 +215,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleAdGroup) => row.roas || 0,
     },
-  ], []);
+  ], [accountId]);
 
   // Handle confirm inline edit
   const handleConfirmInlineEdit = (value: string, _field: string) => {
@@ -243,7 +252,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       onSelectItem={onSelectAdgroup}
       onSort={onSort}
       onStartInlineEdit={(item: GoogleAdGroup, field: string) => {
-        return onStartInlineEdit(item, field as "bid" | "status");
+        return onStartInlineEdit(item, field as "bid" | "status" | "name" | "adgroup_name");
       }}
       onCancelInlineEdit={onCancelInlineEdit}
       onInlineEditChange={onInlineEditChange}

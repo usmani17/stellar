@@ -29,6 +29,12 @@ export interface CreateGoogleCampaignData {
   start_date?: string; // YYYY-MM-DD format
   end_date?: string; // YYYY-MM-DD format
   status?: "ENABLED" | "PAUSED";
+  bidding_strategy_type?: string;
+  target_cpa_micros?: number; // Target CPA in micros (e.g., 1000000 = $1.00)
+  target_roas?: number; // Target ROAS (e.g., 3.0 = 300%)
+  target_impression_share_location?: string; // TOP_OF_PAGE, ABSOLUTE_TOP_OF_PAGE, ANYWHERE_ON_PAGE
+  target_impression_share_location_fraction_micros?: number; // Target impression share in micros (e.g., 800000 = 80%)
+  target_impression_share_cpc_bid_ceiling_micros?: number; // Maximum CPC bid ceiling in micros (e.g., 1000000 = $1.00)
   // Performance Max fields
   final_url?: string;
   asset_group_name?: string;
@@ -90,6 +96,16 @@ const SALES_COUNTRY_OPTIONS = [
   { value: "CN", label: "China" },
 ];
 
+const BIDDING_STRATEGY_OPTIONS = [
+  { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
+  { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },
+  { value: "TARGET_CPA", label: "Target CPA" },
+  { value: "TARGET_ROAS", label: "Target ROAS" },
+  { value: "TARGET_IMPRESSION_SHARE", label: "Target Impression Share" },
+  { value: "TARGET_SPEND", label: "Target Spend" },
+  { value: "MANUAL_CPC", label: "Manual CPC" },
+];
+
 export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps> = ({
   isOpen,
   onClose,
@@ -108,6 +124,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     budget_amount: 0,
     budget_name: "",
     status: "PAUSED",
+    bidding_strategy_type: "MAXIMIZE_CONVERSIONS", // Default for Performance Max
     // Performance Max defaults
     final_url: "",
     headlines: [""],
@@ -157,6 +174,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       budget_amount: 0,
       budget_name: "",
       status: "PAUSED",
+      bidding_strategy_type: "MAXIMIZE_CONVERSIONS", // Default for Performance Max
       final_url: "",
       headlines: [""],
       descriptions: [""],
@@ -167,11 +185,93 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     setErrors({});
   };
 
+  // Get available bidding strategies based on campaign type
+  // Note: TARGET_CPA and TARGET_ROAS are not allowed during creation for SEARCH campaigns
+  // per Google Ads API restrictions. They can only be set after campaign creation.
+  // Reference: https://developers.google.com/google-ads/api/docs/campaigns/create-campaigns
+  const getAvailableBiddingStrategies = (campaignType: string) => {
+    if (campaignType === "PERFORMANCE_MAX") {
+      // Performance Max campaigns only support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE
+      return BIDDING_STRATEGY_OPTIONS.filter(
+        (opt) =>
+          opt.value === "MAXIMIZE_CONVERSIONS" ||
+          opt.value === "MAXIMIZE_CONVERSION_VALUE"
+      );
+    } else if (campaignType === "SHOPPING") {
+      // Shopping campaigns only support MANUAL_CPC during creation
+      // MAXIMIZE_CONVERSIONS and MAXIMIZE_CONVERSION_VALUE can only be set via updates after creation
+      return BIDDING_STRATEGY_OPTIONS.filter(
+        (opt) => opt.value === "MANUAL_CPC"
+      );
+    } else {
+      // SEARCH - TARGET_CPA and TARGET_ROAS are not supported
+      // They require conversion tracking setup and historical conversion data
+      return BIDDING_STRATEGY_OPTIONS.filter(
+        (opt) =>
+          opt.value === "MANUAL_CPC" ||
+          opt.value === "MAXIMIZE_CONVERSIONS" ||
+          opt.value === "MAXIMIZE_CONVERSION_VALUE" ||
+          opt.value === "TARGET_IMPRESSION_SHARE" ||
+          opt.value === "TARGET_SPEND"
+      );
+    }
+  };
+
+  // Get default bidding strategy for campaign type
+  const getDefaultBiddingStrategy = (campaignType: string): string => {
+    if (campaignType === "PERFORMANCE_MAX") {
+      return "MAXIMIZE_CONVERSIONS";
+    } else if (campaignType === "SHOPPING") {
+      return "MANUAL_CPC";
+    } else {
+      // SEARCH
+      return "MANUAL_CPC";
+    }
+  };
+
   const handleChange = (
     field: keyof CreateGoogleCampaignData,
     value: any
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      
+      // When campaign type changes, update default bidding strategy
+      if (field === "campaign_type") {
+        const defaultStrategy = getDefaultBiddingStrategy(value);
+        // Only set default if bidding_strategy_type is not already set or if current value is not valid for new type
+        const availableStrategies = getAvailableBiddingStrategies(value);
+        const currentStrategyValid = availableStrategies.some(
+          (opt) => opt.value === prev.bidding_strategy_type
+        );
+        if (!prev.bidding_strategy_type || !currentStrategyValid) {
+          updated.bidding_strategy_type = defaultStrategy;
+        }
+      }
+      
+      // When bidding strategy changes, clear strategy-specific fields if not needed
+      // and set defaults for strategies that need them
+      if (field === "bidding_strategy_type") {
+        if (value !== "TARGET_CPA") {
+          updated.target_cpa_micros = undefined;
+        }
+        if (value !== "TARGET_ROAS") {
+          updated.target_roas = undefined;
+        }
+        if (value === "TARGET_IMPRESSION_SHARE") {
+          // Set default location if not already set
+          if (!updated.target_impression_share_location) {
+            updated.target_impression_share_location = "TOP_OF_PAGE";
+          }
+        } else {
+          updated.target_impression_share_location = undefined;
+          updated.target_impression_share_location_fraction_micros = undefined;
+          updated.target_impression_share_cpc_bid_ceiling_micros = undefined;
+        }
+      }
+      
+      return updated;
+    });
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -272,6 +372,31 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       }
     }
 
+    // Validate bidding strategy specific fields
+    if (formData.bidding_strategy_type === "TARGET_CPA") {
+      if (!formData.target_cpa_micros || formData.target_cpa_micros <= 0) {
+        newErrors.target_cpa_micros = "Target CPA is required and must be greater than 0";
+      }
+    }
+
+    if (formData.bidding_strategy_type === "TARGET_ROAS") {
+      if (!formData.target_roas || formData.target_roas <= 0) {
+        newErrors.target_roas = "Target ROAS is required and must be greater than 0";
+      }
+    }
+
+    if (formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE") {
+      if (!formData.target_impression_share_location) {
+        newErrors.target_impression_share_location = "Location is required";
+      }
+      if (!formData.target_impression_share_location_fraction_micros || formData.target_impression_share_location_fraction_micros <= 0) {
+        newErrors.target_impression_share_location_fraction_micros = "Target impression share is required and must be greater than 0";
+      }
+      if (!formData.target_impression_share_cpc_bid_ceiling_micros || formData.target_impression_share_cpc_bid_ceiling_micros <= 0) {
+        newErrors.target_impression_share_cpc_bid_ceiling_micros = "Maximum CPC bid ceiling is required and must be greater than 0";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -344,6 +469,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       budget_amount: 10,
       budget_name: "Test PMax Budget",
       status: "PAUSED",
+      bidding_strategy_type: "MAXIMIZE_CONVERSIONS",
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
       final_url: "https://techesthete.com",
@@ -385,6 +511,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       budget_amount: 10,
       budget_name: "Test Shopping Budget",
       status: "PAUSED",
+      bidding_strategy_type: "MANUAL_CPC",
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
       merchant_id: "109055893",
@@ -414,6 +541,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       budget_amount: 10,
       budget_name: "Test Search Budget",
       status: "PAUSED",
+      bidding_strategy_type: "MANUAL_CPC",
       start_date: formatDate(startDate),
       end_date: formatDate(endDate),
       final_url: "",
@@ -695,6 +823,161 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 buttonClassName="w-full"
               />
             </div>
+
+            {/* Bidding Strategy Type */}
+            <div>
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                Bidding Strategy
+              </label>
+              <Dropdown<string>
+                options={getAvailableBiddingStrategies(formData.campaign_type)}
+                value={formData.bidding_strategy_type || getDefaultBiddingStrategy(formData.campaign_type)}
+                onChange={(value) => handleChange("bidding_strategy_type", value)}
+                buttonClassName="w-full"
+              />
+            </div>
+
+            {/* Target CPA (required when TARGET_CPA is selected) */}
+            {formData.bidding_strategy_type === "TARGET_CPA" && (
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Target CPA ($) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.target_cpa_micros ? (formData.target_cpa_micros / 1000000).toFixed(2) : ""}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    handleChange("target_cpa_micros", Math.round(value * 1000000));
+                  }}
+                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.target_cpa_micros ? "border-red-500" : "border-gray-200"
+                  }`}
+                  placeholder="1.00"
+                />
+                {errors.target_cpa_micros && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.target_cpa_micros}
+                  </p>
+                )}
+                <p className="text-[10px] text-[#556179] mt-1">
+                  The target cost per acquisition (CPA) in dollars
+                </p>
+              </div>
+            )}
+
+            {/* Target ROAS (required when TARGET_ROAS is selected) */}
+            {formData.bidding_strategy_type === "TARGET_ROAS" && (
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Target ROAS *
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={formData.target_roas || ""}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    handleChange("target_roas", value);
+                  }}
+                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.target_roas ? "border-red-500" : "border-gray-200"
+                  }`}
+                  placeholder="3.0"
+                />
+                {errors.target_roas && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.target_roas}
+                  </p>
+                )}
+                <p className="text-[10px] text-[#556179] mt-1">
+                  The target return on ad spend (ROAS). Example: 3.0 = 300% ROAS
+                </p>
+              </div>
+            )}
+
+            {/* Target Impression Share fields (required when TARGET_IMPRESSION_SHARE is selected) */}
+            {formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
+              <>
+                <div>
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Where do you want your ads to appear? *
+                  </label>
+                  <Dropdown<string>
+                    options={[
+                      { value: "ANYWHERE_ON_PAGE", label: "Anywhere on results page" },
+                      { value: "TOP_OF_PAGE", label: "Top of results page" },
+                      { value: "ABSOLUTE_TOP_OF_PAGE", label: "Absolute top of results page" },
+                    ]}
+                    value={formData.target_impression_share_location || "TOP_OF_PAGE"}
+                    onChange={(value) => handleChange("target_impression_share_location", value)}
+                    buttonClassName="w-full"
+                  />
+                  {errors.target_impression_share_location && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.target_impression_share_location}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Percent (%) impression share to target *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    value={formData.target_impression_share_location_fraction_micros ? (formData.target_impression_share_location_fraction_micros / 10000).toFixed(1) : ""}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      handleChange("target_impression_share_location_fraction_micros", Math.round(value * 10000));
+                    }}
+                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                      errors.target_impression_share_location_fraction_micros ? "border-red-500" : "border-gray-200"
+                    }`}
+                    placeholder="2.0"
+                  />
+                  {errors.target_impression_share_location_fraction_micros && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.target_impression_share_location_fraction_micros}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-[#556179] mt-1">
+                    Target impression share percentage (0-100). Example: 2.0 = 2%
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Maximum CPC bid limit *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.target_impression_share_cpc_bid_ceiling_micros ? (formData.target_impression_share_cpc_bid_ceiling_micros / 1000000).toFixed(2) : ""}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      handleChange("target_impression_share_cpc_bid_ceiling_micros", Math.round(value * 1000000));
+                    }}
+                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                      errors.target_impression_share_cpc_bid_ceiling_micros ? "border-red-500" : "border-gray-200"
+                    }`}
+                    placeholder="3.00"
+                  />
+                  {errors.target_impression_share_cpc_bid_ceiling_micros && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.target_impression_share_cpc_bid_ceiling_micros}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Performance Max Specific Fields */}

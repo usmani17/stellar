@@ -28,10 +28,14 @@ interface GoogleCampaignDetailKeywordsTabProps {
   syncingAnalytics?: boolean;
   onSyncAnalytics?: () => void;
   syncMessage: string | null;
+  onRefresh?: () => void;
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   onUpdateKeywordStatus?: (keywordId: number, status: string) => Promise<void>;
-  onUpdateKeywordBid?: (keywordId: number, bid: number) => Promise<void>;
   onUpdateKeywordMatchType?: (keywordId: number, matchType: string) => Promise<void>;
+  onUpdateKeywordBid?: (keywordId: number, bid: number) => Promise<void>;
+  onStartKeywordTextEdit?: (keyword: GoogleKeyword) => void;
+  onStartBidConfirmation?: (keyword: GoogleKeyword, oldBid: number, newBid: number) => void;
+  onStartFinalUrlEdit?: (keyword: GoogleKeyword) => void;
 }
 
 export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywordsTabProps> = ({
@@ -55,19 +59,23 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
   syncingAnalytics,
   onSyncAnalytics,
   syncMessage,
+  onRefresh,
   getSortIcon,
   onUpdateKeywordStatus,
-  onUpdateKeywordBid,
   onUpdateKeywordMatchType,
+  onUpdateKeywordBid,
+  onStartKeywordTextEdit,
+  onStartBidConfirmation,
+  onStartFinalUrlEdit,
 }) => {
   const [editingKeywordId, setEditingKeywordId] = useState<number | null>(null);
-  const [editingField, setEditingField] = useState<"status" | "bid" | "match_type" | null>(null);
+  const [editingField, setEditingField] = useState<"status" | "match_type" | "bid" | null>(null);
   const [editingStatus, setEditingStatus] = useState<string>("");
-  const [editingBid, setEditingBid] = useState<string>("");
   const [editingMatchType, setEditingMatchType] = useState<string>("");
+  const [editingBid, setEditingBid] = useState<string>("");
   const [pendingChange, setPendingChange] = useState<{
     id: number;
-    field: "status" | "bid" | "match_type";
+    field: "status" | "match_type" | "bid";
     newValue: string;
     oldValue: string;
   } | null>(null);
@@ -89,6 +97,34 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
     }
   };
 
+  const handleBidBlur = (keyword: GoogleKeyword) => {
+    if (!onUpdateKeywordBid || !onStartBidConfirmation) return;
+    
+    const bidValue = parseFloat(editingBid);
+    const oldBid = keyword.cpc_bid_dollars || 0;
+    
+    if (isNaN(bidValue) || bidValue < 0) {
+      // Invalid bid, reset
+      setEditingKeywordId(null);
+      setEditingField(null);
+      setEditingBid("");
+      return;
+    }
+    
+    if (bidValue !== oldBid) {
+      // Show confirmation modal
+      onStartBidConfirmation(keyword, oldBid, bidValue);
+      setEditingKeywordId(null);
+      setEditingField(null);
+      setEditingBid("");
+    } else {
+      // No change, just reset
+      setEditingKeywordId(null);
+      setEditingField(null);
+      setEditingBid("");
+    }
+  };
+
   const handleMatchTypeClick = (keyword: GoogleKeyword) => {
     if (onUpdateKeywordMatchType) {
       setEditingKeywordId(keyword.id);
@@ -96,6 +132,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
       // Normalize match type to match dropdown options
       const currentMatchType = (keyword.match_type || "BROAD").toUpperCase();
       setEditingMatchType(currentMatchType);
+    }
+  };
+
+  const handleKeywordTextClick = (keyword: GoogleKeyword) => {
+    if (onStartKeywordTextEdit) {
+      onStartKeywordTextEdit(keyword);
     }
   };
 
@@ -119,25 +161,6 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
       setEditingStatus("");
   };
 
-  const handleBidChange = (keywordId: number, newBid: string) => {
-    const keyword = keywords.find((k) => k.id === keywordId);
-    if (!keyword) return;
-
-    const bidValue = parseFloat(newBid);
-    const oldBid = (keyword.cpc_bid_dollars || 0).toString();
-
-    if (!isNaN(bidValue) && bidValue >= 0 && newBid !== oldBid && newBid !== "") {
-      setPendingChange({
-        id: keywordId,
-        field: "bid",
-        newValue: newBid,
-        oldValue: oldBid,
-      });
-    }
-        setEditingKeywordId(null);
-        setEditingField(null);
-        setEditingBid("");
-  };
 
   const handleMatchTypeChange = (keywordId: number, newMatchType: string) => {
     const keyword = keywords.find((k) => k.id === keywordId);
@@ -159,6 +182,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
     setEditingMatchType("");
   };
 
+
   const confirmChange = async () => {
     if (!pendingChange) return;
 
@@ -166,11 +190,6 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
     try {
       if (pendingChange.field === "status" && onUpdateKeywordStatus) {
         await onUpdateKeywordStatus(pendingChange.id, pendingChange.newValue);
-      } else if (pendingChange.field === "bid" && onUpdateKeywordBid) {
-        const bidValue = parseFloat(pendingChange.newValue);
-        if (!isNaN(bidValue)) {
-          await onUpdateKeywordBid(pendingChange.id, bidValue);
-        }
       } else if (pendingChange.field === "match_type" && onUpdateKeywordMatchType) {
         await onUpdateKeywordMatchType(pendingChange.id, pendingChange.newValue);
       }
@@ -187,9 +206,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
     setPendingChange(null);
       setEditingKeywordId(null);
       setEditingField(null);
-    setEditingStatus("");
-      setEditingBid("");
+      setEditingStatus("");
       setEditingMatchType("");
+      setEditingBid("");
   };
   return (
     <>
@@ -247,6 +266,28 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
               />
             </svg>
           </button>
+          {onRefresh && (
+            <Button
+              onClick={onRefresh}
+              disabled={loading || syncing || syncingAnalytics}
+              className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              title="Refresh list"
+            >
+              <svg
+                className="w-5 h-5 text-[#072929]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </Button>
+          )}
           <Button
             onClick={onSync}
             disabled={syncing || syncingAnalytics}
@@ -352,7 +393,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
-                      Status
+                      State
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
@@ -361,9 +402,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                     onClick={() => onSort("cpc_bid_dollars")}
                   >
                     <div className="flex items-center gap-1">
-                      CPC Bid
+                      Max. CPC
                       {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
                     </div>
+                  </th>
+                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                    Final URL
                   </th>
                 </tr>
               </thead>
@@ -387,7 +431,10 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                         </div>
                       </td>
                       <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span
+                          onClick={() => onStartKeywordTextEdit && handleKeywordTextClick(keyword)}
+                          className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${onStartKeywordTextEdit ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1" : ""}`}
+                        >
                           {keyword.keyword_text || "—"}
                         </span>
                       </td>
@@ -554,88 +601,102 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                             </span>
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
                           </div>
-                        ) : pendingChange?.id === keyword.id && pendingChange?.field === "bid" ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              ${parseFloat(pendingChange.newValue).toFixed(2)}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={confirmChange}
-                                className="p-1 hover:bg-green-50 rounded transition-colors"
-                                title="Confirm"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-green-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={cancelChange}
-                                className="p-1 hover:bg-red-50 rounded transition-colors"
-                                title="Cancel"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-red-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
                         ) : editingKeywordId === keyword.id && editingField === "bid" && onUpdateKeywordBid ? (
                           <div className="flex items-center">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editingBid}
-                            onChange={(e) => setEditingBid(e.target.value)}
-                              onBlur={() => {
-                                const inputValue = editingBid;
-                                const oldValue = (keyword.cpc_bid_dollars || 0).toString();
-                                if (inputValue === oldValue || inputValue === "") {
-                                  cancelChange();
-                                } else {
-                                  handleBidChange(keyword.id, editingBid);
+                            <span className="text-[13.3px] text-[#0b0f16] mr-1">$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={editingBid}
+                              onChange={(e) => setEditingBid(e.target.value)}
+                              onBlur={() => handleBidBlur(keyword)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.currentTarget.blur();
+                                } else if (e.key === "Escape") {
+                                  setEditingKeywordId(null);
+                                  setEditingField(null);
+                                  setEditingBid("");
                                 }
                               }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                  e.currentTarget.blur();
-                              } else if (e.key === "Escape") {
-                                  cancelChange();
-                              }
-                            }}
-                            className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
-                            autoFocus
-                          />
+                              autoFocus
+                              className="w-24 px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                            />
                           </div>
                         ) : (
                           <span
-                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${onUpdateKeywordBid ? "cursor-pointer hover:underline" : ""}`}
                             onClick={() => onUpdateKeywordBid && handleBidClick(keyword)}
+                            className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${onUpdateKeywordBid ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1" : ""}`}
                           >
                             ${keyword.cpc_bid_dollars?.toFixed(2) || "0.00"}
                           </span>
                         )}
+                      </td>
+                      <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                        {(() => {
+                          const finalUrls = (keyword as any).final_urls || (keyword as any).finalUrls || null;
+                          const finalMobileUrls = (keyword as any).final_mobile_urls || (keyword as any).finalMobileUrls || null;
+                          
+                          const urlsArray = Array.isArray(finalUrls) 
+                            ? finalUrls.filter((u: any) => u && u.trim())
+                            : (typeof finalUrls === "string" && finalUrls.trim() ? finalUrls.split(",").map((u: string) => u.trim()).filter((u: string) => u) : []);
+                          const mobileUrlsArray = Array.isArray(finalMobileUrls)
+                            ? finalMobileUrls.filter((u: any) => u && u.trim())
+                            : (typeof finalMobileUrls === "string" && finalMobileUrls.trim() ? finalMobileUrls.split(",").map((u: string) => u.trim()).filter((u: string) => u) : []);
+                          
+                          const hasUrls = urlsArray.length > 0;
+                          const hasMobileUrls = mobileUrlsArray.length > 0;
+                          
+                          return (
+                            <div className="flex items-center gap-2 group">
+                              <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                {hasUrls && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[11px] text-gray-500">Desktop:</span>
+                                    <span className="text-[13.3px] text-[#0b0f16] truncate" title={urlsArray.join(", ")}>
+                                      {urlsArray.length > 1 ? `${urlsArray[0]} (+${urlsArray.length - 1} more)` : urlsArray[0]}
+                                    </span>
+                                  </div>
+                                )}
+                                {hasMobileUrls && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[11px] text-gray-500">Mobile:</span>
+                                    <span className="text-[13.3px] text-[#0b0f16] truncate" title={mobileUrlsArray.join(", ")}>
+                                      {mobileUrlsArray.length > 1 ? `${mobileUrlsArray[0]} (+${mobileUrlsArray.length - 1} more)` : mobileUrlsArray[0]}
+                                    </span>
+                                  </div>
+                                )}
+                                {!hasUrls && !hasMobileUrls && <span className="text-[13.3px] text-[#0b0f16]">—</span>}
+                              </div>
+                              {onStartFinalUrlEdit && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onStartFinalUrlEdit(keyword);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[#136D6D] hover:text-[#0e5a5a] flex-shrink-0"
+                                  title="Edit Final URL"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
