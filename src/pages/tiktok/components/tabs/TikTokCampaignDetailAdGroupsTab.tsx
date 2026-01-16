@@ -939,7 +939,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
             {/* Inline Edit Confirmation Modal */}
             {showInlineEditModal && inlineEditAdGroup && inlineEditField && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                     onClick={(e) => {
                         if (e.target === e.currentTarget && !inlineEditLoading) {
                             setShowInlineEditModal(false);

@@ -1,38 +1,49 @@
 import React from "react";
-import { Button } from "../ui/Button";
 
 interface CreateGoogleNegativeKeywordSectionProps {
   isOpen: boolean;
   onToggle: () => void;
-  onCreateClick: () => void;
-  loading?: boolean;
 }
 
-export const CreateGoogleNegativeKeywordSection: React.FC<CreateGoogleNegativeKeywordSectionProps> = ({
-  isOpen,
-  onToggle,
-  onCreateClick,
-  loading = false,
-}) => {
+export const CreateGoogleNegativeKeywordSection: React.FC<
+  CreateGoogleNegativeKeywordSectionProps
+> = ({ isOpen, onToggle }) => {
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between font-medium"
+    <button
+      onClick={onToggle}
+      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors"
+    >
+      <svg
+        className="w-5 h-5 !text-white"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
       >
-        <span>Create Negative Keywords</span>
-        <span className="text-gray-400">{isOpen ? "−" : "+"}</span>
-      </button>
-      {isOpen && (
-        <div className="p-4 border-t">
-          <p className="text-gray-600 text-sm mb-4">
-            Add negative keywords to exclude certain search terms from triggering your ads.
-          </p>
-          <Button onClick={onCreateClick} variant="primary" disabled={loading}>
-            {loading ? "Creating..." : "Create Negative Keywords"}
-          </Button>
-        </div>
-      )}
-    </div>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 4v16m8-8H4"
+        />
+      </svg>
+      <span className="text-[10.64px] text-white font-normal">
+        Create Negative Keywords
+      </span>
+      <svg
+        className={`w-4 h-4 !text-white transition-transform ${
+          isOpen ? "rotate-180" : ""
+        }`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 9l-7 7-7-7"
+        />
+      </svg>
+    </button>
   );
 };
