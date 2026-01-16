@@ -4,7 +4,9 @@ import { Dropdown } from "../ui/Dropdown";
 export interface AdGroupInput {
   name: string;
   defaultBid?: number; // Optional - not used for SB campaigns
-  state: "ENABLED" | "PAUSED";
+  state: "ENABLED" | "PAUSED" | "enabled" | "paused" | "archived"; // SD uses lowercase
+  bidOptimization?: "reach" | "clicks" | "conversions"; // SD only
+  creativeType?: "IMAGE" | "VIDEO" | null; // SD only
 }
 
 interface AdGroupError {
@@ -41,9 +43,26 @@ interface CreateAdGroupPanelProps {
   failedAdGroups?: FailedAdGroup[];
 }
 
-const STATE_OPTIONS = [
+const STATE_OPTIONS_SP_SB = [
   { value: "ENABLED", label: "ENABLED" },
   { value: "PAUSED", label: "PAUSED" },
+];
+
+const STATE_OPTIONS_SD = [
+  { value: "enabled", label: "enabled" },
+  { value: "paused", label: "paused" },
+  { value: "archived", label: "archived" },
+];
+
+const BID_OPTIMIZATION_OPTIONS = [
+  { value: "reach", label: "reach" },
+  { value: "clicks", label: "clicks" },
+  { value: "conversions", label: "conversions" },
+];
+
+const CREATIVE_TYPE_OPTIONS = [
+  { value: "IMAGE", label: "IMAGE" },
+  { value: "VIDEO", label: "VIDEO" },
 ];
 
 export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
@@ -80,7 +99,11 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
   const [currentAdGroup, setCurrentAdGroup] = useState<AdGroupInput>({
     name: generateDefaultAdGroupName(campaignType),
     defaultBid: 0.1,
-    state: "ENABLED",
+    state: campaignType === "SD" ? "enabled" : "ENABLED",
+    ...(campaignType === "SD" && {
+      bidOptimization: "clicks" as const,
+      creativeType: "IMAGE" as const,
+    }),
   });
   const [addedAdGroups, setAddedAdGroups] = useState<AdGroupInput[]>([]);
   const [errors, setErrors] = useState<
@@ -94,6 +117,15 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
       setCurrentAdGroup((prev) => ({
         ...prev,
         name: generateDefaultAdGroupName(campaignType),
+        state: campaignType === "SD" ? "enabled" : "ENABLED",
+        ...(campaignType === "SD" && {
+          bidOptimization: prev.bidOptimization || "clicks",
+          creativeType: prev.creativeType || "IMAGE",
+        }),
+        ...(campaignType !== "SD" && {
+          bidOptimization: undefined,
+          creativeType: undefined,
+        }),
       }));
     }
   }, [isOpen, campaignType]);
@@ -113,9 +145,14 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
       newErrors.name = "Ad Group name is required";
     }
 
-    // Only validate defaultBid for SP campaigns (not SB)
+    // Only validate defaultBid for SP and SD campaigns (not SB)
     if (campaignType !== "SB" && (currentAdGroup.defaultBid === undefined || currentAdGroup.defaultBid <= 0)) {
       newErrors.defaultBid = "Default bid must be greater than 0";
+    }
+
+    // Validate bidOptimization for SD campaigns
+    if (campaignType === "SD" && !currentAdGroup.bidOptimization) {
+      newErrors.bidOptimization = "Bid optimization is required for SD campaigns";
     }
 
     setErrors(newErrors);
@@ -134,7 +171,11 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
     setCurrentAdGroup({
       name: generateDefaultAdGroupName(campaignType),
       defaultBid: 0.1,
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      ...(campaignType === "SD" && {
+        bidOptimization: "clicks" as const,
+        creativeType: "IMAGE" as const,
+      }),
     });
     setErrors({});
   };
@@ -288,7 +329,11 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
     setCurrentAdGroup({
       name: generateDefaultAdGroupName(campaignType),
       defaultBid: 0.1,
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      ...(campaignType === "SD" && {
+        bidOptimization: "clicks" as const,
+        creativeType: "IMAGE" as const,
+      }),
     });
     setErrors({});
     setAdGroupErrors([]);
@@ -359,7 +404,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               State *
             </label>
             <Dropdown<string>
-              options={STATE_OPTIONS}
+              options={campaignType === "SD" ? STATE_OPTIONS_SD : STATE_OPTIONS_SP_SB}
               value={currentAdGroup.state}
               onChange={(value) =>
                 handleChange("state", value as AdGroupInput["state"])
@@ -368,6 +413,51 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               buttonClassName="w-full"
             />
           </div>
+
+          {/* Bid Optimization - Only for SD campaigns */}
+          {campaignType === "SD" && (
+            <div className="w-[160px]">
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                Bid Optimization *
+              </label>
+              <Dropdown<string>
+                options={BID_OPTIMIZATION_OPTIONS}
+                value={currentAdGroup.bidOptimization || "clicks"}
+                onChange={(value) =>
+                  handleChange("bidOptimization", value as "reach" | "clicks" | "conversions")
+                }
+                placeholder="Select bid optimization"
+                buttonClassName="w-full"
+              />
+              {errors.bidOptimization && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.bidOptimization}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Creative Type - Only for SD campaigns */}
+          {campaignType === "SD" && (
+            <div className="w-[140px]">
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                Creative Type
+              </label>
+              <Dropdown<string | null>
+                options={[
+                  { value: "IMAGE", label: "IMAGE" },
+                  { value: "VIDEO", label: "VIDEO" },
+                  { value: null, label: "None (defaults to IMAGE)" },
+                ]}
+                value={currentAdGroup.creativeType || null}
+                onChange={(value) =>
+                  handleChange("creativeType", value === null ? null : (value as "IMAGE" | "VIDEO"))
+                }
+                placeholder="Select creative type"
+                buttonClassName="w-full"
+              />
+            </div>
+          )}
 
           {/* Add Ad Group Button */}
           <div className="w-[120px]">
@@ -404,6 +494,16 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                     <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       State
                     </th>
+                    {campaignType === "SD" && (
+                      <>
+                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                          Bid Optimization
+                        </th>
+                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                          Creative Type
+                        </th>
+                      </>
+                    )}
                     <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Action
                     </th>
@@ -495,6 +595,20 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                               ))}
                           </div>
                         </td>
+                        {campaignType === "SD" && (
+                          <>
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {adgroup.bidOptimization || "clicks"}
+                              </span>
+                            </td>
+                            <td className="py-[10px] px-[10px]">
+                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                {adgroup.creativeType || "IMAGE (default)"}
+                              </span>
+                            </td>
+                          </>
+                        )}
                         <td className="py-[10px] px-[10px]">
                           <button
                             type="button"

@@ -49,6 +49,7 @@ interface CreateSBAdPanelProps {
   adgroups: Array<{ adGroupId: string; name: string }>;
   campaignId: string;
   accountId?: number;
+  profileId?: string; // Profile ID to filter assets
   loading?: boolean;
   submitError?: string | null;
   fieldErrors?: Record<string, string>;
@@ -90,6 +91,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   onSubmit,
   adgroups,
   accountId,
+  profileId,
   loading = false,
   submitError = null,
   fieldErrors = {},
@@ -105,7 +107,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     if (isOpen && accountId) {
       loadAssets();
     }
-  }, [isOpen, accountId]);
+  }, [isOpen, accountId, profileId]);
 
   const loadAssets = async () => {
     if (!accountId) return;
@@ -115,6 +117,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       const data = await campaignsService.getAssets(accountId, {
         page: 1,
         page_size: 100, // Get all assets for dropdown
+        ...(profileId && { profileId }), // Include profileId if available to filter assets
       });
       setAssets(data.assets || []);
     } catch (error) {

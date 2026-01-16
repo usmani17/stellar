@@ -195,6 +195,132 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   >({});
   const [genericErrors, setGenericErrors] = useState<string[]>([]);
 
+  // Check if test mode is enabled
+  const isTestMode =
+    import.meta.env.VITE_TEST_FAKE === "true" ||
+    import.meta.env.VITE_TEST_FAKE === true;
+
+  // Function to fill form with fake/test data
+  const fillTestData = async () => {
+    // Get first available profile if any
+    const firstProfile =
+      profileOptions.length > 0 ? profileOptions[0].value : "";
+
+    // Determine campaign type - use existing selection or default to SP
+    const campaignType = formData.type || "SP";
+
+    // Determine budget type - SB and SD can use LIFETIME
+    const budgetType =
+      campaignType === "SB" || campaignType === "SD" ? "LIFETIME" : "DAILY";
+
+    // Calculate dates
+    const startDate = new Date().toISOString().split("T")[0];
+    // If LIFETIME budget, ensure end date is provided (30 days from now)
+    const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
+    // Base fake data common to all campaign types
+    // Note: bidOptimization is true, so bidAdjustmentsByPlacement should NOT be included
+    let fakeData: CreateCampaignData = {
+      campaign_name: `Test ${campaignType} Campaign ${new Date().toLocaleTimeString()}`,
+      type: campaignType as "SP" | "SB" | "SD",
+      budget: 100,
+      budgetType: budgetType as "DAILY" | "LIFETIME",
+      status: "ENABLED", // Valid value: ENABLED or PAUSED
+      startDate: startDate,
+      endDate: endDate, // Always set end date, especially required for LIFETIME
+      profileId: firstProfile,
+      // Bidding (common) - bidOptimization is true, so no bidAdjustmentsByPlacement
+      bidding: {
+        strategy: "LEGACY_FOR_SALES",
+        bidOptimization: true,
+        shopperCohortBidAdjustments: [],
+        // Do NOT include bidAdjustmentsByPlacement when bidOptimization is true
+      },
+    };
+
+    // Campaign type specific fields
+    if (campaignType === "SB") {
+      // SB (Sponsored Brands) specific fields
+      fakeData = {
+        ...fakeData,
+        goal: "PAGE_VISIT",
+        productLocation: "SOLD_ON_AMAZON",
+        costType: "CPC", // SB uses uppercase CPC/VCPM/FIXED_PRICE
+        smartDefault: "MANUAL",
+        tags: [
+          { key: "test_key_1", value: "test_value_1" },
+          { key: "test_key_2", value: "test_value_2" },
+        ],
+        // Note: bidOptimization is true, so bidAdjustmentsByPlacement is not included
+      };
+    } else if (campaignType === "SD") {
+      // SD (Sponsored Display) specific fields
+      fakeData = {
+        ...fakeData,
+        tactic: "T00020",
+        costType: "cpc", // SD uses lowercase cpc/vcpm
+        targetingType: "AUTO",
+      };
+    } else {
+      // SP (Sponsored Products) specific fields
+      fakeData = {
+        ...fakeData,
+        targetingType: "AUTO",
+        costType: "cpc",
+        // Note: bidOptimization is true, so bidAdjustmentsByPlacement is not included
+      };
+    }
+
+    // If profile is set, load portfolios and brand entities first
+    if (firstProfile && accountId) {
+      try {
+        const [portfolios, brandEntities] = await Promise.all([
+          accountsService
+            .getPortfolios(parseInt(accountId), firstProfile)
+            .catch(() => []),
+          accountsService
+            .getBrandEntities(parseInt(accountId), firstProfile)
+            .catch(() => []),
+        ]);
+
+        // Update options
+        const portfolioOpts =
+          portfolios?.map((p) => ({
+            value: p.id,
+            label: `${p.name} (${p.id})`,
+          })) || [];
+        const brandEntityOpts =
+          brandEntities?.map((be) => ({
+            value: be.brandEntityId,
+            label: `${be.brandRegistryName} (${be.brandEntityId})`,
+          })) || [];
+
+        setPortfolioOptions(portfolioOpts);
+        setBrandEntityOptions(brandEntityOpts);
+
+        // Update fake data with first available options
+        if (portfolioOpts.length > 0) {
+          fakeData.portfolioId = portfolioOpts[0].value;
+        }
+        // Brand Entity is required for SB campaigns
+        if (campaignType === "SB" && brandEntityOpts.length > 0) {
+          fakeData.brandEntityId = brandEntityOpts[0].value;
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load portfolios/brand entities for test data:",
+          error
+        );
+      }
+    }
+
+    setFormData(fakeData);
+    setErrors({});
+    setGenericErrors([]);
+  };
+
   // Use profiles from props (loaded by parent component)
   useEffect(() => {
     console.log("CreateCampaignPanel received profiles:", profilesProp);
@@ -1001,9 +1127,21 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       {/* Form */}
       <form onSubmit={handleSubmit}>
         <div className="p-4 border-b border-gray-200">
-          <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
-            {mode === "edit" ? "Edit Campaign" : "Create Campaign"}
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[16px] font-semibold text-[#072929]">
+              {mode === "edit" ? "Edit Campaign" : "Create Campaign"}
+            </h2>
+            {isTestMode && mode === "create" && (
+              <button
+                type="button"
+                onClick={fillTestData}
+                className="px-3 py-1.5 text-[12px] bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-lg hover:bg-yellow-200 transition-colors"
+                title="Fill form with test data"
+              >
+                🧪 Fill Test Data
+              </button>
+            )}
+          </div>
 
           {/* Validation Errors Banner */}
           {Object.values(errors).filter(Boolean).length > 0 && (
