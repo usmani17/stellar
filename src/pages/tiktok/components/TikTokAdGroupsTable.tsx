@@ -470,7 +470,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                     return (
                                         <tr
                                             key={item.adgroup_id}
-                                            className={`group border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors ${adgroupIsDeleted ? "opacity-60" : ""
+                                            className={`table-row group ${adgroupIsDeleted ? "opacity-60" : ""
                                                 }`}
                                         >
                                             <td className="table-cell">

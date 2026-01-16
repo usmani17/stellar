@@ -420,7 +420,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                     return (
                                         <tr
                                             key={item.ad_id}
-                                            className="group border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
+                                            className="table-row group"
                                         >
                                             <td className="table-cell">
                                                 <div className="flex items-center justify-center">

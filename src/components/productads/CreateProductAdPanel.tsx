@@ -307,7 +307,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                         return (
                           <tr
                             key={index}
-                            className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
+                            className="table-row group"
                           >
                             <td className="table-cell">
                               <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">

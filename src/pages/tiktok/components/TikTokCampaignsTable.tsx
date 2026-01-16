@@ -361,11 +361,11 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                             return (
                                 <tr
                                     key={campaign.id}
-                                    className={`group ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                                        } ${campaignIsDeleted
+                                    className={`table-row group ${
+                                        campaignIsDeleted
                                             ? "bg-gray-100 opacity-60"
-                                            : "hover:bg-gray-100"
-                                        } transition-colors`}
+                                            : ""
+                                    }`}
                                 >
                                     <td
                                         className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]"

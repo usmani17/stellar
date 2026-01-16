@@ -282,7 +282,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                 return (
                   <tr
                     key={ad.id}
-                    className={`border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors ${
+                    className={`table-row group ${
                       isArchived ? "bg-gray-100 opacity-60" : ""
                     }`}
                   >

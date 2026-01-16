@@ -220,7 +220,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                 return (
                   <tr
                     key={asset.id}
-                    className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
+                    className="table-row group"
                   >
                     {onSelect && (
                       <td className="table-cell">

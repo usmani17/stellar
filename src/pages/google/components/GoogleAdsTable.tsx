@@ -626,7 +626,7 @@ export function GoogleAdsTable<T = any>({
                   return (
                     <tr
                       key={itemId}
-                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""} hover:bg-gray-50 transition-colors`}
+                      className="table-row group"
                     >
                       {/* Checkbox */}
                       <td className="table-cell sticky left-0 bg-white z-10">

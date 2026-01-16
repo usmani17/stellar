@@ -192,7 +192,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
               {productads.map((productad) => (
                 <tr
                   key={productad.id}
-                  className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
+                  className="table-row group"
                 >
                   {onSelect && (
                     <td className="table-cell">

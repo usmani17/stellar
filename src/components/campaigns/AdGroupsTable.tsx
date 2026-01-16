@@ -442,13 +442,11 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                   return (
                     <tr
                       key={adgroup.id}
-                      className={`group ${
-                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } ${
+                      className={`table-row group ${
                         isArchived
                           ? "bg-gray-100 opacity-60"
-                          : "hover:bg-gray-100"
-                      } transition-colors`}
+                          : ""
+                      }`}
                     >
                       {/* Checkbox */}
                       <td className="table-cell">

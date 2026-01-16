@@ -3257,13 +3257,11 @@ export const Campaigns: React.FC = () => {
                           return (
                             <tr
                               key={campaign.campaignId}
-                              className={`group ${
-                                !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                              } ${
+                              className={`table-row group ${
                                 isArchived
                                   ? "bg-gray-100 opacity-60"
-                                  : "hover:bg-gray-100"
-                              } transition-colors`}
+                                  : ""
+                              }`}
                             >
                               {/* Checkbox */}
                               <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
