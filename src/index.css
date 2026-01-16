@@ -793,7 +793,7 @@ body input[type="submit"]:disabled {
 
 /* Search input container - used for search boxes with hover and focus effects */
 .search-input-container {
-  background-color: #f9f9f6;
+  background-color: #f0f0ed;
   border: 1px solid #e8e8e3;
   border-radius: 8px;
   transition: border-color 0.2s, box-shadow 0.2s;

@@ -298,7 +298,7 @@ export const Channels: React.FC = () => {
                 </h2>
                 <div className="flex items-center gap-6">
                   {/* Search */}
-                  <div className="bg-[#f0f0ed] border border-[#e8e8e3] rounded-[8px] h-[40px] w-[272px] flex items-center gap-2 px-[10px]">
+                  <div className="search-input-container h-[40px] w-[272px] flex items-center gap-2 px-[10px]">
                     <svg
                       className="w-3 h-3 text-[#556179]"
                       fill="none"
@@ -326,9 +326,9 @@ export const Channels: React.FC = () => {
                       <Button
                         size="sm"
                         disabled={isConnecting}
-                        className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
+                        className="create-entity-button "
                       >
-                        <span className="text-[14px] font-medium">
+                        <span>
                           {isConnecting ? "Connecting..." : "Connect"}
                         </span>
                       </Button>
@@ -533,7 +533,7 @@ export const Channels: React.FC = () => {
                                 <div className="flex items-center gap-3">
                                   <Button
                                     size="sm"
-                                    className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
+                                    className="create-entity-button"
                                     onClick={() => {
                                       if (channel.channel_type === "google") {
                                         navigate(
@@ -561,7 +561,7 @@ export const Channels: React.FC = () => {
                                     variant="outline"
                                     onClick={() => handleDeleteChannel(channel)}
                                     disabled={deletingChannelId === channel.id}
-                                    className="px-2 py-1.5 h-[36px] rounded-lg flex items-center justify-center"
+                                    className="cancel-button"
                                   >
                                     <span className="text-[14px] font-medium">
                                       {deletingChannelId === channel.id
