@@ -288,17 +288,75 @@ export const Accounts: React.FC = () => {
           )}
 
           <div className="space-y-6">
-            {/* Header with Create Button */}
+            {/* Header with Create Button and Search */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[22px] sm:text-[24px] font-medium text-[#072929] leading-[normal]">
                 Accounts
               </h1>
-              <button
-                onClick={() => setShowCreateAccount(!showCreateAccount)}
-                className="create-entity-button"
-              >
-                Create Account
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowCreateAccount(!showCreateAccount)}
+                  className="create-entity-button"
+                >
+                  Create Account
+                </button>
+                <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
+                  <svg
+                    className="w-3 h-3 text-[#556179]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setSearching(true);
+                      // Clear previous timeout
+                      if (searchTimeoutRef.current) {
+                        clearTimeout(searchTimeoutRef.current);
+                      }
+                      // Clear searching state after a short delay (debounce effect)
+                      searchTimeoutRef.current = setTimeout(() => {
+                        setSearching(false);
+                        searchTimeoutRef.current = null;
+                      }, 300);
+                    }}
+                    placeholder="Search..."
+                    className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
+                  />
+                  {searching && (
+                    <svg
+                      className="animate-spin h-4 w-4 text-[#556179]"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Create Account Form */}
@@ -365,120 +423,44 @@ export const Accounts: React.FC = () => {
               </div>
             )}
 
-            {/* Accounts Table Card */}
-            {/* Header with Search */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-4">
-              <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
-                <svg
-                  className="w-3 h-3 text-[#556179]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setSearching(true);
-                    // Clear previous timeout
-                    if (searchTimeoutRef.current) {
-                      clearTimeout(searchTimeoutRef.current);
-                    }
-                    // Clear searching state after a short delay (debounce effect)
-                    searchTimeoutRef.current = setTimeout(() => {
-                      setSearching(false);
-                      searchTimeoutRef.current = null;
-                    }, 300);
-                  }}
-                  placeholder="Search..."
-                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
-                />
-                {searching && (
-                  <svg
-                    className="animate-spin h-4 w-4 text-[#556179]"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                )}
-              </div>
-            </div>
-
             {/* Table */}
             <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
               <div className="overflow-x-auto overflow-y-visible">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-[#e8e8e3]">
-                      <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                        Account Name
-                      </th>
-                      <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                        Users
-                      </th>
-                      <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                        Created
-                      </th>
-                      <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                        Created By
-                      </th>
-                      <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                        Actions
-                      </th>
+                    <tr>
+                      <th className="table-header">Account Name</th>
+                      <th className="table-header">Users</th>
+                      <th className="table-header">Created</th>
+                      <th className="table-header">Created By</th>
+                      <th className="table-header">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading || accountsLoading ? (
                       // Loading skeleton rows
                       Array.from({ length: 3 }).map((_, index) => (
-                        <tr
-                          key={`skeleton-${index}`}
-                          className={
-                            index < 2 ? "border-b border-[#e8e8e3]" : ""
-                          }
-                        >
-                          <td className="py-4 px-5">
+                        <tr key={`skeleton-${index}`} className="table-row">
+                          <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
                           </td>
-                          <td className="py-4 px-5">
+                          <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
                           </td>
-                          <td className="py-4 px-5">
+                          <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
                           </td>
-                          <td className="py-4 px-5">
+                          <td className="table-cell">
                             <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
                           </td>
-                          <td className="py-4 px-5">
+                          <td className="table-cell">
                             <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
                           </td>
                         </tr>
                       ))
                     ) : filteredAccounts.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="text-center py-8">
+                        <td colSpan={5} className="table-cell text-center py-8">
                           <p className="text-[14px] text-[#556179] mb-4">
                             {searchQuery
                               ? "No accounts found"
@@ -497,22 +479,19 @@ export const Accounts: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      filteredAccounts.map((account, index) => {
+                      filteredAccounts.map((account) => {
                         const isDeleting = deletingAccountId === account.id;
                         const isConnecting =
                           oauthLoading?.accountId === account.id;
-                        const isLastRow = index === filteredAccounts.length - 1;
 
                         return (
                           <tr
                             key={account.id}
-                            className={`${
-                              !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                            } hover:bg-gray-50 transition-colors ${
+                            className={`table-row group ${
                               isDeleting ? "opacity-50" : ""
                             }`}
                           >
-                            <td className="py-4 px-5 group">
+                            <td className="table-cell">
                               {editingAccount?.accountId === account.id ? (
                                 <input
                                   type="text"
@@ -550,7 +529,7 @@ export const Accounts: React.FC = () => {
                                         `/accounts/${account.id}/channels`
                                       );
                                     }}
-                                    className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
+                                    className="table-edit-link"
                                   >
                                     {account.name}
                                   </button>
@@ -579,22 +558,22 @@ export const Accounts: React.FC = () => {
                                 </div>
                               )}
                             </td>
-                            <td className="py-4 px-5">
-                              <span className="text-[14px] text-[#0b0f16] leading-[normal]">
+                            <td className="table-cell">
+                              <span className="table-text">
                                 {formatUsers(account.users)}
                               </span>
                             </td>
-                            <td className="py-4 px-5">
-                              <span className="text-[14px] text-[#0b0f16] leading-[normal] whitespace-nowrap">
+                            <td className="table-cell">
+                              <span className="table-text whitespace-nowrap">
                                 {formatDate(account.created_at)}
                               </span>
                             </td>
-                            <td className="py-4 px-5">
-                              <span className="text-[14px] text-[#0b0f16] leading-[normal]">
+                            <td className="table-cell">
+                              <span className="table-text">
                                 {account.created_by_name || "—"}
                               </span>
                             </td>
-                            <td className="py-4 px-5">
+                            <td className="table-cell">
                               <div className="flex items-center gap-2 justify-end md:justify-start">
                                 <div className="relative z-20">
                                   <Menu

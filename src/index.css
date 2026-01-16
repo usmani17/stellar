@@ -394,6 +394,7 @@ body input[type="submit"]:disabled {
   color: #29303f;
   line-height: 16.2px;
   cursor: pointer;
+  background-color: #FEFEFB;
 }
 
 .table-header:hover {
