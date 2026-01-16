@@ -69,7 +69,7 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                 <table className="min-w-full w-full">
                                     <thead>
                                         <tr className="border-b border-[#e8e8e3]">
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                                            <th className="table-header w-[35px]">
                                                 <div className="flex items-center justify-center">
                                                     <Checkbox
                                                         checked={false}
@@ -78,19 +78,19 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                     />
                                                 </div>
                                             </th>
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                            <th className="table-header">
                                                 Ad Name
                                             </th>
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                            <th className="table-header">
                                                 CTR
                                             </th>
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                            <th className="table-header">
                                                 Status
                                             </th>
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                            <th className="table-header">
                                                 Spends
                                             </th>
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                            <th className="table-header">
                                                 Sales
                                             </th>
                                         </tr>
@@ -107,7 +107,7 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                             : ""
                                                     } hover:bg-gray-50 transition-colors`}
                                                 >
-                                                    <td className="py-[10px] px-[10px]">
+                                                    <td className="table-cell">
                                                         <div className="flex items-center justify-center">
                                                             <Checkbox
                                                                 checked={false}
@@ -116,28 +116,28 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                             />
                                                         </div>
                                                     </td>
-                                                    <td className="py-[10px] px-[10px]">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                    <td className="table-cell">
+                                                        <span className="table-text leading-[1.26]">
                                                             {ad.ad_name}
                                                         </span>
                                                     </td>
-                                                    <td className="py-[10px] px-[10px]">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                    <td className="table-cell">
+                                                        <span className="table-text leading-[1.26]">
                                                             {ad.ctr}
                                                         </span>
                                                     </td>
-                                                    <td className="py-[10px] px-[10px]">
+                                                    <td className="table-cell">
                                                         <StatusBadge
                                                             status={ad.status}
                                                         />
                                                     </td>
-                                                    <td className="py-[10px] px-[10px]">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                    <td className="table-cell">
+                                                        <span className="table-text leading-[1.26]">
                                                             {ad.spends}
                                                         </span>
                                                     </td>
-                                                    <td className="py-[10px] px-[10px]">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                    <td className="table-cell">
+                                                        <span className="table-text leading-[1.26]">
                                                             {ad.sales}
                                                         </span>
                                                     </td>
@@ -174,7 +174,7 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                 <table className="min-w-full w-full">
                                     <thead>
                                         <tr className="border-b border-[#e8e8e3]">
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                                            <th className="table-header w-[35px]">
                                                 <div className="flex items-center justify-center">
                                                     <Checkbox
                                                         checked={false}
@@ -183,15 +183,15 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                     />
                                                 </div>
                                             </th>
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                            <th className="table-header">
                                                 Product Name
                                             </th>
                                             {topProducts[0]?.asin && (
-                                                <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                                <th className="table-header">
                                                     ASIN
                                                 </th>
                                             )}
-                                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                            <th className="table-header">
                                                 Sales
                                             </th>
                                         </tr>
@@ -208,7 +208,7 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                             : ""
                                                     } hover:bg-gray-50 transition-colors`}
                                                 >
-                                                    <td className="py-[10px] px-[10px]">
+                                                    <td className="table-cell">
                                                         <div className="flex items-center justify-center">
                                                             <Checkbox
                                                                 checked={false}
@@ -217,20 +217,20 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                                                             />
                                                         </div>
                                                     </td>
-                                                    <td className="py-[10px] px-[10px]">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                    <td className="table-cell">
+                                                        <span className="table-text leading-[1.26]">
                                                             {product.name}
                                                         </span>
                                                     </td>
                                                     {product.asin && (
-                                                        <td className="py-[10px] px-[10px]">
-                                                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                        <td className="table-cell">
+                                                            <span className="table-text leading-[1.26]">
                                                                 {product.asin}
                                                             </span>
                                                         </td>
                                                     )}
-                                                    <td className="py-[10px] px-[10px]">
-                                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                                    <td className="table-cell">
+                                                        <span className="table-text leading-[1.26]">
                                                             {product.sales}
                                                         </span>
                                                     </td>

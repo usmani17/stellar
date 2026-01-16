@@ -11,106 +11,86 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   className = "",
   uppercase = false,
 }) => {
-  const statusMap: Record<string, { bg: string; text: string; label: string }> =
+  const statusMap: Record<string, { class: string; label: string }> =
     {
       Enable: {
-        bg: "bg-[rgba(30,199,122,0.1)]",
-        text: "text-[#1ec77a]",
+        class: "status-badge-enabled",
         label: "Enabled",
       },
       enabled: {
-        bg: "bg-[rgba(30,199,122,0.1)]",
-        text: "text-[#1ec77a]",
+        class: "status-badge-enabled",
         label: "Enabled",
       },
       Enabled: {
-        bg: "bg-[rgba(30,199,122,0.1)]",
-        text: "text-[#1ec77a]",
+        class: "status-badge-enabled",
         label: "Enabled",
       },
       ENABLED: {
-        bg: "bg-[rgba(30,199,122,0.1)]",
-        text: "text-[#1ec77a]",
+        class: "status-badge-enabled",
         label: "Enabled",
       },
       ENABLE: {
-        bg: "bg-[rgba(30,199,122,0.1)]",
-        text: "text-[#1ec77a]",
+        class: "status-badge-enabled",
         label: "Enabled",
       },
       Paused: {
-        bg: "bg-[rgba(255,182,92,0.1)]",
-        text: "text-[#ffb65c]",
+        class: "status-badge-paused",
         label: "Paused",
       },
       paused: {
-        bg: "bg-[rgba(255,182,92,0.1)]",
-        text: "text-[#ffb65c]",
+        class: "status-badge-paused",
         label: "Paused",
       },
       PAUSED: {
-        bg: "bg-[rgba(255,182,92,0.1)]",
-        text: "text-[#ffb65c]",
+        class: "status-badge-paused",
         label: "Paused",
       },
       Disable: {
-        bg: "bg-[rgba(255,182,92,0.1)]",
-        text: "text-[#ffb65c]",
+        class: "status-badge-paused",
         label: "Paused",
       },
       disable: {
-        bg: "bg-[rgba(255,182,92,0.1)]",
-        text: "text-[#ffb65c]",
+        class: "status-badge-paused",
         label: "Paused",
       },
       DISABLE: {
-        bg: "bg-[rgba(255,182,92,0.1)]",
-        text: "text-[#ffb65c]",
+        class: "status-badge-paused",
         label: "Paused",
       },
       Removed: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Removed",
       },
       removed: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Removed",
       },
       Archived: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Archived",
       },
       archived: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Archived",
       },
       ARCHIVED: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Archived",
       },
       Deleted: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Deleted",
       },
       deleted: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Deleted",
       },
       DELETED: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Deleted",
       },
       DELETE: {
-        bg: "bg-[rgba(163,168,179,0.1)]",
-        text: "text-[#a3a8b3]",
+        class: "status-badge-archived",
         label: "Deleted",
       },
     };
@@ -120,12 +100,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
 
   return (
     <span
-      className={`inline-block px-2 py-0.5 rounded-full ${statusInfo.bg} ${statusInfo.text} ${className}`}
-      style={{
-        fontSize: "12px",
-        fontWeight: 400,
-        lineHeight: "100%",
-      }}
+      className={`status-badge ${statusInfo.class} ${className}`}
     >
       {uppercase ? statusInfo.label.toUpperCase() : statusInfo.label}
     </span>

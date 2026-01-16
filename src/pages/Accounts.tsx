@@ -580,7 +580,7 @@ export const Accounts: React.FC = () => {
                                         e.stopPropagation();
                                         startEditAccountName(account);
                                       }}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
+                                      className="table-edit-icon"
                                       title="Edit account name"
                                     >
                                       <svg

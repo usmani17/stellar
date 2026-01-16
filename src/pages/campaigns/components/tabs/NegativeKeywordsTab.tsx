@@ -143,7 +143,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
               <Button
                 type="button"
                 variant="ghost"
-                className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                className="edit-button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleBulkActions();
@@ -208,7 +208,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                   await onLoadAllAdGroups();
                 }
               }}
-              className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] hover:!text-white transition-colors text-[10.64px] font-normal"
+              className="create-entity-button text-[10.64px] font-normal"
             >
               <svg
                 className="w-4 h-4 !text-white"
@@ -247,7 +247,7 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                 onCloseCreatePanel();
                 onCloseBulkActions();
               }}
-              className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+              className="edit-button"
             >
               <svg
                 className="w-5 h-5 text-[#072929]"

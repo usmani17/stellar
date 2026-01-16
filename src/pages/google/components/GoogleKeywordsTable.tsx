@@ -199,7 +199,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
         const campaignId = row.campaign_id;
         
         if (campaignName === "—" || !campaignId || !currentAccountId) {
-          return <span className="text-[13.3px] text-[#0b0f16]">{campaignName}</span>;
+          return <span className="table-text">{campaignName}</span>;
         }
         
         return (
@@ -229,7 +229,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
         const campaignId = row.campaign_id;
         
         if (adgroupName === "—" || !campaignId || !currentAccountId) {
-          return <span className="text-[13.3px] text-[#0b0f16]">{adgroupName}</span>;
+          return <span className="table-text">{adgroupName}</span>;
         }
         
         return (
@@ -338,7 +338,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
               {hasUrls && (
                 <div className="flex items-center gap-1">
                   <span className="text-[11px] text-gray-500">Desktop:</span>
-                  <span className="text-[13.3px] text-[#0b0f16] truncate" title={urlsArray.join(", ")}>
+                  <span className="table-text truncate" title={urlsArray.join(", ")}>
                     {urlsArray.length > 1 ? `${urlsArray[0]} (+${urlsArray.length - 1} more)` : urlsArray[0]}
                   </span>
                 </div>
@@ -346,12 +346,12 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
               {hasMobileUrls && (
                 <div className="flex items-center gap-1">
                   <span className="text-[11px] text-gray-500">Mobile:</span>
-                  <span className="text-[13.3px] text-[#0b0f16] truncate" title={mobileUrlsArray.join(", ")}>
+                  <span className="table-text truncate" title={mobileUrlsArray.join(", ")}>
                     {mobileUrlsArray.length > 1 ? `${mobileUrlsArray[0]} (+${mobileUrlsArray.length - 1} more)` : mobileUrlsArray[0]}
                   </span>
                 </div>
               )}
-              {!hasUrls && !hasMobileUrls && <span className="text-[13.3px] text-[#0b0f16]">—</span>}
+              {!hasUrls && !hasMobileUrls && <span className="table-text">—</span>}
             </div>
             {onStartFinalUrlEdit && (
               <button

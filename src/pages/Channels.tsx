@@ -490,7 +490,7 @@ export const Channels: React.FC = () => {
                                           "channel_name"
                                         );
                                       }}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
+                                      className="table-edit-icon"
                                       title="Edit channel name"
                                     >
                                       <svg

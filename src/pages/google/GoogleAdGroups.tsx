@@ -1182,7 +1182,7 @@ export const GoogleAdGroups: React.FC = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  className="edit-button"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -1219,7 +1219,7 @@ export const GoogleAdGroups: React.FC = () => {
                 <Button
                   onClick={handleSync}
                   disabled={syncing || syncingAnalytics}
-                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+                  className="create-entity-button disabled:opacity-50"
                 >
                   {syncing ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -1233,7 +1233,7 @@ export const GoogleAdGroups: React.FC = () => {
                 <Button
                   onClick={handleSyncAnalytics}
                   disabled={syncing || syncingAnalytics}
-                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+                  className="create-entity-button disabled:opacity-50"
                 >
                   {syncingAnalytics ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -1322,7 +1322,7 @@ export const GoogleAdGroups: React.FC = () => {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="edit-button"
                   onClick={() => setShowExportModal(true)}
                   disabled={exporting || loading || adgroups.length === 0}
                 >
@@ -1364,7 +1364,7 @@ export const GoogleAdGroups: React.FC = () => {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                  className="edit-button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowBulkActions((prev) => !prev);

@@ -194,7 +194,7 @@ export function GoogleAdsTable<T = any>({
         return (
           <button
             onClick={() => navigate(navPath)}
-            className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
+            className="table-edit-link block w-full"
           >
             {cellContent}
           </button>
@@ -238,7 +238,7 @@ export function GoogleAdsTable<T = any>({
           };
           const label = matchTypeMap[value] || value || "—";
           return (
-            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff] pointer-events-none">
+            <span className="table-text leading-[1.26] font-semibold text-[#7a4dff] pointer-events-none">
               {label}
             </span>
           );
@@ -247,27 +247,27 @@ export function GoogleAdsTable<T = any>({
       case "currency":
       case "budget":
       case "bid":
-        return <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]" style={{ pointerEvents: 'none' }}>{formatCurrency(value || 0)}</span>;
+        return <span className="table-text leading-[1.26]" style={{ pointerEvents: 'none' }}>{formatCurrency(value || 0)}</span>;
       case "percentage":
-        return <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">{formatPercentage(value || 0)}</span>;
+        return <span className="table-text leading-[1.26]">{formatPercentage(value || 0)}</span>;
       case "number":
-        return <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">{((value || 0) as number).toLocaleString()}</span>;
+        return <span className="table-text leading-[1.26]">{((value || 0) as number).toLocaleString()}</span>;
       case "roas":
         return (
-          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+          <span className="table-text leading-[1.26]">
             {value ? `${(value as number).toFixed(2)} x` : "0.00 x"}
           </span>
         );
       case "start_date":
       case "end_date":
         return (
-          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+          <span className="table-text leading-[1.26] whitespace-nowrap">
             {formatDateString(value)}
           </span>
         );
       case "text":
       default:
-        return <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">{value || "—"}</span>;
+        return <span className="table-text leading-[1.26]">{value || "—"}</span>;
     }
   };
 
@@ -486,7 +486,7 @@ export function GoogleAdsTable<T = any>({
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 bg-white z-10">
+                  <th className="table-header w-[35px] sticky left-0 bg-white z-10">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={allSelected}
@@ -506,7 +506,7 @@ export function GoogleAdsTable<T = any>({
                     return (
                       <th
                         key={column.key}
-                        className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                        className={`table-header ${
                           column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
                         } ${stickyClasses} ${widthClasses} ${borderClass}`}
                         onClick={() => column.sortable !== false && onSort(column.key)}
@@ -523,8 +523,8 @@ export function GoogleAdsTable<T = any>({
               <tbody>
                 {/* Summary Row */}
                 {summary && (
-                  <tr className="bg-[#f5f5f0] font-semibold">
-                    <td className="py-[10px] px-[10px] sticky left-0 bg-[#f5f5f0] z-10"></td>
+                  <tr className="table-summary-row">
+                    <td className="table-cell sticky left-0 bg-[#f5f5f0] z-10"></td>
                     {columns.map((column, index) => {
                       const stickyClasses = getStickyClasses(column, index).replace("bg-white", "bg-[#f5f5f0]");
                       const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
@@ -594,7 +594,7 @@ export function GoogleAdsTable<T = any>({
                       }
                       
                       return (
-                        <td key={column.key} className={`py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] ${stickyClasses} ${borderClass}`}>
+                        <td key={column.key} className={`table-cell table-text leading-[1.26] ${stickyClasses} ${borderClass}`}>
                           {summaryValue}
                         </td>
                       );
@@ -626,10 +626,10 @@ export function GoogleAdsTable<T = any>({
                   return (
                     <tr
                       key={itemId}
-                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""} hover:bg-gray-50 transition-colors`}
+                      className="table-row group"
                     >
                       {/* Checkbox */}
-                      <td className="py-[10px] px-[10px] sticky left-0 bg-white z-10">
+                      <td className="table-cell sticky left-0 bg-white z-10">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedItems.has(itemId)}
@@ -648,7 +648,7 @@ export function GoogleAdsTable<T = any>({
                         return (
                           <td
                             key={column.key}
-                            className={`py-[10px] px-[10px] ${stickyClasses} ${borderClass} ${widthClasses}`}
+                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses}`}
                           >
                             {renderCell(column, row, index)}
                           </td>

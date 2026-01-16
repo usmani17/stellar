@@ -193,7 +193,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
           <Button
             onClick={onSync}
             disabled={syncing || syncingAnalytics}
-            className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+            className="create-entity-button disabled:opacity-50"
           >
             {syncing ? (
               <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -208,7 +208,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
             <Button
               onClick={onSyncAnalytics}
               disabled={syncing || syncingAnalytics}
-              className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+              className="create-entity-button disabled:opacity-50"
             >
               {syncingAnalytics ? (
                 <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -259,7 +259,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                  <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={ads.length > 0 && ads.every((ad) => selectedAdIds.has(ad.id))}
@@ -269,7 +269,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="table-header"
                     onClick={() => onSort("ad_type")}
                   >
                     <div className="flex items-center gap-1">
@@ -277,11 +277,11 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                       {getSortIcon("ad_type", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                  <th className="table-header hidden lg:table-cell">
                     Ad Group
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
@@ -289,10 +289,10 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                  <th className="table-header hidden lg:table-cell">
                     Headlines
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                  <th className="table-header hidden lg:table-cell">
                     Final URLs
                   </th>
                 </tr>
@@ -307,7 +307,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } hover:bg-gray-50 transition-colors`}
                     >
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedAdIds.has(ad.id)}
@@ -316,17 +316,17 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                           />
                         </div>
                       </td>
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {ad.ad_type || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell hidden lg:table-cell">
+                        <span className="table-text leading-[1.26]">
                           {ad.adgroup_name || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         {updatingAdId === ad.id && pendingChange ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
@@ -399,21 +399,21 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                           </div>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                      <td className="table-cell hidden lg:table-cell">
                         {ad.headlines && Array.isArray(ad.headlines) && ad.headlines.length > 0 ? (
                           <div className="flex flex-col gap-1">
                             {ad.headlines.map((h: any, index: number) => (
-                              <span key={index} className="text-[13.3px] text-[#0b0f16] leading-[1.26] block">
+                              <span key={index} className="table-text leading-[1.26] block">
                                 {h.text || h}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">—</span>
+                          <span className="table-text leading-[1.26]">—</span>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px] hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
+                      <td className="table-cell hidden lg:table-cell">
+                        <span className="table-text leading-[1.26] truncate block max-w-[300px]">
                           {ad.final_urls && Array.isArray(ad.final_urls) && ad.final_urls.length > 0
                             ? ad.final_urls[0]
                             : "—"}

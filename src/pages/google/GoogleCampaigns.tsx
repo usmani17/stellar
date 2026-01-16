@@ -147,7 +147,12 @@ export const GoogleCampaigns: React.FC = () => {
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
     campaignId: string | number;
-    field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type";
+    field:
+      | "budget"
+      | "status"
+      | "start_date"
+      | "end_date"
+      | "bidding_strategy_type";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
@@ -155,21 +160,40 @@ export const GoogleCampaigns: React.FC = () => {
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [updatingField, setUpdatingField] = useState<{
     campaignId: string | number;
-    field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type";
+    field:
+      | "budget"
+      | "status"
+      | "start_date"
+      | "end_date"
+      | "bidding_strategy_type";
   } | null>(null);
   const [inlineEditCampaign, setInlineEditCampaign] =
     useState<GoogleCampaign | null>(null);
   const [inlineEditField, setInlineEditField] = useState<
-    "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type" | null
+    | "budget"
+    | "status"
+    | "start_date"
+    | "end_date"
+    | "bidding_strategy_type"
+    | null
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
   // Bidding strategy parameters for inline edit
   const [inlineEditTargetCpa, setInlineEditTargetCpa] = useState<string>("");
   const [inlineEditTargetRoas, setInlineEditTargetRoas] = useState<string>("");
-  const [inlineEditImpressionShareLocation, setInlineEditImpressionShareLocation] = useState<string>("TOP_OF_PAGE");
-  const [inlineEditImpressionSharePercent, setInlineEditImpressionSharePercent] = useState<string>("");
-  const [inlineEditImpressionShareCpcCeiling, setInlineEditImpressionShareCpcCeiling] = useState<string>("");
+  const [
+    inlineEditImpressionShareLocation,
+    setInlineEditImpressionShareLocation,
+  ] = useState<string>("TOP_OF_PAGE");
+  const [
+    inlineEditImpressionSharePercent,
+    setInlineEditImpressionSharePercent,
+  ] = useState<string>("");
+  const [
+    inlineEditImpressionShareCpcCeiling,
+    setInlineEditImpressionShareCpcCeiling,
+  ] = useState<string>("");
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
@@ -563,7 +587,10 @@ export const GoogleCampaigns: React.FC = () => {
   // Handle campaign updates in edit mode
   const handleUpdateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     if (!accountId || !campaignId) {
-      console.error("Cannot update campaign: missing accountId or campaignId", { accountId, campaignId });
+      console.error("Cannot update campaign: missing accountId or campaignId", {
+        accountId,
+        campaignId,
+      });
       const errorMessage = "Missing account or campaign ID";
       setCreateCampaignError(errorMessage);
       throw new Error(errorMessage);
@@ -584,7 +611,11 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Original campaign data not available");
       }
 
-      console.log("Updating campaign:", { campaignId, original, newData: data });
+      console.log("Updating campaign:", {
+        campaignId,
+        original,
+        newData: data,
+      });
 
       // Collect all changes to send in a single API call
       const updatePayload: any = {
@@ -646,7 +677,10 @@ export const GoogleCampaigns: React.FC = () => {
         const originalMerchantId = original.merchant_id || "";
         const newMerchantId = data.merchant_id || "";
         if (newMerchantId !== originalMerchantId && newMerchantId) {
-          console.log("Merchant ID changed:", { originalMerchantId, newMerchantId });
+          console.log("Merchant ID changed:", {
+            originalMerchantId,
+            newMerchantId,
+          });
           updatePayload.merchant_id = newMerchantId;
           hasChanges = true;
         }
@@ -655,7 +689,10 @@ export const GoogleCampaigns: React.FC = () => {
         const originalSalesCountry = original.sales_country || "US";
         const newSalesCountry = data.sales_country || "US";
         if (newSalesCountry !== originalSalesCountry) {
-          console.log("Sales country changed:", { originalSalesCountry, newSalesCountry });
+          console.log("Sales country changed:", {
+            originalSalesCountry,
+            newSalesCountry,
+          });
           updatePayload.sales_country = newSalesCountry;
           hasChanges = true;
         }
@@ -664,7 +701,10 @@ export const GoogleCampaigns: React.FC = () => {
         const originalPriority = original.campaign_priority ?? 0;
         const newPriority = data.campaign_priority ?? 0;
         if (newPriority !== originalPriority) {
-          console.log("Campaign priority changed:", { originalPriority, newPriority });
+          console.log("Campaign priority changed:", {
+            originalPriority,
+            newPriority,
+          });
           updatePayload.campaign_priority = newPriority;
           hasChanges = true;
         }
@@ -673,7 +713,10 @@ export const GoogleCampaigns: React.FC = () => {
         const originalEnableLocal = original.enable_local ?? false;
         const newEnableLocal = data.enable_local ?? false;
         if (newEnableLocal !== originalEnableLocal) {
-          console.log("Enable local changed:", { originalEnableLocal, newEnableLocal });
+          console.log("Enable local changed:", {
+            originalEnableLocal,
+            newEnableLocal,
+          });
           updatePayload.enable_local = newEnableLocal;
           hasChanges = true;
         }
@@ -682,81 +725,100 @@ export const GoogleCampaigns: React.FC = () => {
       // 7. Check if PMax Asset fields changed (only for PERFORMANCE_MAX campaigns)
       if (data.campaign_type === "PERFORMANCE_MAX") {
         const originalExtraData = (original as any).extra_data || {};
-        
+
         // Check headlines
-        const originalHeadlines = original.headlines || originalExtraData.headlines || [];
+        const originalHeadlines =
+          original.headlines || originalExtraData.headlines || [];
         const newHeadlines = data.headlines || [];
-        if (JSON.stringify(originalHeadlines.sort()) !== JSON.stringify(newHeadlines.sort())) {
+        if (
+          JSON.stringify(originalHeadlines.sort()) !==
+          JSON.stringify(newHeadlines.sort())
+        ) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.headlines = newHeadlines;
           hasChanges = true;
         }
-        
+
         // Check descriptions
-        const originalDescriptions = original.descriptions || originalExtraData.descriptions || [];
+        const originalDescriptions =
+          original.descriptions || originalExtraData.descriptions || [];
         const newDescriptions = data.descriptions || [];
-        if (JSON.stringify(originalDescriptions.sort()) !== JSON.stringify(newDescriptions.sort())) {
+        if (
+          JSON.stringify(originalDescriptions.sort()) !==
+          JSON.stringify(newDescriptions.sort())
+        ) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.descriptions = newDescriptions;
           hasChanges = true;
         }
-        
+
         // Check final_url
-        const originalFinalUrl = original.final_url || originalExtraData.final_url || "";
+        const originalFinalUrl =
+          original.final_url || originalExtraData.final_url || "";
         const newFinalUrl = data.final_url || "";
         if (newFinalUrl !== originalFinalUrl && newFinalUrl) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.final_url = newFinalUrl;
           hasChanges = true;
         }
-        
+
         // Check business_name
-        const originalBusinessName = original.business_name || originalExtraData.business_name || "";
+        const originalBusinessName =
+          original.business_name || originalExtraData.business_name || "";
         const newBusinessName = data.business_name || "";
         if (newBusinessName !== originalBusinessName && newBusinessName) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.business_name = newBusinessName;
           hasChanges = true;
         }
-        
+
         // Check logo_url
-        const originalLogoUrl = original.logo_url || originalExtraData.logo_url || "";
+        const originalLogoUrl =
+          original.logo_url || originalExtraData.logo_url || "";
         const newLogoUrl = data.logo_url || "";
         if (newLogoUrl !== originalLogoUrl && newLogoUrl) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.logo_url = newLogoUrl;
           hasChanges = true;
         }
-        
+
         // Check marketing_image_url
-        const originalMarketingImage = original.marketing_image_url || originalExtraData.marketing_image_url || "";
+        const originalMarketingImage =
+          original.marketing_image_url ||
+          originalExtraData.marketing_image_url ||
+          "";
         const newMarketingImage = data.marketing_image_url || "";
         if (newMarketingImage !== originalMarketingImage && newMarketingImage) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.marketing_image_url = newMarketingImage;
           hasChanges = true;
         }
-        
+
         // Check square_marketing_image_url
-        const originalSquareImage = original.square_marketing_image_url || originalExtraData.square_marketing_image_url || "";
+        const originalSquareImage =
+          original.square_marketing_image_url ||
+          originalExtraData.square_marketing_image_url ||
+          "";
         const newSquareImage = data.square_marketing_image_url || "";
         if (newSquareImage !== originalSquareImage && newSquareImage) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.square_marketing_image_url = newSquareImage;
           hasChanges = true;
         }
-        
+
         // Check long_headline
-        const originalLongHeadline = original.long_headline || originalExtraData.long_headline || "";
+        const originalLongHeadline =
+          original.long_headline || originalExtraData.long_headline || "";
         const newLongHeadline = data.long_headline || "";
         if (newLongHeadline !== originalLongHeadline && newLongHeadline) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.long_headline = newLongHeadline;
           hasChanges = true;
         }
-        
+
         // Check asset_group_name
-        const originalAssetGroupName = original.asset_group_name || originalExtraData.asset_group_name || "";
+        const originalAssetGroupName =
+          original.asset_group_name || originalExtraData.asset_group_name || "";
         const newAssetGroupName = data.asset_group_name || "";
         if (newAssetGroupName !== originalAssetGroupName && newAssetGroupName) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
@@ -774,7 +836,8 @@ export const GoogleCampaigns: React.FC = () => {
 
       // Check if we have any campaign-level changes (excluding PMax assets)
       const hasCampaignChanges = Object.keys(campaignUpdatePayload).some(
-        key => key !== 'campaignIds' && campaignUpdatePayload[key] !== undefined
+        (key) =>
+          key !== "campaignIds" && campaignUpdatePayload[key] !== undefined
       );
       const hasPmaxChanges = !!pmaxAssets;
 
@@ -782,7 +845,8 @@ export const GoogleCampaigns: React.FC = () => {
       if (!hasCampaignChanges && !hasPmaxChanges) {
         // No changes detected, show message and don't close the panel
         console.log("No changes detected");
-        const errorMessage = "No changes detected. Please modify at least one field (name, status, budget, start date, end date, Shopping Settings, or Performance Max assets).";
+        const errorMessage =
+          "No changes detected. Please modify at least one field (name, status, budget, start date, end date, Shopping Settings, or Performance Max assets).";
         setCreateCampaignError(errorMessage);
         setCreateCampaignLoading(false);
         throw new Error(errorMessage);
@@ -791,7 +855,10 @@ export const GoogleCampaigns: React.FC = () => {
       // Update campaign-level fields if there are any changes
       if (hasCampaignChanges) {
         console.log("Executing campaign update with changes...");
-        const result = await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, campaignUpdatePayload);
+        const result = await campaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          campaignUpdatePayload
+        );
         console.log("Campaign update completed successfully", result);
       }
 
@@ -818,28 +885,33 @@ export const GoogleCampaigns: React.FC = () => {
       const updatedFields = [];
       if (campaignUpdatePayload.name) updatedFields.push("name");
       if (campaignUpdatePayload.status) updatedFields.push("status");
-      if (campaignUpdatePayload.value !== undefined) updatedFields.push("budget");
+      if (campaignUpdatePayload.value !== undefined)
+        updatedFields.push("budget");
       if (campaignUpdatePayload.start_date) updatedFields.push("start date");
       if (campaignUpdatePayload.end_date) updatedFields.push("end date");
       if (campaignUpdatePayload.merchant_id) updatedFields.push("merchant ID");
-      if (campaignUpdatePayload.sales_country) updatedFields.push("sales country");
-      if (campaignUpdatePayload.campaign_priority !== undefined) updatedFields.push("campaign priority");
-      if (campaignUpdatePayload.enable_local !== undefined) updatedFields.push("enable local");
+      if (campaignUpdatePayload.sales_country)
+        updatedFields.push("sales country");
+      if (campaignUpdatePayload.campaign_priority !== undefined)
+        updatedFields.push("campaign priority");
+      if (campaignUpdatePayload.enable_local !== undefined)
+        updatedFields.push("enable local");
       // Add PMax asset fields
       if (pmaxAssets?.headlines) updatedFields.push("headlines");
       if (pmaxAssets?.descriptions) updatedFields.push("descriptions");
       if (pmaxAssets?.final_url) updatedFields.push("final URL");
       if (pmaxAssets?.business_name) updatedFields.push("business name");
       if (pmaxAssets?.logo_url) updatedFields.push("logo URL");
-      if (pmaxAssets?.marketing_image_url) updatedFields.push("marketing image");
-      if (pmaxAssets?.square_marketing_image_url) updatedFields.push("square marketing image");
+      if (pmaxAssets?.marketing_image_url)
+        updatedFields.push("marketing image");
+      if (pmaxAssets?.square_marketing_image_url)
+        updatedFields.push("square marketing image");
       if (pmaxAssets?.long_headline) updatedFields.push("long headline");
       if (pmaxAssets?.asset_group_name) updatedFields.push("asset group name");
-      
-      const fieldsText = updatedFields.length > 0 
-        ? updatedFields.join(", ")
-        : "campaign";
-      
+
+      const fieldsText =
+        updatedFields.length > 0 ? updatedFields.join(", ") : "campaign";
+
       setErrorModal({
         isOpen: true,
         title: "Success",
@@ -895,10 +967,11 @@ export const GoogleCampaigns: React.FC = () => {
       // Step 1: Refresh campaign from Google API to get latest data
       let refreshedCampaignData = null;
       try {
-        const refreshResponse = await campaignsService.refreshGoogleCampaignFromAPI(
-          accountIdNum,
-          row.campaign_id
-        );
+        const refreshResponse =
+          await campaignsService.refreshGoogleCampaignFromAPI(
+            accountIdNum,
+            row.campaign_id
+          );
         refreshedCampaignData = refreshResponse.campaign;
         // Success - data refreshed from API
         setRefreshMessage({
@@ -938,10 +1011,10 @@ export const GoogleCampaigns: React.FC = () => {
       const extra_data = campaignData.extra_data || row.extra_data || {};
       const shopping_setting = extra_data.shopping_setting || {};
       const campaignType =
-        (campaignData.campaign_type ||
+        ((campaignData.campaign_type ||
           campaignData.advertising_channel_type ||
-          row.advertising_channel_type
-            ?.toUpperCase()) as any || "PERFORMANCE_MAX";
+          row.advertising_channel_type?.toUpperCase()) as any) ||
+        "PERFORMANCE_MAX";
 
       // Map campaign data to CreateGoogleCampaignData format using refreshed data
       const initial: Partial<CreateGoogleCampaignData> = {
@@ -969,21 +1042,15 @@ export const GoogleCampaigns: React.FC = () => {
           parseDateToYYYYMMDD(row.end_date) ||
           undefined,
         // Shopping-specific fields from extra_data or direct fields
-        merchant_id:
-          campaignData.merchant_id ||
-          shopping_setting.merchant_id,
+        merchant_id: campaignData.merchant_id || shopping_setting.merchant_id,
         sales_country:
-          campaignData.sales_country ||
-          shopping_setting.sales_country ||
-          "US",
+          campaignData.sales_country || shopping_setting.sales_country || "US",
         campaign_priority:
           campaignData.campaign_priority ??
           shopping_setting.campaign_priority ??
           0,
         enable_local:
-          campaignData.enable_local ??
-          shopping_setting.enable_local ??
-          false,
+          campaignData.enable_local ?? shopping_setting.enable_local ?? false,
       };
 
       // For Performance Max campaigns, use data from refreshed extra_data
@@ -1011,7 +1078,8 @@ export const GoogleCampaigns: React.FC = () => {
           initial.marketing_image_url = extra_data.marketing_image_url;
         }
         if (extra_data.square_marketing_image_url) {
-          initial.square_marketing_image_url = extra_data.square_marketing_image_url;
+          initial.square_marketing_image_url =
+            extra_data.square_marketing_image_url;
         }
         if (extra_data.asset_group_name) {
           initial.asset_group_name = extra_data.asset_group_name;
@@ -1298,7 +1366,12 @@ export const GoogleCampaigns: React.FC = () => {
   // Inline edit handlers
   const startInlineEdit = (
     campaign: GoogleCampaign,
-    field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type"
+    field:
+      | "budget"
+      | "status"
+      | "start_date"
+      | "end_date"
+      | "bidding_strategy_type"
   ) => {
     // Prevent editing start_date if it's in the past - silently do nothing
     if (field === "start_date") {
@@ -1487,11 +1560,13 @@ export const GoogleCampaigns: React.FC = () => {
     if (editingCell.field === "bidding_strategy_type") {
       const oldValue = campaign.bidding_strategy_type || "—";
       const newValue = valueToCheck.trim();
-      
+
       // Format bidding strategy for display
       const formatBiddingStrategy = (strategy: string) => {
         if (!strategy) return "—";
-        return strategy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        return strategy
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (l: string) => l.toUpperCase());
       };
 
       // Reset bidding strategy parameters
@@ -1658,17 +1733,19 @@ export const GoogleCampaigns: React.FC = () => {
           "Target Spend": "TARGET_SPEND",
           "Manual Cpc": "MANUAL_CPC",
         };
-        
+
         // Also handle if already in API format
-        const strategyValue = biddingStrategyMap[inlineEditNewValue] || inlineEditNewValue.toUpperCase().replace(/\s+/g, '_');
-        
+        const strategyValue =
+          biddingStrategyMap[inlineEditNewValue] ||
+          inlineEditNewValue.toUpperCase().replace(/\s+/g, "_");
+
         // Build payload with strategy-specific parameters
         const payload: any = {
           campaignIds: [inlineEditCampaign.campaign_id],
           action: "bidding_strategy",
           bidding_strategy_type: strategyValue,
         };
-        
+
         // Add strategy-specific parameters
         if (strategyValue === "TARGET_CPA" && inlineEditTargetCpa) {
           const targetCpaValue = parseFloat(inlineEditTargetCpa);
@@ -1676,32 +1753,39 @@ export const GoogleCampaigns: React.FC = () => {
             payload.target_cpa_micros = Math.round(targetCpaValue * 1000000); // Convert dollars to micros
           }
         }
-        
+
         if (strategyValue === "TARGET_ROAS" && inlineEditTargetRoas) {
           const targetRoasValue = parseFloat(inlineEditTargetRoas);
           if (!isNaN(targetRoasValue) && targetRoasValue > 0) {
             payload.target_roas = targetRoasValue;
           }
         }
-        
+
         if (strategyValue === "TARGET_IMPRESSION_SHARE") {
           if (inlineEditImpressionShareLocation) {
-            payload.target_impression_share_location = inlineEditImpressionShareLocation;
+            payload.target_impression_share_location =
+              inlineEditImpressionShareLocation;
           }
           if (inlineEditImpressionSharePercent) {
             const percentValue = parseFloat(inlineEditImpressionSharePercent);
-            if (!isNaN(percentValue) && percentValue >= 0 && percentValue <= 100) {
-              payload.target_impression_share_location_fraction_micros = Math.round(percentValue * 10000); // Convert percentage to micros
+            if (
+              !isNaN(percentValue) &&
+              percentValue >= 0 &&
+              percentValue <= 100
+            ) {
+              payload.target_impression_share_location_fraction_micros =
+                Math.round(percentValue * 10000); // Convert percentage to micros
             }
           }
           if (inlineEditImpressionShareCpcCeiling) {
             const cpcValue = parseFloat(inlineEditImpressionShareCpcCeiling);
             if (!isNaN(cpcValue) && cpcValue > 0) {
-              payload.target_impression_share_cpc_bid_ceiling_micros = Math.round(cpcValue * 1000000); // Convert dollars to micros
+              payload.target_impression_share_cpc_bid_ceiling_micros =
+                Math.round(cpcValue * 1000000); // Convert dollars to micros
             }
           }
         }
-        
+
         const response = await campaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           payload
@@ -1713,7 +1797,7 @@ export const GoogleCampaigns: React.FC = () => {
           throw error;
         }
       }
-      
+
       await loadCampaigns(accountIdNum);
       setShowInlineEditModal(false);
       setInlineEditCampaign(null);
@@ -1727,7 +1811,7 @@ export const GoogleCampaigns: React.FC = () => {
       setInlineEditImpressionShareCpcCeiling("");
     } catch (error: any) {
       console.error("Error updating campaign:", error);
-      
+
       // Close the confirmation modal when there's an error
       setShowInlineEditModal(false);
       // Don't clear campaign/field/values on error so user can see what they tried to change
@@ -1737,10 +1821,10 @@ export const GoogleCampaigns: React.FC = () => {
       setInlineEditImpressionShareLocation("TOP_OF_PAGE");
       setInlineEditImpressionSharePercent("");
       setInlineEditImpressionShareCpcCeiling("");
-      
+
       let errorMessage = "Failed to update campaign. Please try again.";
       let genericErrors: string[] = [];
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
         genericErrors = [error.message];
@@ -1749,11 +1833,15 @@ export const GoogleCampaigns: React.FC = () => {
         if (error.response.data.error) {
           errorMessage = error.response.data.error;
           genericErrors = [error.response.data.error];
-        } else if (error.response.data.errors && Array.isArray(error.response.data.errors) && error.response.data.errors.length > 0) {
+        } else if (
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
           // Clean up error messages - remove "Campaign {id}:" prefix if present
           genericErrors = error.response.data.errors.map((err: string) => {
             // Remove "Campaign {id}:" prefix for cleaner messages
-            return err.replace(/^Campaign \d+:\s*/, '');
+            return err.replace(/^Campaign \d+:\s*/, "");
           });
           errorMessage = genericErrors[0];
         } else if (error.response.data.message) {
@@ -1761,16 +1849,17 @@ export const GoogleCampaigns: React.FC = () => {
           genericErrors = [error.response.data.message];
         }
       }
-      
+
       // Show error modal instead of alert
       setErrorModal({
         isOpen: true,
         title: "Update Failed",
-        message: genericErrors.length > 0 
-          ? genericErrors.length === 1 
-            ? genericErrors[0]
-            : `${genericErrors.length} error(s) occurred while updating the campaign.`
-          : errorMessage,
+        message:
+          genericErrors.length > 0
+            ? genericErrors.length === 1
+              ? genericErrors[0]
+              : `${genericErrors.length} error(s) occurred while updating the campaign.`
+            : errorMessage,
         genericErrors: genericErrors.length > 1 ? genericErrors : undefined,
         isSuccess: false,
       });
@@ -2134,7 +2223,7 @@ export const GoogleCampaigns: React.FC = () => {
                     setIsFilterPanelOpen(!isFilterPanelOpen);
                     setIsCreateCampaignPanelOpen(false); // Close create panel when opening filter panel
                   }}
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+                  className="edit-button"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -2171,7 +2260,7 @@ export const GoogleCampaigns: React.FC = () => {
                 <Button
                   onClick={handleSync}
                   disabled={syncing || syncingAnalytics}
-                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+                  className="create-entity-button disabled:opacity-50"
                 >
                   {syncing ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -2179,13 +2268,15 @@ export const GoogleCampaigns: React.FC = () => {
                       Syncing...
                     </span>
                   ) : (
-                    <span className="text-[10.64px] text-white font-normal">Sync Campaigns</span>
+                    <span className="text-[10.64px] text-white font-normal">
+                      Sync Campaigns
+                    </span>
                   )}
                 </Button>
                 <Button
                   onClick={handleSyncAnalytics}
                   disabled={syncing || syncingAnalytics}
-                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+                  className="create-entity-button disabled:opacity-50"
                 >
                   {syncingAnalytics ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -2193,7 +2284,9 @@ export const GoogleCampaigns: React.FC = () => {
                       Syncing Analytics...
                     </span>
                   ) : (
-                    <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
+                    <span className="text-[10.64px] text-white font-normal">
+                      Sync Analytics
+                    </span>
                   )}
                 </Button>
               </div>
@@ -2203,7 +2296,9 @@ export const GoogleCampaigns: React.FC = () => {
             {isCreateCampaignPanelOpen && (
               <>
                 {/* Only show form when not loading (for edit mode) or in create mode */}
-                {(!refreshMessage || refreshMessage.type !== "loading" || campaignFormMode === "create") && (
+                {(!refreshMessage ||
+                  refreshMessage.type !== "loading" ||
+                  campaignFormMode === "create") && (
                   <CreateGoogleCampaignPanel
                     isOpen={isCreateCampaignPanelOpen}
                     onClose={() => {
@@ -2307,7 +2402,7 @@ export const GoogleCampaigns: React.FC = () => {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                  className="edit-button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowBulkActions((prev) => !prev);
@@ -2377,7 +2472,7 @@ export const GoogleCampaigns: React.FC = () => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="edit-button"
                     onClick={(e) => {
                       if (exportLoading) return;
                       e.stopPropagation();
@@ -2928,105 +3023,135 @@ export const GoogleCampaigns: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Bidding Strategy Parameters */}
-                    {inlineEditField === "bidding_strategy_type" && (() => {
-                      const strategyValue = inlineEditNewValue.toUpperCase().replace(/\s+/g, '_');
-                      const isTargetCpa = strategyValue === "TARGET_CPA";
-                      const isTargetRoas = strategyValue === "TARGET_ROAS";
-                      const isTargetImpressionShare = strategyValue === "TARGET_IMPRESSION_SHARE";
-                      
-                      if (!isTargetCpa && !isTargetRoas && !isTargetImpressionShare) {
-                        return null;
-                      }
-                      
-                      return (
-                        <div className="mb-4 space-y-4">
-                          {isTargetCpa && (
-                            <div>
-                              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                                Target CPA ($)
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={inlineEditTargetCpa}
-                                onChange={(e) => setInlineEditTargetCpa(e.target.value)}
-                                placeholder="e.g., 2.00"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
-                              />
-                            </div>
-                          )}
-                          
-                          {isTargetRoas && (
-                            <div>
-                              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                                Target ROAS
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={inlineEditTargetRoas}
-                                onChange={(e) => setInlineEditTargetRoas(e.target.value)}
-                                placeholder="e.g., 4.00"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
-                              />
-                            </div>
-                          )}
-                          
-                          {isTargetImpressionShare && (
-                            <>
+                    {inlineEditField === "bidding_strategy_type" &&
+                      (() => {
+                        const strategyValue = inlineEditNewValue
+                          .toUpperCase()
+                          .replace(/\s+/g, "_");
+                        const isTargetCpa = strategyValue === "TARGET_CPA";
+                        const isTargetRoas = strategyValue === "TARGET_ROAS";
+                        const isTargetImpressionShare =
+                          strategyValue === "TARGET_IMPRESSION_SHARE";
+
+                        if (
+                          !isTargetCpa &&
+                          !isTargetRoas &&
+                          !isTargetImpressionShare
+                        ) {
+                          return null;
+                        }
+
+                        return (
+                          <div className="mb-4 space-y-4">
+                            {isTargetCpa && (
                               <div>
                                 <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                                  Where do you want your ads to appear?
-                                </label>
-                                <select
-                                  value={inlineEditImpressionShareLocation}
-                                  onChange={(e) => setInlineEditImpressionShareLocation(e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
-                                >
-                                  <option value="TOP_OF_PAGE">Top of page</option>
-                                  <option value="ABSOLUTE_TOP_OF_PAGE">Absolute top of page</option>
-                                  <option value="ANYWHERE_ON_PAGE">Anywhere on page</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                                  Percent (%) impression share to target
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  max="100"
-                                  value={inlineEditImpressionSharePercent}
-                                  onChange={(e) => setInlineEditImpressionSharePercent(e.target.value)}
-                                  placeholder="e.g., 50"
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                                  Maximum CPC bid limit ($)
+                                  Target CPA ($)
                                 </label>
                                 <input
                                   type="number"
                                   step="0.01"
                                   min="0"
-                                  value={inlineEditImpressionShareCpcCeiling}
-                                  onChange={(e) => setInlineEditImpressionShareCpcCeiling(e.target.value)}
-                                  placeholder="e.g., 3.00"
+                                  value={inlineEditTargetCpa}
+                                  onChange={(e) =>
+                                    setInlineEditTargetCpa(e.target.value)
+                                  }
+                                  placeholder="e.g., 2.00"
                                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
                                 />
                               </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    
+                            )}
+
+                            {isTargetRoas && (
+                              <div>
+                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                  Target ROAS
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={inlineEditTargetRoas}
+                                  onChange={(e) =>
+                                    setInlineEditTargetRoas(e.target.value)
+                                  }
+                                  placeholder="e.g., 4.00"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                />
+                              </div>
+                            )}
+
+                            {isTargetImpressionShare && (
+                              <>
+                                <div>
+                                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                    Where do you want your ads to appear?
+                                  </label>
+                                  <select
+                                    value={inlineEditImpressionShareLocation}
+                                    onChange={(e) =>
+                                      setInlineEditImpressionShareLocation(
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                  >
+                                    <option value="TOP_OF_PAGE">
+                                      Top of page
+                                    </option>
+                                    <option value="ABSOLUTE_TOP_OF_PAGE">
+                                      Absolute top of page
+                                    </option>
+                                    <option value="ANYWHERE_ON_PAGE">
+                                      Anywhere on page
+                                    </option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                    Percent (%) impression share to target
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="100"
+                                    value={inlineEditImpressionSharePercent}
+                                    onChange={(e) =>
+                                      setInlineEditImpressionSharePercent(
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="e.g., 50"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                    Maximum CPC bid limit ($)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={inlineEditImpressionShareCpcCeiling}
+                                    onChange={(e) =>
+                                      setInlineEditImpressionShareCpcCeiling(
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="e.g., 3.00"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                     <div className="flex justify-end gap-3">
                       <button
                         type="button"
@@ -3191,18 +3316,20 @@ export const GoogleCampaigns: React.FC = () => {
       </div>
 
       {/* Fixed Loading Message Overlay - Centered in Viewport */}
-      {isCreateCampaignPanelOpen && refreshMessage && refreshMessage.type === "loading" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-lg shadow-lg border border-gray-200 pointer-events-auto">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#136D6D] border-t-transparent"></div>
-              <span className="text-sm font-medium text-[#072929]">
-                {refreshMessage.message}
-              </span>
+      {isCreateCampaignPanelOpen &&
+        refreshMessage &&
+        refreshMessage.type === "loading" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-lg shadow-lg border border-gray-200 pointer-events-auto">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#136D6D] border-t-transparent"></div>
+                <span className="text-sm font-medium text-[#072929]">
+                  {refreshMessage.message}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 };

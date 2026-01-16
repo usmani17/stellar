@@ -159,7 +159,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
                   {onSelectAll && (
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[50px]">
+                    <th className="table-header w-[50px]">
                       <Checkbox
                         checked={allSelected}
                         indeterminate={someSelected && !allSelected}
@@ -169,7 +169,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                   )}
                   {/* ID Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("id")}
@@ -181,18 +181,18 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                   </th>
 
                   {/* Profile ID Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Profile ID
                   </th>
 
                   {/* Keyword ID Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Keyword ID
                   </th>
 
                   {/* Keyword Text Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] max-w-[200px] ${
+                    className={`table-header max-w-[200px] ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("keywordText")}
@@ -205,7 +205,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                   {/* Match Type Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("matchType")}
@@ -218,7 +218,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                   {/* State Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[115px] ${
+                    className={`table-header min-w-[115px] ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("state")}
@@ -230,12 +230,12 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                   </th>
 
                   {/* Ad Group ID Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Ad Group ID
                   </th>
 
                   {/* Campaign ID Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Campaign ID
                   </th>
 
@@ -255,7 +255,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                     >
                       {/* Checkbox */}
                       {onSelect && (
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <Checkbox
                             checked={selectedIds.has(keyword.id)}
                             onChange={(checked) =>
@@ -265,28 +265,28 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                         </td>
                       )}
                       {/* ID */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {keyword.id || "—"}
                         </span>
                       </td>
 
                       {/* Profile ID */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {keyword.profileId || "—"}
                         </span>
                       </td>
 
                       {/* Keyword ID */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {keyword.keywordId || "—"}
                         </span>
                       </td>
 
                       {/* Keyword Text */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         {keyword.keywordText || keyword.name ? (
                           <Tooltip
                             description={
@@ -295,27 +295,27 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                             position="bottomMiddle"
                           >
                             <div className="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.keywordText || keyword.name}
                               </span>
                             </div>
                           </Tooltip>
                         ) : (
-                          <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <span className="table-text leading-[1.26]">
                             —
                           </span>
                         )}
                       </td>
 
                       {/* Match Type */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {keyword.matchType || "—"}
                         </span>
                       </td>
 
                       {/* State */}
-                      <td className="py-[10px] px-[10px] min-w-[115px]">
+                      <td className="table-cell min-w-[115px]">
                         {inlineEditLoading.has(keyword.id) ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge
@@ -426,15 +426,15 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       </td>
 
                       {/* Ad Group ID */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {keyword.adGroupId || "—"}
                         </span>
                       </td>
 
                       {/* Campaign ID */}
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {keyword.campaignId || "—"}
                         </span>
                       </td>

@@ -149,7 +149,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
             <thead>
               <tr className="bg-[#f5f5f0] border-b border-[#e8e8e3]">
                 {onSelectAll && (
-                  <th className="py-[10px] px-[10px] text-left">
+                  <th className="table-cell text-left">
                     <Checkbox
                       checked={allSelected}
                       indeterminate={someSelected && !allSelected}
@@ -157,11 +157,11 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                     />
                   </th>
                 )}
-                <th className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left">
+                <th className="table-header">
                   Preview
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("assetId")}
                 >
                   <div className="flex items-center">
@@ -170,7 +170,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("fileName")}
                 >
                   <div className="flex items-center">
@@ -179,7 +179,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("mediaType")}
                 >
                   <div className="flex items-center">
@@ -188,7 +188,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("fileSize")}
                 >
                   <div className="flex items-center">
@@ -197,7 +197,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("contentType")}
                 >
                   <div className="flex items-center">
@@ -205,7 +205,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                     {getSortIcon("contentType")}
                   </div>
                 </th>
-                <th className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left">
+                <th className="table-header">
                   Created
                 </th>
               </tr>
@@ -220,10 +220,10 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                 return (
                   <tr
                     key={asset.id}
-                    className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
+                    className="table-row group"
                   >
                     {onSelect && (
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <Checkbox
                           checked={selectedIds.has(asset.id)}
                           onChange={(checked) =>
@@ -232,7 +232,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                         />
                       </td>
                     )}
-                    <td className="py-[10px] px-[10px]">
+                    <td className="table-cell">
                       {thumbnailUrl && isImage ? (
                         <div className="flex items-center justify-center relative">
                           <img
@@ -322,28 +322,28 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                         </div>
                       )}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       <div className="flex items-center gap-2">
                         <span>{asset.assetId || "—"}</span>
                       </div>
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {asset.name || asset.fileName || "—"}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {asset.assetType || asset.mediaType || "—"}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {formatFileSize(
                         asset.fileSize || asset.fileMetadata?.sizeInBytes
                       )}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {asset.contentType ||
                         asset.fileMetadata?.contentType ||
                         "—"}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell table-text leading-[1.26]">
                       {asset.createdAt || asset.creationTime
                         ? new Date(
                             asset.createdAt || asset.creationTime!

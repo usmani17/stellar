@@ -188,7 +188,16 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
         const navPath = `/accounts/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
           <div className="group relative flex items-center gap-2">
-            
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(navPath);
+              }}
+              className="table-edit-link"
+            >
+              {value}
+            </button>
             {onEditCampaign && (
               <button
                 type="button"
@@ -196,7 +205,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
                   e.stopPropagation();
                   onEditCampaign(row);
                 }}
-                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60 flex-shrink-0"
+className="table-edit-icon flex-shrink-0"
                 title="Edit campaign"
                 disabled={editLoadingCampaignId === row.campaign_id}
               >
@@ -247,7 +256,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       type: "text",
       sortable: true,
       render: (_value: any, row: GoogleCampaign) => (
-        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span className="table-text leading-[1.26] font-semibold text-[#7a4dff]">
           {getChannelTypeLabel(row.advertising_channel_type) || "—"}
         </span>
       ),
