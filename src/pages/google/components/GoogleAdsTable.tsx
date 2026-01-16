@@ -276,10 +276,46 @@ export function GoogleAdsTable<T = any>({
     if (column.statusOptions && column.statusOptions.length > 0) {
       // Use wider width for bidding strategy (longer labels)
       const dropdownWidth = column.key === "bidding_strategy_type" ? "w-[220px]" : "w-[120px]";
+      
+      // Filter bidding strategy options based on campaign type
+      let options = column.statusOptions;
+      if (column.key === "bidding_strategy_type") {
+        const campaignTypeRaw = (row as any).advertising_channel_type || "";
+        // Handle enum format: "ADVERTISING_CHANNEL_TYPE_PERFORMANCE_MAX" -> "PERFORMANCE_MAX"
+        let campaignType = campaignTypeRaw.toUpperCase();
+        if (campaignType.includes("ADVERTISING_CHANNEL_TYPE_")) {
+          campaignType = campaignType.replace("ADVERTISING_CHANNEL_TYPE_", "");
+        }
+        
+        if (campaignType === "PERFORMANCE_MAX") {
+          // Performance Max campaigns only support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE
+          options = column.statusOptions.filter(
+            (opt) => opt.value === "MAXIMIZE_CONVERSIONS" || opt.value === "MAXIMIZE_CONVERSION_VALUE"
+          );
+        } else if (campaignType === "SHOPPING") {
+          // Shopping campaigns only support: MANUAL_CPC
+          options = column.statusOptions.filter(
+            (opt) => opt.value === "MANUAL_CPC"
+          );
+        } else if (campaignType === "SEARCH") {
+          // SEARCH campaigns support: MANUAL_CPC, MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE,
+          // TARGET_IMPRESSION_SHARE, TARGET_SPEND
+          // Note: TARGET_CPA and TARGET_ROAS are not supported (require conversion tracking)
+          options = column.statusOptions.filter(
+            (opt) =>
+              opt.value === "MANUAL_CPC" ||
+              opt.value === "MAXIMIZE_CONVERSIONS" ||
+              opt.value === "MAXIMIZE_CONVERSION_VALUE" ||
+              opt.value === "TARGET_IMPRESSION_SHARE" ||
+              opt.value === "TARGET_SPEND"
+          );
+        }
+      }
+      
       return (
         <div className="relative w-full z-[100000]">
           <Dropdown
-            options={column.statusOptions}
+            options={options}
             value={editedValue}
             onChange={(val) => {
               const newValue = val as string;
@@ -327,7 +363,7 @@ export function GoogleAdsTable<T = any>({
       case "budget":
       case "bid":
         return (
-          <div className="flex items-center">
+          <div className="flex items-center w-full">
             <input
               type="number"
               step="0.01"
@@ -352,7 +388,7 @@ export function GoogleAdsTable<T = any>({
                 }
               }}
               autoFocus
-              className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+              className="w-full px-3 py-2 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40 min-w-[100px]"
             />
           </div>
         );

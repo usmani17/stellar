@@ -1,5 +1,6 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -98,7 +99,7 @@ export const GoogleAdGroups: React.FC = () => {
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
     adgroupId: string | number;
-    field: "bid" | "status";
+    field: "bid" | "status" | "name" | "adgroup_name";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
@@ -106,15 +107,20 @@ export const GoogleAdGroups: React.FC = () => {
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
   const [updatingField, setUpdatingField] = useState<{
     adgroupId: string | number;
-    field: "bid" | "status";
+    field: "bid" | "status" | "name" | "adgroup_name";
   } | null>(null);
   const [inlineEditAdgroup, setInlineEditAdgroup] =
     useState<GoogleAdGroup | null>(null);
   const [inlineEditField, setInlineEditField] = useState<
-    "bid" | "status" | null
+    "bid" | "status" | "name" | "adgroup_name" | null
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  // Name edit modal state
+  const [showNameEditModal, setShowNameEditModal] = useState(false);
+  const [nameEditAdgroup, setNameEditAdgroup] = useState<GoogleAdGroup | null>(null);
+  const [nameEditValue, setNameEditValue] = useState<string>("");
+  const [nameEditLoading, setNameEditLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportType, setExportType] = useState<"current_view" | "all_data">(
@@ -604,7 +610,15 @@ export const GoogleAdGroups: React.FC = () => {
   };
 
   // Inline edit handlers
-  const startInlineEdit = (adgroup: GoogleAdGroup, field: "bid" | "status") => {
+  const startInlineEdit = (adgroup: GoogleAdGroup, field: "bid" | "status" | "name" | "adgroup_name") => {
+    // For name field, show modal directly instead of inline editing
+    if (field === "name" || field === "adgroup_name") {
+      setNameEditAdgroup(adgroup);
+      setNameEditValue(adgroup.adgroup_name || adgroup.name || "");
+      setShowNameEditModal(true);
+      return;
+    }
+    
     setEditingCell({ adgroupId: adgroup.adgroup_id, field });
     if (field === "bid") {
       setEditedValue((adgroup.cpc_bid_dollars || 0).toString());
@@ -656,6 +670,10 @@ export const GoogleAdGroups: React.FC = () => {
       const oldValue = (adgroup.status || "ENABLED").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
+    } else if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
+      const oldValue = (adgroup.adgroup_name || adgroup.name || "").trim();
+      const newValue = valueToCheck.trim();
+      hasChanged = newValue !== oldValue && newValue !== "";
     }
 
     if (!hasChanged) {
@@ -702,6 +720,20 @@ export const GoogleAdGroups: React.FC = () => {
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(formatCurrency(oldBid));
       setInlineEditNewValue(formatCurrency(newBid));
+      setShowInlineEditModal(true);
+      setEditingCell(null);
+      return;
+    }
+
+    // For name, show modal (though this shouldn't be reached since name opens modal directly)
+    if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
+      const oldName = (adgroup.adgroup_name || adgroup.name || "").trim();
+      const newName = valueToCheck.trim();
+      
+      setInlineEditAdgroup(adgroup);
+      setInlineEditField(editingCell.field);
+      setInlineEditOldValue(oldName);
+      setInlineEditNewValue(newName);
       setShowInlineEditModal(true);
       setEditingCell(null);
       return;
@@ -763,6 +795,21 @@ export const GoogleAdGroups: React.FC = () => {
         if (response.errors && response.errors.length > 0) {
           throw new Error(response.errors[0]);
         }
+      } else if (inlineEditField === "name" || inlineEditField === "adgroup_name") {
+        const nameValue = inlineEditNewValue.trim();
+        if (!nameValue) {
+          throw new Error("Name cannot be empty");
+        }
+
+        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [inlineEditAdgroup.adgroup_id],
+          action: "name",
+          name: nameValue,
+        });
+
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
       }
 
       await loadAdgroups(accountIdNum);
@@ -776,6 +823,52 @@ export const GoogleAdGroups: React.FC = () => {
       alert("Failed to update adgroup. Please try again.");
     } finally {
       setInlineEditLoading(false);
+    }
+  };
+
+  const handleNameEditSave = async () => {
+    if (!nameEditAdgroup || !accountId) return;
+    
+    const trimmedName = nameEditValue.trim();
+    if (!trimmedName) {
+      alert("Name cannot be empty");
+      return;
+    }
+    
+    const oldName = (nameEditAdgroup.adgroup_name || nameEditAdgroup.name || "").trim();
+    if (trimmedName === oldName) {
+      setShowNameEditModal(false);
+      setNameEditAdgroup(null);
+      setNameEditValue("");
+      return;
+    }
+    
+    setNameEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: [nameEditAdgroup.adgroup_id],
+        action: "name",
+        name: trimmedName,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        throw new Error(response.errors[0]);
+      }
+
+      await loadAdgroups(accountIdNum);
+      setShowNameEditModal(false);
+      setNameEditAdgroup(null);
+      setNameEditValue("");
+    } catch (error) {
+      console.error("Error updating adgroup name:", error);
+      alert("Failed to update adgroup name. Please try again.");
+    } finally {
+      setNameEditLoading(false);
     }
   };
 
@@ -1301,7 +1394,7 @@ export const GoogleAdGroups: React.FC = () => {
                       {[
                         { value: "ENABLED", label: "Enable" },
                         { value: "PAUSED", label: "Pause" },
-                        { value: "edit_bid", label: "Edit Bid" },
+                        { value: "edit_bid", label: "Default max. CPC" },
                       ].map((opt) => (
                         <button
                           key={opt.value}
@@ -1470,7 +1563,7 @@ export const GoogleAdGroups: React.FC = () => {
               {/* Confirmation Modal */}
               {showConfirmationModal && (
                 <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowConfirmationModal(false);
@@ -1697,7 +1790,7 @@ export const GoogleAdGroups: React.FC = () => {
               {/* Export Modal */}
               {showExportModal && (
                 <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowExportModal(false);
@@ -1784,7 +1877,7 @@ export const GoogleAdGroups: React.FC = () => {
               {/* Inline Edit Confirmation Modal */}
               {showInlineEditModal && inlineEditAdgroup && inlineEditField && (
                 <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowInlineEditModal(false);
@@ -1794,10 +1887,12 @@ export const GoogleAdGroups: React.FC = () => {
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
                     <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
                       Confirm{" "}
-                      {inlineEditField === "bid"
+                        {inlineEditField === "bid"
                         ? "Bid"
                         : inlineEditField === "status"
                         ? "Status"
+                        : inlineEditField === "name" || inlineEditField === "adgroup_name"
+                        ? "Name"
                         : ""}{" "}
                       Change
                     </h3>
@@ -1817,6 +1912,8 @@ export const GoogleAdGroups: React.FC = () => {
                               ? "Bid"
                               : inlineEditField === "status"
                               ? "Status"
+                              : inlineEditField === "name" || inlineEditField === "adgroup_name"
+                              ? "Name"
                               : ""}
                             :
                           </span>
@@ -1859,6 +1956,77 @@ export const GoogleAdGroups: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Name Edit Modal - Rendered via Portal to avoid z-index issues with sticky columns */}
+              {showNameEditModal && nameEditAdgroup && typeof document !== 'undefined' && createPortal(
+                <div
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center"
+                  style={{ zIndex: 99999 }}
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !nameEditLoading) {
+                      setShowNameEditModal(false);
+                      setNameEditAdgroup(null);
+                      setNameEditValue("");
+                    }
+                  }}
+                >
+                  <div 
+                    className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+                    style={{ zIndex: 100000 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                      Ad group
+                    </h3>
+                    <div className="mb-6">
+                      <input
+                        type="text"
+                        value={nameEditValue}
+                        onChange={(e) => setNameEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !nameEditLoading) {
+                            handleNameEditSave();
+                          } else if (e.key === "Escape" && !nameEditLoading) {
+                            setShowNameEditModal(false);
+                            setNameEditAdgroup(null);
+                            setNameEditValue("");
+                          }
+                        }}
+                        disabled={nameEditLoading}
+                        autoFocus
+                        className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                        placeholder="Enter ad group name"
+                        maxLength={255}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!nameEditLoading) {
+                            setShowNameEditModal(false);
+                            setNameEditAdgroup(null);
+                            setNameEditValue("");
+                          }
+                        }}
+                        disabled={nameEditLoading}
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleNameEditSave}
+                        disabled={nameEditLoading || !nameEditValue.trim()}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {nameEditLoading ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body
               )}
 
               {/* Table */}

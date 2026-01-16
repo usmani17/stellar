@@ -164,6 +164,12 @@ export const GoogleCampaigns: React.FC = () => {
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  // Bidding strategy parameters for inline edit
+  const [inlineEditTargetCpa, setInlineEditTargetCpa] = useState<string>("");
+  const [inlineEditTargetRoas, setInlineEditTargetRoas] = useState<string>("");
+  const [inlineEditImpressionShareLocation, setInlineEditImpressionShareLocation] = useState<string>("TOP_OF_PAGE");
+  const [inlineEditImpressionSharePercent, setInlineEditImpressionSharePercent] = useState<string>("");
+  const [inlineEditImpressionShareCpcCeiling, setInlineEditImpressionShareCpcCeiling] = useState<string>("");
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
@@ -1488,6 +1494,13 @@ export const GoogleCampaigns: React.FC = () => {
         return strategy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
       };
 
+      // Reset bidding strategy parameters
+      setInlineEditTargetCpa("");
+      setInlineEditTargetRoas("");
+      setInlineEditImpressionShareLocation("TOP_OF_PAGE");
+      setInlineEditImpressionSharePercent("");
+      setInlineEditImpressionShareCpcCeiling("");
+
       setInlineEditCampaign(campaign);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(formatBiddingStrategy(oldValue));
@@ -1649,13 +1662,49 @@ export const GoogleCampaigns: React.FC = () => {
         // Also handle if already in API format
         const strategyValue = biddingStrategyMap[inlineEditNewValue] || inlineEditNewValue.toUpperCase().replace(/\s+/g, '_');
         
+        // Build payload with strategy-specific parameters
+        const payload: any = {
+          campaignIds: [inlineEditCampaign.campaign_id],
+          action: "bidding_strategy",
+          bidding_strategy_type: strategyValue,
+        };
+        
+        // Add strategy-specific parameters
+        if (strategyValue === "TARGET_CPA" && inlineEditTargetCpa) {
+          const targetCpaValue = parseFloat(inlineEditTargetCpa);
+          if (!isNaN(targetCpaValue) && targetCpaValue > 0) {
+            payload.target_cpa_micros = Math.round(targetCpaValue * 1000000); // Convert dollars to micros
+          }
+        }
+        
+        if (strategyValue === "TARGET_ROAS" && inlineEditTargetRoas) {
+          const targetRoasValue = parseFloat(inlineEditTargetRoas);
+          if (!isNaN(targetRoasValue) && targetRoasValue > 0) {
+            payload.target_roas = targetRoasValue;
+          }
+        }
+        
+        if (strategyValue === "TARGET_IMPRESSION_SHARE") {
+          if (inlineEditImpressionShareLocation) {
+            payload.target_impression_share_location = inlineEditImpressionShareLocation;
+          }
+          if (inlineEditImpressionSharePercent) {
+            const percentValue = parseFloat(inlineEditImpressionSharePercent);
+            if (!isNaN(percentValue) && percentValue >= 0 && percentValue <= 100) {
+              payload.target_impression_share_location_fraction_micros = Math.round(percentValue * 10000); // Convert percentage to micros
+            }
+          }
+          if (inlineEditImpressionShareCpcCeiling) {
+            const cpcValue = parseFloat(inlineEditImpressionShareCpcCeiling);
+            if (!isNaN(cpcValue) && cpcValue > 0) {
+              payload.target_impression_share_cpc_bid_ceiling_micros = Math.round(cpcValue * 1000000); // Convert dollars to micros
+            }
+          }
+        }
+        
         const response = await campaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
-          {
-            campaignIds: [inlineEditCampaign.campaign_id],
-            action: "bidding_strategy",
-            bidding_strategy_type: strategyValue,
-          }
+          payload
         );
 
         if (response.errors && response.errors.length > 0) {
@@ -1671,11 +1720,23 @@ export const GoogleCampaigns: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
+      setInlineEditTargetCpa("");
+      setInlineEditTargetRoas("");
+      setInlineEditImpressionShareLocation("TOP_OF_PAGE");
+      setInlineEditImpressionSharePercent("");
+      setInlineEditImpressionShareCpcCeiling("");
     } catch (error: any) {
       console.error("Error updating campaign:", error);
       
       // Close the confirmation modal when there's an error
       setShowInlineEditModal(false);
+      // Don't clear campaign/field/values on error so user can see what they tried to change
+      // But clear the strategy parameters
+      setInlineEditTargetCpa("");
+      setInlineEditTargetRoas("");
+      setInlineEditImpressionShareLocation("TOP_OF_PAGE");
+      setInlineEditImpressionSharePercent("");
+      setInlineEditImpressionShareCpcCeiling("");
       
       let errorMessage = "Failed to update campaign. Please try again.";
       let genericErrors: string[] = [];
@@ -2559,7 +2620,7 @@ export const GoogleCampaigns: React.FC = () => {
               {/* Confirmation Modal */}
               {showConfirmationModal && (
                 <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowConfirmationModal(false);
@@ -2791,7 +2852,7 @@ export const GoogleCampaigns: React.FC = () => {
               {/* Inline Edit Confirmation Modal */}
               {showInlineEditModal && inlineEditCampaign && inlineEditField && (
                 <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowInlineEditModal(false);
@@ -2867,6 +2928,105 @@ export const GoogleCampaigns: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Bidding Strategy Parameters */}
+                    {inlineEditField === "bidding_strategy_type" && (() => {
+                      const strategyValue = inlineEditNewValue.toUpperCase().replace(/\s+/g, '_');
+                      const isTargetCpa = strategyValue === "TARGET_CPA";
+                      const isTargetRoas = strategyValue === "TARGET_ROAS";
+                      const isTargetImpressionShare = strategyValue === "TARGET_IMPRESSION_SHARE";
+                      
+                      if (!isTargetCpa && !isTargetRoas && !isTargetImpressionShare) {
+                        return null;
+                      }
+                      
+                      return (
+                        <div className="mb-4 space-y-4">
+                          {isTargetCpa && (
+                            <div>
+                              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                Target CPA ($)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={inlineEditTargetCpa}
+                                onChange={(e) => setInlineEditTargetCpa(e.target.value)}
+                                placeholder="e.g., 2.00"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                              />
+                            </div>
+                          )}
+                          
+                          {isTargetRoas && (
+                            <div>
+                              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                Target ROAS
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={inlineEditTargetRoas}
+                                onChange={(e) => setInlineEditTargetRoas(e.target.value)}
+                                placeholder="e.g., 4.00"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                              />
+                            </div>
+                          )}
+                          
+                          {isTargetImpressionShare && (
+                            <>
+                              <div>
+                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                  Where do you want your ads to appear?
+                                </label>
+                                <select
+                                  value={inlineEditImpressionShareLocation}
+                                  onChange={(e) => setInlineEditImpressionShareLocation(e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                >
+                                  <option value="TOP_OF_PAGE">Top of page</option>
+                                  <option value="ABSOLUTE_TOP_OF_PAGE">Absolute top of page</option>
+                                  <option value="ANYWHERE_ON_PAGE">Anywhere on page</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                  Percent (%) impression share to target
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  max="100"
+                                  value={inlineEditImpressionSharePercent}
+                                  onChange={(e) => setInlineEditImpressionSharePercent(e.target.value)}
+                                  placeholder="e.g., 50"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                  Maximum CPC bid limit ($)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={inlineEditImpressionShareCpcCeiling}
+                                  onChange={(e) => setInlineEditImpressionShareCpcCeiling(e.target.value)}
+                                  placeholder="e.g., 3.00"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[12.8px] focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    
                     <div className="flex justify-end gap-3">
                       <button
                         type="button"
@@ -2876,6 +3036,11 @@ export const GoogleCampaigns: React.FC = () => {
                           setInlineEditField(null);
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
+                          setInlineEditTargetCpa("");
+                          setInlineEditTargetRoas("");
+                          setInlineEditImpressionShareLocation("TOP_OF_PAGE");
+                          setInlineEditImpressionSharePercent("");
+                          setInlineEditImpressionShareCpcCeiling("");
                         }}
                         className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
                       >

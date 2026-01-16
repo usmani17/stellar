@@ -7955,7 +7955,7 @@ export const CampaignDetail: React.FC = () => {
       {/* Status Confirmation Modal for Product Ads */}
       {showProductAdsStatusConfirmation && pendingProductAdsStatusAction && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
           onClick={(e) => {
             if (e.target === e.currentTarget && !productAdsBulkLoading) {
               setShowProductAdsStatusConfirmation(false);
@@ -8402,7 +8402,7 @@ export const CampaignDetail: React.FC = () => {
       {showNegativeKeywordsConfirmationModal &&
         pendingNegativeKeywordsStatusAction && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
             onClick={(e) => {
               if (
                 e.target === e.currentTarget &&
@@ -8557,7 +8557,7 @@ export const CampaignDetail: React.FC = () => {
       {showNegativeTargetsConfirmationModal &&
         pendingNegativeTargetsStatusAction && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
             onClick={(e) => {
               if (e.target === e.currentTarget && !negativeTargetsBulkLoading) {
                 setShowNegativeTargetsConfirmationModal(false);
@@ -8708,7 +8708,7 @@ export const CampaignDetail: React.FC = () => {
       {/* Confirmation Modal for Ad Groups Bulk Actions */}
       {showAdGroupsConfirmationModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
           onClick={(e) => {
             if (e.target === e.currentTarget && !adGroupsBulkLoading) {
               setShowAdGroupsConfirmationModal(false);
@@ -8997,7 +8997,7 @@ export const CampaignDetail: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -9117,7 +9117,7 @@ export const CampaignDetail: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -9216,7 +9216,7 @@ export const CampaignDetail: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -9435,7 +9435,7 @@ export const CampaignDetail: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -9532,7 +9532,7 @@ export const CampaignDetail: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -9632,7 +9632,7 @@ export const CampaignDetail: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -9756,7 +9756,7 @@ export const CampaignDetail: React.FC = () => {
 
       {/* Delete Confirmation Modal for SB Ads */}
       {showSBAdsDeleteConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
             <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
               Confirm Delete
