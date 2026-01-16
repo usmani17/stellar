@@ -450,7 +450,7 @@ export function GoogleAdsTable<T = any>({
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 bg-white z-10">
+                  <th className="table-header w-[35px] sticky left-0 bg-white z-10">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={allSelected}
@@ -470,7 +470,7 @@ export function GoogleAdsTable<T = any>({
                     return (
                       <th
                         key={column.key}
-                        className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                        className={`table-header ${
                           column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
                         } ${stickyClasses} ${widthClasses} ${borderClass}`}
                         onClick={() => column.sortable !== false && onSort(column.key)}
@@ -487,8 +487,8 @@ export function GoogleAdsTable<T = any>({
               <tbody>
                 {/* Summary Row */}
                 {summary && (
-                  <tr className="bg-[#f5f5f0] font-semibold">
-                    <td className="py-[10px] px-[10px] sticky left-0 bg-[#f5f5f0] z-10"></td>
+                  <tr className="table-summary-row">
+                    <td className="table-cell sticky left-0 bg-[#f5f5f0] z-10"></td>
                     {columns.map((column, index) => {
                       const stickyClasses = getStickyClasses(column, index).replace("bg-white", "bg-[#f5f5f0]");
                       const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
@@ -558,7 +558,7 @@ export function GoogleAdsTable<T = any>({
                       }
                       
                       return (
-                        <td key={column.key} className={`py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] ${stickyClasses} ${borderClass}`}>
+                        <td key={column.key} className={`table-cell text-[13.3px] text-[#0b0f16] leading-[1.26] ${stickyClasses} ${borderClass}`}>
                           {summaryValue}
                         </td>
                       );
@@ -593,7 +593,7 @@ export function GoogleAdsTable<T = any>({
                       className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""} hover:bg-gray-50 transition-colors`}
                     >
                       {/* Checkbox */}
-                      <td className="py-[10px] px-[10px] sticky left-0 bg-white z-10">
+                      <td className="table-cell sticky left-0 bg-white z-10">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedItems.has(itemId)}
@@ -612,7 +612,7 @@ export function GoogleAdsTable<T = any>({
                         return (
                           <td
                             key={column.key}
-                            className={`py-[10px] px-[10px] ${stickyClasses} ${borderClass} ${widthClasses}`}
+                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses}`}
                           >
                             {renderCell(column, row, index)}
                           </td>

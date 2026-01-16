@@ -300,7 +300,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                  <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={
@@ -313,7 +313,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="table-header"
                     onClick={() => onSort("name")}
                   >
                     <div className="flex items-center gap-1">
@@ -322,7 +322,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="table-header"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
@@ -332,24 +332,24 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                   </th>
                   {!isShoppingCampaign && (
                     <>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                      <th className="table-header hidden lg:table-cell">
                         Headlines
                       </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                      <th className="table-header hidden lg:table-cell">
                         Final URLs
                       </th>
                     </>
                   )}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     Bid
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     CTR
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     Spends
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     Sales
                   </th>
                 </tr>
@@ -364,7 +364,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } hover:bg-gray-50 transition-colors`}
                     >
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedAdGroupIds.has(adgroup.id)}
@@ -373,12 +373,12 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                           />
                         </div>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {adgroup.adgroup_name || adgroup.name || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         <div className="relative w-full">
                           {updatingAdGroupId === adgroup.id && pendingChange?.field === "status" ? (
                             <div className="flex items-center gap-2">
@@ -483,14 +483,14 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                       </td>
                       {!isShoppingCampaign && (
                         <>
-                          <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                          <td className="table-cell hidden lg:table-cell">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {adgroup.headlines && Array.isArray(adgroup.headlines) && adgroup.headlines.length > 0
                                 ? adgroup.headlines.map((h: any) => h.text || h).join(", ")
                                 : "—"}
                             </span>
                           </td>
-                          <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                          <td className="table-cell hidden lg:table-cell">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
                               {adgroup.final_urls && adgroup.final_urls.length > 0
                                 ? adgroup.final_urls[0]
@@ -499,7 +499,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                           </td>
                         </>
                       )}
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         {updatingAdGroupId === adgroup.id && pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -590,17 +590,17 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                           </p>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatPercentage(adgroup.ctr)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.spends)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(adgroup.sales)}
                         </span>

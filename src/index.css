@@ -353,3 +353,50 @@ body input[type="submit"]:disabled {
   );
 }
 
+/* ============================================
+   Table Cell Styling
+   ============================================ */
+
+/* Standard table cell padding - used across all tables */
+.table-cell {
+  padding: 10px;
+}
+
+/* Table header cell padding */
+.table-header-cell {
+  padding: 10px;
+}
+
+/* Table summary row styling - used for total/summary rows */
+.table-summary-row {
+  background-color: #f5f5f0;
+  font-weight: 600;
+}
+
+/* First sticky column after checkbox - used in all data tables */
+.table-sticky-first-column {
+  position: sticky;
+  left: 35px;
+  z-index: 30;
+  background-color: #f5f5f0;
+  border-right: 1px solid #e8e8e3;
+  font-size: 13.3px;
+  color: #0b0f16;
+  line-height: 1.26;
+}
+
+/* Table header cell styling - used for all table headers (th) */
+.table-header {
+  text-align: left;
+  padding: 10px;
+  font-size: 13.3px;
+  font-weight: 500;
+  color: #29303f;
+  line-height: 16.2px;
+  cursor: pointer;
+}
+
+.table-header:hover {
+  background-color: #f9fafb;
+}
+

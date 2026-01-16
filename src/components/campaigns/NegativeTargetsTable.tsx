@@ -155,7 +155,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
                   {onSelectAll && (
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[50px]">
+                    <th className="table-header w-[50px]">
                       <Checkbox
                         checked={allSelected}
                         indeterminate={someSelected && !allSelected}
@@ -165,7 +165,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   )}
                   {/* ID Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("id")}
@@ -177,28 +177,28 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   </th>
 
                   {/* Profile ID Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Profile ID
                   </th>
 
                   {/* Target ID Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Target ID
                   </th>
 
                   {/* Expression Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Expression
                   </th>
 
                   {/* Resolved Expression Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Resolved Expression
                   </th>
 
                   {/* State Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[115px] ${
+                    className={`table-header min-w-[115px] ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("state")}
@@ -210,18 +210,18 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   </th>
 
                   {/* Ad Group ID Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Ad Group ID
                   </th>
 
                   {/* Campaign ID Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Campaign ID
                   </th>
 
                   {/* Creation Date Time Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("creationDateTime")}
@@ -234,7 +234,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
 
                   {/* Last Update Date Time Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("lastUpdateDateTime")}
@@ -246,17 +246,17 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   </th>
 
                   {/* Serving Status Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Serving Status
                   </th>
 
                   {/* Serving Status Details Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Serving Status Details
                   </th>
 
                   {/* Last Updated Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Last Synced
                   </th>
                 </tr>
@@ -284,7 +284,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                     >
                       {/* Checkbox */}
                       {onSelect && (
-                        <td className="py-[10px] px-[10px] w-[50px]">
+                        <td className="table-cell w-[50px]">
                           <Checkbox
                             checked={selectedIds.has(target.id)}
                             onChange={(checked) => onSelect(target.id, checked)}
@@ -292,42 +292,42 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                         </td>
                       )}
                       {/* ID */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {target.id || "—"}
                         </span>
                       </td>
 
                       {/* Profile ID */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {target.profileId || "—"}
                         </span>
                       </td>
 
                       {/* Target ID */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {target.targetId || "—"}
                         </span>
                       </td>
 
                       {/* Expression */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {expression || "—"}
                         </span>
                       </td>
 
                       {/* Resolved Expression */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {resolvedExpression || "—"}
                         </span>
                       </td>
 
                       {/* State */}
-                      <td className="py-[10px] px-[10px] min-w-[115px]">
+                      <td className="table-cell min-w-[115px]">
                         {editingField?.id === target.id &&
                         editingField?.field === "status" ? (
                           <div className="relative">
@@ -382,49 +382,49 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       </td>
 
                       {/* Ad Group ID */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {target.adGroupId || "—"}
                         </span>
                       </td>
 
                       {/* Campaign ID */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {target.campaignId || "—"}
                         </span>
                       </td>
 
                       {/* Creation Date Time */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatDate(target.creationDateTime)}
                         </span>
                       </td>
 
                       {/* Last Update Date Time */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatDate(target.lastUpdateDateTime)}
                         </span>
                       </td>
 
                       {/* Serving Status */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {target.servingStatus || "—"}
                         </span>
                       </td>
 
                       {/* Serving Status Details */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {target.servingStatusDetails || "—"}
                         </span>
                       </td>
 
                       {/* Last Updated */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatDate(target.last_updated)}
                         </span>

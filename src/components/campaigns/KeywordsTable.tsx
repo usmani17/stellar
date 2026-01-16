@@ -133,7 +133,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
               <thead className="sticky top-0 bg-[#fefefb] z-10">
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                  <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={allSelected}
@@ -146,7 +146,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
 
                   {/* Keyword Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("name")}
@@ -158,13 +158,13 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                   </th>
 
                   {/* Ad Group Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Ad Group
                   </th>
 
                   {/* State Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[115px] ${
+                    className={`table-header min-w-[115px] ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("status")}
@@ -176,13 +176,13 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                   </th>
 
                   {/* Bid Header */}
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                  <th className="table-header">
                     Bid
                   </th>
 
                   {/* CTR Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("ctr")}
@@ -195,7 +195,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
 
                   {/* Spends Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("spends")}
@@ -208,7 +208,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
 
                   {/* Sales Header */}
                   <th
-                    className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] ${
+                    className={`table-header ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("sales")}
@@ -232,7 +232,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                       } ${isArchived ? "bg-gray-100 opacity-60" : "hover:bg-gray-50"} transition-colors`}
                     >
                       {/* Checkbox */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedIds.has(keyword.id)}
@@ -245,21 +245,21 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                       </td>
 
                       {/* Keyword Name */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {keyword.name}
                         </span>
                       </td>
 
                       {/* Ad Group */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {keyword.adgroup_name || "—"}
                         </span>
                       </td>
 
                       {/* State */}
-                      <td className="py-[10px] px-[10px] min-w-[115px]">
+                      <td className="table-cell min-w-[115px]">
                         {inlineEditLoading.has(keyword.id) ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -362,7 +362,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                       </td>
 
                       {/* Bid */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         {inlineEditLoading.has(keyword.id) ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -432,21 +432,21 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                       </td>
 
                       {/* CTR */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {keyword.ctr}
                         </span>
                       </td>
 
                       {/* Spends */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {keyword.spends}
                         </span>
                       </td>
 
                       {/* Sales */}
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {keyword.sales}
                         </span>

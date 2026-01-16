@@ -279,13 +279,13 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
                 <table className="min-w-full">
                   <thead>
                     <tr className="border-b border-[#e8e8e3]">
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                      <th className="table-header">
                         Keyword Text
                       </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                      <th className="table-header">
                         Match Type
                       </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                      <th className="table-header">
                         Action
                       </th>
                     </tr>
@@ -300,13 +300,13 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
                             : ""
                         } hover:bg-gray-50 transition-colors`}
                       >
-                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
                           {kw.text}
                         </td>
-                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
                           {kw.match_type}
                         </td>
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <button
                             type="button"
                             onClick={() => removeKeyword(index)}

@@ -275,25 +275,25 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                   <table className="w-full min-w-max">
                     <thead className="sticky top-0 bg-[#fefefb] z-10">
                       <tr className="border-b border-[#e8e8e3]">
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Ad Group
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           ASIN
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           SKU
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Custom Text
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Country Code
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           State
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Action
                         </th>
                       </tr>
@@ -309,37 +309,37 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                             key={index}
                             className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
                           >
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {adGroupName}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {productAd.asin}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {productAd.sku || "—"}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {productAd.customText || "—"}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {productAd.catalogSourceCountryCode || "—"}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                 {productAd.state}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <button
                                 onClick={() => handleRemoveProductAd(index)}
                                 className="text-red-500 hover:text-red-700 transition-colors"

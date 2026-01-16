@@ -27,16 +27,16 @@ export const TikTokCampaignDetailLogsTab: React.FC = () => {
                 <table className="w-full min-w-[800px]">
                     <thead className="bg-[#f5f5f0]">
                         <tr className="border-b border-[#e8e8e3]">
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                            <th className="table-header">
                                 Timestamp
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                            <th className="table-header">
                                 User
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                            <th className="table-header">
                                 Action
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                            <th className="table-header">
                                 Details
                             </th>
                         </tr>
@@ -53,13 +53,13 @@ export const TikTokCampaignDetailLogsTab: React.FC = () => {
                                         <td className="py-[10px] px-[20px] text-[13.3px] text-[#0b0f16]">
                                             {log.timestamp}
                                         </td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16]">
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16]">
                                             {log.user}
                                         </td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] font-medium">
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16] font-medium">
                                             {log.action}
                                         </td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#556179]">
+                                        <td className="table-cell text-[13.3px] text-[#556179]">
                                             {log.details}
                                         </td>
                                     </tr>

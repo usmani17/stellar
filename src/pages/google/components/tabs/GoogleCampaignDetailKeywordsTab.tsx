@@ -317,7 +317,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                  <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={keywords.length > 0 && keywords.every((kw) => selectedKeywordIds.has(kw.id))}
@@ -327,7 +327,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="table-header"
                     onClick={() => onSort("keyword_text")}
                   >
                     <div className="flex items-center gap-1">
@@ -336,7 +336,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("match_type")}
                   >
                     <div className="flex items-center gap-1">
@@ -344,11 +344,11 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                       {getSortIcon("match_type", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                  <th className="table-header hidden lg:table-cell">
                     Ad Group
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
@@ -357,7 +357,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("cpc_bid_dollars")}
                   >
                     <div className="flex items-center gap-1">
@@ -377,7 +377,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } hover:bg-gray-50 transition-colors`}
                     >
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedKeywordIds.has(keyword.id)}
@@ -386,12 +386,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                           />
                         </div>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {keyword.keyword_text || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         {updatingKeywordId === keyword.id && pendingChange?.field === "match_type" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -468,12 +468,12 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                           </span>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                      <td className="table-cell hidden lg:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {keyword.adgroup_name || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         {updatingKeywordId === keyword.id && pendingChange?.field === "status" ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
@@ -546,7 +546,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<GoogleCampaignDetailKeywo
                           </div>
                         )}
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         {updatingKeywordId === keyword.id && pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">

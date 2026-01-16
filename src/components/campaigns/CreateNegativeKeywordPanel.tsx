@@ -412,21 +412,21 @@ export const CreateNegativeKeywordPanel: React.FC<
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-[#e8e8e3]">
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    <th className="table-header">
                       Ad Group
                     </th>
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    <th className="table-header">
                       Keyword Text
                     </th>
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    <th className="table-header">
                       Match Type
                     </th>
                     {!isSB && (
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      <th className="table-header">
                         State
                       </th>
                     )}
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    <th className="table-header">
                       Action
                     </th>
                   </tr>
@@ -453,7 +453,7 @@ export const CreateNegativeKeywordPanel: React.FC<
                           shouldHighlight ? "bg-red-50" : ""
                         }`}
                       >
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <div className="flex flex-col">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {getAdGroupName(negativeKeyword.adGroupId)}
@@ -468,7 +468,7 @@ export const CreateNegativeKeywordPanel: React.FC<
                             )}
                           </div>
                         </td>
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <div className="flex flex-col">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {negativeKeyword.keywordText}
@@ -486,19 +486,19 @@ export const CreateNegativeKeywordPanel: React.FC<
                             )}
                           </div>
                         </td>
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                             {negativeKeyword.matchType}
                           </span>
                         </td>
                         {!isSB && (
-                          <td className="py-[10px] px-[10px]">
+                          <td className="table-cell">
                             <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                               {negativeKeyword.state || "ENABLED"}
                             </span>
                           </td>
                         )}
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <button
                             type="button"
                             onClick={() => handleRemoveNegativeKeyword(index)}

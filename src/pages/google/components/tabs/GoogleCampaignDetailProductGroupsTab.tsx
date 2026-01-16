@@ -261,7 +261,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                  <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={productGroups.length > 0 && productGroups.every((pg) => selectedProductGroupIds.has(pg.id))}
@@ -271,7 +271,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="table-header"
                     onClick={() => onSort("product_group_name")}
                   >
                     <div className="flex items-center gap-1">
@@ -279,11 +279,11 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       {getSortIcon("product_group_name", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                  <th className="table-header hidden lg:table-cell">
                     Ad Group
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
@@ -292,7 +292,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("cpc_bid_dollars")}
                   >
                     <div className="flex items-center gap-1">
@@ -300,13 +300,13 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                       {getSortIcon("cpc_bid_dollars", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     CTR
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     Spends
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     Sales
                   </th>
                 </tr>
@@ -321,7 +321,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } hover:bg-gray-50 transition-colors`}
                     >
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedProductGroupIds.has(productGroup.id)}
@@ -330,17 +330,17 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                           />
                         </div>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] underline cursor-pointer">
                           All products
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden lg:table-cell">
+                      <td className="table-cell hidden lg:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {productGroup.adgroup_name || "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         {updatingProductGroupId === productGroup.id && pendingChange ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
@@ -417,22 +417,22 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                           </div>
                         ) : null}
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(productGroup.cpc_bid_dollars)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatPercentage(productGroup.ctr)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(productGroup.spends)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
+                      <td className="table-cell hidden md:table-cell">
                         <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                           {formatCurrency2Decimals(productGroup.sales)}
                         </span>

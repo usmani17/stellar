@@ -133,7 +133,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
             <thead>
               <tr className="bg-[#f5f5f0] border-b border-[#e8e8e3]">
                 {onSelectAll && (
-                  <th className="py-[10px] px-[10px] text-left">
+                  <th className="table-cell text-left">
                     <Checkbox
                       checked={allSelected}
                       indeterminate={someSelected && !allSelected}
@@ -142,7 +142,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </th>
                 )}
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("adId")}
                 >
                   <div className="flex items-center">
@@ -151,7 +151,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("asin")}
                 >
                   <div className="flex items-center">
@@ -160,7 +160,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("sku")}
                 >
                   <div className="flex items-center">
@@ -169,7 +169,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("status")}
                 >
                   <div className="flex items-center">
@@ -178,7 +178,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("adGroupId")}
                 >
                   <div className="flex items-center">
@@ -195,7 +195,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
                 >
                   {onSelect && (
-                    <td className="py-[10px] px-[10px]">
+                    <td className="table-cell">
                       <Checkbox
                         checked={selectedIds.has(productad.id)}
                         onChange={(checked) =>
@@ -204,16 +204,16 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                       />
                     </td>
                   )}
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                  <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                     {productad.adId || "—"}
                   </td>
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                  <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                     {productad.asin || "—"}
                   </td>
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                  <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                     {productad.sku || "—"}
                   </td>
-                  <td className="py-[10px] px-[10px] min-w-[115px]">
+                  <td className="table-cell min-w-[115px]">
                     {editLoading?.has(productad.id) ? (
                       <div className="flex items-center gap-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
@@ -295,7 +295,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                  <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                     {productad.adGroupId || "—"}
                   </td>
                 </tr>

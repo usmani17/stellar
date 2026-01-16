@@ -152,7 +152,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
             <thead>
               <tr className="bg-[#f5f5f0] border-b border-[#e8e8e3]">
                 {onSelectAll && (
-                  <th className="py-[10px] px-[10px] text-left">
+                  <th className="table-cell text-left">
                     <Checkbox
                       checked={allSelected}
                       indeterminate={someSelected && !allSelected}
@@ -161,7 +161,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </th>
                 )}
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("adId")}
                 >
                   <div className="flex items-center">
@@ -170,7 +170,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("name")}
                 >
                   <div className="flex items-center">
@@ -179,7 +179,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("status")}
                 >
                   <div className="flex items-center">
@@ -188,7 +188,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("adGroupId")}
                 >
                   <div className="flex items-center">
@@ -197,7 +197,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("campaignId")}
                 >
                   <div className="flex items-center">
@@ -205,11 +205,11 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                     {getSortIcon("campaignId")}
                   </div>
                 </th>
-                <th className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left">
+                <th className="table-header">
                   Serving Status
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("creationDateTime")}
                 >
                   <div className="flex items-center">
@@ -218,7 +218,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] text-left cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => onSort?.("lastUpdateDateTime")}
                 >
                   <div className="flex items-center">
@@ -287,17 +287,17 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                     }`}
                   >
                     {onSelect && (
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <Checkbox
                           checked={selectedIds.has(ad.id)}
                           onChange={(checked) => handleSelect(ad.id, checked)}
                         />
                       </td>
                     )}
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {ad.adId || "—"}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] min-w-[150px] max-w-[200px]">
+                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26] min-w-[150px] max-w-[200px]">
                       {inlineEditLoading.has(ad.id) ? (
                         <div className="flex items-center gap-2">
                           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -353,7 +353,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       )}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] min-w-[115px]">
+                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26] min-w-[115px]">
                       {inlineEditLoading.has(ad.id) ? (
                         <div className="flex items-center gap-2">
                           <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
@@ -455,23 +455,23 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       )}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {ad.adGroupId != null && ad.adGroupId !== ""
                         ? String(ad.adGroupId)
                         : "—"}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {ad.campaignId != null && ad.campaignId !== ""
                         ? String(ad.campaignId)
                         : "—"}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {ad.servingStatus || "—"}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {formatDate(ad.creationDateTime)}
                     </td>
-                    <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {formatDate(ad.lastUpdateDateTime)}
                     </td>
                   </tr>

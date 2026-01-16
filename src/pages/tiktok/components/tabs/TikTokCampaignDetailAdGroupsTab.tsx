@@ -607,7 +607,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                         <table className="w-full min-w-[1200px]">
                             <thead className="bg-[#f5f5f0]">
                                 <tr className="border-b border-[#e8e8e3]">
-                                    <th className="text-left py-[10px] px-[10px] w-[35px]">
+                                    <th className="table-header w-[35px]">
                                         <div className="flex items-center justify-center">
                                             <Checkbox
                                                 checked={adgroups.length > 0 && adgroups.every(ag => selectedAdGroupIds.has(ag.adgroup_id))}
@@ -617,7 +617,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("adgroup_name")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -625,7 +625,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("operation_status")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -633,7 +633,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("budget")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -641,7 +641,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("spend")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -649,7 +649,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("impressions")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -657,7 +657,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("clicks")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -665,7 +665,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("conversions")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -673,7 +673,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("ctr")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -681,7 +681,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                         </div>
                                     </th>
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
                                         onClick={() => onSort("cpc")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -699,7 +699,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                             key={item.adgroup_id}
                                             className={`hover:bg-gray-50 transition-colors ${!isLastRow ? "border-b border-[#e8e8e3]" : ""} ${isSelected ? "bg-gray-50" : ""}`}
                                         >
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <div className="flex items-center justify-center">
                                                     <Checkbox
                                                         checked={isSelected}
@@ -708,7 +708,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                 </div>
                                             </td>
                                             {/* Ad Group Name - Editable */}
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "adgroup_name" ? (
                                                     <input
                                                         type="text"
@@ -752,7 +752,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                 )}
                                             </td>
                                             {/* Status - Editable */}
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "operation_status" ? (
                                                     <div className="dropdown-container">
                                                         <Dropdown
@@ -788,7 +788,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                 )}
                                             </td>
                                             {/* Budget - Editable */}
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "budget" ? (
                                                     <input
                                                         type="number"
@@ -832,32 +832,32 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatCurrency(item.spend)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatNumber(item.impressions)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatNumber(item.clicks)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatNumber(item.conversions)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatPercentage(item.ctr)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatCurrency(item.cpc)}
                                                 </span>

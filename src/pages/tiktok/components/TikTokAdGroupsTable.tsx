@@ -310,7 +310,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                             <thead className="sticky top-0 bg-sandstorm-s20 z-10">
                                 <tr className="border-b border-[#e8e8e3]">
                                     {/* Checkbox Header */}
-                                    <th className="text-left py-[10px] px-[10px] w-[35px]">
+                                    <th className="table-header w-[35px]">
                                         <div className="flex items-center justify-center">
                                             <Checkbox
                                                 checked={allSelected}
@@ -323,7 +323,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* Ad Group Name */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("adgroup_name")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -334,7 +334,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* Campaign Name */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("campaign_name")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -345,7 +345,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* Status */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("operation_status")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -356,7 +356,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* Budget */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("budget")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -367,7 +367,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* Spend */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("spend")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -378,7 +378,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* Impressions */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("impressions")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -389,7 +389,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* Clicks */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("clicks")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -400,7 +400,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* Conversions */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("conversions")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -411,7 +411,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* CTR */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("ctr")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -422,7 +422,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
                                     {/* CPC */}
                                     <th
-                                        className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                        className="table-header"
                                         onClick={() => onSort("cpc")}
                                     >
                                         <div className="flex items-center gap-1">
@@ -435,30 +435,30 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                             <tbody>
                                 {/* Summary Row */}
                                 {summary && (
-                                    <tr className="bg-[#f5f5f0] font-semibold">
-                                        <td className="py-[10px] px-[10px]"></td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    <tr className="table-summary-row">
+                                        <td className="table-cell"></td>
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                             Total ({summary.total_adgroups})
                                         </td>
-                                        <td className="py-[10px] px-[10px]"></td>
-                                        <td className="py-[10px] px-[10px]"></td>
-                                        <td className="py-[10px] px-[10px]"></td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell"></td>
+                                        <td className="table-cell"></td>
+                                        <td className="table-cell"></td>
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                             {formatCurrency(summary.total_spend)}
                                         </td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                             {formatNumber(summary.total_impressions)}
                                         </td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                             {formatNumber(summary.total_clicks)}
                                         </td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                             {formatNumber(summary.total_conversions)}
                                         </td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                             {formatPercentage(summary.avg_ctr)}
                                         </td>
-                                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                        <td className="table-cell text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                             {formatCurrency(summary.avg_cpc)}
                                         </td>
                                     </tr>
@@ -473,7 +473,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                             className={`group border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors ${adgroupIsDeleted ? "opacity-60" : ""
                                                 }`}
                                         >
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <div className="flex items-center justify-center">
                                                     <Checkbox
                                                         checked={isSelected}
@@ -485,7 +485,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                 </div>
                                             </td>
                                             {/* Ad Group Name - Editable */}
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 {editingCell?.adgroup_id === item.adgroup_id && editingCell?.field === "adgroup_name" ? (
                                                     <input
                                                         type="text"
@@ -529,7 +529,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <div className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left">
                                                     {/* If we had campaign ID, we'd link it. For now just text or optional link */}
                                                     {item.campaign_id ? (
@@ -542,7 +542,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                 </div>
                                             </td>
                                             {/* Status - Editable (read-only for deleted) */}
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 {adgroupIsDeleted ? (
                                                     <div className="text-[13.3px] leading-[1.26] cursor-not-allowed">
                                                         <StatusBadge status="DELETED" />
@@ -582,7 +582,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                 )}
                                             </td>
                                             {/* Budget - Editable (read-only for deleted) */}
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 {adgroupIsDeleted ? (
                                                     <div className="text-[13.3px] text-gray-400 cursor-not-allowed">
                                                         {formatCurrency(item.budget)}
@@ -629,32 +629,32 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatCurrency(item.spend)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatNumber(item.impressions)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatNumber(item.clicks)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatNumber(item.conversions)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatPercentage(item.ctr)}
                                                 </span>
                                             </td>
-                                            <td className="py-[10px] px-[10px]">
+                                            <td className="table-cell">
                                                 <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                                                     {formatCurrency(item.cpc)}
                                                 </span>
