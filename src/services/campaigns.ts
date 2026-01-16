@@ -1852,6 +1852,7 @@ export const campaignsService = {
       order?: "asc" | "desc";
       mediaType?: string;
       brandEntityId?: string;
+      profileId?: string;
     }
   ): Promise<any> => {
     const response = await api.get(`/accounts/${accountId}/assets/`, {
