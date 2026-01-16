@@ -1036,7 +1036,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     value={formData.profileId || undefined}
                     onChange={(value) => handleChange("profileId", value)}
                     placeholder="Select profile"
-                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    buttonClassName="edit-button w-full"
                     disabled={mode === "edit"}
                     emptyMessage={
                       profileOptions.length === 0
@@ -1066,7 +1066,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     value={formData.type}
                     onChange={(value) => handleChange("type", value)}
                     placeholder="Select campaign type"
-                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    buttonClassName="edit-button w-full"
                     disabled={mode === "edit"}
                   />
                   {mode === "edit" && (
@@ -1094,7 +1094,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     value={formData.profileId || undefined}
                     onChange={(value) => handleChange("profileId", value)}
                     placeholder="Select profile"
-                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    buttonClassName="edit-button w-full"
                     disabled={mode === "edit"}
                     emptyMessage={
                       profileOptions.length === 0
@@ -1124,7 +1124,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     value={formData.type}
                     onChange={(value) => handleChange("type", value)}
                     placeholder="Select campaign type"
-                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    buttonClassName="edit-button w-full"
                     disabled={mode === "edit"}
                   />
                   {mode === "edit" && (
@@ -1152,7 +1152,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     value={formData.profileId || undefined}
                     onChange={(value) => handleChange("profileId", value)}
                     placeholder="Select profile"
-                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    buttonClassName="edit-button w-full"
                     disabled={mode === "edit"}
                     emptyMessage={
                       profileOptions.length === 0
@@ -1182,7 +1182,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     value={formData.type}
                     onChange={(value) => handleChange("type", value)}
                     placeholder="Select campaign type"
-                    buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                    buttonClassName="edit-button w-full"
                     disabled={mode === "edit"}
                   />
                   {mode === "edit" && (
@@ -1211,23 +1211,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     goals. We'll make bidding and targeting recommendations to
                     help achieve this outcome.
                   </p>
-                  <Dropdown
-                    options={[
-                      {
-                        value: "PAGE_VISIT",
-                        label: "Page visit",
-                      },
-                      {
-                        value: "BRAND_IMPRESSION_SHARE",
-                        label: "Brand impression share",
-                      },
-                    ]}
-                    value={formData.goal}
-                    onChange={(value) => handleChange("goal", value as any)}
-                    disabled={mode === "edit"}
-                    placeholder="Select a goal"
-                    className="w-full"
-                  />
+                  <div className="grid grid-cols-4 ">
+                    <Dropdown
+                      options={[
+                        {
+                          value: "PAGE_VISIT",
+                          label: "Page visit",
+                        },
+                        {
+                          value: "BRAND_IMPRESSION_SHARE",
+                          label: "Brand impression share",
+                        },
+                      ]}
+                      value={formData.goal}
+                      onChange={(value) => handleChange("goal", value as any)}
+                      disabled={mode === "edit"}
+                      placeholder="Select a goal"
+                      className="w-full"
+                      buttonClassName="edit-button w-full"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -1250,10 +1253,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("campaign_name", e.target.value)
                         }
                         placeholder="Enter campaign name"
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          errors.campaign_name
-                            ? "border-red-500"
-                            : "border-gray-200"
+                        className={`campaign-input w-full ${
+                          errors.campaign_name ? "border-red-500" : ""
                         }`}
                       />
                       {errors.campaign_name && (
@@ -1280,8 +1281,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         placeholder="Enter budget"
                         min="0"
                         step="0.01"
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          errors.budget ? "border-red-500" : "border-gray-200"
+                        className={`campaign-input w-full ${
+                          errors.budget ? "border-red-500" : ""
                         }`}
                       />
                       {errors.budget && (
@@ -1317,7 +1318,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         value={formData.budgetType}
                         onChange={(value) => handleChange("budgetType", value)}
                         placeholder="Select"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                       />
                     </div>
 
@@ -1342,7 +1343,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           );
                         }}
                         placeholder="Select state"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                       />
                       {errors.status && (
                         <p className="text-[10px] text-red-500 mt-1">
@@ -1366,10 +1367,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("campaign_name", e.target.value)
                         }
                         placeholder="Enter campaign name"
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          errors.campaign_name
-                            ? "border-red-500"
-                            : "border-gray-200"
+                        className={`campaign-input w-full ${
+                          errors.campaign_name ? "border-red-500" : ""
                         }`}
                       />
                       {errors.campaign_name && (
@@ -1396,8 +1395,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         placeholder="Enter budget"
                         min="0"
                         step="0.01"
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          errors.budget ? "border-red-500" : "border-gray-200"
+                        className={`campaign-input w-full ${
+                          errors.budget ? "border-red-500" : ""
                         }`}
                       />
                       {errors.budget && (
@@ -1421,7 +1420,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         value={formData.budgetType}
                         onChange={(value) => handleChange("budgetType", value)}
                         placeholder="Select budget type"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={false} // Budget Type is editable in edit mode
                       />
                     </div>
@@ -1447,7 +1446,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           );
                         }}
                         placeholder="Select state"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                       />
                       {errors.status && (
                         <p className="text-[10px] text-red-500 mt-1">
@@ -1471,10 +1470,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("campaign_name", e.target.value)
                         }
                         placeholder="Enter campaign name"
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          errors.campaign_name
-                            ? "border-red-500"
-                            : "border-gray-200"
+                        className={`campaign-input w-full ${
+                          errors.campaign_name ? "border-red-500" : ""
                         }`}
                       />
                       {errors.campaign_name && (
@@ -1501,8 +1498,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         placeholder="Enter budget"
                         min="0"
                         step="0.01"
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                          errors.budget ? "border-red-500" : "border-gray-200"
+                        className={`campaign-input w-full ${
+                          errors.budget ? "border-red-500" : ""
                         }`}
                       />
                       {errors.budget && (
@@ -1523,7 +1520,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         value={formData.status}
                         onChange={(value) => handleChange("status", value)}
                         placeholder="Select state"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                       />
                       {errors.status && (
                         <p className="text-[10px] text-red-500 mt-1">
@@ -1552,7 +1549,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           )
                         }
                         placeholder="Select targeting type"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={mode === "edit"}
                       />
                       {mode === "edit" && (
@@ -1576,7 +1573,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           }
                           disabled={mode === "edit"}
                           min={new Date().toISOString().split("T")[0]} // Prevent selecting past dates
-                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`campaign-input w-full ${
                             errors.startDate
                               ? "border-red-500"
                               : "border-gray-200"
@@ -1615,7 +1612,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             formData.startDate ||
                             new Date().toISOString().split("T")[0]
                           } // Must be after start date or today
-                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`campaign-input w-full ${
                             errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
@@ -1659,7 +1656,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("startDate", e.target.value)
                           }
-                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`campaign-input w-full ${
                             errors.startDate
                               ? "border-red-500"
                               : "border-gray-200"
@@ -1691,7 +1688,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             handleChange("startDate", e.target.value)
                           }
                           disabled={mode === "edit"}
-                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`campaign-input w-full ${
                             errors.startDate
                               ? "border-red-500"
                               : "border-gray-200"
@@ -1731,7 +1728,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             new Date().toISOString().split("T")[0]
                           } // Must be after start date or today
                           disabled={mode === "edit"}
-                          className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`campaign-input w-full ${
                             errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
@@ -1774,7 +1771,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             ? "Loading portfolios..."
                             : "Select portfolio (optional)"
                         }
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={
                           !formData.profileId ||
                           loadingPortfolios ||
@@ -1925,7 +1922,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                                   });
                                 }}
                                 placeholder="Select strategy"
-                                buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                                buttonClassName="edit-button w-full"
                               />
                               {mode === "create" &&
                                 formData.bidding &&
@@ -2523,7 +2520,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("tactic", value as "T00020" | "T00030")
                         }
                         placeholder="Select tactic"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={mode === "edit"}
                       />
                       {mode === "edit" && (
@@ -2559,7 +2556,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("costType", value as "cpc" | "vcpm")
                         }
                         placeholder="Select cost type"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={false} // costType is editable in edit mode
                       />
                     </div>
@@ -2580,7 +2577,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             ? "Loading portfolios..."
                             : "Select portfolio (optional)"
                         }
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={
                           !formData.profileId ||
                           loadingPortfolios ||
@@ -2621,7 +2618,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             ? "Loading brand entities..."
                             : "Select Brand entity ID"
                         }
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={
                           mode === "edit" ||
                           loadingBrandEntities ||
@@ -2653,7 +2650,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         }
                         placeholder="Enter DealId"
                         disabled={mode === "edit"}
-                        className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        className={`campaign-input w-full ${
                           mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
                         }`}
                       />
@@ -2701,7 +2698,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("productLocation", value as any)
                         }
                         placeholder="Select Product Location"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={mode === "edit"}
                       />
                       {mode === "edit" && (
@@ -2735,7 +2732,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         value={formData.costType || "cpc"}
                         onChange={(value) => handleChange("costType", value)}
                         placeholder="Select cost type"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={mode === "edit"}
                       />
                       {mode === "edit" && (
@@ -2761,7 +2758,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             ? "Loading portfolios..."
                             : "Select portfolio (optional)"
                         }
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={
                           !formData.profileId ||
                           loadingPortfolios ||
@@ -2795,7 +2792,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           handleChange("smartDefault", value as any)
                         }
                         placeholder="Select smart default (optional)"
-                        buttonClassName="w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929]"
+                        buttonClassName="edit-button w-full"
                         disabled={mode === "edit"}
                       />
                       {mode === "edit" && (

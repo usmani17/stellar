@@ -698,3 +698,26 @@ body input[type="submit"]:disabled {
   cursor: not-allowed;
 }
 
+/* Campaign input field styling - used for all input fields on campaign creation page */
+.campaign-input {
+  background-color: #FEFEFB;
+  padding: 10px 16px;
+  height: 38px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #072929;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.campaign-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #136D6D;
+  border-color: #136D6D;
+}
+
+.campaign-input::placeholder {
+  color: #9ca3af;
+}
+
