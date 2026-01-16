@@ -28,12 +28,15 @@ interface GoogleCampaignDetailAdGroupsTabProps {
   syncingAnalytics?: boolean;
   onSyncAnalytics?: () => void;
   syncMessage: string | null;
+  onRefresh?: () => void;
   formatPercentage: (value: number | string | undefined) => string;
   formatCurrency2Decimals: (value: number | string | undefined) => string;
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   onUpdateAdGroupStatus?: (adgroupId: number, status: string) => Promise<void>;
   onUpdateAdGroupBid?: (adgroupId: number, bid: number) => Promise<void>;
-  campaignType?: string;
+  onUpdateAdGroupName?: (adgroupId: number, name: string) => Promise<void>;
+  onStartBidConfirmation?: (adgroup: GoogleAdGroup, oldBid: number, newBid: number) => void;
+  onStartNameEdit?: (adgroup: GoogleAdGroup) => void;
 }
 
 export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGroupsTabProps> = ({
@@ -57,26 +60,25 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
   syncingAnalytics,
   onSyncAnalytics,
   syncMessage,
+  onRefresh,
   formatPercentage,
   formatCurrency2Decimals,
   getSortIcon,
   onUpdateAdGroupStatus,
   onUpdateAdGroupBid,
-  campaignType,
+  onStartBidConfirmation,
+  onStartNameEdit,
 }) => {
   const [editingAdGroupId, setEditingAdGroupId] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<"status" | "bid" | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
   const [pendingChange, setPendingChange] = useState<{
     id: number;
-    field: "status" | "bid";
+    field: "status" | "bid" | "name";
     newValue: string;
     oldValue: string;
   } | null>(null);
   const [updatingAdGroupId, setUpdatingAdGroupId] = useState<number | null>(null);
-
-  // Check if this is a shopping campaign - ad groups don't have headlines/final URLs
-  const isShoppingCampaign = campaignType?.toUpperCase() === "SHOPPING";
 
   const handleStatusClick = (adgroup: GoogleAdGroup) => {
     if (onUpdateAdGroupStatus) {
@@ -102,6 +104,12 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
     }
   };
 
+  const handleNameClick = (adgroup: GoogleAdGroup) => {
+    if (onStartNameEdit) {
+      onStartNameEdit(adgroup);
+    }
+  };
+
   const handleEditEnd = () => {
     if (!editingAdGroupId || !editingField) return;
 
@@ -113,35 +121,46 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
       return;
     }
 
-    let hasChanged = false;
-    let oldValue = "";
-
     if (editingField === "status") {
-      // Normalize both values for comparison
+      // Status uses inline confirmation buttons
       const currentStatus = (adgroup.status || "ENABLED").toUpperCase();
       const normalizedCurrent = currentStatus === "ENABLE" || currentStatus === "ENABLED" 
         ? "ENABLED" 
         : currentStatus === "PAUSE" || currentStatus === "PAUSED"
         ? "PAUSED"
         : currentStatus;
-      oldValue = normalizedCurrent;
-      hasChanged = editingValue.toUpperCase() !== normalizedCurrent;
-    } else if (editingField === "bid") {
-      const currentBid = (adgroup.cpc_bid_dollars || 0).toString();
-      oldValue = formatCurrency2Decimals(adgroup.cpc_bid_dollars);
-      hasChanged = editingValue !== currentBid && editingValue !== "";
-    }
-
-    if (hasChanged) {
-      setPendingChange({
-        id: editingAdGroupId,
-        field: editingField,
-        newValue: editingValue,
-        oldValue: oldValue,
-      });
+      const hasChanged = editingValue.toUpperCase() !== normalizedCurrent;
+      
+      if (hasChanged) {
+        setPendingChange({
+          id: editingAdGroupId,
+          field: editingField,
+          newValue: editingValue,
+          oldValue: normalizedCurrent,
+        });
+      }
       setEditingAdGroupId(null);
       setEditingField(null);
-    } else {
+      if (!hasChanged) {
+        setEditingValue("");
+      }
+    } else if (editingField === "bid") {
+      // Bid uses confirmation modal
+      const bidValue = parseFloat(editingValue);
+      const oldBid = adgroup.cpc_bid_dollars || 0;
+      
+      if (isNaN(bidValue) || bidValue < 0) {
+        // Invalid bid, reset
+        setEditingAdGroupId(null);
+        setEditingField(null);
+        setEditingValue("");
+        return;
+      }
+      
+      if (bidValue !== oldBid && onStartBidConfirmation) {
+        // Show confirmation modal
+        onStartBidConfirmation(adgroup, oldBid, bidValue);
+      }
       setEditingAdGroupId(null);
       setEditingField(null);
       setEditingValue("");
@@ -151,15 +170,16 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
   const confirmChange = async () => {
     if (!pendingChange) return;
 
+    // Only status uses this confirmation (bid and name use modals)
+    if (pendingChange.field !== "status") {
+      setPendingChange(null);
+      return;
+    }
+
     setUpdatingAdGroupId(pendingChange.id);
     try {
       if (pendingChange.field === "status" && onUpdateAdGroupStatus) {
         await onUpdateAdGroupStatus(pendingChange.id, pendingChange.newValue);
-      } else if (pendingChange.field === "bid" && onUpdateAdGroupBid) {
-        const bidValue = parseFloat(pendingChange.newValue);
-        if (!isNaN(bidValue)) {
-          await onUpdateAdGroupBid(pendingChange.id, bidValue);
-        }
       }
       setPendingChange(null);
     } catch (error) {
@@ -232,6 +252,28 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
               />
             </svg>
           </button>
+          {onRefresh && (
+            <Button
+              onClick={onRefresh}
+              disabled={loading || syncing || syncingAnalytics}
+              className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              title="Refresh list"
+            >
+              <svg
+                className="w-5 h-5 text-[#072929]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </Button>
+          )}
           <Button
             onClick={onSync}
             disabled={syncing || syncingAnalytics}
@@ -326,22 +368,12 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
-                      Status
+                      State
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  {!isShoppingCampaign && (
-                    <>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
-                        Headlines
-                      </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
-                        Final URLs
-                      </th>
-                    </>
-                  )}
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
-                    Bid
+                    Default max. CPC
                   </th>
                   <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
                     CTR
@@ -374,7 +406,10 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                         </div>
                       </td>
                       <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <span
+                          onClick={() => onStartNameEdit && handleNameClick(adgroup)}
+                          className={`text-[13.3px] text-[#0b0f16] leading-[1.26] ${onStartNameEdit ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1" : ""}`}
+                        >
                           {adgroup.adgroup_name || adgroup.name || "—"}
                         </span>
                       </td>
@@ -481,24 +516,6 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                           )}
                         </div>
                       </td>
-                      {!isShoppingCampaign && (
-                        <>
-                          <td className="py-[10px] px-[10px] hidden lg:table-cell">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                              {adgroup.headlines && Array.isArray(adgroup.headlines) && adgroup.headlines.length > 0
-                                ? adgroup.headlines.map((h: any) => h.text || h).join(", ")
-                                : "—"}
-                            </span>
-                          </td>
-                          <td className="py-[10px] px-[10px] hidden lg:table-cell">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
-                              {adgroup.final_urls && adgroup.final_urls.length > 0
-                                ? adgroup.final_urls[0]
-                                : "—"}
-                            </span>
-                          </td>
-                        </>
-                      )}
                       <td className="py-[10px] px-[10px] hidden md:table-cell">
                         {updatingAdGroupId === adgroup.id && pendingChange?.field === "bid" ? (
                           <div className="flex items-center gap-2">
@@ -555,26 +572,21 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<GoogleCampaignDetailAdGro
                           </div>
                         ) : editingAdGroupId === adgroup.id && editingField === "bid" && onUpdateAdGroupBid ? (
                           <div className="flex items-center">
+                            <span className="text-[13.3px] text-[#0b0f16] mr-1">$</span>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
                               value={editingValue}
                               onChange={(e) => setEditingValue(e.target.value)}
-                              onBlur={(e) => {
-                                const inputValue = e.target.value;
-                                const oldValue = (adgroup.cpc_bid_dollars || 0).toString();
-                                if (inputValue === oldValue || inputValue === "") {
-                                  cancelChange();
-                                } else {
-                                  handleEditEnd();
-                                }
-                              }}
+                              onBlur={() => handleEditEnd()}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   e.currentTarget.blur();
                                 } else if (e.key === "Escape") {
-                                  cancelChange();
+                                  setEditingAdGroupId(null);
+                                  setEditingField(null);
+                                  setEditingValue("");
                                 }
                               }}
                               autoFocus

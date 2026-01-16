@@ -28,6 +28,7 @@ interface GoogleCampaignDetailAdsTabProps {
   syncingAnalytics?: boolean;
   onSyncAnalytics?: () => void;
   syncMessage: string | null;
+  onRefresh?: () => void;
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
   onUpdateAdStatus?: (adId: number, status: string) => Promise<void>;
 }
@@ -53,6 +54,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
   syncingAnalytics,
   onSyncAnalytics,
   syncMessage,
+  onRefresh,
   getSortIcon,
   onUpdateAdStatus,
 }) => {
@@ -166,6 +168,28 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
               />
             </svg>
           </button>
+          {onRefresh && (
+            <Button
+              onClick={onRefresh}
+              disabled={loading || syncing || syncingAnalytics}
+              className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              title="Refresh list"
+            >
+              <svg
+                className="w-5 h-5 text-[#072929]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </Button>
+          )}
           <Button
             onClick={onSync}
             disabled={syncing || syncingAnalytics}
@@ -261,7 +285,7 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
-                      Status
+                      State
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
