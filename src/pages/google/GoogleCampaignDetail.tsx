@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { KPICard } from "../../components/ui/KPICard";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
+import { Button } from "../../components/ui";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
@@ -24,13 +25,31 @@ import type {
   GoogleKeyword,
   GoogleNegativeKeyword,
 } from "./components/tabs/types";
-import { CreateGoogleAdGroupPanel, type AdGroupInput } from "../../components/google/CreateGoogleAdGroupPanel";
-import { CreateGoogleAdPanel, type AdInput } from "../../components/google/CreateGoogleAdPanel";
-import { CreateGoogleKeywordPanel, type KeywordInput } from "../../components/google/CreateGoogleKeywordPanel";
-import { CreateGoogleNegativeKeywordPanel, type NegativeKeywordInput } from "../../components/google/CreateGoogleNegativeKeywordPanel";
+import {
+  CreateGoogleAdGroupPanel,
+  type AdGroupInput,
+} from "../../components/google/CreateGoogleAdGroupPanel";
+import {
+  CreateGoogleAdPanel,
+  type AdInput,
+} from "../../components/google/CreateGoogleAdPanel";
+import {
+  CreateGoogleKeywordPanel,
+  type KeywordInput,
+} from "../../components/google/CreateGoogleKeywordPanel";
+import {
+  CreateGoogleNegativeKeywordPanel,
+  type NegativeKeywordInput,
+} from "../../components/google/CreateGoogleNegativeKeywordPanel";
 import { googleNegativeKeywordsService } from "../../services/googleNegativeKeywords";
-import { CreateGooglePmaxAssetGroupPanel, type PmaxAssetGroupInput } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
-import { CreateGoogleShoppingEntitiesPanel, type ShoppingEntityInput } from "../../components/google/CreateGoogleShoppingEntitiesPanel";
+import {
+  CreateGooglePmaxAssetGroupPanel,
+  type PmaxAssetGroupInput,
+} from "../../components/google/CreateGooglePmaxAssetGroupPanel";
+import {
+  CreateGoogleShoppingEntitiesPanel,
+  type ShoppingEntityInput,
+} from "../../components/google/CreateGoogleShoppingEntitiesPanel";
 import { CreateGooglePmaxAssetGroupSection } from "../../components/google/CreateGooglePmaxAssetGroupSection";
 import { CreateGoogleShoppingEntitiesSection } from "../../components/google/CreateGoogleShoppingEntitiesSection";
 import { CreateGoogleAdGroupSection } from "../../components/google/CreateGoogleAdGroupSection";
@@ -80,19 +99,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("Overview");
-  
-  // Read tab from URL params on mount
-  useEffect(() => {
-    const tabFromUrl = searchParams.get("tab");
-    if (tabFromUrl) {
-      const validTabs = ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords", "Asset Groups", "Product Groups", "Logs"];
-      if (validTabs.includes(tabFromUrl)) {
-        setActiveTab(tabFromUrl);
-      }
-    }
-  }, [searchParams]);
   const [loading, setLoading] = useState(true);
   const [campaignDetail, setCampaignDetail] =
     useState<GoogleCampaignDetail | null>(null);
@@ -154,26 +161,44 @@ export const GoogleCampaignDetail: React.FC = () => {
   const [keywordsFilters, setKeywordsFilters] = useState<FilterValues>([]);
 
   // Negative Keywords state
-  const [negativeKeywords, setNegativeKeywords] = useState<GoogleNegativeKeyword[]>([]);
+  const [negativeKeywords, setNegativeKeywords] = useState<
+    GoogleNegativeKeyword[]
+  >([]);
   const [negativeKeywordsLoading, setNegativeKeywordsLoading] = useState(false);
-  const [selectedNegativeKeywordIds, setSelectedNegativeKeywordIds] = useState<Set<number>>(
-    new Set()
-  );
-  const [negativeKeywordsCurrentPage, setNegativeKeywordsCurrentPage] = useState(1);
-  const [negativeKeywordsTotalPages, setNegativeKeywordsTotalPages] = useState(0);
-  const [negativeKeywordsSortBy, setNegativeKeywordsSortBy] = useState<string>("id");
-  const [negativeKeywordsSortOrder, setNegativeKeywordsSortOrder] = useState<"asc" | "desc">(
-    "asc"
-  );
-  const [isNegativeKeywordsFilterPanelOpen, setIsNegativeKeywordsFilterPanelOpen] =
-    useState(false);
-  const [negativeKeywordsFilters, setNegativeKeywordsFilters] = useState<FilterValues>([]);
+  const [selectedNegativeKeywordIds, setSelectedNegativeKeywordIds] = useState<
+    Set<number>
+  >(new Set());
+  const [negativeKeywordsCurrentPage, setNegativeKeywordsCurrentPage] =
+    useState(1);
+  const [negativeKeywordsTotalPages, setNegativeKeywordsTotalPages] =
+    useState(0);
+  const [negativeKeywordsSortBy, setNegativeKeywordsSortBy] =
+    useState<string>("id");
+  const [negativeKeywordsSortOrder, setNegativeKeywordsSortOrder] = useState<
+    "asc" | "desc"
+  >("asc");
+  const [
+    isNegativeKeywordsFilterPanelOpen,
+    setIsNegativeKeywordsFilterPanelOpen,
+  ] = useState(false);
+  const [negativeKeywordsFilters, setNegativeKeywordsFilters] =
+    useState<FilterValues>([]);
   const [syncingNegativeKeywords, setSyncingNegativeKeywords] = useState(false);
-  const [isCreateNegativeKeywordPanelOpen, setIsCreateNegativeKeywordPanelOpen] = useState(false);
-  const [createNegativeKeywordLoading, setCreateNegativeKeywordLoading] = useState(false);
-  const [createNegativeKeywordError, setCreateNegativeKeywordError] = useState<string | null>(null);
-  const [createdNegativeKeywords, setCreatedNegativeKeywords] = useState<any[]>([]);
-  const [failedNegativeKeywords, setFailedNegativeKeywords] = useState<any[]>([]);
+  const [
+    isCreateNegativeKeywordPanelOpen,
+    setIsCreateNegativeKeywordPanelOpen,
+  ] = useState(false);
+  const [createNegativeKeywordLoading, setCreateNegativeKeywordLoading] =
+    useState(false);
+  const [createNegativeKeywordError, setCreateNegativeKeywordError] = useState<
+    string | null
+  >(null);
+  const [createdNegativeKeywords, setCreatedNegativeKeywords] = useState<any[]>(
+    []
+  );
+  const [failedNegativeKeywords, setFailedNegativeKeywords] = useState<any[]>(
+    []
+  );
 
   // Sync state
   const [syncingAdGroups, setSyncingAdGroups] = useState(false);
@@ -188,37 +213,47 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Asset Groups state (for Performance Max)
   const [assetGroups, setAssetGroups] = useState<any[]>([]);
   const [assetGroupsLoading, setAssetGroupsLoading] = useState(false);
-  const [selectedAssetGroupIds, setSelectedAssetGroupIds] = useState<Set<number>>(
-    new Set()
-  );
+  const [selectedAssetGroupIds, setSelectedAssetGroupIds] = useState<
+    Set<number>
+  >(new Set());
   const [assetGroupsCurrentPage, setAssetGroupsCurrentPage] = useState(1);
   const [assetGroupsTotalPages, setAssetGroupsTotalPages] = useState(0);
   const [assetGroupsSortBy, setAssetGroupsSortBy] = useState<string>("id");
-  const [assetGroupsSortOrder, setAssetGroupsSortOrder] = useState<"asc" | "desc">(
-    "asc"
-  );
+  const [assetGroupsSortOrder, setAssetGroupsSortOrder] = useState<
+    "asc" | "desc"
+  >("asc");
   const [isAssetGroupsFilterPanelOpen, setIsAssetGroupsFilterPanelOpen] =
     useState(false);
-  const [assetGroupsFilters, setAssetGroupsFilters] = useState<FilterValues>([]);
+  const [assetGroupsFilters, setAssetGroupsFilters] = useState<FilterValues>(
+    []
+  );
 
   // Product Groups state (for Shopping)
   const [productGroups, setProductGroups] = useState<any[]>([]);
   const [productGroupsLoading, setProductGroupsLoading] = useState(false);
-  const [selectedProductGroupIds, setSelectedProductGroupIds] = useState<Set<number>>(
-    new Set()
-  );
+  const [selectedProductGroupIds, setSelectedProductGroupIds] = useState<
+    Set<number>
+  >(new Set());
   const [productGroupsCurrentPage, setProductGroupsCurrentPage] = useState(1);
   const [productGroupsTotalPages, setProductGroupsTotalPages] = useState(0);
   const [productGroupsSortBy, setProductGroupsSortBy] = useState<string>("id");
-  const [productGroupsSortOrder, setProductGroupsSortOrder] = useState<"asc" | "desc">(
-    "asc"
-  );
+  const [productGroupsSortOrder, setProductGroupsSortOrder] = useState<
+    "asc" | "desc"
+  >("asc");
   const [isProductGroupsFilterPanelOpen, setIsProductGroupsFilterPanelOpen] =
     useState(false);
-  const [productGroupsFilters, setProductGroupsFilters] = useState<FilterValues>([]);
+  const [productGroupsFilters, setProductGroupsFilters] =
+    useState<FilterValues>([]);
 
   const [syncMessage, setSyncMessage] = useState<{
-    type: "adgroups" | "ads" | "keywords" | "negative_keywords" | "assetgroups" | "productgroups" | null;
+    type:
+      | "adgroups"
+      | "ads"
+      | "keywords"
+      | "negative_keywords"
+      | "assetgroups"
+      | "productgroups"
+      | null;
     message: string | null;
   }>({ type: null, message: null });
 
@@ -230,18 +265,31 @@ export const GoogleCampaignDetail: React.FC = () => {
   });
 
   // Creation panel state
-  const [isCreateSearchEntitiesPanelOpen, setIsCreateSearchEntitiesPanelOpen] = useState(false);
-  const [isCreatePmaxAssetGroupPanelOpen, setIsCreatePmaxAssetGroupPanelOpen] = useState(false);
-  const [isCreateShoppingEntitiesPanelOpen, setIsCreateShoppingEntitiesPanelOpen] = useState(false);
-  
+  const [isCreateSearchEntitiesPanelOpen, setIsCreateSearchEntitiesPanelOpen] =
+    useState(false);
+  const [isCreatePmaxAssetGroupPanelOpen, setIsCreatePmaxAssetGroupPanelOpen] =
+    useState(false);
+  const [
+    isCreateShoppingEntitiesPanelOpen,
+    setIsCreateShoppingEntitiesPanelOpen,
+  ] = useState(false);
+
   // Creation loading and error state
-  const [createSearchEntitiesLoading, setCreateSearchEntitiesLoading] = useState(false);
-  const [createSearchEntitiesError, setCreateSearchEntitiesError] = useState<string | null>(null);
-  const [createPmaxAssetGroupLoading, setCreatePmaxAssetGroupLoading] = useState(false);
-  const [createPmaxAssetGroupError, setCreatePmaxAssetGroupError] = useState<string | null>(null);
-  const [createShoppingEntitiesLoading, setCreateShoppingEntitiesLoading] = useState(false);
-  const [createShoppingEntitiesError, setCreateShoppingEntitiesError] = useState<string | null>(null);
-  
+  const [createSearchEntitiesLoading, setCreateSearchEntitiesLoading] =
+    useState(false);
+  const [createSearchEntitiesError, setCreateSearchEntitiesError] = useState<
+    string | null
+  >(null);
+  const [createPmaxAssetGroupLoading, setCreatePmaxAssetGroupLoading] =
+    useState(false);
+  const [createPmaxAssetGroupError, setCreatePmaxAssetGroupError] = useState<
+    string | null
+  >(null);
+  const [createShoppingEntitiesLoading, setCreateShoppingEntitiesLoading] =
+    useState(false);
+  const [createShoppingEntitiesError, setCreateShoppingEntitiesError] =
+    useState<string | null>(null);
+
   // Error modal state
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
@@ -261,48 +309,14 @@ export const GoogleCampaignDetail: React.FC = () => {
     }>;
   }>({ isOpen: false, message: "" });
 
-  // Final URL edit modal state
-  const [showFinalUrlModal, setShowFinalUrlModal] = useState(false);
-  const [finalUrlKeyword, setFinalUrlKeyword] = useState<GoogleKeyword | null>(null);
-  const [finalUrlValue, setFinalUrlValue] = useState<string>("");
-  const [mobileFinalUrlValue, setMobileFinalUrlValue] = useState<string>("");
-  const [useMobileFinalUrl, setUseMobileFinalUrl] = useState(false);
-  const [finalUrlEditLoading, setFinalUrlEditLoading] = useState(false);
-
-  // Keyword text edit modal state
-  const [showKeywordTextEditModal, setShowKeywordTextEditModal] = useState(false);
-  const [keywordTextEditKeyword, setKeywordTextEditKeyword] = useState<GoogleKeyword | null>(null);
-  const [keywordTextEditValue, setKeywordTextEditValue] = useState<string>("");
-  const [keywordTextEditLoading, setKeywordTextEditLoading] = useState(false);
-
-  // Bid edit modal state (for confirmation)
-  const [showBidConfirmationModal, setShowBidConfirmationModal] = useState(false);
-  const [bidConfirmationKeyword, setBidConfirmationKeyword] = useState<GoogleKeyword | null>(null);
-  const [bidConfirmationOldValue, setBidConfirmationOldValue] = useState<number>(0);
-  const [bidConfirmationNewValue, setBidConfirmationNewValue] = useState<number>(0);
-  const [bidConfirmationLoading, setBidConfirmationLoading] = useState(false);
-
-  // Track if component is mounted to prevent state updates on unmounted components
-  const isMountedRef = useRef(true);
-  const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      // Clear all pending timeouts
-      timeoutIdsRef.current.forEach(id => clearTimeout(id));
-      timeoutIdsRef.current = [];
-    };
-  }, []);
-
   // Compute available tabs based on campaign type
   const tabs = useMemo(() => {
     if (!campaignDetail?.campaign?.advertising_channel_type) {
       return ["Overview", "Ad Groups", "Ads", "Keywords", "Logs"];
     }
 
-    const channelType = (campaignDetail.campaign.advertising_channel_type || "").toUpperCase().trim();
+    const channelType =
+      campaignDetail.campaign.advertising_channel_type.toUpperCase();
 
     if (channelType === "PERFORMANCE_MAX") {
       return ["Overview", "Asset Groups", "Logs"];
@@ -310,20 +324,16 @@ export const GoogleCampaignDetail: React.FC = () => {
       return ["Overview", "Ad Groups", "Product Groups", "Logs"];
     } else {
       // SEARCH or default
-      return ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords", "Logs"];
+      return [
+        "Overview",
+        "Ad Groups",
+        "Ads",
+        "Keywords",
+        "Negative Keywords",
+        "Logs",
+      ];
     }
   }, [campaignDetail?.campaign?.advertising_channel_type]);
-
-  // Helper function to safely set timeout with cleanup
-  const safeSetTimeout = useCallback((callback: () => void, delay: number) => {
-    const timeoutId = setTimeout(() => {
-      if (isMountedRef.current) {
-        callback();
-      }
-    }, delay);
-    timeoutIdsRef.current.push(timeoutId);
-    return timeoutId;
-  }, []);
 
   // Set page title
   useEffect(() => {
@@ -360,10 +370,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     setSyncMessage({ type: null, message: null });
 
     if (accountId && campaignId) {
-      setLoading(true);
       loadCampaignDetail();
-    } else {
-      setLoading(false);
     }
   }, [accountId, campaignId, startDate, endDate]);
 
@@ -438,7 +445,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         parseInt(campaignId, 10),
         {
           page: assetGroupsCurrentPage,
-          page_size: 100,
+          page_size: 10,
           sort_by: assetGroupsSortBy,
           order: assetGroupsSortOrder,
           ...buildAssetGroupsFilterParams(assetGroupsFilters),
@@ -464,7 +471,11 @@ export const GoogleCampaignDetail: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (accountId && campaignId && (activeTab === "Ad Groups" || activeTab === "Negative Keywords")) {
+    if (
+      accountId &&
+      campaignId &&
+      (activeTab === "Ad Groups" || activeTab === "Negative Keywords")
+    ) {
       loadAdGroups();
     }
   }, [
@@ -544,11 +555,13 @@ export const GoogleCampaignDetail: React.FC = () => {
         undefined,
         {
           page: productGroupsCurrentPage,
-          page_size: 100,
+          page_size: 10,
           sort_by: productGroupsSortBy,
           order: productGroupsSortOrder,
-          ad_type: 'SHOPPING_PRODUCT_AD', // Filter for product groups only
-          start_date: startDate ? startDate.toISOString().split("T")[0] : undefined,
+          ad_type: "SHOPPING_PRODUCT_AD", // Filter for product groups only
+          start_date: startDate
+            ? startDate.toISOString().split("T")[0]
+            : undefined,
           end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
           ...buildProductGroupsFilterParams(productGroupsFilters),
         }
@@ -617,6 +630,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const loadCampaignDetail = async () => {
     try {
+      setLoading(true);
       // Clear previous data immediately
       setCampaignDetail(null);
       const accountIdNum = parseInt(accountId!, 10);
@@ -642,14 +656,14 @@ export const GoogleCampaignDetail: React.FC = () => {
         endDate ? endDate.toISOString().split("T")[0] : undefined
       );
 
-      // Set data if campaign ID matches (race condition check)
+      // Only set data if we're still on the same campaign (check for race conditions)
       if (currentCampaignId === campaignId) {
         setCampaignDetail(data);
-      } 
-      setLoading(false);
+      }
     } catch (error) {
       console.error("Failed to load Google campaign detail:", error);
       setCampaignDetail(null);
+    } finally {
       setLoading(false);
     }
   };
@@ -759,7 +773,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         parseInt(campaignId, 10),
         {
           page: adgroupsCurrentPage,
-          page_size: 100,
+          page_size: 10,
           sort_by: adgroupsSortBy,
           order: adgroupsSortOrder,
           ...buildAdGroupsFilterParams(adgroupsFilters),
@@ -793,7 +807,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         undefined,
         {
           page: adsCurrentPage,
-          page_size: 100,
+          page_size: 10,
           sort_by: adsSortBy,
           order: adsSortOrder,
           ...buildAdsFilterParams(adsFilters),
@@ -811,7 +825,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     }
   };
 
-  const loadKeywords = async (page?: number) => {
+  const loadKeywords = async () => {
     try {
       setKeywordsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
@@ -821,18 +835,13 @@ export const GoogleCampaignDetail: React.FC = () => {
         return;
       }
 
-      const pageToUse = page !== undefined ? page : keywordsCurrentPage;
-      if (page !== undefined && page !== keywordsCurrentPage) {
-        setKeywordsCurrentPage(page);
-      }
-
       const data = await campaignsService.getGoogleKeywords(
         accountIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
-          page: pageToUse,
-          page_size: 100,
+          page: keywordsCurrentPage,
+          page_size: 10,
           sort_by: keywordsSortBy,
           order: keywordsSortOrder,
           ...buildKeywordsFilterParams(keywordsFilters),
@@ -1021,7 +1030,9 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const handleSelectAllNegativeKeywords = (checked: boolean) => {
     if (checked) {
-      setSelectedNegativeKeywordIds(new Set(negativeKeywords.map((nkw) => nkw.id)));
+      setSelectedNegativeKeywordIds(
+        new Set(negativeKeywords.map((nkw) => nkw.id))
+      );
     } else {
       setSelectedNegativeKeywordIds(new Set());
     }
@@ -1041,7 +1052,9 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const handleNegativeKeywordsSort = (column: string) => {
     if (negativeKeywordsSortBy === column) {
-      setNegativeKeywordsSortOrder(negativeKeywordsSortOrder === "asc" ? "desc" : "asc");
+      setNegativeKeywordsSortOrder(
+        negativeKeywordsSortOrder === "asc" ? "desc" : "asc"
+      );
     } else {
       setNegativeKeywordsSortBy(column);
       setNegativeKeywordsSortOrder("asc");
@@ -1059,19 +1072,20 @@ export const GoogleCampaignDetail: React.FC = () => {
         return;
       }
 
-      const data = await googleNegativeKeywordsService.getGoogleNegativeKeywords(
-        accountIdNum,
-        {
-          filters: {
-            campaign_id: campaignId,
-            page: negativeKeywordsCurrentPage,
-            page_size: 100,
-            sort_by: negativeKeywordsSortBy,
-            order: negativeKeywordsSortOrder,
-            ...buildNegativeKeywordsFilterParams(negativeKeywordsFilters),
-          },
-        }
-      );
+      const data =
+        await googleNegativeKeywordsService.getGoogleNegativeKeywords(
+          accountIdNum,
+          {
+            filters: {
+              campaign_id: campaignId,
+              page: negativeKeywordsCurrentPage,
+              page_size: 10,
+              sort_by: negativeKeywordsSortBy,
+              order: negativeKeywordsSortOrder,
+              ...buildNegativeKeywordsFilterParams(negativeKeywordsFilters),
+            },
+          }
+        );
 
       setNegativeKeywords(data.negative_keywords || []);
       setNegativeKeywordsTotalPages(data.total_pages || 0);
@@ -1124,7 +1138,10 @@ export const GoogleCampaignDetail: React.FC = () => {
     try {
       setSyncingNegativeKeywords(true);
       setSyncMessage({ type: null, message: null });
-      const result = await googleNegativeKeywordsService.syncGoogleNegativeKeywords(accountIdNum);
+      const result =
+        await googleNegativeKeywordsService.syncGoogleNegativeKeywords(
+          accountIdNum
+        );
       let message = `Successfully synced ${result.synced} negative keywords`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1144,9 +1161,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadNegativeKeywords();
 
       if (result.synced > 0 && !result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync negative keywords:", error);
@@ -1155,15 +1172,17 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync negative keywords from Google Ads";
       setSyncMessage({ type: "negative_keywords", message: errorMessage });
-      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingNegativeKeywords(false);
     }
   };
 
-  const handleCreateNegativeKeywords = async (
-    data: { negativeKeywords: NegativeKeywordInput[]; level: "campaign" | "adgroup"; adGroupId?: string }
-  ) => {
+  const handleCreateNegativeKeywords = async (data: {
+    negativeKeywords: NegativeKeywordInput[];
+    level: "campaign" | "adgroup";
+    adGroupId?: string;
+  }) => {
     if (!accountId || !campaignId) return;
 
     try {
@@ -1173,11 +1192,12 @@ export const GoogleCampaignDetail: React.FC = () => {
       setFailedNegativeKeywords([]);
 
       const accountIdNum = parseInt(accountId, 10);
-      const result = await googleNegativeKeywordsService.createGoogleNegativeKeywords(
-        accountIdNum,
-        campaignId,
-        data
-      );
+      const result =
+        await googleNegativeKeywordsService.createGoogleNegativeKeywords(
+          accountIdNum,
+          campaignId,
+          data
+        );
 
       setCreatedNegativeKeywords(result.negative_keywords || []);
       setIsCreateNegativeKeywordPanelOpen(false);
@@ -1189,84 +1209,11 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to create negative keywords";
       setCreateNegativeKeywordError(errorMessage);
-      setIsCreateNegativeKeywordPanelOpen(false); // Close panel on error
       if (error.response?.data?.failed_negative_keywords) {
         setFailedNegativeKeywords(error.response.data.failed_negative_keywords);
       }
     } finally {
       setCreateNegativeKeywordLoading(false);
-    }
-  };
-
-  const handleUpdateNegativeKeywordStatus = async (criterionId: string, status: string) => {
-    if (!accountId) return;
-
-    try {
-      // Find the negative keyword to get its level
-      const negativeKeyword = negativeKeywords.find((nkw) => nkw.criterion_id === criterionId);
-      if (!negativeKeyword || !negativeKeyword.level) {
-        throw new Error("Negative keyword not found or level is missing");
-      }
-
-      const accountIdNum = parseInt(accountId, 10);
-      await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
-        negativeKeywordIds: [criterionId],
-        action: "status",
-        value: status,
-        level: negativeKeyword.level,
-      });
-      await loadNegativeKeywords();
-    } catch (error: any) {
-      console.error("Failed to update negative keyword status:", error);
-      throw error;
-    }
-  };
-
-  const handleUpdateNegativeKeywordMatchType = async (criterionId: string, matchType: string) => {
-    if (!accountId) return;
-
-    try {
-      // Find the negative keyword to get its level
-      const negativeKeyword = negativeKeywords.find((nkw) => nkw.criterion_id === criterionId);
-      if (!negativeKeyword || !negativeKeyword.level) {
-        throw new Error("Negative keyword not found or level is missing");
-      }
-
-      const accountIdNum = parseInt(accountId, 10);
-      await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
-        negativeKeywordIds: [criterionId],
-        action: "match_type",
-        value: matchType,
-        level: negativeKeyword.level,
-      });
-      await loadNegativeKeywords();
-    } catch (error: any) {
-      console.error("Failed to update negative keyword match type:", error);
-      throw error;
-    }
-  };
-
-  const handleUpdateNegativeKeywordText = async (criterionId: string, keywordText: string) => {
-    if (!accountId) return;
-
-    try {
-      // Find the negative keyword to get its level
-      const negativeKeyword = negativeKeywords.find((nkw) => nkw.criterion_id === criterionId);
-      if (!negativeKeyword || !negativeKeyword.level) {
-        throw new Error("Negative keyword not found or level is missing");
-      }
-
-      const accountIdNum = parseInt(accountId, 10);
-      await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
-        negativeKeywordIds: [criterionId],
-        action: "keyword_text",
-        keyword_text: keywordText,
-        level: negativeKeyword.level,
-      });
-      await loadNegativeKeywords();
-    } catch (error: any) {
-      console.error("Failed to update negative keyword text:", error);
-      throw error;
     }
   };
 
@@ -1284,404 +1231,6 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const handleNegativeKeywordsPageChange = (page: number) => {
     setNegativeKeywordsCurrentPage(page);
-  };
-
-  // Final URL edit handler
-  const handleFinalUrlEditSave = async () => {
-    if (!finalUrlKeyword || !accountId) return;
-    
-    const trimmedUrl = finalUrlValue.trim();
-    if (!trimmedUrl) {
-      setErrorModal({
-        isOpen: true,
-        title: "Validation Error",
-        message: "Final URL cannot be empty. Please enter a URL.",
-      });
-      return;
-    }
-    
-    // Validate URL format
-    let finalUrl = trimmedUrl;
-    if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
-      finalUrl = "https://" + finalUrl;
-    }
-    
-    try {
-      new URL(finalUrl);
-    } catch {
-      setErrorModal({
-        isOpen: true,
-        title: "Invalid URL",
-        message: "Please enter a valid URL. URLs should start with http:// or https://",
-      });
-      return;
-    }
-    
-    let mobileUrl = "";
-    if (useMobileFinalUrl) {
-      const trimmedMobileUrl = mobileFinalUrlValue.trim();
-      if (!trimmedMobileUrl) {
-        setErrorModal({
-          isOpen: true,
-          title: "Validation Error",
-          message: "Mobile final URL cannot be empty when the checkbox is checked. Please enter a mobile URL or uncheck the option.",
-        });
-        return;
-      }
-      mobileUrl = trimmedMobileUrl;
-      if (!mobileUrl.startsWith("http://") && !mobileUrl.startsWith("https://")) {
-        mobileUrl = "https://" + mobileUrl;
-      }
-      try {
-        new URL(mobileUrl);
-      } catch {
-        setErrorModal({
-          isOpen: true,
-          title: "Invalid Mobile URL",
-          message: "Please enter a valid mobile URL. URLs should start with http:// or https://",
-        });
-        return;
-      }
-    }
-    
-    setFinalUrlEditLoading(true);
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
-        keywordIds: [finalUrlKeyword.keyword_id],
-        action: "final_urls",
-        final_url: finalUrl,
-        final_mobile_url: useMobileFinalUrl ? mobileUrl : undefined,
-        adgroupIds: finalUrlKeyword.adgroup_id ? [finalUrlKeyword.adgroup_id] : undefined,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        const errorMessage = response.errors[0];
-        setErrorModal({
-          isOpen: true,
-          title: "Update Failed",
-          message: `Failed to update final URL: ${errorMessage}`,
-        });
-        return;
-      }
-
-      await loadKeywords();
-      setShowFinalUrlModal(false);
-      setFinalUrlKeyword(null);
-      setFinalUrlValue("");
-      setMobileFinalUrlValue("");
-      setUseMobileFinalUrl(false);
-    } catch (error: any) {
-      console.error("Error updating final URL:", error);
-      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
-      setErrorModal({
-        isOpen: true,
-        title: "Update Failed",
-        message: `Failed to update final URL: ${errorMessage}`,
-      });
-    } finally {
-      setFinalUrlEditLoading(false);
-    }
-  };
-
-  // Keyword text edit handler
-  const handleKeywordTextEditSave = async () => {
-    if (!keywordTextEditKeyword || !accountId) return;
-    
-    const trimmedText = keywordTextEditValue.trim();
-    if (!trimmedText) {
-      setErrorModal({
-        isOpen: true,
-        title: "Validation Error",
-        message: "Keyword text cannot be empty. Please enter a keyword.",
-      });
-      return;
-    }
-    
-    const oldText = (keywordTextEditKeyword.keyword_text || "").trim();
-    if (trimmedText === oldText) {
-      setShowKeywordTextEditModal(false);
-      setKeywordTextEditKeyword(null);
-      setKeywordTextEditValue("");
-      return;
-    }
-    
-    setKeywordTextEditLoading(true);
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
-        keywordIds: [keywordTextEditKeyword.keyword_id],
-        action: "keyword_text",
-        keyword_text: trimmedText,
-        adgroupIds: keywordTextEditKeyword.adgroup_id ? [keywordTextEditKeyword.adgroup_id] : undefined,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        const errorMessage = response.errors[0];
-        let title = "Update Failed";
-        let message = errorMessage;
-        
-        if (errorMessage.toLowerCase().includes("already exists") || errorMessage.toLowerCase().includes("duplicate")) {
-          title = "Duplicate Keyword";
-          message = `The keyword "${trimmedText}" already exists in this ad group with the same match type. Please choose a different keyword text.`;
-        } else {
-          message = `Failed to update keyword text: ${errorMessage}`;
-        }
-        
-        setErrorModal({
-          isOpen: true,
-          title,
-          message,
-        });
-        return;
-      }
-
-      // Verify the update was successful
-      if (response.updated === 0) {
-        setErrorModal({
-          isOpen: true,
-          title: "Update Failed",
-          message: "Keyword update did not complete successfully. Please try again.",
-        });
-        return;
-      }
-
-      // Reload keywords table to reflect the update (keyword is already inserted in database by backend)
-      // Reset to page 1 to ensure the new keyword is visible
-      await loadKeywords(1);
-      
-      setShowKeywordTextEditModal(false);
-      setKeywordTextEditKeyword(null);
-      setKeywordTextEditValue("");
-    } catch (error: any) {
-      console.error("Error updating keyword text:", error);
-      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
-      setErrorModal({
-        isOpen: true,
-        title: "Update Failed",
-        message: `Failed to update keyword text: ${errorMessage}`,
-      });
-    } finally {
-      setKeywordTextEditLoading(false);
-    }
-  };
-
-  // Bid confirmation handler for keywords
-  const handleBidConfirmation = (keyword: GoogleKeyword, oldBid: number, newBid: number) => {
-    setBidConfirmationKeyword(keyword);
-    setBidConfirmationOldValue(oldBid);
-    setBidConfirmationNewValue(newBid);
-    setShowBidConfirmationModal(true);
-  };
-
-  // Adgroup bid confirmation modal state
-  const [showAdgroupBidConfirmationModal, setShowAdgroupBidConfirmationModal] = useState(false);
-  const [adgroupBidConfirmationAdgroup, setAdgroupBidConfirmationAdgroup] = useState<any | null>(null);
-  const [adgroupBidConfirmationOldValue, setAdgroupBidConfirmationOldValue] = useState<number>(0);
-  const [adgroupBidConfirmationNewValue, setAdgroupBidConfirmationNewValue] = useState<number>(0);
-  const [adgroupBidConfirmationLoading, setAdgroupBidConfirmationLoading] = useState(false);
-
-  // Adgroup name edit modal state
-  const [showAdgroupNameEditModal, setShowAdgroupNameEditModal] = useState(false);
-  const [adgroupNameEditAdgroup, setAdgroupNameEditAdgroup] = useState<any | null>(null);
-  const [adgroupNameEditValue, setAdgroupNameEditValue] = useState<string>("");
-  const [adgroupNameEditLoading, setAdgroupNameEditLoading] = useState(false);
-
-  // Adgroup bid confirmation handler
-  const handleAdgroupBidConfirmation = (adgroup: any, oldBid: number, newBid: number) => {
-    setAdgroupBidConfirmationAdgroup(adgroup);
-    setAdgroupBidConfirmationOldValue(oldBid);
-    setAdgroupBidConfirmationNewValue(newBid);
-    setShowAdgroupBidConfirmationModal(true);
-  };
-
-  // Adgroup name edit handler - opens modal for editing
-  const handleAdgroupNameEdit = (adgroup: any) => {
-    setAdgroupNameEditAdgroup(adgroup);
-    setAdgroupNameEditValue(adgroup.adgroup_name || adgroup.name || "");
-    setShowAdgroupNameEditModal(true);
-  };
-
-  const handleAdgroupBidConfirmationSave = async () => {
-    if (!adgroupBidConfirmationAdgroup || !accountId) return;
-    
-    setAdgroupBidConfirmationLoading(true);
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-        adgroupIds: [adgroupBidConfirmationAdgroup.adgroup_id],
-        action: "bid",
-        bid: adgroupBidConfirmationNewValue,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        const errorMessage = response.errors[0];
-        setErrorModal({
-          isOpen: true,
-          title: "Update Failed",
-          message: `Failed to update bid: ${errorMessage}`,
-        });
-        setShowAdgroupBidConfirmationModal(false);
-        return;
-      }
-
-      // Update local state
-      setAdgroups((prevAdgroups) =>
-        prevAdgroups.map((ag) =>
-          ag.id === adgroupBidConfirmationAdgroup.id
-            ? { ...ag, cpc_bid_dollars: adgroupBidConfirmationNewValue }
-            : ag
-        )
-      );
-
-      setShowAdgroupBidConfirmationModal(false);
-      setAdgroupBidConfirmationAdgroup(null);
-      setAdgroupBidConfirmationOldValue(0);
-      setAdgroupBidConfirmationNewValue(0);
-    } catch (error: any) {
-      console.error("Error updating adgroup bid:", error);
-      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
-      setErrorModal({
-        isOpen: true,
-        title: "Update Failed",
-        message: `Failed to update bid: ${errorMessage}`,
-      });
-    } finally {
-      setAdgroupBidConfirmationLoading(false);
-    }
-  };
-
-  const handleAdgroupNameEditSave = async () => {
-    if (!adgroupNameEditAdgroup || !accountId) return;
-    
-    const trimmedName = adgroupNameEditValue.trim();
-    if (!trimmedName) {
-      alert("Ad group name cannot be empty. Please enter a name.");
-      return;
-    }
-    
-    const oldName = (adgroupNameEditAdgroup.adgroup_name || adgroupNameEditAdgroup.name || "").trim();
-    if (trimmedName === oldName) {
-      setShowAdgroupNameEditModal(false);
-      setAdgroupNameEditAdgroup(null);
-      setAdgroupNameEditValue("");
-      return;
-    }
-    
-    setAdgroupNameEditLoading(true);
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-        adgroupIds: [adgroupNameEditAdgroup.adgroup_id],
-        action: "name",
-        name: trimmedName,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        const errorMessage = response.errors[0];
-        setErrorModal({
-          isOpen: true,
-          title: "Update Failed",
-          message: `Failed to update adgroup name: ${errorMessage}`,
-        });
-        setShowAdgroupNameEditModal(false);
-        return;
-      }
-
-      // Update local state
-      setAdgroups((prevAdgroups) =>
-        prevAdgroups.map((ag) =>
-          ag.id === adgroupNameEditAdgroup.id
-            ? { ...ag, adgroup_name: trimmedName, name: trimmedName }
-            : ag
-        )
-      );
-
-      setShowAdgroupNameEditModal(false);
-      setAdgroupNameEditAdgroup(null);
-      setAdgroupNameEditValue("");
-    } catch (error: any) {
-      console.error("Error updating adgroup name:", error);
-      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
-      setErrorModal({
-        isOpen: true,
-        title: "Update Failed",
-        message: `Failed to update adgroup name: ${errorMessage}`,
-      });
-    } finally {
-      setAdgroupNameEditLoading(false);
-    }
-  };
-
-  const handleBidConfirmationSave = async () => {
-    if (!bidConfirmationKeyword || !accountId) return;
-    
-    setBidConfirmationLoading(true);
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
-        keywordIds: [bidConfirmationKeyword.keyword_id],
-        action: "bid",
-        bid: bidConfirmationNewValue,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        const errorMessage = response.errors[0];
-        setErrorModal({
-          isOpen: true,
-          title: "Update Failed",
-          message: `Failed to update bid: ${errorMessage}`,
-        });
-        setShowBidConfirmationModal(false);
-        return;
-      }
-
-      // Update local state
-      setKeywords((prevKeywords) =>
-        prevKeywords.map((k) =>
-          k.id === bidConfirmationKeyword.id
-            ? { ...k, cpc_bid_dollars: bidConfirmationNewValue }
-            : k
-        )
-      );
-
-      setShowBidConfirmationModal(false);
-      setBidConfirmationKeyword(null);
-      setBidConfirmationOldValue(0);
-      setBidConfirmationNewValue(0);
-    } catch (error: any) {
-      console.error("Error updating bid:", error);
-      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
-      setErrorModal({
-        isOpen: true,
-        title: "Update Failed",
-        message: `Failed to update bid: ${errorMessage}`,
-      });
-    } finally {
-      setBidConfirmationLoading(false);
-    }
   };
 
   const handleSyncAdGroups = async () => {
@@ -1715,9 +1264,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAdGroups();
 
       if (result.synced > 0 && !result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ad groups:", error);
@@ -1726,7 +1275,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ad groups from Google Ads";
       setSyncMessage({ type: "adgroups", message: errorMessage });
-      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdGroups(false);
     }
@@ -1763,9 +1312,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAds();
 
       if (result.synced > 0 && !result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ads:", error);
@@ -1774,7 +1323,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ads from Google Ads";
       setSyncMessage({ type: "ads", message: errorMessage });
-      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAds(false);
     }
@@ -1811,9 +1360,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadKeywords();
 
       if (result.synced > 0 && !result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync keywords:", error);
@@ -1822,7 +1371,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync keywords from Google Ads";
       setSyncMessage({ type: "keywords", message: errorMessage });
-      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingKeywords(false);
     }
@@ -1844,7 +1393,8 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced adgroup analytics: ${result.rows_inserted || 0
+        `Successfully synced adgroup analytics: ${
+          result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1864,9 +1414,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync adgroup analytics:", error);
@@ -1875,7 +1425,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync adgroup analytics from Google Ads";
       setSyncMessage({ type: "adgroups", message: errorMessage });
-      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdGroupsAnalytics(false);
     }
@@ -1897,7 +1447,8 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced ad analytics: ${result.rows_inserted || 0
+        `Successfully synced ad analytics: ${
+          result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1917,9 +1468,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync ad analytics:", error);
@@ -1928,7 +1479,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync ad analytics from Google Ads";
       setSyncMessage({ type: "ads", message: errorMessage });
-      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAdsAnalytics(false);
     }
@@ -1950,7 +1501,8 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced keyword analytics: ${result.rows_inserted || 0
+        `Successfully synced keyword analytics: ${
+          result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1970,9 +1522,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       }
 
       if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync keyword analytics:", error);
@@ -1981,7 +1533,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync keyword analytics from Google Ads";
       setSyncMessage({ type: "keywords", message: errorMessage });
-      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingKeywordsAnalytics(false);
     }
@@ -2018,9 +1570,9 @@ export const GoogleCampaignDetail: React.FC = () => {
       await loadAssetGroups();
 
       if (result.synced > 0 && !result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 5000);
       } else if (result.errors) {
-        safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
+        setTimeout(() => setSyncMessage({ type: null, message: null }), 15000);
       }
     } catch (error: any) {
       console.error("Failed to sync asset groups:", error);
@@ -2029,7 +1581,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         error.message ||
         "Failed to sync asset groups from Google Ads";
       setSyncMessage({ type: "assetgroups", message: errorMessage });
-      safeSetTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
+      setTimeout(() => setSyncMessage({ type: null, message: null }), 8000);
     } finally {
       setSyncingAssetGroups(false);
     }
@@ -2076,9 +1628,16 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       // Only count entities that exist in response
       const createdEntities = [];
-      if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
-      if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
-      if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
+      if (adgroupCount > 0)
+        createdEntities.push(
+          `${adgroupCount} ad group${adgroupCount !== 1 ? "s" : ""}`
+        );
+      if (adCount > 0)
+        createdEntities.push(`${adCount} ad${adCount !== 1 ? "s" : ""}`);
+      if (keywordCount > 0)
+        createdEntities.push(
+          `${keywordCount} keyword${keywordCount !== 1 ? "s" : ""}`
+        );
 
       const totalCreated = adgroupCount + adCount + keywordCount;
 
@@ -2086,10 +1645,16 @@ export const GoogleCampaignDetail: React.FC = () => {
       if (response.errors && response.errors.length > 0) {
         const summaryParts = [];
         if (totalCreated > 0) {
-          summaryParts.push(`Successfully created: ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'} (${createdEntities.join(', ')})`);
+          summaryParts.push(
+            `Successfully created: ${totalCreated} ${
+              totalCreated !== 1 ? "entities" : "entity"
+            } (${createdEntities.join(", ")})`
+          );
         }
         if (errorCount > 0) {
-          summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
+          summaryParts.push(
+            `Failed: ${errorCount} ${errorCount !== 1 ? "entities" : "entity"}`
+          );
         }
 
         const summaryMessage = summaryParts.join("\n\n");
@@ -2112,7 +1677,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateSearchEntitiesPanelOpen(false);
         setCreateSearchEntitiesError(null);
-        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'}:\n${createdEntities.map(e => `• ${e}`).join('\n')}`;
+        const successMessage = `Successfully created ${totalCreated} ${
+          totalCreated !== 1 ? "entities" : "entity"
+        }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -2176,9 +1743,16 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       // Only count entities that exist in response
       const createdEntities = [];
-      if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
-      if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
-      if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
+      if (adgroupCount > 0)
+        createdEntities.push(
+          `${adgroupCount} ad group${adgroupCount !== 1 ? "s" : ""}`
+        );
+      if (adCount > 0)
+        createdEntities.push(`${adCount} ad${adCount !== 1 ? "s" : ""}`);
+      if (keywordCount > 0)
+        createdEntities.push(
+          `${keywordCount} keyword${keywordCount !== 1 ? "s" : ""}`
+        );
 
       const totalCreated = adgroupCount + adCount + keywordCount;
 
@@ -2186,10 +1760,16 @@ export const GoogleCampaignDetail: React.FC = () => {
       if (response.errors && response.errors.length > 0) {
         const summaryParts = [];
         if (totalCreated > 0) {
-          summaryParts.push(`Successfully created: ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'} (${createdEntities.join(', ')})`);
+          summaryParts.push(
+            `Successfully created: ${totalCreated} ${
+              totalCreated !== 1 ? "entities" : "entity"
+            } (${createdEntities.join(", ")})`
+          );
         }
         if (errorCount > 0) {
-          summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
+          summaryParts.push(
+            `Failed: ${errorCount} ${errorCount !== 1 ? "entities" : "entity"}`
+          );
         }
 
         const summaryMessage = summaryParts.join("\n\n");
@@ -2210,7 +1790,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateSearchEntitiesPanelOpen(false);
         setCreateSearchEntitiesError(null);
-        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'}:\n${createdEntities.map(e => `• ${e}`).join('\n')}`;
+        const successMessage = `Successfully created ${totalCreated} ${
+          totalCreated !== 1 ? "entities" : "entity"
+        }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -2274,9 +1856,16 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       // Only count entities that exist in response
       const createdEntities = [];
-      if (adgroupCount > 0) createdEntities.push(`${adgroupCount} ad group${adgroupCount !== 1 ? 's' : ''}`);
-      if (adCount > 0) createdEntities.push(`${adCount} ad${adCount !== 1 ? 's' : ''}`);
-      if (keywordCount > 0) createdEntities.push(`${keywordCount} keyword${keywordCount !== 1 ? 's' : ''}`);
+      if (adgroupCount > 0)
+        createdEntities.push(
+          `${adgroupCount} ad group${adgroupCount !== 1 ? "s" : ""}`
+        );
+      if (adCount > 0)
+        createdEntities.push(`${adCount} ad${adCount !== 1 ? "s" : ""}`);
+      if (keywordCount > 0)
+        createdEntities.push(
+          `${keywordCount} keyword${keywordCount !== 1 ? "s" : ""}`
+        );
 
       const totalCreated = adgroupCount + adCount + keywordCount;
 
@@ -2284,10 +1873,16 @@ export const GoogleCampaignDetail: React.FC = () => {
       if (response.errors && response.errors.length > 0) {
         const summaryParts = [];
         if (totalCreated > 0) {
-          summaryParts.push(`Successfully created: ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'} (${createdEntities.join(', ')})`);
+          summaryParts.push(
+            `Successfully created: ${totalCreated} ${
+              totalCreated !== 1 ? "entities" : "entity"
+            } (${createdEntities.join(", ")})`
+          );
         }
         if (errorCount > 0) {
-          summaryParts.push(`Failed: ${errorCount} ${errorCount !== 1 ? 'entities' : 'entity'}`);
+          summaryParts.push(
+            `Failed: ${errorCount} ${errorCount !== 1 ? "entities" : "entity"}`
+          );
         }
 
         const summaryMessage = summaryParts.join("\n\n");
@@ -2310,7 +1905,9 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateSearchEntitiesPanelOpen(false);
         setCreateSearchEntitiesError(null);
-        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? 'entities' : 'entity'}:\n${createdEntities.map(e => `• ${e}`).join('\n')}`;
+        const successMessage = `Successfully created ${totalCreated} ${
+          totalCreated !== 1 ? "entities" : "entity"
+        }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -2705,8 +2302,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                 {loading
                   ? "Loading..."
                   : campaignDetail
-                    ? campaignDetail.campaign.name
-                    : "Campaign Not Found"}
+                  ? campaignDetail.campaign.name
+                  : "Campaign Not Found"}
               </h1>
             </div>
 
@@ -2722,7 +2319,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Campaign Name
                     </label>
-                    <div className="table-text leading-[1.26]">
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {campaignDetail.campaign.name || "—"}
                     </div>
                   </div>
@@ -2732,7 +2329,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Campaign ID
                     </label>
-                    <div className="table-text leading-[1.26]">
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {campaignDetail.campaign.campaign_id}
                     </div>
                   </div>
@@ -2774,7 +2371,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="table-text leading-[1.26] cursor-pointer hover:underline"
+                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("status");
                           setEditedValue(
@@ -2787,8 +2384,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             campaignDetail.campaign.status === "ENABLED"
                               ? "Enabled"
                               : campaignDetail.campaign.status === "PAUSED"
-                                ? "Paused"
-                                : "Removed"
+                              ? "Paused"
+                              : "Removed"
                           }
                         />
                       </div>
@@ -2806,7 +2403,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="number"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
+                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
                           autoFocus
                           onBlur={() => {
                             const budgetValue = parseFloat(editedValue);
@@ -2853,7 +2450,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="table-text leading-[1.26] cursor-pointer hover:underline"
+                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("budget");
                           setEditedValue(
@@ -2875,7 +2472,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Channel Type
                     </label>
-                    <div className="table-text leading-[1.26]">
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {campaignDetail.campaign.advertising_channel_type || "—"}
                     </div>
                   </div>
@@ -2885,7 +2482,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Account
                     </label>
-                    <div className="table-text leading-[1.26]">
+                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
                       {campaignDetail.campaign.account_name ||
                         campaignDetail.campaign.customer_id ||
                         "—"}
@@ -2903,13 +2500,13 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="date"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
+                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
                           autoFocus
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.start_date
                               ? new Date(campaignDetail.campaign.start_date)
-                                .toISOString()
-                                .split("T")[0]
+                                  .toISOString()
+                                  .split("T")[0]
                               : "";
                             if (editedValue && editedValue !== oldDate) {
                               setInlineEditField("start_date");
@@ -2925,8 +2522,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             if (e.key === "Enter") {
                               const oldDate = campaignDetail.campaign.start_date
                                 ? new Date(campaignDetail.campaign.start_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                    .toISOString()
+                                    .split("T")[0]
                                 : "";
                               if (editedValue && editedValue !== oldDate) {
                                 setInlineEditField("start_date");
@@ -2946,21 +2543,21 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="table-text leading-[1.26] cursor-pointer hover:underline"
+                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("start_date");
                           const startDate = campaignDetail.campaign.start_date
                             ? new Date(campaignDetail.campaign.start_date)
-                              .toISOString()
-                              .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                             : "";
                           setEditedValue(startDate);
                         }}
                       >
                         {campaignDetail.campaign.start_date
                           ? new Date(
-                            campaignDetail.campaign.start_date
-                          ).toLocaleDateString()
+                              campaignDetail.campaign.start_date
+                            ).toLocaleDateString()
                           : "—"}
                       </div>
                     )}
@@ -2977,13 +2574,13 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="date"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
+                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
                           autoFocus
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.end_date
                               ? new Date(campaignDetail.campaign.end_date)
-                                .toISOString()
-                                .split("T")[0]
+                                  .toISOString()
+                                  .split("T")[0]
                               : "";
                             if (editedValue && editedValue !== oldDate) {
                               setInlineEditField("end_date");
@@ -2999,8 +2596,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             if (e.key === "Enter") {
                               const oldDate = campaignDetail.campaign.end_date
                                 ? new Date(campaignDetail.campaign.end_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                    .toISOString()
+                                    .split("T")[0]
                                 : "";
                               if (editedValue && editedValue !== oldDate) {
                                 setInlineEditField("end_date");
@@ -3020,21 +2617,21 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="table-text leading-[1.26] cursor-pointer hover:underline"
+                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("end_date");
                           const endDate = campaignDetail.campaign.end_date
                             ? new Date(campaignDetail.campaign.end_date)
-                              .toISOString()
-                              .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                             : "";
                           setEditedValue(endDate);
                         }}
                       >
                         {campaignDetail.campaign.end_date
                           ? new Date(
-                            campaignDetail.campaign.end_date
-                          ).toLocaleDateString()
+                              campaignDetail.campaign.end_date
+                            ).toLocaleDateString()
                           : "—"}
                       </div>
                     )}
@@ -3052,7 +2649,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               <div className="flex flex-col gap-4 mb-4">
                 <div className="flex flex-wrap gap-4 md:gap-7">
                   {campaignDetail.kpi_cards &&
-                    campaignDetail.kpi_cards.length > 0 ? (
+                  campaignDetail.kpi_cards.length > 0 ? (
                     campaignDetail.kpi_cards.map((card, index) => (
                       <KPICard
                         key={index}
@@ -3115,21 +2712,12 @@ export const GoogleCampaignDetail: React.FC = () => {
                 {tabs.map((tab) => (
                   <button
                     key={tab}
-                    onClick={() => {
-                      setActiveTab(tab);
-                      // Update URL param when tab changes
-                      const newSearchParams = new URLSearchParams(searchParams);
-                      if (tab === "Overview") {
-                        newSearchParams.delete("tab");
-                      } else {
-                        newSearchParams.set("tab", tab);
-                      }
-                      setSearchParams(newSearchParams, { replace: true });
-                    }}
-                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${activeTab === tab
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
+                      activeTab === tab
                         ? "border-[#136D6D] text-[#136D6D]"
                         : "border-transparent text-[#556179] hover:text-[#072929]"
-                      }`}
+                    }`}
                   >
                     {tab}
                   </button>
@@ -3148,13 +2736,16 @@ export const GoogleCampaignDetail: React.FC = () => {
               {activeTab === "Asset Groups" && (
                 <>
                   {/* Create Asset Group Panel - Only for PERFORMANCE_MAX campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type === "PERFORMANCE_MAX" && (
+                  {campaignDetail?.campaign.advertising_channel_type ===
+                    "PERFORMANCE_MAX" && (
                     <>
                       <div className="mb-4 flex justify-end">
                         <CreateGooglePmaxAssetGroupSection
                           isOpen={isCreatePmaxAssetGroupPanelOpen}
                           onToggle={() => {
-                            setIsCreatePmaxAssetGroupPanelOpen(!isCreatePmaxAssetGroupPanelOpen);
+                            setIsCreatePmaxAssetGroupPanelOpen(
+                              !isCreatePmaxAssetGroupPanelOpen
+                            );
                             setIsAssetGroupsFilterPanelOpen(false);
                           }}
                         />
@@ -3180,7 +2771,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     selectedAssetGroupIds={selectedAssetGroupIds}
                     onSelectAll={(checked) => {
                       if (checked) {
-                        setSelectedAssetGroupIds(new Set(assetGroups.map((ag) => ag.id)));
+                        setSelectedAssetGroupIds(
+                          new Set(assetGroups.map((ag) => ag.id))
+                        );
                       } else {
                         setSelectedAssetGroupIds(new Set());
                       }
@@ -3200,7 +2793,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     sortOrder={assetGroupsSortOrder}
                     onSort={(column) => {
                       if (assetGroupsSortBy === column) {
-                        setAssetGroupsSortOrder(assetGroupsSortOrder === "asc" ? "desc" : "asc");
+                        setAssetGroupsSortOrder(
+                          assetGroupsSortOrder === "asc" ? "desc" : "asc"
+                        );
                       } else {
                         setAssetGroupsSortBy(column);
                         setAssetGroupsSortOrder("asc");
@@ -3212,7 +2807,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onPageChange={setAssetGroupsCurrentPage}
                     isFilterPanelOpen={isAssetGroupsFilterPanelOpen}
                     onToggleFilterPanel={() =>
-                      setIsAssetGroupsFilterPanelOpen(!isAssetGroupsFilterPanelOpen)
+                      setIsAssetGroupsFilterPanelOpen(
+                        !isAssetGroupsFilterPanelOpen
+                      )
                     }
                     filters={assetGroupsFilters}
                     onApplyFilters={(newFilters) => {
@@ -3224,10 +2821,14 @@ export const GoogleCampaignDetail: React.FC = () => {
                     syncingAnalytics={false}
                     onSyncAnalytics={async () => {
                       // TODO: Implement asset groups analytics sync
-                      console.log("Sync asset groups analytics not yet implemented");
+                      console.log(
+                        "Sync asset groups analytics not yet implemented"
+                      );
                     }}
                     syncMessage={
-                      syncMessage.type === "assetgroups" ? syncMessage.message : null
+                      syncMessage.type === "assetgroups"
+                        ? syncMessage.message
+                        : null
                     }
                     formatPercentage={formatPercentage}
                     formatCurrency2Decimals={formatCurrency2Decimals}
@@ -3239,60 +2840,72 @@ export const GoogleCampaignDetail: React.FC = () => {
               {activeTab === "Ad Groups" && (
                 <>
                   {/* Create Ad Group Panel - For SEARCH and SHOPPING campaigns */}
-                  {(campaignDetail?.campaign.advertising_channel_type === "SEARCH" ||
-                    campaignDetail?.campaign.advertising_channel_type === "SHOPPING") && (
-                      <>
-                        <div className="mb-4 flex justify-end">
-                          <CreateGoogleAdGroupSection
-                            isOpen={
-                              campaignDetail?.campaign.advertising_channel_type === "SEARCH"
-                                ? isCreateSearchEntitiesPanelOpen
-                                : isCreateShoppingEntitiesPanelOpen
+                  {(campaignDetail?.campaign.advertising_channel_type ===
+                    "SEARCH" ||
+                    campaignDetail?.campaign.advertising_channel_type ===
+                      "SHOPPING") && (
+                    <>
+                      <div className="mb-4 flex justify-end">
+                        <CreateGoogleAdGroupSection
+                          isOpen={
+                            campaignDetail?.campaign
+                              .advertising_channel_type === "SEARCH"
+                              ? isCreateSearchEntitiesPanelOpen
+                              : isCreateShoppingEntitiesPanelOpen
+                          }
+                          onToggle={() => {
+                            if (
+                              campaignDetail?.campaign
+                                .advertising_channel_type === "SEARCH"
+                            ) {
+                              setIsCreateSearchEntitiesPanelOpen(
+                                !isCreateSearchEntitiesPanelOpen
+                              );
+                            } else {
+                              setIsCreateShoppingEntitiesPanelOpen(
+                                !isCreateShoppingEntitiesPanelOpen
+                              );
                             }
-                            onToggle={() => {
-                              if (campaignDetail?.campaign.advertising_channel_type === "SEARCH") {
-                                setIsCreateSearchEntitiesPanelOpen(!isCreateSearchEntitiesPanelOpen);
-                              } else {
-                                setIsCreateShoppingEntitiesPanelOpen(!isCreateShoppingEntitiesPanelOpen);
-                              }
-                              setIsAdGroupsFilterPanelOpen(false);
+                            setIsAdGroupsFilterPanelOpen(false);
+                          }}
+                        />
+                      </div>
+                      {campaignDetail?.campaign.advertising_channel_type ===
+                        "SEARCH" &&
+                        isCreateSearchEntitiesPanelOpen &&
+                        campaignId && (
+                          <CreateGoogleAdGroupPanel
+                            isOpen={isCreateSearchEntitiesPanelOpen}
+                            onClose={() => {
+                              setIsCreateSearchEntitiesPanelOpen(false);
+                              setCreateSearchEntitiesError(null);
                             }}
+                            onSubmit={handleCreateAdGroup}
+                            campaignId={campaignId}
+                            campaignName={campaignDetail?.campaign.name}
+                            loading={createSearchEntitiesLoading}
+                            submitError={null}
                           />
-                        </div>
-                        {campaignDetail?.campaign.advertising_channel_type === "SEARCH" &&
-                          isCreateSearchEntitiesPanelOpen &&
-                          campaignId && (
-                            <CreateGoogleAdGroupPanel
-                              isOpen={isCreateSearchEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateSearchEntitiesPanelOpen(false);
-                                setCreateSearchEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateAdGroup}
-                              campaignId={campaignId}
-                              campaignName={campaignDetail?.campaign.name}
-                              loading={createSearchEntitiesLoading}
-                              submitError={null}
-                            />
-                          )}
-                        {campaignDetail?.campaign.advertising_channel_type === "SHOPPING" &&
-                          isCreateShoppingEntitiesPanelOpen &&
-                          campaignId && (
-                            <CreateGoogleAdGroupPanel
-                              isOpen={isCreateShoppingEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateShoppingEntitiesPanelOpen(false);
-                                setCreateShoppingEntitiesError(null);
-                              }}
-                              onSubmit={handleCreateShoppingAdGroup}
-                              campaignId={campaignId}
-                              campaignName={campaignDetail?.campaign.name}
-                              loading={createShoppingEntitiesLoading}
-                              submitError={createShoppingEntitiesError}
-                            />
-                          )}
-                      </>
-                    )}
+                        )}
+                      {campaignDetail?.campaign.advertising_channel_type ===
+                        "SHOPPING" &&
+                        isCreateShoppingEntitiesPanelOpen &&
+                        campaignId && (
+                          <CreateGoogleAdGroupPanel
+                            isOpen={isCreateShoppingEntitiesPanelOpen}
+                            onClose={() => {
+                              setIsCreateShoppingEntitiesPanelOpen(false);
+                              setCreateShoppingEntitiesError(null);
+                            }}
+                            onSubmit={handleCreateShoppingAdGroup}
+                            campaignId={campaignId}
+                            campaignName={campaignDetail?.campaign.name}
+                            loading={createShoppingEntitiesLoading}
+                            submitError={createShoppingEntitiesError}
+                          />
+                        )}
+                    </>
+                  )}
                   <GoogleCampaignDetailAdGroupsTab
                     adgroups={adgroups}
                     loading={adgroupsLoading}
@@ -3319,12 +2932,16 @@ export const GoogleCampaignDetail: React.FC = () => {
                     syncingAnalytics={syncingAdGroupsAnalytics}
                     onSyncAnalytics={handleSyncAdGroupsAnalytics}
                     syncMessage={
-                      syncMessage.type === "adgroups" ? syncMessage.message : null
+                      syncMessage.type === "adgroups"
+                        ? syncMessage.message
+                        : null
                     }
-                    onRefresh={loadAdGroups}
                     formatPercentage={formatPercentage}
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     getSortIcon={getSortIcon}
+                    campaignType={
+                      campaignDetail?.campaign?.advertising_channel_type
+                    }
                     onUpdateAdGroupStatus={async (
                       adgroupId: number,
                       status: string
@@ -3355,16 +2972,17 @@ export const GoogleCampaignDetail: React.FC = () => {
                         // Update local state instead of reloading
                         setAdgroups((prevAdgroups) =>
                           prevAdgroups.map((ag) =>
-                            ag.id === adgroupId
-                              ? { ...ag, status: status }
-                              : ag
+                            ag.id === adgroupId ? { ...ag, status: status } : ag
                           )
                         );
                       } catch (error: any) {
-                        console.error("Failed to update adgroup status:", error);
+                        console.error(
+                          "Failed to update adgroup status:",
+                          error
+                        );
                         alert(
                           error.response?.data?.error ||
-                          "Failed to update adgroup status"
+                            "Failed to update adgroup status"
                         );
                         throw error;
                       }
@@ -3408,214 +3026,191 @@ export const GoogleCampaignDetail: React.FC = () => {
                         console.error("Failed to update adgroup bid:", error);
                         alert(
                           error.response?.data?.error ||
-                          "Failed to update adgroup bid"
+                            "Failed to update adgroup bid"
                         );
                         throw error;
                       }
                     }}
-                    onUpdateAdGroupName={async (
-                      adgroupId: number,
-                      name: string
-                    ) => {
-                      try {
-                        const accountIdNum = parseInt(accountId!, 10);
-                        if (isNaN(accountIdNum)) return;
+                  />
+                </>
+              )}
 
-                        // Find the adgroup to get adgroup_id
-                        const adgroup = adgroups.find(
-                          (ag) => ag.id === adgroupId
-                        );
-                        if (!adgroup || !adgroup.adgroup_id) {
-                          alert("Ad group not found");
-                          return;
-                        }
+              {activeTab === "Ads" &&
+                campaignDetail?.campaign.advertising_channel_type !==
+                  "PERFORMANCE_MAX" && (
+                  <>
+                    {/* Create Ad Panel - For SEARCH campaigns */}
+                    {campaignDetail?.campaign.advertising_channel_type ===
+                      "SEARCH" && (
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <CreateGoogleAdSection
+                            isOpen={isCreateSearchEntitiesPanelOpen}
+                            onToggle={() => {
+                              setIsCreateSearchEntitiesPanelOpen(
+                                !isCreateSearchEntitiesPanelOpen
+                              );
+                              setIsAdsFilterPanelOpen(false);
+                            }}
+                          />
+                        </div>
+                        {isCreateSearchEntitiesPanelOpen && campaignId && (
+                          <CreateGoogleAdPanel
+                            isOpen={isCreateSearchEntitiesPanelOpen}
+                            onClose={() => {
+                              setIsCreateSearchEntitiesPanelOpen(false);
+                              setCreateSearchEntitiesError(null);
+                            }}
+                            onSubmit={handleCreateAd}
+                            campaignId={campaignId}
+                            accountId={accountId || ""}
+                            loading={createSearchEntitiesLoading}
+                            submitError={null}
+                          />
+                        )}
+                      </>
+                    )}
+                    {/* Create Product Ad Panel - For SHOPPING campaigns */}
+                    {campaignDetail?.campaign.advertising_channel_type ===
+                      "SHOPPING" && (
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <CreateGoogleShoppingEntitiesSection
+                            isOpen={isCreateShoppingEntitiesPanelOpen}
+                            onToggle={() => {
+                              setIsCreateShoppingEntitiesPanelOpen(
+                                !isCreateShoppingEntitiesPanelOpen
+                              );
+                              setIsAdsFilterPanelOpen(false);
+                            }}
+                          />
+                        </div>
+                        {isCreateShoppingEntitiesPanelOpen &&
+                          campaignId &&
+                          accountId && (
+                            <CreateGoogleShoppingEntitiesPanel
+                              isOpen={isCreateShoppingEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateShoppingEntitiesPanelOpen(false);
+                                setCreateShoppingEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateShoppingEntities}
+                              campaignId={campaignId}
+                              accountId={accountId}
+                              loading={createShoppingEntitiesLoading}
+                              submitError={createShoppingEntitiesError}
+                            />
+                          )}
+                      </>
+                    )}
+                    <GoogleCampaignDetailAdsTab
+                      ads={ads}
+                      loading={adsLoading}
+                      selectedAdIds={selectedAdIds}
+                      onSelectAll={handleSelectAllAds}
+                      onSelectAd={handleSelectAd}
+                      sortBy={adsSortBy}
+                      sortOrder={adsSortOrder}
+                      onSort={handleAdsSort}
+                      currentPage={adsCurrentPage}
+                      totalPages={adsTotalPages}
+                      onPageChange={handleAdsPageChange}
+                      isFilterPanelOpen={isAdsFilterPanelOpen}
+                      onToggleFilterPanel={() =>
+                        setIsAdsFilterPanelOpen(!isAdsFilterPanelOpen)
+                      }
+                      filters={adsFilters}
+                      onApplyFilters={(newFilters) => {
+                        setAdsFilters(newFilters);
+                        setAdsCurrentPage(1);
+                      }}
+                      syncing={syncingAds}
+                      onSync={handleSyncAds}
+                      syncingAnalytics={syncingAdsAnalytics}
+                      onSyncAnalytics={handleSyncAdsAnalytics}
+                      syncMessage={
+                        syncMessage.type === "ads" ? syncMessage.message : null
+                      }
+                      getSortIcon={getSortIcon}
+                      onUpdateAdStatus={async (
+                        adId: number,
+                        status: string
+                      ) => {
+                        try {
+                          const accountIdNum = parseInt(accountId!, 10);
+                          if (isNaN(accountIdNum)) return;
 
-                        // Call API
-                        await campaignsService.bulkUpdateGoogleAdGroups(
-                          accountIdNum,
-                          {
-                            adgroupIds: [adgroup.adgroup_id],
-                            action: "name",
-                            name: name,
+                          // Find the ad to get ad_id
+                          const ad = ads.find((a) => a.id === adId);
+                          if (!ad || !ad.ad_id) {
+                            alert("Ad not found");
+                            return;
                           }
-                        );
 
-                        // Update local state
-                        setAdgroups((prevAdgroups) =>
-                          prevAdgroups.map((ag) =>
-                            ag.id === adgroupId
-                              ? { ...ag, adgroup_name: name, name: name }
-                              : ag
-                          )
-                        );
-                      } catch (error: any) {
-                        console.error("Failed to update adgroup name:", error);
-                        alert(
-                          error.response?.data?.error ||
-                          "Failed to update adgroup name"
-                        );
-                        throw error;
-                      }
-                    }}
-                    onStartBidConfirmation={handleAdgroupBidConfirmation}
-                    onStartNameEdit={handleAdgroupNameEdit}
-                  />
-                </>
-              )}
+                          // Call API
+                          await campaignsService.bulkUpdateGoogleAds(
+                            accountIdNum,
+                            {
+                              adIds: [ad.ad_id],
+                              action: "status",
+                              status: status as
+                                | "ENABLED"
+                                | "PAUSED"
+                                | "REMOVED",
+                            }
+                          );
 
-              {activeTab === "Ads" && campaignDetail?.campaign.advertising_channel_type !== "PERFORMANCE_MAX" && (
-                <>
-                  {/* Create Ad Panel - For SEARCH campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type === "SEARCH" && (
-                    <>
-                      <div className="mb-4 flex justify-end">
-                        <CreateGoogleAdSection
-                          isOpen={isCreateSearchEntitiesPanelOpen}
-                          onToggle={() => {
-                            setIsCreateSearchEntitiesPanelOpen(!isCreateSearchEntitiesPanelOpen);
-                            setIsAdsFilterPanelOpen(false);
-                          }}
-                        />
-                      </div>
-                      {isCreateSearchEntitiesPanelOpen && campaignId && (
-                        <CreateGoogleAdPanel
-                          isOpen={isCreateSearchEntitiesPanelOpen}
-                          onClose={() => {
-                            setIsCreateSearchEntitiesPanelOpen(false);
-                            setCreateSearchEntitiesError(null);
-                          }}
-                          onSubmit={handleCreateAd}
-                          campaignId={campaignId}
-                          accountId={accountId || ""}
-                          loading={createSearchEntitiesLoading}
-                          submitError={null}
-                        />
-                      )}
-                    </>
-                  )}
-                  {/* Create Product Ad Panel - For SHOPPING campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type === "SHOPPING" && (
-                    <>
-                      <div className="mb-4 flex justify-end">
-                        <CreateGoogleShoppingEntitiesSection
-                          isOpen={isCreateShoppingEntitiesPanelOpen}
-                          onToggle={() => {
-                            setIsCreateShoppingEntitiesPanelOpen(!isCreateShoppingEntitiesPanelOpen);
-                            setIsAdsFilterPanelOpen(false);
-                          }}
-                        />
-                      </div>
-                      {isCreateShoppingEntitiesPanelOpen && campaignId && accountId && (
-                        <CreateGoogleShoppingEntitiesPanel
-                          isOpen={isCreateShoppingEntitiesPanelOpen}
-                          onClose={() => {
-                            setIsCreateShoppingEntitiesPanelOpen(false);
-                            setCreateShoppingEntitiesError(null);
-                          }}
-                          onSubmit={handleCreateShoppingEntities}
-                          campaignId={campaignId}
-                          accountId={accountId}
-                          loading={createShoppingEntitiesLoading}
-                          submitError={createShoppingEntitiesError}
-                        />
-                      )}
-                    </>
-                  )}
-                  <GoogleCampaignDetailAdsTab
-                    ads={ads}
-                    loading={adsLoading}
-                    selectedAdIds={selectedAdIds}
-                    onSelectAll={handleSelectAllAds}
-                    onSelectAd={handleSelectAd}
-                    sortBy={adsSortBy}
-                    sortOrder={adsSortOrder}
-                    onSort={handleAdsSort}
-                    currentPage={adsCurrentPage}
-                    totalPages={adsTotalPages}
-                    onPageChange={handleAdsPageChange}
-                    isFilterPanelOpen={isAdsFilterPanelOpen}
-                    onToggleFilterPanel={() =>
-                      setIsAdsFilterPanelOpen(!isAdsFilterPanelOpen)
-                    }
-                    filters={adsFilters}
-                    onApplyFilters={(newFilters) => {
-                      setAdsFilters(newFilters);
-                      setAdsCurrentPage(1);
-                    }}
-                    syncing={syncingAds}
-                    onSync={handleSyncAds}
-                    syncingAnalytics={syncingAdsAnalytics}
-                    onSyncAnalytics={handleSyncAdsAnalytics}
-                    syncMessage={
-                      syncMessage.type === "ads" ? syncMessage.message : null
-                    }
-                    onRefresh={loadAds}
-                    getSortIcon={getSortIcon}
-                    onUpdateAdStatus={async (adId: number, status: string) => {
-                      try {
-                        const accountIdNum = parseInt(accountId!, 10);
-                        if (isNaN(accountIdNum)) return;
-
-                        // Find the ad to get ad_id
-                        const ad = ads.find((a) => a.id === adId);
-                        if (!ad || !ad.ad_id) {
-                          alert("Ad not found");
-                          return;
+                          // Update local state
+                          setAds((prevAds) =>
+                            prevAds.map((a) =>
+                              a.id === adId ? { ...a, status } : a
+                            )
+                          );
+                        } catch (error: any) {
+                          console.error("Failed to update ad status:", error);
+                          alert(
+                            error.response?.data?.error ||
+                              "Failed to update ad status"
+                          );
                         }
-
-                        // Call API
-                        await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
-                          adIds: [ad.ad_id],
-                          action: "status",
-                          status: status as "ENABLED" | "PAUSED" | "REMOVED",
-                        });
-
-                        // Update local state
-                        setAds((prevAds) =>
-                          prevAds.map((a) =>
-                            a.id === adId ? { ...a, status } : a
-                          )
-                        );
-                      } catch (error: any) {
-                        console.error("Failed to update ad status:", error);
-                        alert(
-                          error.response?.data?.error ||
-                          "Failed to update ad status"
-                        );
-                      }
-                    }}
-                  />
-                </>
-              )}
+                      }}
+                    />
+                  </>
+                )}
 
               {activeTab === "Keywords" && (
                 <>
                   {/* Create Keywords Panel - Only for SEARCH campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type === "SEARCH" && (
+                  {campaignDetail?.campaign.advertising_channel_type ===
+                    "SEARCH" && (
                     <>
                       <div className="mb-4 flex justify-end">
                         <CreateGoogleKeywordSection
                           isOpen={isCreateSearchEntitiesPanelOpen}
                           onToggle={() => {
-                            setIsCreateSearchEntitiesPanelOpen(!isCreateSearchEntitiesPanelOpen);
+                            setIsCreateSearchEntitiesPanelOpen(
+                              !isCreateSearchEntitiesPanelOpen
+                            );
                             setIsKeywordsFilterPanelOpen(false);
                           }}
                         />
                       </div>
-                      {isCreateSearchEntitiesPanelOpen && campaignId && accountId && (
-                        <CreateGoogleKeywordPanel
-                          isOpen={isCreateSearchEntitiesPanelOpen}
-                          onClose={() => {
-                            setIsCreateSearchEntitiesPanelOpen(false);
-                            setCreateSearchEntitiesError(null);
-                          }}
-                          onSubmit={handleCreateKeywords}
-                          campaignId={campaignId}
-                          accountId={accountId}
-                          loading={createSearchEntitiesLoading}
-                          submitError={null}
-                        />
-                      )}
+                      {isCreateSearchEntitiesPanelOpen &&
+                        campaignId &&
+                        accountId && (
+                          <CreateGoogleKeywordPanel
+                            isOpen={isCreateSearchEntitiesPanelOpen}
+                            onClose={() => {
+                              setIsCreateSearchEntitiesPanelOpen(false);
+                              setCreateSearchEntitiesError(null);
+                            }}
+                            onSubmit={handleCreateKeywords}
+                            campaignId={campaignId}
+                            accountId={accountId}
+                            loading={createSearchEntitiesLoading}
+                            submitError={null}
+                          />
+                        )}
                     </>
                   )}
                   <GoogleCampaignDetailKeywordsTab
@@ -3644,9 +3239,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                     syncingAnalytics={syncingKeywordsAnalytics}
                     onSyncAnalytics={handleSyncKeywordsAnalytics}
                     syncMessage={
-                      syncMessage.type === "keywords" ? syncMessage.message : null
+                      syncMessage.type === "keywords"
+                        ? syncMessage.message
+                        : null
                     }
-                    onRefresh={loadKeywords}
                     getSortIcon={getSortIcon}
                     onUpdateKeywordStatus={async (
                       keywordId: number,
@@ -3657,7 +3253,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                         if (isNaN(accountIdNum)) return;
 
                         // Find the keyword to get keyword_id
-                        const keyword = keywords.find((k) => k.id === keywordId);
+                        const keyword = keywords.find(
+                          (k) => k.id === keywordId
+                        );
                         if (!keyword || !keyword.keyword_id) {
                           alert("Keyword not found");
                           return;
@@ -3680,58 +3278,15 @@ export const GoogleCampaignDetail: React.FC = () => {
                           )
                         );
                       } catch (error: any) {
-                        console.error("Failed to update keyword status:", error);
+                        console.error(
+                          "Failed to update keyword status:",
+                          error
+                        );
                         alert(
                           error.response?.data?.error ||
-                          "Failed to update keyword status"
+                            "Failed to update keyword status"
                         );
                       }
-                    }}
-                    onUpdateKeywordMatchType={async (
-                      keywordId: number,
-                      matchType: string
-                    ) => {
-                      try {
-                        const accountIdNum = parseInt(accountId!, 10);
-                        if (isNaN(accountIdNum)) return;
-
-                        // Find the keyword to get keyword_id
-                        const keyword = keywords.find((k) => k.id === keywordId);
-                        if (!keyword || !keyword.keyword_id) {
-                          alert("Keyword not found");
-                          return;
-                        }
-
-                        // Call API
-                        await campaignsService.bulkUpdateGoogleKeywords(
-                          accountIdNum,
-                          {
-                            keywordIds: [keyword.keyword_id],
-                            action: "match_type",
-                            match_type: matchType as 'EXACT' | 'PHRASE' | 'BROAD',
-                          }
-                        );
-
-                        // Update local state
-                        setKeywords((prevKeywords) =>
-                          prevKeywords.map((k) =>
-                            k.id === keywordId
-                              ? { ...k, match_type: matchType }
-                              : k
-                          )
-                        );
-                      } catch (error: any) {
-                        console.error("Failed to update keyword match type:", error);
-                        alert(
-                          error.response?.data?.error ||
-                          "Failed to update keyword match type"
-                        );
-                      }
-                    }}
-                    onStartKeywordTextEdit={(keyword: GoogleKeyword) => {
-                      setKeywordTextEditKeyword(keyword);
-                      setKeywordTextEditValue(keyword.keyword_text || "");
-                      setShowKeywordTextEditModal(true);
                     }}
                     onUpdateKeywordBid={async (
                       keywordId: number,
@@ -3742,7 +3297,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                         if (isNaN(accountIdNum)) return;
 
                         // Find the keyword to get keyword_id
-                        const keyword = keywords.find((k) => k.id === keywordId);
+                        const keyword = keywords.find(
+                          (k) => k.id === keywordId
+                        );
                         if (!keyword || !keyword.keyword_id) {
                           alert("Keyword not found");
                           return;
@@ -3770,33 +3327,58 @@ export const GoogleCampaignDetail: React.FC = () => {
                         console.error("Failed to update keyword bid:", error);
                         alert(
                           error.response?.data?.error ||
-                          "Failed to update keyword bid"
+                            "Failed to update keyword bid"
                         );
-                        throw error;
                       }
                     }}
-                    onStartBidConfirmation={handleBidConfirmation}
-                    onStartFinalUrlEdit={(keyword: GoogleKeyword) => {
-                      setFinalUrlKeyword(keyword);
-                      const finalUrls = (keyword as any)?.final_urls || (keyword as any)?.finalUrls || null;
-                      let currentUrl = "";
-                      if (Array.isArray(finalUrls) && finalUrls.length > 0) {
-                        currentUrl = finalUrls[0] || "";
-                      } else if (typeof finalUrls === "string" && finalUrls.trim()) {
-                        currentUrl = finalUrls.trim();
+                    onUpdateKeywordMatchType={async (
+                      keywordId: number,
+                      matchType: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        // Find the keyword to get keyword_id
+                        const keyword = keywords.find(
+                          (k) => k.id === keywordId
+                        );
+                        if (!keyword || !keyword.keyword_id) {
+                          alert("Keyword not found");
+                          return;
+                        }
+
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleKeywords(
+                          accountIdNum,
+                          {
+                            keywordIds: [keyword.keyword_id],
+                            action: "match_type",
+                            match_type: matchType as
+                              | "EXACT"
+                              | "PHRASE"
+                              | "BROAD",
+                          }
+                        );
+
+                        // Update local state
+                        setKeywords((prevKeywords) =>
+                          prevKeywords.map((k) =>
+                            k.id === keywordId
+                              ? { ...k, match_type: matchType }
+                              : k
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error(
+                          "Failed to update keyword match type:",
+                          error
+                        );
+                        alert(
+                          error.response?.data?.error ||
+                            "Failed to update keyword match type"
+                        );
                       }
-                      setFinalUrlValue(currentUrl);
-                      
-                      const mobileUrls = (keyword as any)?.final_mobile_urls || (keyword as any)?.finalMobileUrls || null;
-                      let currentMobileUrl = "";
-                      if (Array.isArray(mobileUrls) && mobileUrls.length > 0) {
-                        currentMobileUrl = mobileUrls[0] || "";
-                      } else if (typeof mobileUrls === "string" && mobileUrls.trim()) {
-                        currentMobileUrl = mobileUrls.trim();
-                      }
-                      setMobileFinalUrlValue(currentMobileUrl);
-                      setUseMobileFinalUrl(!!currentMobileUrl);
-                      setShowFinalUrlModal(true);
                     }}
                   />
                 </>
@@ -3809,31 +3391,37 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <CreateGoogleNegativeKeywordSection
                       isOpen={isCreateNegativeKeywordPanelOpen}
                       onToggle={() => {
-                        setIsCreateNegativeKeywordPanelOpen(!isCreateNegativeKeywordPanelOpen);
+                        setIsCreateNegativeKeywordPanelOpen(
+                          !isCreateNegativeKeywordPanelOpen
+                        );
                         setIsNegativeKeywordsFilterPanelOpen(false);
                       }}
                     />
                   </div>
-                  {isCreateNegativeKeywordPanelOpen && campaignId && accountId && (
-                    <CreateGoogleNegativeKeywordPanel
-                      isOpen={isCreateNegativeKeywordPanelOpen}
-                      onClose={() => {
-                        setIsCreateNegativeKeywordPanelOpen(false);
-                        setCreateNegativeKeywordError(null);
-                        setCreatedNegativeKeywords([]);
-                        setFailedNegativeKeywords([]);
-                      }}
-                      onSubmit={handleCreateNegativeKeywords}
-                      campaignId={campaignId}
-                      accountId={accountId}
-                      campaignType={campaignDetail?.campaign.advertising_channel_type}
-                      adgroups={adgroups}
-                      loading={createNegativeKeywordLoading}
-                      submitError={createNegativeKeywordError}
-                      createdNegativeKeywords={createdNegativeKeywords}
-                      failedNegativeKeywords={failedNegativeKeywords}
-                    />
-                  )}
+                  {isCreateNegativeKeywordPanelOpen &&
+                    campaignId &&
+                    accountId && (
+                      <CreateGoogleNegativeKeywordPanel
+                        isOpen={isCreateNegativeKeywordPanelOpen}
+                        onClose={() => {
+                          setIsCreateNegativeKeywordPanelOpen(false);
+                          setCreateNegativeKeywordError(null);
+                          setCreatedNegativeKeywords([]);
+                          setFailedNegativeKeywords([]);
+                        }}
+                        onSubmit={handleCreateNegativeKeywords}
+                        campaignId={campaignId}
+                        accountId={accountId}
+                        campaignType={
+                          campaignDetail?.campaign?.advertising_channel_type
+                        }
+                        adgroups={adgroups}
+                        loading={createNegativeKeywordLoading}
+                        submitError={createNegativeKeywordError}
+                        createdNegativeKeywords={createdNegativeKeywords}
+                        failedNegativeKeywords={failedNegativeKeywords}
+                      />
+                    )}
                   <GoogleCampaignDetailNegativeKeywordsTab
                     negativeKeywords={negativeKeywords}
                     loading={negativeKeywordsLoading}
@@ -3848,7 +3436,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onPageChange={handleNegativeKeywordsPageChange}
                     isFilterPanelOpen={isNegativeKeywordsFilterPanelOpen}
                     onToggleFilterPanel={() =>
-                      setIsNegativeKeywordsFilterPanelOpen(!isNegativeKeywordsFilterPanelOpen)
+                      setIsNegativeKeywordsFilterPanelOpen(
+                        !isNegativeKeywordsFilterPanelOpen
+                      )
                     }
                     filters={negativeKeywordsFilters}
                     onApplyFilters={(newFilters) => {
@@ -3858,13 +3448,69 @@ export const GoogleCampaignDetail: React.FC = () => {
                     syncing={syncingNegativeKeywords}
                     onSync={handleSyncNegativeKeywords}
                     syncMessage={
-                      syncMessage.type === "negative_keywords" ? syncMessage.message : null
+                      syncMessage.type === "negative_keywords"
+                        ? syncMessage.message
+                        : null
                     }
-                    onRefresh={loadNegativeKeywords}
                     getSortIcon={getSortIcon}
-                    onUpdateNegativeKeywordStatus={handleUpdateNegativeKeywordStatus}
-                    onUpdateNegativeKeywordMatchType={handleUpdateNegativeKeywordMatchType}
-                    onUpdateNegativeKeywordText={handleUpdateNegativeKeywordText}
+                    onUpdateNegativeKeywordStatus={async (
+                      criterionId: string,
+                      status: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
+                          accountIdNum,
+                          {
+                            negativeKeywordIds: [criterionId],
+                            action: "status",
+                            value: status,
+                          }
+                        );
+
+                        await loadNegativeKeywords();
+                      } catch (error: any) {
+                        console.error(
+                          "Failed to update negative keyword status:",
+                          error
+                        );
+                        alert(
+                          error.response?.data?.error ||
+                            "Failed to update negative keyword status"
+                        );
+                      }
+                    }}
+                    onUpdateNegativeKeywordMatchType={async (
+                      criterionId: string,
+                      matchType: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(
+                          accountIdNum,
+                          {
+                            negativeKeywordIds: [criterionId],
+                            action: "match_type",
+                            value: matchType,
+                          }
+                        );
+
+                        await loadNegativeKeywords();
+                      } catch (error: any) {
+                        console.error(
+                          "Failed to update negative keyword match type:",
+                          error
+                        );
+                        alert(
+                          error.response?.data?.error ||
+                            "Failed to update negative keyword match type"
+                        );
+                      }
+                    }}
                   />
                 </>
               )}
@@ -3872,31 +3518,36 @@ export const GoogleCampaignDetail: React.FC = () => {
               {activeTab === "Product Groups" && (
                 <>
                   {/* Create Shopping Entities Panel - Only for SHOPPING campaigns */}
-                  {campaignDetail?.campaign.advertising_channel_type === "SHOPPING" && (
+                  {campaignDetail?.campaign.advertising_channel_type ===
+                    "SHOPPING" && (
                     <>
                       <div className="mb-4 flex justify-end">
                         <CreateGoogleShoppingEntitiesSection
                           isOpen={isCreateShoppingEntitiesPanelOpen}
                           onToggle={() => {
-                            setIsCreateShoppingEntitiesPanelOpen(!isCreateShoppingEntitiesPanelOpen);
+                            setIsCreateShoppingEntitiesPanelOpen(
+                              !isCreateShoppingEntitiesPanelOpen
+                            );
                             // Close filter panel if exists
                           }}
                         />
                       </div>
-                      {isCreateShoppingEntitiesPanelOpen && campaignId && accountId && (
-                        <CreateGoogleShoppingEntitiesPanel
-                          isOpen={isCreateShoppingEntitiesPanelOpen}
-                          onClose={() => {
-                            setIsCreateShoppingEntitiesPanelOpen(false);
-                            setCreateShoppingEntitiesError(null);
-                          }}
-                          onSubmit={handleCreateShoppingEntities}
-                          campaignId={campaignId}
-                          accountId={accountId}
-                          loading={createShoppingEntitiesLoading}
-                          submitError={createShoppingEntitiesError}
-                        />
-                      )}
+                      {isCreateShoppingEntitiesPanelOpen &&
+                        campaignId &&
+                        accountId && (
+                          <CreateGoogleShoppingEntitiesPanel
+                            isOpen={isCreateShoppingEntitiesPanelOpen}
+                            onClose={() => {
+                              setIsCreateShoppingEntitiesPanelOpen(false);
+                              setCreateShoppingEntitiesError(null);
+                            }}
+                            onSubmit={handleCreateShoppingEntities}
+                            campaignId={campaignId}
+                            accountId={accountId}
+                            loading={createShoppingEntitiesLoading}
+                            submitError={createShoppingEntitiesError}
+                          />
+                        )}
                     </>
                   )}
                   <GoogleCampaignDetailProductGroupsTab
@@ -3905,7 +3556,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     selectedProductGroupIds={selectedProductGroupIds}
                     onSelectAll={(checked) => {
                       if (checked) {
-                        setSelectedProductGroupIds(new Set(productGroups.map((pg) => pg.id)));
+                        setSelectedProductGroupIds(
+                          new Set(productGroups.map((pg) => pg.id))
+                        );
                       } else {
                         setSelectedProductGroupIds(new Set());
                       }
@@ -3925,7 +3578,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     sortOrder={productGroupsSortOrder}
                     onSort={(column) => {
                       if (productGroupsSortBy === column) {
-                        setProductGroupsSortOrder(productGroupsSortOrder === "asc" ? "desc" : "asc");
+                        setProductGroupsSortOrder(
+                          productGroupsSortOrder === "asc" ? "desc" : "asc"
+                        );
                       } else {
                         setProductGroupsSortBy(column);
                         setProductGroupsSortOrder("asc");
@@ -3937,7 +3592,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     onPageChange={setProductGroupsCurrentPage}
                     isFilterPanelOpen={isProductGroupsFilterPanelOpen}
                     onToggleFilterPanel={() =>
-                      setIsProductGroupsFilterPanelOpen(!isProductGroupsFilterPanelOpen)
+                      setIsProductGroupsFilterPanelOpen(
+                        !isProductGroupsFilterPanelOpen
+                      )
                     }
                     filters={productGroupsFilters}
                     onApplyFilters={(newFilters) => {
@@ -3974,25 +3631,40 @@ export const GoogleCampaignDetail: React.FC = () => {
 
                         // Product groups come from the ads table, so they should have ad_id
                         // Try both snake_case and camelCase field names
-                        const adId = (productGroup as any).ad_id || (productGroup as any).adId;
+                        const adId =
+                          (productGroup as any).ad_id ||
+                          (productGroup as any).adId;
                         if (!adId) {
-                          alert("Product group ad ID not found. Please sync product groups first.");
+                          alert(
+                            "Product group ad ID not found. Please sync product groups first."
+                          );
                           return;
                         }
 
                         // Get campaign_id and adgroup_id to filter the update to only this specific instance
-                        const campaignId = productGroup.campaign_id || (productGroup as any).campaignId;
-                        const adGroupId = productGroup.adgroup_id || (productGroup as any).adGroupId;
+                        const campaignId =
+                          productGroup.campaign_id ||
+                          (productGroup as any).campaignId;
+                        const adGroupId =
+                          productGroup.adgroup_id ||
+                          (productGroup as any).adGroupId;
 
                         // Call API - product groups use the same bulkUpdateGoogleAds endpoint
                         // Include campaignId and adGroupId to only update this specific instance
-                        await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
-                          adIds: [adId],
-                          action: "status",
-                          status: status as "ENABLED" | "PAUSED" | "REMOVED",
-                          campaignId: campaignId ? String(campaignId) : undefined,
-                          adGroupId: adGroupId ? String(adGroupId) : undefined,
-                        });
+                        await campaignsService.bulkUpdateGoogleAds(
+                          accountIdNum,
+                          {
+                            adIds: [adId],
+                            action: "status",
+                            status: status as "ENABLED" | "PAUSED" | "REMOVED",
+                            campaignId: campaignId
+                              ? String(campaignId)
+                              : undefined,
+                            adGroupId: adGroupId
+                              ? String(adGroupId)
+                              : undefined,
+                          }
+                        );
 
                         // Update local state
                         setProductGroups((prevProductGroups) =>
@@ -4001,10 +3673,13 @@ export const GoogleCampaignDetail: React.FC = () => {
                           )
                         );
                       } catch (error: any) {
-                        console.error("Failed to update product group status:", error);
+                        console.error(
+                          "Failed to update product group status:",
+                          error
+                        );
                         alert(
                           error.response?.data?.error ||
-                          "Failed to update product group status"
+                            "Failed to update product group status"
                         );
                         throw error;
                       }
@@ -4034,10 +3709,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                 {inlineEditField === "status"
                   ? "Status"
                   : inlineEditField === "budget"
-                    ? "Budget"
-                    : inlineEditField === "start_date"
-                      ? "Start Date"
-                      : "End Date"}
+                  ? "Budget"
+                  : inlineEditField === "start_date"
+                  ? "Start Date"
+                  : "End Date"}
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">From:</span>
@@ -4051,10 +3726,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {inlineEditField === "status"
                     ? inlineEditNewValue
                     : inlineEditField === "budget"
-                      ? `$${parseFloat(
+                    ? `$${parseFloat(
                         inlineEditNewValue || "0"
                       ).toLocaleString()}`
-                      : inlineEditNewValue}
+                    : inlineEditNewValue}
                 </span>
               </div>
             </div>
@@ -4087,396 +3762,6 @@ export const GoogleCampaignDetail: React.FC = () => {
         isSuccess={errorModal.isSuccess}
         errorDetails={errorModal.errorDetails}
       />
-
-      {/* Keyword Text Edit Modal */}
-      {showKeywordTextEditModal && keywordTextEditKeyword && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !keywordTextEditLoading) {
-              setShowKeywordTextEditModal(false);
-              setKeywordTextEditKeyword(null);
-              setKeywordTextEditValue("");
-            }
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[18px] font-semibold text-[#072929] mb-2">
-              Edit Keyword Text
-            </h3>
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-[12px] text-yellow-800">
-                <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly. 
-                This will create a new keyword with the updated text and remove the old one. 
-                The keyword will appear with a new ID after the update.
-              </p>
-            </div>
-            <div className="mb-6">
-              <input
-                type="text"
-                value={keywordTextEditValue}
-                onChange={(e) => setKeywordTextEditValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !keywordTextEditLoading) {
-                    handleKeywordTextEditSave();
-                  } else if (e.key === "Escape" && !keywordTextEditLoading) {
-                    setShowKeywordTextEditModal(false);
-                    setKeywordTextEditKeyword(null);
-                    setKeywordTextEditValue("");
-                  }
-                }}
-                disabled={keywordTextEditLoading}
-                autoFocus
-                className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Enter keyword text"
-                maxLength={255}
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!keywordTextEditLoading) {
-                    setShowKeywordTextEditModal(false);
-                    setKeywordTextEditKeyword(null);
-                    setKeywordTextEditValue("");
-                  }
-                }}
-                disabled={keywordTextEditLoading}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleKeywordTextEditSave}
-                disabled={keywordTextEditLoading || !keywordTextEditValue.trim()}
-                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {keywordTextEditLoading ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bid Confirmation Modal */}
-      {showBidConfirmationModal && bidConfirmationKeyword && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !bidConfirmationLoading) {
-              setShowBidConfirmationModal(false);
-              setBidConfirmationKeyword(null);
-              setBidConfirmationOldValue(0);
-              setBidConfirmationNewValue(0);
-            }
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-              Confirm Max. CPC Change
-            </h3>
-            <div className="mb-4">
-              <p className="text-[12.8px] text-[#556179] mb-2">
-                Keyword:{" "}
-                <span className="font-semibold text-[#072929]">
-                  {bidConfirmationKeyword.keyword_text || "Unnamed Keyword"}
-                </span>
-              </p>
-              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-[12.8px] text-[#556179]">Max. CPC:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12.8px] text-[#556179]">
-                      ${bidConfirmationOldValue.toFixed(2)}
-                    </span>
-                    <span className="text-[12.8px] text-[#556179]">→</span>
-                    <span className="text-[12.8px] font-semibold text-[#072929]">
-                      ${bidConfirmationNewValue.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!bidConfirmationLoading) {
-                    setShowBidConfirmationModal(false);
-                    setBidConfirmationKeyword(null);
-                    setBidConfirmationOldValue(0);
-                    setBidConfirmationNewValue(0);
-                  }
-                }}
-                disabled={bidConfirmationLoading}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleBidConfirmationSave}
-                disabled={bidConfirmationLoading}
-                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {bidConfirmationLoading ? "Saving..." : "Confirm"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Adgroup Bid Confirmation Modal */}
-      {showAdgroupBidConfirmationModal && adgroupBidConfirmationAdgroup && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !adgroupBidConfirmationLoading) {
-              setShowAdgroupBidConfirmationModal(false);
-              setAdgroupBidConfirmationAdgroup(null);
-              setAdgroupBidConfirmationOldValue(0);
-              setAdgroupBidConfirmationNewValue(0);
-            }
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-              Confirm Default max. CPC Change
-            </h3>
-            <div className="mb-4">
-              <p className="text-[12.8px] text-[#556179] mb-2">
-                Ad Group:{" "}
-                <span className="font-semibold text-[#072929]">
-                  {adgroupBidConfirmationAdgroup.adgroup_name || adgroupBidConfirmationAdgroup.name || "Unnamed Ad Group"}
-                </span>
-              </p>
-              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-[12.8px] text-[#556179]">Default max. CPC:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12.8px] text-[#556179]">
-                      ${adgroupBidConfirmationOldValue.toFixed(2)}
-                    </span>
-                    <span className="text-[12.8px] text-[#556179]">→</span>
-                    <span className="text-[12.8px] font-semibold text-[#072929]">
-                      ${adgroupBidConfirmationNewValue.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!adgroupBidConfirmationLoading) {
-                    setShowAdgroupBidConfirmationModal(false);
-                    setAdgroupBidConfirmationAdgroup(null);
-                    setAdgroupBidConfirmationOldValue(0);
-                    setAdgroupBidConfirmationNewValue(0);
-                  }
-                }}
-                disabled={adgroupBidConfirmationLoading}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAdgroupBidConfirmationSave}
-                disabled={adgroupBidConfirmationLoading}
-                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {adgroupBidConfirmationLoading ? "Saving..." : "Confirm"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Adgroup Name Edit Modal */}
-      {showAdgroupNameEditModal && adgroupNameEditAdgroup && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !adgroupNameEditLoading) {
-              setShowAdgroupNameEditModal(false);
-              setAdgroupNameEditAdgroup(null);
-              setAdgroupNameEditValue("");
-            }
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[18px] font-semibold text-[#072929] mb-2">
-              Edit Ad Group Name
-            </h3>
-            <div className="mb-6">
-              <input
-                type="text"
-                value={adgroupNameEditValue}
-                onChange={(e) => setAdgroupNameEditValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !adgroupNameEditLoading) {
-                    handleAdgroupNameEditSave();
-                  } else if (e.key === "Escape" && !adgroupNameEditLoading) {
-                    setShowAdgroupNameEditModal(false);
-                    setAdgroupNameEditAdgroup(null);
-                    setAdgroupNameEditValue("");
-                  }
-                }}
-                disabled={adgroupNameEditLoading}
-                autoFocus
-                className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Enter ad group name"
-                maxLength={255}
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!adgroupNameEditLoading) {
-                    setShowAdgroupNameEditModal(false);
-                    setAdgroupNameEditAdgroup(null);
-                    setAdgroupNameEditValue("");
-                  }
-                }}
-                disabled={adgroupNameEditLoading}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAdgroupNameEditSave}
-                disabled={adgroupNameEditLoading || !adgroupNameEditValue.trim()}
-                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {adgroupNameEditLoading ? (
-                  <>
-                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                    Saving...
-                  </>
-                ) : (
-                  "Save"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Final URL Edit Modal */}
-      {showFinalUrlModal && finalUrlKeyword && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !finalUrlEditLoading) {
-              setShowFinalUrlModal(false);
-              setFinalUrlKeyword(null);
-              setFinalUrlValue("");
-              setMobileFinalUrlValue("");
-              setUseMobileFinalUrl(false);
-            }
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-              Edit Final URL
-            </h3>
-            <div className="mb-6 space-y-4">
-              <div>
-                <label className="block text-[11.2px] font-semibold text-[#136D6D] mb-2">
-                  Final URL
-                </label>
-                <input
-                  type="text"
-                  value={finalUrlValue}
-                  onChange={(e) => setFinalUrlValue(e.target.value)}
-                  disabled={finalUrlEditLoading}
-                  autoFocus
-                  className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="www.example.com"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="use-mobile-url"
-                  checked={useMobileFinalUrl}
-                  onChange={(e) => setUseMobileFinalUrl(e.target.checked)}
-                  disabled={finalUrlEditLoading}
-                  className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] disabled:opacity-50"
-                />
-                <label 
-                  htmlFor="use-mobile-url"
-                  className="text-[13.3px] text-[#072929] cursor-pointer"
-                >
-                  Use a different final URL for mobile
-                </label>
-              </div>
-              {useMobileFinalUrl && (
-                <div>
-                  <label className="block text-[11.2px] font-semibold text-[#136D6D] mb-2">
-                    Mobile Final URL
-                  </label>
-                  <input
-                    type="text"
-                    value={mobileFinalUrlValue}
-                    onChange={(e) => setMobileFinalUrlValue(e.target.value)}
-                    disabled={finalUrlEditLoading}
-                    className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="www.example.com"
-                  />
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!finalUrlEditLoading) {
-                    setShowFinalUrlModal(false);
-                    setFinalUrlKeyword(null);
-                    setFinalUrlValue("");
-                    setMobileFinalUrlValue("");
-                    setUseMobileFinalUrl(false);
-                  }
-                }}
-                disabled={finalUrlEditLoading}
-                className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleFinalUrlEditSave}
-                disabled={finalUrlEditLoading || !finalUrlValue.trim()}
-                className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {finalUrlEditLoading ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

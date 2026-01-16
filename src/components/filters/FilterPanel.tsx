@@ -165,21 +165,21 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     // If already loaded, don't reload
     if (profilesLoadedRef.current) return;
 
-      try {
+    try {
       loadingProfilesRef.current = true;
-        setLoadingProfiles(true);
-        // Get channels for the account
-        const channels = await accountsService.getAccountChannels(
-          parseInt(accountId)
-        );
+      setLoadingProfiles(true);
+      // Get channels for the account
+      const channels = await accountsService.getAccountChannels(
+        parseInt(accountId)
+      );
       const amazonChannel = channels.find((ch) => ch.channel_type === "amazon");
 
-        if (amazonChannel) {
-          // Fetch active profiles (is_selected=true, deleted_at is null)
-          const response = await accountsService.getProfiles(amazonChannel.id);
-          const activeProfiles = (response.profiles || []).filter(
-            (profile: any) => profile.is_selected && !profile.deleted_at
-          );
+      if (amazonChannel) {
+        // Fetch active profiles (is_selected=true, deleted_at is null)
+        const response = await accountsService.getProfiles(amazonChannel.id);
+        const activeProfiles = (response.profiles || []).filter(
+          (profile: any) => profile.is_selected && !profile.deleted_at
+        );
 
         const options = activeProfiles.map((profile: any) => {
           const profileName = profile.name || profile.profileId || "";
@@ -198,17 +198,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           };
         });
 
-          setProfileOptions(options);
+        setProfileOptions(options);
         profilesLoadedRef.current = true;
-        }
-      } catch (error) {
-        console.error("Failed to load profiles:", error);
-        setProfileOptions([]);
-      profilesLoadedRef.current = false;
-      } finally {
-        setLoadingProfiles(false);
-      loadingProfilesRef.current = false;
       }
+    } catch (error) {
+      console.error("Failed to load profiles:", error);
+      setProfileOptions([]);
+      profilesLoadedRef.current = false;
+    } finally {
+      setLoadingProfiles(false);
+      loadingProfilesRef.current = false;
+    }
   }, [accountId, channelType]);
 
   // Reset loaded flag when account or channel changes
@@ -427,14 +427,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
     // For profile_name filters, convert unique values back to profile names
     let filterValueToStore: any = isMultiSelectField
-        ? selectedMultiValues // Store array for multi-select fields
-        : selectedField === "budget" ||
-          selectedField === "default_bid" ||
-          selectedField === "spends" ||
-          selectedField === "sales" ||
-          selectedField === "ctr" ||
-          selectedField === "bid"
-        ? parseFloat(filterValue) || 0
+      ? selectedMultiValues // Store array for multi-select fields
+      : selectedField === "budget" ||
+        selectedField === "default_bid" ||
+        selectedField === "spends" ||
+        selectedField === "sales" ||
+        selectedField === "ctr" ||
+        selectedField === "bid"
+      ? parseFloat(filterValue) || 0
       : filterValue;
 
     if (selectedField === "profile_name" && isProfileDropdown) {
@@ -719,7 +719,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   setSelectedOperator("");
                 }
               }}
-              buttonClassName="w-full bg-[#FEFEFB]"
+              buttonClassName="edit-button w-full"
             />
           </div>
 
@@ -732,37 +732,37 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Dropdown<string>
                 options={
                   selectedField === "campaign_name" ||
-                    selectedField === "profile_name" ||
-                    selectedField === "account_name" ||
-                    selectedField === "name" ||
-                    selectedField === "adgroup_name" ||
-                    selectedField === "sku" ||
-                    selectedField === "adId" ||
-                    selectedField === "asin" ||
+                  selectedField === "profile_name" ||
+                  selectedField === "account_name" ||
+                  selectedField === "name" ||
+                  selectedField === "adgroup_name" ||
+                  selectedField === "sku" ||
+                  selectedField === "adId" ||
+                  selectedField === "asin" ||
                   selectedField === "adGroupId" ||
                   selectedField === "keywordText" ||
                   selectedField === "keyword_text" ||
                   selectedField === "expression"
                     ? STRING_OPERATORS.map((op) => ({
-                      value: op.value,
-                      label: op.label,
-                    }))
+                        value: op.value,
+                        label: op.label,
+                      }))
                     : NUMERIC_OPERATORS.map((op) => ({
-                      value: op.value,
-                      label: op.label,
-                    }))
+                        value: op.value,
+                        label: op.label,
+                      }))
                 }
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
                 onChange={(value) => setSelectedOperator(value)}
-                buttonClassName="w-full bg-[#FEFEFB]"
+                buttonClassName="edit-button w-full"
               />
             </div>
           )}
 
           {/* Value Input - Only show when a field is selected */}
           {selectedField && (
-            <div className={isExpression ? "flex-1" : "w-[200px]"}>
+            <div className={isExpression ? "flex-1" : "w-[150px]"}>
               {!isExpression && (
                 <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                   Value
@@ -954,9 +954,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                       : selectedField === "match_type"
                       ? "Match Type"
                       : "Channel Type"
-                    }`}
+                  }`}
                   onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full bg-[#FEFEFB]"
+                  buttonClassName="edit-button w-full"
                 />
               ) : isAssetType ? (
                 <Dropdown<string>
@@ -967,7 +967,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue || undefined}
                   placeholder="Select Asset Type"
                   onChange={(value) => setFilterValue(value)}
-                  buttonClassName="w-full bg-[#FEFEFB]"
+                  buttonClassName="edit-button w-full"
                 />
               ) : isExpression ? (
                 <div className="flex flex-row gap-2 items-end">
@@ -984,7 +984,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                       value={expressionType || undefined}
                       placeholder="Select Expression Type"
                       onChange={(value) => setExpressionType(value)}
-                      buttonClassName="w-full bg-[#FEFEFB]"
+                      buttonClassName="edit-button w-full"
                     />
                   </div>
                   {/* Expression Value Input */}
@@ -1019,7 +1019,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter budget"
-                  className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="campaign-input"
                 />
               ) : (
                 <input
@@ -1027,7 +1027,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter value"
-                  className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="campaign-input"
                 />
               )}
             </div>
@@ -1058,7 +1058,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   selectedField !== "state" &&
                   selectedField !== "targeting_type")
               }
-              className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="apply-button-add"
             >
               Add Filter
             </button>
@@ -1084,17 +1084,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
-        <button
-          onClick={handleClearAll}
-          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
-        >
+        <button onClick={handleClearAll} className="cancel-button">
           Clear All
         </button>
-        <button
-          type="button"
-          onClick={handleApply}
-          className="px-4 py-2 bg-[#136D6D] text-white hover:!text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
-        >
+        <button type="button" onClick={handleApply} className="apply-button">
           Apply Filters
         </button>
       </div>
