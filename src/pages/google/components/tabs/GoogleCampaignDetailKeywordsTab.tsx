@@ -5,10 +5,10 @@ import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
 import {
-  FilterPanel,
+  DynamicFilterPanel,
   type FilterValues,
-} from "../../../../components/filters/FilterPanel";
-import type { GoogleKeyword } from "./types";
+} from "../../../../components/filters/DynamicFilterPanel";
+import type { GoogleKeyword } from "./GoogleTypes";
 
 interface GoogleCampaignDetailKeywordsTabProps {
   keywords: GoogleKeyword[];
@@ -26,6 +26,7 @@ interface GoogleCampaignDetailKeywordsTabProps {
   onToggleFilterPanel: () => void;
   filters: FilterValues;
   onApplyFilters: (filters: FilterValues) => void;
+  accountId: string;
   syncing: boolean;
   onSync: () => void;
   syncingAnalytics?: boolean;
@@ -70,6 +71,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   onToggleFilterPanel,
   filters,
   onApplyFilters,
+  accountId,
   syncing,
   onSync,
   syncingAnalytics,
@@ -356,21 +358,29 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       </div>
 
       {/* Filter Panel */}
-      {isFilterPanelOpen && (
+      {isFilterPanelOpen && accountId && (
         <div className="mb-4">
-          <FilterPanel
+          <DynamicFilterPanel
             isOpen={true}
             onClose={onToggleFilterPanel}
             onApply={(newFilters) => {
-              onApplyFilters(newFilters);
+              // Convert DynamicFilterValues to FilterValues format for compatibility
+              const convertedFilters: FilterValues = newFilters.map((f) => ({
+                id: f.id,
+                field: f.field as FilterValues[0]["field"],
+                operator: f.operator,
+                value: f.value,
+              }));
+              onApplyFilters(convertedFilters);
             }}
-            initialFilters={filters}
-            filterFields={[
-              { value: "name", label: "Keyword" },
-              { value: "type", label: "Match Type" },
-              { value: "status", label: "Status" },
-              { value: "adgroup_name", label: "Ad Group Name" },
-            ]}
+            initialFilters={filters.map((f) => ({
+              id: f.id,
+              field: f.field as string,
+              operator: f.operator,
+              value: f.value,
+            }))}
+            accountId={accountId}
+            marketplace="google_adwords"
           />
         </div>
       )}

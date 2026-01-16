@@ -1,4 +1,4 @@
-import api from "./api";
+import api from "../api";
 
 export interface GoogleLogEntry {
   id: number;
@@ -53,7 +53,7 @@ export interface GoogleLogsExportParams {
   export_type?: "all_data" | "current_view";
 }
 
-export const googleLogsService = {
+export const googleAdwordsLogsService = {
   getGoogleLogs: async (
     accountId: number,
     params?: GoogleLogsQueryParams
@@ -88,7 +88,7 @@ export const googleLogsService = {
     }
 
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/google-logs${
+    const url = `/google-adwords/${accountId}/logs${
       queryString ? `?${queryString}` : ""
     }`;
     const response = await api.get<GoogleLogsResponse>(url);
@@ -131,7 +131,7 @@ export const googleLogsService = {
     }
 
     // Send POST request with filters and export_type in body
-    const url = `/accounts/${accountId}/google-logs/export/`;
+    const url = `/google-adwords/${accountId}/logs/export/`;
     const response = await api.post<{ url: string; filename: string; count: number }>(url, {
       filters,
       export_type: params?.export_type || "all_data",

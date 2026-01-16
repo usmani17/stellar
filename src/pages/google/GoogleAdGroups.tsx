@@ -11,10 +11,10 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
-  FilterPanel,
+  DynamicFilterPanel,
   type FilterValues,
-} from "../../components/filters/FilterPanel";
-import { campaignsService } from "../../services/campaigns";
+} from "../../components/filters/DynamicFilterPanel";
+import { googleAdwordsAdGroupsService } from "../../services/googleAdwords/googleAdwordsAdGroups";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleAdGroupsTable,
@@ -105,7 +105,7 @@ export const GoogleAdGroups: React.FC = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [updatingField, setUpdatingField] = useState<{
+  const [updatingField, _setUpdatingField] = useState<{
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
   } | null>(null);
@@ -206,53 +206,7 @@ export const GoogleAdGroups: React.FC = () => {
     }
   }, [accountId, currentPage, filters, startDate, endDate]);
 
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    filterList.forEach((filter) => {
-      if (filter.field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
-        }
-      } else if (filter.field === "bid") {
-        if (filter.operator === "lt") {
-          params.bid__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.bid__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.bid = filter.value;
-        } else if (filter.operator === "lte") {
-          params.bid__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.bid__gte = filter.value;
-        }
-      } else if (filter.field === "adgroup_name") {
-        if (filter.operator === "contains") {
-          params.adgroup_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.adgroup_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.adgroup_name = filter.value;
-        }
-      } else if (filter.field === "status") {
-        params.status = filter.value;
-      } else if (filter.field === "account_name") {
-        if (filter.operator === "contains") {
-          params.account_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.account_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.account_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
+  // Removed buildFilterParams - now passing filters array directly to service
 
   const loadAdgroupsWithFilters = async (
     accountId: number,
@@ -261,6 +215,7 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       setLoading(true);
       const params: any = {
+        filters: filterList, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         page: 1,
@@ -269,10 +224,9 @@ export const GoogleAdGroups: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filterList),
       };
 
-      const response = await campaignsService.getGoogleAdGroups(
+      const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
         accountId,
         undefined,
         params
@@ -308,6 +262,7 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       setLoading(true);
       const params: any = {
+        filters: filters, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         page: currentPage,
@@ -316,10 +271,9 @@ export const GoogleAdGroups: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
       };
 
-      const response = await campaignsService.getGoogleAdGroups(
+      const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
         accountId,
         undefined,
         params
@@ -363,7 +317,7 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleAdGroups(accountIdNum);
+      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroups(accountIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} adgroups`;
 
@@ -418,7 +372,7 @@ export const GoogleAdGroups: React.FC = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
       
-      const result = await campaignsService.syncGoogleAdGroupAnalytics(
+      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroupAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
         today.toISOString().split("T")[0]
@@ -495,10 +449,10 @@ export const GoogleAdGroups: React.FC = () => {
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-            ...buildFilterParams(filters),
+            filters: filters, // Pass filters array directly
           };
 
-          const response = await campaignsService.getGoogleAdGroups(
+          const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
             accountIdNum,
             undefined,
             params
@@ -771,7 +725,7 @@ export const GoogleAdGroups: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
           adgroupIds: [inlineEditAdgroup.adgroup_id],
           action: "status",
           status: statusValue,
@@ -786,7 +740,7 @@ export const GoogleAdGroups: React.FC = () => {
           throw new Error("Invalid bid value");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
           adgroupIds: [inlineEditAdgroup.adgroup_id],
           action: "bid",
           bid: bidValue,
@@ -801,7 +755,7 @@ export const GoogleAdGroups: React.FC = () => {
           throw new Error("Name cannot be empty");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
           adgroupIds: [inlineEditAdgroup.adgroup_id],
           action: "name",
           name: nameValue,
@@ -850,7 +804,7 @@ export const GoogleAdGroups: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
         adgroupIds: [nameEditAdgroup.adgroup_id],
         action: "name",
         name: trimmedName,
@@ -881,7 +835,7 @@ export const GoogleAdGroups: React.FC = () => {
       // Show loading in modal
       setBulkLoading(true);
 
-      await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
         adgroupIds: Array.from(selectedAdgroups),
         action: "status",
         status: statusValue,
@@ -972,7 +926,7 @@ export const GoogleAdGroups: React.FC = () => {
 
       // Update each adgroup individually (bulk update doesn't support increase/decrease)
       for (const update of updates) {
-        await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
           adgroupIds: [update.adgroupId],
           action: "bid",
           bid: update.newBid,
@@ -1005,13 +959,13 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       setExporting(true);
       const params: any = {
+        filters: filters, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         start_date: startDate
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
       };
 
       // Add pagination for current view export
@@ -1020,7 +974,7 @@ export const GoogleAdGroups: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleAdGroups(
+      await googleAdwordsAdGroupsService.exportGoogleAdGroups(
         accountIdNum,
         params,
         exportType
@@ -1045,43 +999,6 @@ export const GoogleAdGroups: React.FC = () => {
 
   const formatPercentage = (value: number) => {
     return `${value.toFixed(2)}%`;
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "—";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formatSyncDate = (dateString?: string) => {
-    if (!dateString) return "Never";
-    try {
-      const date = new Date(dateString);
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const year = date.getFullYear();
-
-      // Format time in 12-hour format with AM/PM (no leading zero for hours)
-      let hours = date.getHours();
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12; // the hour '0' should be '12'
-      // Don't pad hours - show as "5:09 PM" not "05:09 PM"
-      const hoursFormatted = String(hours);
-
-      return `${month}/${day}/${year} ${hoursFormatted}:${minutes} ${ampm}`;
-    } catch {
-      return dateString;
-    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -1280,28 +1197,35 @@ export const GoogleAdGroups: React.FC = () => {
             )}
 
             {/* Filter Panel - inline, matching Amazon layout */}
-            {isFilterPanelOpen && (
-              <FilterPanel
+            {isFilterPanelOpen && accountId && (
+              <DynamicFilterPanel
                 isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
-                  setFilters(newFilters);
+                  // Convert DynamicFilterValues to FilterValues format for compatibility
+                  const convertedFilters: FilterValues = newFilters.map((f) => ({
+                    id: f.id,
+                    field: f.field as FilterValues[0]["field"],
+                    operator: f.operator,
+                    value: f.value,
+                  }));
+                  setFilters(convertedFilters);
                   setCurrentPage(1);
                   if (accountId) {
                     const accountIdNum = parseInt(accountId, 10);
                     if (!isNaN(accountIdNum)) {
-                      loadAdgroupsWithFilters(accountIdNum, newFilters);
+                      loadAdgroupsWithFilters(accountIdNum, convertedFilters);
                     }
                   }
                 }}
-                initialFilters={filters}
-                filterFields={[
-                  { value: "adgroup_name", label: "Ad Group Name" },
-                  { value: "campaign_name", label: "Campaign Name" },
-                  { value: "status", label: "Status" },
-                  { value: "bid", label: "Bid" },
-                  { value: "account_name", label: "Account Name" },
-                ]}
+                initialFilters={filters.map((f) => ({
+                  id: f.id,
+                  field: f.field as string,
+                  operator: f.operator,
+                  value: f.value,
+                }))}
+                accountId={accountId}
+                marketplace="google_adwords"
               />
             )}
 

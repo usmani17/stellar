@@ -5,7 +5,7 @@ import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
-import type { GoogleAd } from "./types";
+import type { GoogleAd } from "./GoogleTypes";
 
 interface GoogleCampaignDetailAdsTabProps {
   ads: GoogleAd[];

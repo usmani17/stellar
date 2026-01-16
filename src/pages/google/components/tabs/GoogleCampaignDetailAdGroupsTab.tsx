@@ -8,7 +8,7 @@ import {
   FilterPanel,
   type FilterValues,
 } from "../../../../components/filters/FilterPanel";
-import type { GoogleAdGroup } from "./types";
+import type { GoogleAdGroup } from "./GoogleTypes";
 
 interface GoogleCampaignDetailAdGroupsTabProps {
   adgroups: GoogleAdGroup[];

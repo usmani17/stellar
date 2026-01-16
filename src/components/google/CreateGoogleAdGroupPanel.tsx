@@ -23,7 +23,7 @@ export const CreateGoogleAdGroupPanel: React.FC<
   isOpen,
   onClose,
   onSubmit,
-  campaignId,
+  campaignId: _campaignId,
   campaignName,
   loading = false,
   submitError = null,

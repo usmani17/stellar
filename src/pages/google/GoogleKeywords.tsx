@@ -10,10 +10,10 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
-  FilterPanel,
+  DynamicFilterPanel,
   type FilterValues,
-} from "../../components/filters/FilterPanel";
-import { campaignsService } from "../../services/campaigns";
+} from "../../components/filters/DynamicFilterPanel";
+import { googleAdwordsKeywordsService } from "../../services/googleAdwords/googleAdwordsKeywords";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleKeywordsTable,
@@ -226,56 +226,7 @@ export const GoogleKeywords: React.FC = () => {
     }
   }, [accountId, currentPage, filters, startDate, endDate]);
 
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    filterList.forEach((filter) => {
-      const field = filter.field as string;
-      if (field === "keyword_text") {
-        if (filter.operator === "contains") {
-          params.keyword_text__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.keyword_text__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.keyword_text = filter.value;
-        }
-      } else if (field === "bid") {
-        if (filter.operator === "lt") {
-          params.bid__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.bid__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.bid = filter.value;
-        } else if (filter.operator === "lte") {
-          params.bid__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.bid__gte = filter.value;
-        }
-      } else if (field === "status") {
-        params.status = filter.value;
-      } else if (field === "match_type") {
-        params.match_type = filter.value;
-      } else if (field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
-        }
-      } else if (field === "adgroup_name") {
-        if (filter.operator === "contains") {
-          params.adgroup_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.adgroup_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.adgroup_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
+  // Removed buildFilterParams - now passing filters array directly to service
 
   const loadKeywordsWithFilters = async (
     accountId: number,
@@ -292,10 +243,10 @@ export const GoogleKeywords: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filterList),
+        filters: filterList, // Pass filters array directly
       };
 
-      const response = await campaignsService.getGoogleKeywords(
+      const response = await googleAdwordsKeywordsService.getGoogleKeywords(
         accountId,
         undefined,
         undefined,
@@ -339,10 +290,10 @@ export const GoogleKeywords: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters, // Pass filters array directly
       };
 
-      const response = await campaignsService.getGoogleKeywords(
+      const response = await googleAdwordsKeywordsService.getGoogleKeywords(
         accountId,
         undefined,
         undefined,
@@ -397,7 +348,7 @@ export const GoogleKeywords: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleKeywords(accountIdNum);
+      const result = await googleAdwordsKeywordsService.syncGoogleKeywords(accountIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} keywords`;
 
@@ -522,10 +473,10 @@ export const GoogleKeywords: React.FC = () => {
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-            ...buildFilterParams(filters),
+            filters: filters, // Pass filters array directly
           };
 
-          const response = await campaignsService.getGoogleKeywords(
+          const response = await googleAdwordsKeywordsService.getGoogleKeywords(
             accountIdNum,
             undefined,
             undefined,
@@ -688,7 +639,7 @@ export const GoogleKeywords: React.FC = () => {
       }
 
       // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
         keywordIds: [keywordTextEditKeyword.keyword_id],
         action: "keyword_text",
         keyword_text: trimmedText,
@@ -828,7 +779,7 @@ export const GoogleKeywords: React.FC = () => {
       }
 
       // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
         keywordIds: [finalUrlKeyword.keyword_id],
         action: "final_urls",
         final_url: finalUrl,
@@ -1009,7 +960,7 @@ export const GoogleKeywords: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "status",
           status: statusValue,
@@ -1025,7 +976,7 @@ export const GoogleKeywords: React.FC = () => {
           throw new Error("Invalid bid value");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "bid",
           bid: bidValue,
@@ -1046,7 +997,7 @@ export const GoogleKeywords: React.FC = () => {
         };
         const matchTypeValue = matchTypeMap[inlineEditNewValue] || "EXACT";
 
-        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "match_type",
           match_type: matchTypeValue,
@@ -1164,7 +1115,7 @@ export const GoogleKeywords: React.FC = () => {
 
       if (bidAction === "set") {
         // For "set", we can update all keywords with the same bid in a single call
-        await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
           keywordIds: Array.from(selectedKeywords),
           action: "bid",
           bid: valueNum,
@@ -1200,7 +1151,7 @@ export const GoogleKeywords: React.FC = () => {
 
         // Update each keyword individually
         for (const update of keywordUpdates) {
-          await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+          await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
             keywordIds: [update.keywordId],
             action: "bid",
             bid: update.bid,
@@ -1242,7 +1193,7 @@ export const GoogleKeywords: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters, // Pass filters array directly
       };
 
       // Add pagination for current view export
@@ -1251,7 +1202,7 @@ export const GoogleKeywords: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleKeywords(
+      await googleAdwordsKeywordsService.exportGoogleKeywords(
         accountIdNum,
         params,
         exportType
@@ -1484,29 +1435,35 @@ export const GoogleKeywords: React.FC = () => {
             )}
 
             {/* Filter Panel */}
-            {isFilterPanelOpen && (
-              <FilterPanel
+            {isFilterPanelOpen && accountId && (
+              <DynamicFilterPanel
                 isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
-                  setFilters(newFilters);
+                  // Convert DynamicFilterValues to FilterValues format for compatibility
+                  const convertedFilters: FilterValues = newFilters.map((f) => ({
+                    id: f.id,
+                    field: f.field as FilterValues[0]["field"],
+                    operator: f.operator,
+                    value: f.value,
+                  }));
+                  setFilters(convertedFilters);
                   setCurrentPage(1);
                   if (accountId) {
                     const accountIdNum = parseInt(accountId, 10);
                     if (!isNaN(accountIdNum)) {
-                      loadKeywordsWithFilters(accountIdNum, newFilters);
+                      loadKeywordsWithFilters(accountIdNum, convertedFilters);
                     }
                   }
                 }}
-                initialFilters={filters}
-                filterFields={[
-                  { value: "keyword_text", label: "Keyword Text" },
-                  { value: "status", label: "Status" },
-                  { value: "match_type", label: "Match Type" },
-                  { value: "bid", label: "Bid" },
-                  { value: "campaign_name", label: "Campaign Name" },
-                  { value: "adgroup_name", label: "Ad Group Name" },
-                ]}
+                initialFilters={filters.map((f) => ({
+                  id: f.id,
+                  field: f.field as string,
+                  operator: f.operator,
+                  value: f.value,
+                }))}
+                accountId={accountId}
+                marketplace="google_adwords"
               />
             )}
 

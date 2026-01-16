@@ -11,10 +11,13 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
-  FilterPanel,
   type FilterValues,
 } from "../../components/filters/FilterPanel";
+import {
+  DynamicFilterPanel,
+} from "../../components/filters/DynamicFilterPanel";
 import { campaignsService } from "../../services/campaigns";
+import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleCampaignsTable,
@@ -283,47 +286,7 @@ export const GoogleCampaigns: React.FC = () => {
     }
   }, [accountId, currentPage, filters, startDate, endDate]);
 
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    filterList.forEach((filter) => {
-      if (filter.field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
-        }
-      } else if (filter.field === "budget") {
-        if (filter.operator === "lt") {
-          params.budget__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.budget__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.budget = filter.value;
-        } else if (filter.operator === "lte") {
-          params.budget__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.budget__gte = filter.value;
-        }
-      } else if (filter.field === "status") {
-        params.status = filter.value;
-      } else if (filter.field === "advertising_channel_type") {
-        params.advertising_channel_type = filter.value;
-      } else if (filter.field === "account_name") {
-        if (filter.operator === "contains") {
-          params.account_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.account_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.account_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
+  // Removed buildFilterParams - now passing filters array directly to service
 
   const loadCampaignsWithFilters = async (
     accountId: number,
@@ -332,6 +295,7 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       setLoading(true);
       const params: any = {
+        filters: filterList, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         page: 1,
@@ -340,10 +304,9 @@ export const GoogleCampaigns: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filterList),
       };
 
-      const response = await campaignsService.getGoogleCampaigns(
+      const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
         accountId,
         params
       );
@@ -386,10 +349,17 @@ export const GoogleCampaigns: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters || [], // Pass filters array directly - ensure it's always an array
       };
 
-      const response = await campaignsService.getGoogleCampaigns(
+      console.log("🔍 [FILTERS DEBUG] Sending filters to service:", {
+        filters,
+        filtersType: Array.isArray(filters) ? "array" : typeof filters,
+        filtersLength: Array.isArray(filters) ? filters.length : "N/A",
+        params,
+      });
+
+      const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
         accountId,
         params
       );
@@ -471,7 +441,7 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.createGoogleCampaign(
+      const response = await googleAdwordsCampaignsService.createGoogleCampaign(
         accountIdNum,
         data
       );
@@ -622,15 +592,12 @@ export const GoogleCampaigns: React.FC = () => {
         campaignIds: [campaignId],
       };
 
-      let hasChanges = false;
-
       // 1. Check if name changed
       const originalName = original.name || "";
       const newName = data.name || "";
       if (newName !== originalName && newName) {
         console.log("Name changed:", { originalName, newName });
         updatePayload.name = newName;
-        hasChanges = true;
       }
 
       // 2. Check if status changed
@@ -639,7 +606,6 @@ export const GoogleCampaigns: React.FC = () => {
       if (newStatus !== originalStatus && newStatus) {
         console.log("Status changed:", { originalStatus, newStatus });
         updatePayload.status = newStatus;
-        hasChanges = true;
       }
 
       // 3. Check if budget changed
@@ -650,7 +616,6 @@ export const GoogleCampaigns: React.FC = () => {
         updatePayload.value = newBudget;
         updatePayload.budgetAction = "set";
         updatePayload.unit = "amount";
-        hasChanges = true;
       }
 
       // 4. Check if start_date changed
@@ -659,7 +624,6 @@ export const GoogleCampaigns: React.FC = () => {
       if (newStartDate !== originalStartDate && newStartDate) {
         console.log("Start date changed:", { originalStartDate, newStartDate });
         updatePayload.start_date = newStartDate;
-        hasChanges = true;
       }
 
       // 5. Check if end_date changed
@@ -668,7 +632,6 @@ export const GoogleCampaigns: React.FC = () => {
       if (newEndDate !== originalEndDate && newEndDate) {
         console.log("End date changed:", { originalEndDate, newEndDate });
         updatePayload.end_date = newEndDate;
-        hasChanges = true;
       }
 
       // 6. Check if Shopping Settings changed (only for SHOPPING campaigns)
@@ -682,7 +645,6 @@ export const GoogleCampaigns: React.FC = () => {
             newMerchantId,
           });
           updatePayload.merchant_id = newMerchantId;
-          hasChanges = true;
         }
 
         // Check sales_country
@@ -694,7 +656,6 @@ export const GoogleCampaigns: React.FC = () => {
             newSalesCountry,
           });
           updatePayload.sales_country = newSalesCountry;
-          hasChanges = true;
         }
 
         // Check campaign_priority
@@ -706,7 +667,6 @@ export const GoogleCampaigns: React.FC = () => {
             newPriority,
           });
           updatePayload.campaign_priority = newPriority;
-          hasChanges = true;
         }
 
         // Check enable_local
@@ -718,7 +678,6 @@ export const GoogleCampaigns: React.FC = () => {
             newEnableLocal,
           });
           updatePayload.enable_local = newEnableLocal;
-          hasChanges = true;
         }
       }
 
@@ -736,7 +695,6 @@ export const GoogleCampaigns: React.FC = () => {
         ) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.headlines = newHeadlines;
-          hasChanges = true;
         }
 
         // Check descriptions
@@ -749,7 +707,6 @@ export const GoogleCampaigns: React.FC = () => {
         ) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.descriptions = newDescriptions;
-          hasChanges = true;
         }
 
         // Check final_url
@@ -759,7 +716,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newFinalUrl !== originalFinalUrl && newFinalUrl) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.final_url = newFinalUrl;
-          hasChanges = true;
         }
 
         // Check business_name
@@ -769,7 +725,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newBusinessName !== originalBusinessName && newBusinessName) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.business_name = newBusinessName;
-          hasChanges = true;
         }
 
         // Check logo_url
@@ -779,7 +734,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newLogoUrl !== originalLogoUrl && newLogoUrl) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.logo_url = newLogoUrl;
-          hasChanges = true;
         }
 
         // Check marketing_image_url
@@ -791,7 +745,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newMarketingImage !== originalMarketingImage && newMarketingImage) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.marketing_image_url = newMarketingImage;
-          hasChanges = true;
         }
 
         // Check square_marketing_image_url
@@ -803,7 +756,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newSquareImage !== originalSquareImage && newSquareImage) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.square_marketing_image_url = newSquareImage;
-          hasChanges = true;
         }
 
         // Check long_headline
@@ -813,7 +765,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newLongHeadline !== originalLongHeadline && newLongHeadline) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.long_headline = newLongHeadline;
-          hasChanges = true;
         }
 
         // Check asset_group_name
@@ -823,7 +774,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newAssetGroupName !== originalAssetGroupName && newAssetGroupName) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.asset_group_name = newAssetGroupName;
-          hasChanges = true;
         }
       }
 
@@ -855,7 +805,7 @@ export const GoogleCampaigns: React.FC = () => {
       // Update campaign-level fields if there are any changes
       if (hasCampaignChanges) {
         console.log("Executing campaign update with changes...");
-        const result = await campaignsService.bulkUpdateGoogleCampaigns(
+        const result = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           campaignUpdatePayload
         );
@@ -996,7 +946,7 @@ export const GoogleCampaigns: React.FC = () => {
         });
         // Fallback: Fetch from database
         try {
-          const campaignDetail = await campaignsService.getGoogleCampaignDetail(
+          const campaignDetail = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
             accountIdNum,
             row.campaign_id
           );
@@ -1118,7 +1068,7 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleCampaigns(accountIdNum);
+      const result = await googleAdwordsCampaignsService.syncGoogleCampaigns(accountIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} campaigns`;
 
@@ -1173,7 +1123,7 @@ export const GoogleCampaigns: React.FC = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
 
-      const result = await campaignsService.syncGoogleCampaignAnalytics(
+      const result = await googleAdwordsCampaignsService.syncGoogleCampaignAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
         today.toISOString().split("T")[0]
@@ -1250,10 +1200,10 @@ export const GoogleCampaigns: React.FC = () => {
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-            ...buildFilterParams(filters),
+            filters: filters, // Pass filters array directly
           };
 
-          const response = await campaignsService.getGoogleCampaigns(
+          const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
             accountIdNum,
             params
           );
@@ -1660,7 +1610,7 @@ export const GoogleCampaigns: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
@@ -1682,7 +1632,7 @@ export const GoogleCampaigns: React.FC = () => {
           throw new Error("Invalid budget value");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
@@ -1708,7 +1658,7 @@ export const GoogleCampaigns: React.FC = () => {
           dateValue = "";
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
@@ -1786,7 +1736,7 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           payload
         );
@@ -1877,7 +1827,7 @@ export const GoogleCampaigns: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "status",
         status: statusValue,
@@ -1951,7 +1901,7 @@ export const GoogleCampaigns: React.FC = () => {
       // Show loading in modal
       setBulkLoading(true);
 
-      await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
         budgetAction,
@@ -1995,7 +1945,7 @@ export const GoogleCampaigns: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters, // Pass filters array directly
       };
 
       // Add pagination for current view export
@@ -2005,7 +1955,7 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportGoogleCampaigns(
+      const result = await googleAdwordsCampaignsService.exportGoogleCampaigns(
         accountIdNum,
         params,
         exportType
@@ -2051,42 +2001,6 @@ export const GoogleCampaigns: React.FC = () => {
     return `${value.toFixed(2)}%`;
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "—";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formatSyncDate = (dateString?: string) => {
-    if (!dateString) return "Never";
-    try {
-      const date = new Date(dateString);
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const year = date.getFullYear();
-
-      // Format time in 12-hour format with AM/PM (no leading zero for hours)
-      let hours = date.getHours();
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12; // the hour '0' should be '12'
-      // Don't pad hours - show as "5:09 PM" not "05:09 PM"
-      const hoursFormatted = String(hours);
-
-      return `${month}/${day}/${year} ${hoursFormatted}:${minutes} ${ampm}`;
-    } catch {
-      return dateString;
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -2355,28 +2269,35 @@ export const GoogleCampaigns: React.FC = () => {
             )}
 
             {/* Filter Panel - inline, matching Amazon layout */}
-            {isFilterPanelOpen && (
-              <FilterPanel
+            {isFilterPanelOpen && accountId && (
+              <DynamicFilterPanel
                 isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
-                  setFilters(newFilters);
+                  // Convert DynamicFilterValues to FilterValues format for compatibility
+                  const convertedFilters: FilterValues = newFilters.map((f) => ({
+                    id: f.id,
+                    field: f.field as FilterValues[0]["field"],
+                    operator: f.operator,
+                    value: f.value,
+                  }));
+                  setFilters(convertedFilters);
                   setCurrentPage(1);
                   if (accountId) {
                     const accountIdNum = parseInt(accountId, 10);
                     if (!isNaN(accountIdNum)) {
-                      loadCampaignsWithFilters(accountIdNum, newFilters);
+                      loadCampaignsWithFilters(accountIdNum, convertedFilters);
                     }
                   }
                 }}
-                initialFilters={filters}
-                filterFields={[
-                  { value: "campaign_name", label: "Campaign Name" },
-                  { value: "status", label: "Status" },
-                  { value: "budget", label: "Budget" },
-                  { value: "advertising_channel_type", label: "Channel Type" },
-                  { value: "account_name", label: "Account Name" },
-                ]}
+                initialFilters={filters.map((f) => ({
+                  id: f.id,
+                  field: f.field as string,
+                  operator: f.operator,
+                  value: f.value,
+                }))}
+                accountId={accountId}
+                marketplace="google_adwords"
               />
             )}
 

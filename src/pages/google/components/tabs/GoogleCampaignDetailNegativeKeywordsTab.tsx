@@ -8,7 +8,7 @@ import {
   FilterPanel,
   type FilterValues,
 } from "../../../../components/filters/FilterPanel";
-import type { GoogleNegativeKeyword } from "./types";
+import type { GoogleNegativeKeyword } from "./GoogleTypes";
 
 interface GoogleCampaignDetailNegativeKeywordsTabProps {
   negativeKeywords: GoogleNegativeKeyword[];

@@ -9,13 +9,13 @@ import { Button } from "../../components/ui";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Banner } from "../../components/ui/Banner";
 import {
-  FilterPanel,
+  DynamicFilterPanel,
   type FilterValues,
-} from "../../components/filters/FilterPanel";
-import { campaignsService } from "../../services/campaigns";
+} from "../../components/filters/DynamicFilterPanel";
+import { googleAdwordsAdsService } from "../../services/googleAdwords/googleAdwordsAds";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleAdsListTable } from "./components/GoogleAdsListTable";
-import type { GoogleAd } from "./components/tabs/types";
+import type { GoogleAd } from "./components/tabs/GoogleTypes";
 
 export const GoogleAds: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
@@ -185,32 +185,7 @@ export const GoogleAds: React.FC = () => {
     }
   }, [accountId, currentPage, filters, startDate, endDate]);
 
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    filterList.forEach((filter) => {
-      const field = filter.field as string;
-      if (field === "ad_type") {
-        params.ad_type = filter.value;
-      } else if (field === "status") {
-        params.status = filter.value;
-      } else if (field === "campaign_id") {
-        params.campaign_id = filter.value;
-      } else if (field === "adgroup_id") {
-        params.adgroup_id = filter.value;
-      } else if (field === "account_name") {
-        if (filter.operator === "contains") {
-          params.account_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.account_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.account_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
+  // Removed buildFilterParams - now passing filters array directly to service
 
   const loadAdsWithFilters = async (
     accountId: number,
@@ -219,6 +194,7 @@ export const GoogleAds: React.FC = () => {
     try {
       setLoading(true);
       const params: any = {
+        filters: filterList, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         page: 1,
@@ -227,10 +203,9 @@ export const GoogleAds: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filterList),
       };
 
-      const response = await campaignsService.getGoogleAds(
+      const response = await googleAdwordsAdsService.getGoogleAds(
         accountId,
         undefined,
         undefined,
@@ -269,6 +244,7 @@ export const GoogleAds: React.FC = () => {
     try {
       setLoading(true);
       const params: any = {
+        filters: filters, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         page: currentPage,
@@ -277,10 +253,9 @@ export const GoogleAds: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
       };
 
-      const response = await campaignsService.getGoogleAds(
+      const response = await googleAdwordsAdsService.getGoogleAds(
         accountId,
         undefined,
         undefined,
@@ -345,7 +320,7 @@ export const GoogleAds: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleAds(accountIdNum);
+      const result = await googleAdwordsAdsService.syncGoogleAds(accountIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} ads`;
 
@@ -398,7 +373,7 @@ export const GoogleAds: React.FC = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
       
-      const result = await campaignsService.syncGoogleAdAnalytics(
+      const result = await googleAdwordsAdsService.syncGoogleAdAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
         today.toISOString().split("T")[0]
@@ -470,10 +445,10 @@ export const GoogleAds: React.FC = () => {
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-            ...buildFilterParams(filters),
+            filters: filters, // Pass filters array directly
           };
 
-          const response = await campaignsService.getGoogleAds(
+          const response = await googleAdwordsAdsService.getGoogleAds(
             accountIdNum,
             undefined,
             undefined,
@@ -673,7 +648,7 @@ export const GoogleAds: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-        const response = await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+        const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
           adIds: [inlineEditAd.ad_id || inlineEditAd.id],
           action: "status",
           status: statusValue,
@@ -707,7 +682,7 @@ export const GoogleAds: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
         adIds: Array.from(selectedAds),
         action: "status",
         status: statusValue,
@@ -747,7 +722,7 @@ export const GoogleAds: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters, // Pass filters array directly
       };
 
       // Add pagination for current view export
@@ -756,7 +731,7 @@ export const GoogleAds: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleAds(accountIdNum, params, exportType);
+      await googleAdwordsAdsService.exportGoogleAds(accountIdNum, params, exportType);
       
       // Close dropdown after a short delay to show success
       setTimeout(() => {
@@ -961,28 +936,35 @@ export const GoogleAds: React.FC = () => {
             )}
 
             {/* Filter Panel */}
-            {isFilterPanelOpen && (
-              <FilterPanel
+            {isFilterPanelOpen && accountId && (
+              <DynamicFilterPanel
                 isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
-                  setFilters(newFilters);
+                  // Convert DynamicFilterValues to FilterValues format for compatibility
+                  const convertedFilters: FilterValues = newFilters.map((f) => ({
+                    id: f.id,
+                    field: f.field as FilterValues[0]["field"],
+                    operator: f.operator,
+                    value: f.value,
+                  }));
+                  setFilters(convertedFilters);
                   setCurrentPage(1);
                   if (accountId) {
                     const accountIdNum = parseInt(accountId, 10);
                     if (!isNaN(accountIdNum)) {
-                      loadAdsWithFilters(accountIdNum, newFilters);
+                      loadAdsWithFilters(accountIdNum, convertedFilters);
                     }
                   }
                 }}
-                initialFilters={filters}
-                filterFields={[
-                  { value: "ad_type", label: "Ad Type" },
-                  { value: "status", label: "Status" },
-                  { value: "campaign_id", label: "Campaign ID" },
-                  { value: "adgroup_id", label: "Ad Group ID" },
-                  { value: "account_name", label: "Account Name" },
-                ]}
+                initialFilters={filters.map((f) => ({
+                  id: f.id,
+                  field: f.field as string,
+                  operator: f.operator,
+                  value: f.value,
+                }))}
+                accountId={accountId}
+                marketplace="google_adwords"
               />
             )}
 

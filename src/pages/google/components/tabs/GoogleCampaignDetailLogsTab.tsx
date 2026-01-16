@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../../../contexts/DateRangeContext";
 import { Button } from "../../../../components/ui";
-import { googleLogsService } from "../../../../services/googleLogs";
-import type { GoogleLogEntry } from "../../../../services/googleLogs";
+import { googleAdwordsLogsService } from "../../../../services/googleAdwords/googleAdwordsLogs";
+import type { GoogleLogEntry } from "../../../../services/googleAdwords/googleAdwordsLogs";
 
 interface GoogleCampaignDetailLogsTabProps {
   accountId: string;
@@ -40,7 +40,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
         throw new Error("Invalid account ID");
       }
 
-      const response = await googleLogsService.getGoogleLogs(accountIdNum, {
+      const response = await googleAdwordsLogsService.getGoogleLogs(accountIdNum, {
         campaign_id: campaignId,
         page: currentPage,
         page_size: pageSize,
@@ -134,7 +134,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
         params.page_size = pageSize;
       }
 
-      const result = await googleLogsService.exportGoogleLogs(accountIdNum, params);
+      const result = await googleAdwordsLogsService.exportGoogleLogs(accountIdNum, params);
 
       // Automatically download the file
       const link = document.createElement("a");
