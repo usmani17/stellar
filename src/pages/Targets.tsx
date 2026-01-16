@@ -781,7 +781,7 @@ export const Targets: React.FC = () => {
       const targetIds = selectedTargetsData
         .map((t) => t.targetId || t.id)
         .filter(Boolean);
-
+      
       await campaignsService.bulkUpdateTargets(accountIdNum, {
         targetIds: targetIds,
         action: "status",
@@ -1336,7 +1336,7 @@ export const Targets: React.FC = () => {
             {/* Confirmation Modal */}
             {showConfirmationModal && (
               <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setShowConfirmationModal(false);

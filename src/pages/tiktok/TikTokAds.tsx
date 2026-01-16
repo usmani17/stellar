@@ -744,7 +744,7 @@ export const TikTokAds: React.FC = () => {
             {/* Confirmation Modal */}
             {showConfirmationModal && pendingStatusAction && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) {
                             setShowConfirmationModal(false);
@@ -886,7 +886,7 @@ export const TikTokAds: React.FC = () => {
             {/* Inline Edit Confirmation Modal */}
             {showInlineEditConfirm && pendingInlineEdit && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                     onClick={(e) => {
                         if (e.target === e.currentTarget && !inlineEditLoading) {
                             setShowInlineEditConfirm(false);
@@ -963,7 +963,7 @@ export const TikTokAds: React.FC = () => {
             {/* Delete Confirmation Modal */}
             {showDeleteModal && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                     onClick={(e) => {
                         if (e.target === e.currentTarget && !deleteLoading) {
                             setShowDeleteModal(false);

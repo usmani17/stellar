@@ -1113,7 +1113,7 @@ export const AdGroups: React.FC = () => {
 
           return (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
               onClick={(e) => {
                 if (
                   e.target === e.currentTarget &&
@@ -1552,7 +1552,7 @@ export const AdGroups: React.FC = () => {
             {/* Confirmation Modal */}
             {showConfirmationModal && (
               <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
+                className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setShowConfirmationModal(false);
@@ -1637,15 +1637,15 @@ export const AdGroups: React.FC = () => {
                                     : oldStatus;
 
                                   return (
-                                    <tr
-                                      key={ag.id}
+                                  <tr
+                                    key={ag.id}
                                       className="border-b border-gray-200 last:border-b-0"
-                                    >
-                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                        {ag.name || "Unnamed Ad Group"}
-                                      </td>
+                                  >
+                                    <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                      {ag.name || "Unnamed Ad Group"}
+                                    </td>
                                       <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                        {isBidChange
+                                      {isBidChange
                                           ? `$${oldBid.toFixed(2)}`
                                           : oldStatus}
                                       </td>
@@ -1653,8 +1653,8 @@ export const AdGroups: React.FC = () => {
                                         {isBidChange
                                           ? `$${newBid.toFixed(2)}`
                                           : newStatus}
-                                      </td>
-                                    </tr>
+                                    </td>
+                                  </tr>
                                   );
                                 })}
                             </tbody>
