@@ -6740,7 +6740,7 @@ export const CampaignDetail: React.FC = () => {
                       <Button
                         type="button"
                         variant="ghost"
-                        className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                        className="edit-button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowProductAdsBulkActions((prev) => !prev);
@@ -7204,7 +7204,7 @@ export const CampaignDetail: React.FC = () => {
                         <Button
                           type="button"
                           variant="ghost"
-                          className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+                          className="edit-button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowNegativeTargetsBulkActions(
