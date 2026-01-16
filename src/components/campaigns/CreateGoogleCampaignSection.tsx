@@ -12,7 +12,7 @@ export const CreateGoogleCampaignSection: React.FC<CreateGoogleCampaignSectionPr
   return (
     <button
       onClick={onToggle}
-      className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors"
+      className="create-entity-button"
     >
       <svg
         className="w-5 h-5 text-white"

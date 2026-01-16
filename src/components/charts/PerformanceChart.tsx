@@ -76,11 +76,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
               .map((m) => m.label)
               .join(", ");
             return (
-              <button
-                type="button"
-                onClick={toggle}
-                className="flex items-center gap-2 px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg text-[11px] text-[#072929] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
-              >
+              <button type="button" onClick={toggle} className="edit-button">
                 <span className="truncate">
                   {selectedLabels || "Select metrics"}
                 </span>

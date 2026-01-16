@@ -146,13 +146,18 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
     }
 
     // Only validate defaultBid for SP and SD campaigns (not SB)
-    if (campaignType !== "SB" && (currentAdGroup.defaultBid === undefined || currentAdGroup.defaultBid <= 0)) {
+    if (
+      campaignType !== "SB" &&
+      (currentAdGroup.defaultBid === undefined ||
+        currentAdGroup.defaultBid <= 0)
+    ) {
       newErrors.defaultBid = "Default bid must be greater than 0";
     }
 
     // Validate bidOptimization for SD campaigns
     if (campaignType === "SD" && !currentAdGroup.bidOptimization) {
-      newErrors.bidOptimization = "Bid optimization is required for SD campaigns";
+      newErrors.bidOptimization =
+        "Bid optimization is required for SD campaigns";
     }
 
     setErrors(newErrors);
@@ -404,7 +409,9 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               State *
             </label>
             <Dropdown<string>
-              options={campaignType === "SD" ? STATE_OPTIONS_SD : STATE_OPTIONS_SP_SB}
+              options={
+                campaignType === "SD" ? STATE_OPTIONS_SD : STATE_OPTIONS_SP_SB
+              }
               value={currentAdGroup.state}
               onChange={(value) =>
                 handleChange("state", value as AdGroupInput["state"])
@@ -424,7 +431,10 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                 options={BID_OPTIMIZATION_OPTIONS}
                 value={currentAdGroup.bidOptimization || "clicks"}
                 onChange={(value) =>
-                  handleChange("bidOptimization", value as "reach" | "clicks" | "conversions")
+                  handleChange(
+                    "bidOptimization",
+                    value as "reach" | "clicks" | "conversions"
+                  )
                 }
                 placeholder="Select bid optimization"
                 buttonClassName="w-full"
@@ -451,7 +461,10 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                 ]}
                 value={currentAdGroup.creativeType || null}
                 onChange={(value) =>
-                  handleChange("creativeType", value === null ? null : (value as "IMAGE" | "VIDEO"))
+                  handleChange(
+                    "creativeType",
+                    value === null ? null : (value as "IMAGE" | "VIDEO")
+                  )
                 }
                 placeholder="Select creative type"
                 buttonClassName="w-full"
@@ -483,30 +496,18 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-[#e8e8e3]">
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Ad Group Name
-                    </th>
+                    <th className="table-header">Ad Group Name</th>
                     {campaignType !== "SB" && (
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                        Default Bid
-                      </th>
+                      <th className="table-header">Default Bid</th>
                     )}
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      State
-                    </th>
+                    <th className="table-header">State</th>
                     {campaignType === "SD" && (
                       <>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                          Bid Optimization
-                        </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                          Creative Type
-                        </th>
+                        <th className="table-header">Bid Optimization</th>
+                        <th className="table-header">Creative Type</th>
                       </>
                     )}
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
-                      Action
-                    </th>
+                    <th className="table-header">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -542,9 +543,9 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                           shouldHighlight ? "bg-red-50" : ""
                         } hover:bg-gray-50 transition-colors`}
                       >
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {adgroup.name}
                             </span>
                             {adGroupRowErrors
@@ -560,9 +561,9 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                           </div>
                         </td>
                         {campaignType !== "SB" && (
-                          <td className="py-[10px] px-[10px]">
+                          <td className="table-cell">
                             <div className="flex flex-col">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <span className="table-text leading-[1.26]">
                                 ${(adgroup.defaultBid || 0).toFixed(2)}
                               </span>
                               {adGroupRowErrors
@@ -578,9 +579,9 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                             </div>
                           </td>
                         )}
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <div className="flex flex-col">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <span className="table-text leading-[1.26]">
                               {adgroup.state}
                             </span>
                             {adGroupRowErrors
@@ -597,19 +598,19 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                         </td>
                         {campaignType === "SD" && (
                           <>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {adgroup.bidOptimization || "clicks"}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {adgroup.creativeType || "IMAGE (default)"}
                               </span>
                             </td>
                           </>
                         )}
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <button
                             type="button"
                             onClick={() => handleRemoveAdGroup(index)}

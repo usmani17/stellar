@@ -78,7 +78,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                   <table className="min-w-full w-full">
                     <thead>
                       <tr className="border-b border-[#e8e8e3]">
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                        <th className="table-header w-[35px]">
                           <div className="flex items-center justify-center">
                             <Checkbox
                               checked={false}
@@ -87,19 +87,19 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                             />
                           </div>
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Keyword Name
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           CTR
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Status
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Spends
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Sales
                         </th>
                       </tr>
@@ -117,7 +117,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                                 : ""
                             } hover:bg-gray-50 transition-colors`}
                           >
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <div className="flex items-center justify-center">
                                 <Checkbox
                                   checked={false}
@@ -126,26 +126,26 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                                 />
                               </div>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.name}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.ctr}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <StatusBadge status={keyword.status} />
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.spends}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.sales}
                               </span>
                             </td>
@@ -184,7 +184,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 <table className="min-w-full w-full">
                   <thead>
                     <tr className="border-b border-[#e8e8e3]">
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                      <th className="table-header w-[35px]">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={false}
@@ -193,13 +193,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                           />
                         </div>
                       </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      <th className="table-header">
                         Product Name
                       </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      <th className="table-header">
                         ASIN
                       </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                      <th className="table-header">
                         Sales
                       </th>
                     </tr>
@@ -215,7 +215,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                             !isLastRow ? "border-b border-[#e8e8e3]" : ""
                           } hover:bg-gray-50 transition-colors`}
                         >
-                          <td className="py-[10px] px-[10px]">
+                          <td className="table-cell">
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={false}
@@ -224,18 +224,18 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                               />
                             </div>
                           </td>
-                          <td className="py-[10px] px-[10px]">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell">
+                            <span className="table-text leading-[1.26]">
                               {product.name}
                             </span>
                           </td>
-                          <td className="py-[10px] px-[10px]">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell">
+                            <span className="table-text leading-[1.26]">
                               {product.asin}
                             </span>
                           </td>
-                          <td className="py-[10px] px-[10px]">
-                            <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell">
+                            <span className="table-text leading-[1.26]">
                               {product.sales}
                             </span>
                           </td>

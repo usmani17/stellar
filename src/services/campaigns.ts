@@ -1994,6 +1994,12 @@ export const campaignsService = {
       start_date?: string; // YYYY-MM-DD format
       end_date?: string; // YYYY-MM-DD format
       status?: "ENABLED" | "PAUSED";
+      bidding_strategy_type?: string;
+      target_cpa_micros?: number; // Target CPA in micros (e.g., 1000000 = $1.00)
+      target_roas?: number; // Target ROAS (e.g., 3.0 = 300%)
+      target_impression_share_location?: string; // TOP_OF_PAGE, ABSOLUTE_TOP_OF_PAGE, ANYWHERE_ON_PAGE
+      target_impression_share_location_fraction_micros?: number; // Target impression share in micros (e.g., 800000 = 80%)
+      target_impression_share_cpc_bid_ceiling_micros?: number; // Maximum CPC bid ceiling in micros (e.g., 1000000 = $1.00)
       // Performance Max fields
       final_url?: string;
       asset_group_name?: string;
@@ -2720,6 +2726,11 @@ export const campaignsService = {
       start_date?: string;
       end_date?: string;
       bidding_strategy_type?: string;
+      target_cpa_micros?: number;
+      target_roas?: number;
+      target_impression_share_location?: string;
+      target_impression_share_location_fraction_micros?: number;
+      target_impression_share_cpc_bid_ceiling_micros?: number;
       budgetAction?: "increase" | "decrease" | "set";
       unit?: "percent" | "amount";
       value?: number;
@@ -3620,10 +3631,14 @@ export const campaignsService = {
     accountId: number,
     payload: {
       keywordIds: Array<string | number>;
-      action: "status" | "bid" | "match_type";
+      action: "status" | "bid" | "match_type" | "keyword_text" | "final_urls";
       status?: "ENABLED" | "PAUSED";
       bid?: number;
       match_type?: "EXACT" | "PHRASE" | "BROAD";
+      keyword_text?: string;
+      final_url?: string;
+      final_mobile_url?: string;
+      adgroupIds?: Array<string | number>; // Optional: for filtering keywords by ad group
     }
   ) => {
     const url = `/accounts/${accountId}/google-keywords/bulk-update/`;
@@ -3635,9 +3650,10 @@ export const campaignsService = {
     accountId: number,
     payload: {
       adgroupIds: Array<string | number>;
-      action: "status" | "bid";
+      action: "status" | "bid" | "name";
       status?: "ENABLED" | "PAUSED";
       bid?: number;
+      name?: string;
     }
   ) => {
     const url = `/accounts/${accountId}/google-adgroups/bulk-update/`;

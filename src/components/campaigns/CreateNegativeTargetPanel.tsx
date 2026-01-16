@@ -397,18 +397,18 @@ export const CreateNegativeTargetPanel: React.FC<
                 );
                 return (
                   <tr key={index} className="border-t border-gray-200">
-                    <td className="px-4 py-2 text-[13.3px] text-[#0b0f16]">
+                    <td className="px-4 py-2 table-text">
                       {adgroup?.name || ntg.adGroupId}
                     </td>
-                    <td className="px-4 py-2 text-[13.3px] text-[#0b0f16]">
+                    <td className="px-4 py-2 table-text">
                       {expressionType?.label || firstExpression?.type || "—"}
                     </td>
-                    <td className="px-4 py-2 text-[13.3px] text-[#0b0f16]">
+                    <td className="px-4 py-2 table-text">
                       {firstExpression?.value || "—"}
                     </td>
                     {/* State column - only show for SP campaigns */}
                     {campaignType !== "SB" && (
-                      <td className="px-4 py-2 text-[13.3px] text-[#0b0f16]">
+                      <td className="px-4 py-2 table-text">
                         {ntg.state || "—"}
                       </td>
                     )}

@@ -57,8 +57,10 @@ export interface CreateNegativeKeywordsRequest {
 
 export interface BulkUpdateNegativeKeywordsRequest {
   negativeKeywordIds: string[];
-  action: "status" | "match_type";
-  value: string;
+  action: "status" | "match_type" | "keyword_text";
+  value?: string;
+  keyword_text?: string;
+  level: "campaign" | "adgroup";
 }
 
 export interface BulkDeleteNegativeKeywordsRequest {

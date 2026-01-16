@@ -19,6 +19,7 @@ import {
   GoogleKeywordsTable,
   type GoogleKeyword,
 } from "./components/GoogleKeywordsTable";
+import { ErrorModal } from "../../components/ui/ErrorModal";
 
 export const GoogleKeywords: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
@@ -96,7 +97,7 @@ export const GoogleKeywords: React.FC = () => {
   // Inline edit state
   const [editingCell, setEditingCell] = useState<{
     keywordId: string | number;
-    field: "bid" | "status" | "match_type";
+    field: "bid" | "status" | "match_type" | "keyword_text";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
@@ -116,6 +117,31 @@ export const GoogleKeywords: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Keyword text edit modal state
+  const [showKeywordTextEditModal, setShowKeywordTextEditModal] = useState(false);
+  const [keywordTextEditKeyword, setKeywordTextEditKeyword] = useState<GoogleKeyword | null>(null);
+  const [keywordTextEditValue, setKeywordTextEditValue] = useState<string>("");
+  const [keywordTextEditLoading, setKeywordTextEditLoading] = useState(false);
+  
+  // Final URL edit modal state
+  const [showFinalUrlModal, setShowFinalUrlModal] = useState(false);
+  const [finalUrlKeyword, setFinalUrlKeyword] = useState<GoogleKeyword | null>(null);
+  const [finalUrlValue, setFinalUrlValue] = useState<string>("");
+  const [mobileFinalUrlValue, setMobileFinalUrlValue] = useState<string>("");
+  const [useMobileFinalUrl, setUseMobileFinalUrl] = useState(false);
+  const [finalUrlEditLoading, setFinalUrlEditLoading] = useState(false);
+  
+  // Error modal state
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    title: "Error",
+    message: "",
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -325,6 +351,18 @@ export const GoogleKeywords: React.FC = () => {
       const keywordsArray = Array.isArray(response.keywords)
         ? response.keywords
         : [];
+      
+      // Debug: Log first keyword to check final URLs
+      if (keywordsArray.length > 0 && import.meta.env.DEV) {
+        console.log('First keyword from API:', {
+          keyword_id: keywordsArray[0].keyword_id,
+          keyword_text: keywordsArray[0].keyword_text,
+          final_urls: keywordsArray[0].final_urls,
+          final_mobile_urls: keywordsArray[0].final_mobile_urls,
+          all_keys: Object.keys(keywordsArray[0]),
+        });
+      }
+      
       setKeywords(keywordsArray);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
@@ -600,8 +638,16 @@ export const GoogleKeywords: React.FC = () => {
   // Inline edit handlers
   const startInlineEdit = (
     keyword: GoogleKeyword,
-    field: "bid" | "status" | "match_type"
+    field: "bid" | "status" | "match_type" | "keyword_text"
   ) => {
+    // For keyword_text, show modal directly instead of inline editing
+    if (field === "keyword_text") {
+      setKeywordTextEditKeyword(keyword);
+      setKeywordTextEditValue(keyword.keyword_text || "");
+      setShowKeywordTextEditModal(true);
+      return;
+    }
+    
     setEditingCell({ keywordId: keyword.keyword_id, field });
     if (field === "bid") {
       setEditedValue((keyword.cpc_bid_dollars || 0).toString());
@@ -609,6 +655,213 @@ export const GoogleKeywords: React.FC = () => {
       setEditedValue(keyword.status || "ENABLED");
     } else if (field === "match_type") {
       setEditedValue(keyword.match_type || "EXACT");
+    }
+  };
+  
+  // Keyword text edit handler
+  const handleKeywordTextEditSave = async () => {
+    if (!keywordTextEditKeyword || !accountId) return;
+    
+    const trimmedText = keywordTextEditValue.trim();
+    if (!trimmedText) {
+      setErrorModal({
+        isOpen: true,
+        title: "Validation Error",
+        message: "Keyword text cannot be empty. Please enter a keyword.",
+      });
+      return;
+    }
+    
+    const oldText = (keywordTextEditKeyword.keyword_text || "").trim();
+    if (trimmedText === oldText) {
+      setShowKeywordTextEditModal(false);
+      setKeywordTextEditKeyword(null);
+      setKeywordTextEditValue("");
+      return;
+    }
+    
+    setKeywordTextEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
+      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        keywordIds: [keywordTextEditKeyword.keyword_id],
+        action: "keyword_text",
+        keyword_text: trimmedText,
+        adgroupIds: keywordTextEditKeyword.adgroup_id ? [keywordTextEditKeyword.adgroup_id] : undefined,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        // Format error message - check for duplicate keyword
+        const errorMessage = response.errors[0];
+        let title = "Update Failed";
+        let message = errorMessage;
+        
+        if (errorMessage.toLowerCase().includes("already exists") || errorMessage.toLowerCase().includes("duplicate")) {
+          title = "Duplicate Keyword";
+          message = `The keyword "${trimmedText}" already exists in this ad group with the same match type. Please choose a different keyword text.`;
+        } else {
+          message = `Failed to update keyword text: ${errorMessage}`;
+        }
+        
+        setErrorModal({
+          isOpen: true,
+          title,
+          message,
+        });
+        return;
+      }
+
+      await loadKeywords(accountIdNum);
+      setShowKeywordTextEditModal(false);
+      setKeywordTextEditKeyword(null);
+      setKeywordTextEditValue("");
+    } catch (error: any) {
+      console.error("Error updating keyword text:", error);
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: `Failed to update keyword text: ${errorMessage}`,
+      });
+    } finally {
+      setKeywordTextEditLoading(false);
+    }
+  };
+  
+  // Final URL edit handlers
+  const handleStartFinalUrlEdit = (keyword: GoogleKeyword) => {
+    if (!keyword) {
+      console.error("Cannot edit final URL: keyword is null");
+      return;
+    }
+    
+    setFinalUrlKeyword(keyword);
+    // Get first URL from final_urls array if available
+    const finalUrls = (keyword as any)?.final_urls || (keyword as any)?.finalUrls || null;
+    let currentUrl = "";
+    if (Array.isArray(finalUrls) && finalUrls.length > 0) {
+      currentUrl = finalUrls[0] || "";
+    } else if (typeof finalUrls === "string" && finalUrls.trim()) {
+      currentUrl = finalUrls.trim();
+    }
+    setFinalUrlValue(currentUrl);
+    
+    const mobileUrls = (keyword as any)?.final_mobile_urls || (keyword as any)?.finalMobileUrls || null;
+    let currentMobileUrl = "";
+    if (Array.isArray(mobileUrls) && mobileUrls.length > 0) {
+      currentMobileUrl = mobileUrls[0] || "";
+    } else if (typeof mobileUrls === "string" && mobileUrls.trim()) {
+      currentMobileUrl = mobileUrls.trim();
+    }
+    setMobileFinalUrlValue(currentMobileUrl);
+    setUseMobileFinalUrl(!!currentMobileUrl);
+    setShowFinalUrlModal(true);
+  };
+  
+  const handleFinalUrlEditSave = async () => {
+    if (!finalUrlKeyword || !accountId) return;
+    
+    const trimmedUrl = finalUrlValue.trim();
+    if (!trimmedUrl) {
+      setErrorModal({
+        isOpen: true,
+        title: "Validation Error",
+        message: "Final URL cannot be empty. Please enter a URL.",
+      });
+      return;
+    }
+    
+    // Validate URL format
+    let finalUrl = trimmedUrl;
+    if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+      finalUrl = "https://" + finalUrl;
+    }
+    
+    try {
+      new URL(finalUrl);
+    } catch {
+      setErrorModal({
+        isOpen: true,
+        title: "Invalid URL",
+        message: "Please enter a valid URL. URLs should start with http:// or https://",
+      });
+      return;
+    }
+    
+    let mobileUrl = "";
+    if (useMobileFinalUrl) {
+      const trimmedMobileUrl = mobileFinalUrlValue.trim();
+      if (!trimmedMobileUrl) {
+        setErrorModal({
+          isOpen: true,
+          title: "Validation Error",
+          message: "Mobile final URL cannot be empty when the checkbox is checked. Please enter a mobile URL or uncheck the option.",
+        });
+        return;
+      }
+      mobileUrl = trimmedMobileUrl;
+      if (!mobileUrl.startsWith("http://") && !mobileUrl.startsWith("https://")) {
+        mobileUrl = "https://" + mobileUrl;
+      }
+      try {
+        new URL(mobileUrl);
+      } catch {
+        setErrorModal({
+          isOpen: true,
+          title: "Invalid Mobile URL",
+          message: "Please enter a valid mobile URL. URLs should start with http:// or https://",
+        });
+        return;
+      }
+    }
+    
+    setFinalUrlEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
+      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        keywordIds: [finalUrlKeyword.keyword_id],
+        action: "final_urls",
+        final_url: finalUrl,
+        final_mobile_url: useMobileFinalUrl ? mobileUrl : undefined,
+        adgroupIds: finalUrlKeyword.adgroup_id ? [finalUrlKeyword.adgroup_id] : undefined,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        const errorMessage = response.errors[0];
+        setErrorModal({
+          isOpen: true,
+          title: "Update Failed",
+          message: `Failed to update final URL: ${errorMessage}`,
+        });
+        return;
+      }
+
+      await loadKeywords(accountIdNum);
+      setShowFinalUrlModal(false);
+      setFinalUrlKeyword(null);
+      setFinalUrlValue("");
+      setMobileFinalUrlValue("");
+      setUseMobileFinalUrl(false);
+    } catch (error: any) {
+      console.error("Error updating final URL:", error);
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: `Failed to update final URL: ${errorMessage}`,
+      });
+    } finally {
+      setFinalUrlEditLoading(false);
     }
   };
 
@@ -1170,7 +1423,7 @@ export const GoogleKeywords: React.FC = () => {
                 <Button
                   onClick={handleSync}
                   disabled={syncing || syncingAnalytics}
-                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+                  className="create-entity-button disabled:opacity-50"
                 >
                   {syncing ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -1184,7 +1437,7 @@ export const GoogleKeywords: React.FC = () => {
                 <Button
                   onClick={handleSyncAnalytics}
                   disabled={syncing || syncingAnalytics}
-                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+                  className="create-entity-button disabled:opacity-50"
                 >
                   {syncingAnalytics ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -1275,7 +1528,7 @@ export const GoogleKeywords: React.FC = () => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="edit-button"
                     onClick={(e) => {
                       if (exportLoading) return;
                       e.stopPropagation();
@@ -1385,7 +1638,7 @@ export const GoogleKeywords: React.FC = () => {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                  className="edit-button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowBulkActions((prev) => !prev);
@@ -1894,6 +2147,179 @@ export const GoogleKeywords: React.FC = () => {
                 </div>
               )}
 
+              {/* Keyword Text Edit Modal */}
+              {showKeywordTextEditModal && keywordTextEditKeyword && (
+                <div
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !keywordTextEditLoading) {
+                      setShowKeywordTextEditModal(false);
+                      setKeywordTextEditKeyword(null);
+                      setKeywordTextEditValue("");
+                    }
+                  }}
+                >
+                  <div 
+                    className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 className="text-[18px] font-semibold text-[#072929] mb-2">
+                      Edit Keyword Text
+                    </h3>
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-[12px] text-yellow-800">
+                        <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly. 
+                        This will create a new keyword with the updated text and remove the old one. 
+                        The keyword will appear with a new ID after the update.
+                      </p>
+                    </div>
+                    <div className="mb-6">
+                      <input
+                        type="text"
+                        value={keywordTextEditValue}
+                        onChange={(e) => setKeywordTextEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !keywordTextEditLoading) {
+                            handleKeywordTextEditSave();
+                          } else if (e.key === "Escape" && !keywordTextEditLoading) {
+                            setShowKeywordTextEditModal(false);
+                            setKeywordTextEditKeyword(null);
+                            setKeywordTextEditValue("");
+                          }
+                        }}
+                        disabled={keywordTextEditLoading}
+                        autoFocus
+                        className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                        placeholder="Enter keyword text"
+                        maxLength={255}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!keywordTextEditLoading) {
+                            setShowKeywordTextEditModal(false);
+                            setKeywordTextEditKeyword(null);
+                            setKeywordTextEditValue("");
+                          }
+                        }}
+                        disabled={keywordTextEditLoading}
+                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleKeywordTextEditSave}
+                        disabled={keywordTextEditLoading || !keywordTextEditValue.trim()}
+                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {keywordTextEditLoading ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Final URL Edit Modal */}
+              {showFinalUrlModal && finalUrlKeyword && (
+                <div
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !finalUrlEditLoading) {
+                      setShowFinalUrlModal(false);
+                      setFinalUrlKeyword(null);
+                      setFinalUrlValue("");
+                      setMobileFinalUrlValue("");
+                      setUseMobileFinalUrl(false);
+                    }
+                  }}
+                >
+                  <div 
+                    className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                      Edit Final URL
+                    </h3>
+                    <div className="mb-6 space-y-4">
+                      <div>
+                        <label className="block text-[11.2px] font-semibold text-[#136D6D] mb-2">
+                          Final URL
+                        </label>
+                        <input
+                          type="text"
+                          value={finalUrlValue}
+                          onChange={(e) => setFinalUrlValue(e.target.value)}
+                          disabled={finalUrlEditLoading}
+                          autoFocus
+                          className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                          placeholder="www.example.com"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="use-mobile-url"
+                          checked={useMobileFinalUrl}
+                          onChange={(e) => setUseMobileFinalUrl(e.target.checked)}
+                          disabled={finalUrlEditLoading}
+                          className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] disabled:opacity-50"
+                        />
+                        <label 
+                          htmlFor="use-mobile-url"
+                          className="text-[13.3px] text-[#072929] cursor-pointer"
+                        >
+                          Use a different final URL for mobile
+                        </label>
+                      </div>
+                      {useMobileFinalUrl && (
+                        <div>
+                          <label className="block text-[11.2px] font-semibold text-[#136D6D] mb-2">
+                            Mobile Final URL
+                          </label>
+                          <input
+                            type="text"
+                            value={mobileFinalUrlValue}
+                            onChange={(e) => setMobileFinalUrlValue(e.target.value)}
+                            disabled={finalUrlEditLoading}
+                            className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                            placeholder="www.example.com"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!finalUrlEditLoading) {
+                            setShowFinalUrlModal(false);
+                            setFinalUrlKeyword(null);
+                            setFinalUrlValue("");
+                            setMobileFinalUrlValue("");
+                            setUseMobileFinalUrl(false);
+                          }
+                        }}
+                        disabled={finalUrlEditLoading}
+                        className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleFinalUrlEditSave}
+                        disabled={finalUrlEditLoading || !finalUrlValue.trim()}
+                        className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {finalUrlEditLoading ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Table */}
               <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
                 <div className="overflow-x-auto w-full">
@@ -1922,6 +2348,7 @@ export const GoogleKeywords: React.FC = () => {
                     onCancelInlineEdit={cancelInlineEdit}
                     onInlineEditChange={handleInlineEditChange}
                     onConfirmInlineEdit={confirmInlineEdit}
+                    onStartFinalUrlEdit={handleStartFinalUrlEdit}
                     onConfirmBidChange={() => {}}
                     onCancelBidChange={() => {}}
                     onConfirmStatusChange={() => {}}
@@ -1971,6 +2398,14 @@ export const GoogleKeywords: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, title: "Error", message: "" })}
+        title={errorModal.title}
+        message={errorModal.message}
+      />
     </div>
   );
 };

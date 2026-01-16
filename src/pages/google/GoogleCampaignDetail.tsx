@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { KPICard } from "../../components/ui/KPICard";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
-import { Button } from "../../components/ui";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
@@ -18,7 +17,7 @@ import { GoogleCampaignDetailKeywordsTab } from "./components/tabs/GoogleCampaig
 import { GoogleCampaignDetailNegativeKeywordsTab } from "./components/tabs/GoogleCampaignDetailNegativeKeywordsTab";
 import { GoogleCampaignDetailAssetGroupsTab } from "./components/tabs/GoogleCampaignDetailAssetGroupsTab";
 import { GoogleCampaignDetailProductGroupsTab } from "./components/tabs/GoogleCampaignDetailProductGroupsTab";
-// import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
+import { GoogleCampaignDetailLogsTab } from "./components/tabs/GoogleCampaignDetailLogsTab";
 import type {
   GoogleAdGroup,
   GoogleAd,
@@ -81,7 +80,19 @@ export const GoogleCampaignDetail: React.FC = () => {
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("Overview");
+  
+  // Read tab from URL params on mount
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl) {
+      const validTabs = ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords", "Asset Groups", "Product Groups", "Logs"];
+      if (validTabs.includes(tabFromUrl)) {
+        setActiveTab(tabFromUrl);
+      }
+    }
+  }, [searchParams]);
   const [loading, setLoading] = useState(true);
   const [campaignDetail, setCampaignDetail] =
     useState<GoogleCampaignDetail | null>(null);
@@ -250,6 +261,27 @@ export const GoogleCampaignDetail: React.FC = () => {
     }>;
   }>({ isOpen: false, message: "" });
 
+  // Final URL edit modal state
+  const [showFinalUrlModal, setShowFinalUrlModal] = useState(false);
+  const [finalUrlKeyword, setFinalUrlKeyword] = useState<GoogleKeyword | null>(null);
+  const [finalUrlValue, setFinalUrlValue] = useState<string>("");
+  const [mobileFinalUrlValue, setMobileFinalUrlValue] = useState<string>("");
+  const [useMobileFinalUrl, setUseMobileFinalUrl] = useState(false);
+  const [finalUrlEditLoading, setFinalUrlEditLoading] = useState(false);
+
+  // Keyword text edit modal state
+  const [showKeywordTextEditModal, setShowKeywordTextEditModal] = useState(false);
+  const [keywordTextEditKeyword, setKeywordTextEditKeyword] = useState<GoogleKeyword | null>(null);
+  const [keywordTextEditValue, setKeywordTextEditValue] = useState<string>("");
+  const [keywordTextEditLoading, setKeywordTextEditLoading] = useState(false);
+
+  // Bid edit modal state (for confirmation)
+  const [showBidConfirmationModal, setShowBidConfirmationModal] = useState(false);
+  const [bidConfirmationKeyword, setBidConfirmationKeyword] = useState<GoogleKeyword | null>(null);
+  const [bidConfirmationOldValue, setBidConfirmationOldValue] = useState<number>(0);
+  const [bidConfirmationNewValue, setBidConfirmationNewValue] = useState<number>(0);
+  const [bidConfirmationLoading, setBidConfirmationLoading] = useState(false);
+
   // Track if component is mounted to prevent state updates on unmounted components
   const isMountedRef = useRef(true);
   const timeoutIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -267,18 +299,18 @@ export const GoogleCampaignDetail: React.FC = () => {
   // Compute available tabs based on campaign type
   const tabs = useMemo(() => {
     if (!campaignDetail?.campaign?.advertising_channel_type) {
-      return ["Overview", "Ad Groups", "Ads", "Keywords"];
+      return ["Overview", "Ad Groups", "Ads", "Keywords", "Logs"];
     }
 
     const channelType = (campaignDetail.campaign.advertising_channel_type || "").toUpperCase().trim();
 
     if (channelType === "PERFORMANCE_MAX") {
-      return ["Overview", "Asset Groups"];
+      return ["Overview", "Asset Groups", "Logs"];
     } else if (channelType === "SHOPPING") {
-      return ["Overview", "Ad Groups", "Product Groups"];
+      return ["Overview", "Ad Groups", "Product Groups", "Logs"];
     } else {
       // SEARCH or default
-      return ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords"];
+      return ["Overview", "Ad Groups", "Ads", "Keywords", "Negative Keywords", "Logs"];
     }
   }, [campaignDetail?.campaign?.advertising_channel_type]);
 
@@ -406,7 +438,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         parseInt(campaignId, 10),
         {
           page: assetGroupsCurrentPage,
-          page_size: 10,
+          page_size: 100,
           sort_by: assetGroupsSortBy,
           order: assetGroupsSortOrder,
           ...buildAssetGroupsFilterParams(assetGroupsFilters),
@@ -512,7 +544,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         undefined,
         {
           page: productGroupsCurrentPage,
-          page_size: 10,
+          page_size: 100,
           sort_by: productGroupsSortBy,
           order: productGroupsSortOrder,
           ad_type: 'SHOPPING_PRODUCT_AD', // Filter for product groups only
@@ -727,7 +759,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         parseInt(campaignId, 10),
         {
           page: adgroupsCurrentPage,
-          page_size: 10,
+          page_size: 100,
           sort_by: adgroupsSortBy,
           order: adgroupsSortOrder,
           ...buildAdGroupsFilterParams(adgroupsFilters),
@@ -761,7 +793,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         undefined,
         {
           page: adsCurrentPage,
-          page_size: 10,
+          page_size: 100,
           sort_by: adsSortBy,
           order: adsSortOrder,
           ...buildAdsFilterParams(adsFilters),
@@ -779,7 +811,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     }
   };
 
-  const loadKeywords = async () => {
+  const loadKeywords = async (page?: number) => {
     try {
       setKeywordsLoading(true);
       const accountIdNum = parseInt(accountId!, 10);
@@ -789,13 +821,18 @@ export const GoogleCampaignDetail: React.FC = () => {
         return;
       }
 
+      const pageToUse = page !== undefined ? page : keywordsCurrentPage;
+      if (page !== undefined && page !== keywordsCurrentPage) {
+        setKeywordsCurrentPage(page);
+      }
+
       const data = await campaignsService.getGoogleKeywords(
         accountIdNum,
         parseInt(campaignId, 10),
         undefined,
         {
-          page: keywordsCurrentPage,
-          page_size: 10,
+          page: pageToUse,
+          page_size: 100,
           sort_by: keywordsSortBy,
           order: keywordsSortOrder,
           ...buildKeywordsFilterParams(keywordsFilters),
@@ -1028,7 +1065,7 @@ export const GoogleCampaignDetail: React.FC = () => {
           filters: {
             campaign_id: campaignId,
             page: negativeKeywordsCurrentPage,
-            page_size: 10,
+            page_size: 100,
             sort_by: negativeKeywordsSortBy,
             order: negativeKeywordsSortOrder,
             ...buildNegativeKeywordsFilterParams(negativeKeywordsFilters),
@@ -1165,11 +1202,18 @@ export const GoogleCampaignDetail: React.FC = () => {
     if (!accountId) return;
 
     try {
+      // Find the negative keyword to get its level
+      const negativeKeyword = negativeKeywords.find((nkw) => nkw.criterion_id === criterionId);
+      if (!negativeKeyword || !negativeKeyword.level) {
+        throw new Error("Negative keyword not found or level is missing");
+      }
+
       const accountIdNum = parseInt(accountId, 10);
       await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
         negativeKeywordIds: [criterionId],
         action: "status",
         value: status,
+        level: negativeKeyword.level,
       });
       await loadNegativeKeywords();
     } catch (error: any) {
@@ -1182,15 +1226,46 @@ export const GoogleCampaignDetail: React.FC = () => {
     if (!accountId) return;
 
     try {
+      // Find the negative keyword to get its level
+      const negativeKeyword = negativeKeywords.find((nkw) => nkw.criterion_id === criterionId);
+      if (!negativeKeyword || !negativeKeyword.level) {
+        throw new Error("Negative keyword not found or level is missing");
+      }
+
       const accountIdNum = parseInt(accountId, 10);
       await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
         negativeKeywordIds: [criterionId],
         action: "match_type",
         value: matchType,
+        level: negativeKeyword.level,
       });
       await loadNegativeKeywords();
     } catch (error: any) {
       console.error("Failed to update negative keyword match type:", error);
+      throw error;
+    }
+  };
+
+  const handleUpdateNegativeKeywordText = async (criterionId: string, keywordText: string) => {
+    if (!accountId) return;
+
+    try {
+      // Find the negative keyword to get its level
+      const negativeKeyword = negativeKeywords.find((nkw) => nkw.criterion_id === criterionId);
+      if (!negativeKeyword || !negativeKeyword.level) {
+        throw new Error("Negative keyword not found or level is missing");
+      }
+
+      const accountIdNum = parseInt(accountId, 10);
+      await googleNegativeKeywordsService.bulkUpdateGoogleNegativeKeywords(accountIdNum, {
+        negativeKeywordIds: [criterionId],
+        action: "keyword_text",
+        keyword_text: keywordText,
+        level: negativeKeyword.level,
+      });
+      await loadNegativeKeywords();
+    } catch (error: any) {
+      console.error("Failed to update negative keyword text:", error);
       throw error;
     }
   };
@@ -1209,6 +1284,404 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const handleNegativeKeywordsPageChange = (page: number) => {
     setNegativeKeywordsCurrentPage(page);
+  };
+
+  // Final URL edit handler
+  const handleFinalUrlEditSave = async () => {
+    if (!finalUrlKeyword || !accountId) return;
+    
+    const trimmedUrl = finalUrlValue.trim();
+    if (!trimmedUrl) {
+      setErrorModal({
+        isOpen: true,
+        title: "Validation Error",
+        message: "Final URL cannot be empty. Please enter a URL.",
+      });
+      return;
+    }
+    
+    // Validate URL format
+    let finalUrl = trimmedUrl;
+    if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+      finalUrl = "https://" + finalUrl;
+    }
+    
+    try {
+      new URL(finalUrl);
+    } catch {
+      setErrorModal({
+        isOpen: true,
+        title: "Invalid URL",
+        message: "Please enter a valid URL. URLs should start with http:// or https://",
+      });
+      return;
+    }
+    
+    let mobileUrl = "";
+    if (useMobileFinalUrl) {
+      const trimmedMobileUrl = mobileFinalUrlValue.trim();
+      if (!trimmedMobileUrl) {
+        setErrorModal({
+          isOpen: true,
+          title: "Validation Error",
+          message: "Mobile final URL cannot be empty when the checkbox is checked. Please enter a mobile URL or uncheck the option.",
+        });
+        return;
+      }
+      mobileUrl = trimmedMobileUrl;
+      if (!mobileUrl.startsWith("http://") && !mobileUrl.startsWith("https://")) {
+        mobileUrl = "https://" + mobileUrl;
+      }
+      try {
+        new URL(mobileUrl);
+      } catch {
+        setErrorModal({
+          isOpen: true,
+          title: "Invalid Mobile URL",
+          message: "Please enter a valid mobile URL. URLs should start with http:// or https://",
+        });
+        return;
+      }
+    }
+    
+    setFinalUrlEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
+      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        keywordIds: [finalUrlKeyword.keyword_id],
+        action: "final_urls",
+        final_url: finalUrl,
+        final_mobile_url: useMobileFinalUrl ? mobileUrl : undefined,
+        adgroupIds: finalUrlKeyword.adgroup_id ? [finalUrlKeyword.adgroup_id] : undefined,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        const errorMessage = response.errors[0];
+        setErrorModal({
+          isOpen: true,
+          title: "Update Failed",
+          message: `Failed to update final URL: ${errorMessage}`,
+        });
+        return;
+      }
+
+      await loadKeywords();
+      setShowFinalUrlModal(false);
+      setFinalUrlKeyword(null);
+      setFinalUrlValue("");
+      setMobileFinalUrlValue("");
+      setUseMobileFinalUrl(false);
+    } catch (error: any) {
+      console.error("Error updating final URL:", error);
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: `Failed to update final URL: ${errorMessage}`,
+      });
+    } finally {
+      setFinalUrlEditLoading(false);
+    }
+  };
+
+  // Keyword text edit handler
+  const handleKeywordTextEditSave = async () => {
+    if (!keywordTextEditKeyword || !accountId) return;
+    
+    const trimmedText = keywordTextEditValue.trim();
+    if (!trimmedText) {
+      setErrorModal({
+        isOpen: true,
+        title: "Validation Error",
+        message: "Keyword text cannot be empty. Please enter a keyword.",
+      });
+      return;
+    }
+    
+    const oldText = (keywordTextEditKeyword.keyword_text || "").trim();
+    if (trimmedText === oldText) {
+      setShowKeywordTextEditModal(false);
+      setKeywordTextEditKeyword(null);
+      setKeywordTextEditValue("");
+      return;
+    }
+    
+    setKeywordTextEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
+      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        keywordIds: [keywordTextEditKeyword.keyword_id],
+        action: "keyword_text",
+        keyword_text: trimmedText,
+        adgroupIds: keywordTextEditKeyword.adgroup_id ? [keywordTextEditKeyword.adgroup_id] : undefined,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        const errorMessage = response.errors[0];
+        let title = "Update Failed";
+        let message = errorMessage;
+        
+        if (errorMessage.toLowerCase().includes("already exists") || errorMessage.toLowerCase().includes("duplicate")) {
+          title = "Duplicate Keyword";
+          message = `The keyword "${trimmedText}" already exists in this ad group with the same match type. Please choose a different keyword text.`;
+        } else {
+          message = `Failed to update keyword text: ${errorMessage}`;
+        }
+        
+        setErrorModal({
+          isOpen: true,
+          title,
+          message,
+        });
+        return;
+      }
+
+      // Verify the update was successful
+      if (response.updated === 0) {
+        setErrorModal({
+          isOpen: true,
+          title: "Update Failed",
+          message: "Keyword update did not complete successfully. Please try again.",
+        });
+        return;
+      }
+
+      // Reload keywords table to reflect the update (keyword is already inserted in database by backend)
+      // Reset to page 1 to ensure the new keyword is visible
+      await loadKeywords(1);
+      
+      setShowKeywordTextEditModal(false);
+      setKeywordTextEditKeyword(null);
+      setKeywordTextEditValue("");
+    } catch (error: any) {
+      console.error("Error updating keyword text:", error);
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: `Failed to update keyword text: ${errorMessage}`,
+      });
+    } finally {
+      setKeywordTextEditLoading(false);
+    }
+  };
+
+  // Bid confirmation handler for keywords
+  const handleBidConfirmation = (keyword: GoogleKeyword, oldBid: number, newBid: number) => {
+    setBidConfirmationKeyword(keyword);
+    setBidConfirmationOldValue(oldBid);
+    setBidConfirmationNewValue(newBid);
+    setShowBidConfirmationModal(true);
+  };
+
+  // Adgroup bid confirmation modal state
+  const [showAdgroupBidConfirmationModal, setShowAdgroupBidConfirmationModal] = useState(false);
+  const [adgroupBidConfirmationAdgroup, setAdgroupBidConfirmationAdgroup] = useState<any | null>(null);
+  const [adgroupBidConfirmationOldValue, setAdgroupBidConfirmationOldValue] = useState<number>(0);
+  const [adgroupBidConfirmationNewValue, setAdgroupBidConfirmationNewValue] = useState<number>(0);
+  const [adgroupBidConfirmationLoading, setAdgroupBidConfirmationLoading] = useState(false);
+
+  // Adgroup name edit modal state
+  const [showAdgroupNameEditModal, setShowAdgroupNameEditModal] = useState(false);
+  const [adgroupNameEditAdgroup, setAdgroupNameEditAdgroup] = useState<any | null>(null);
+  const [adgroupNameEditValue, setAdgroupNameEditValue] = useState<string>("");
+  const [adgroupNameEditLoading, setAdgroupNameEditLoading] = useState(false);
+
+  // Adgroup bid confirmation handler
+  const handleAdgroupBidConfirmation = (adgroup: any, oldBid: number, newBid: number) => {
+    setAdgroupBidConfirmationAdgroup(adgroup);
+    setAdgroupBidConfirmationOldValue(oldBid);
+    setAdgroupBidConfirmationNewValue(newBid);
+    setShowAdgroupBidConfirmationModal(true);
+  };
+
+  // Adgroup name edit handler - opens modal for editing
+  const handleAdgroupNameEdit = (adgroup: any) => {
+    setAdgroupNameEditAdgroup(adgroup);
+    setAdgroupNameEditValue(adgroup.adgroup_name || adgroup.name || "");
+    setShowAdgroupNameEditModal(true);
+  };
+
+  const handleAdgroupBidConfirmationSave = async () => {
+    if (!adgroupBidConfirmationAdgroup || !accountId) return;
+    
+    setAdgroupBidConfirmationLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: [adgroupBidConfirmationAdgroup.adgroup_id],
+        action: "bid",
+        bid: adgroupBidConfirmationNewValue,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        const errorMessage = response.errors[0];
+        setErrorModal({
+          isOpen: true,
+          title: "Update Failed",
+          message: `Failed to update bid: ${errorMessage}`,
+        });
+        setShowAdgroupBidConfirmationModal(false);
+        return;
+      }
+
+      // Update local state
+      setAdgroups((prevAdgroups) =>
+        prevAdgroups.map((ag) =>
+          ag.id === adgroupBidConfirmationAdgroup.id
+            ? { ...ag, cpc_bid_dollars: adgroupBidConfirmationNewValue }
+            : ag
+        )
+      );
+
+      setShowAdgroupBidConfirmationModal(false);
+      setAdgroupBidConfirmationAdgroup(null);
+      setAdgroupBidConfirmationOldValue(0);
+      setAdgroupBidConfirmationNewValue(0);
+    } catch (error: any) {
+      console.error("Error updating adgroup bid:", error);
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: `Failed to update bid: ${errorMessage}`,
+      });
+    } finally {
+      setAdgroupBidConfirmationLoading(false);
+    }
+  };
+
+  const handleAdgroupNameEditSave = async () => {
+    if (!adgroupNameEditAdgroup || !accountId) return;
+    
+    const trimmedName = adgroupNameEditValue.trim();
+    if (!trimmedName) {
+      alert("Ad group name cannot be empty. Please enter a name.");
+      return;
+    }
+    
+    const oldName = (adgroupNameEditAdgroup.adgroup_name || adgroupNameEditAdgroup.name || "").trim();
+    if (trimmedName === oldName) {
+      setShowAdgroupNameEditModal(false);
+      setAdgroupNameEditAdgroup(null);
+      setAdgroupNameEditValue("");
+      return;
+    }
+    
+    setAdgroupNameEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        adgroupIds: [adgroupNameEditAdgroup.adgroup_id],
+        action: "name",
+        name: trimmedName,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        const errorMessage = response.errors[0];
+        setErrorModal({
+          isOpen: true,
+          title: "Update Failed",
+          message: `Failed to update adgroup name: ${errorMessage}`,
+        });
+        setShowAdgroupNameEditModal(false);
+        return;
+      }
+
+      // Update local state
+      setAdgroups((prevAdgroups) =>
+        prevAdgroups.map((ag) =>
+          ag.id === adgroupNameEditAdgroup.id
+            ? { ...ag, adgroup_name: trimmedName, name: trimmedName }
+            : ag
+        )
+      );
+
+      setShowAdgroupNameEditModal(false);
+      setAdgroupNameEditAdgroup(null);
+      setAdgroupNameEditValue("");
+    } catch (error: any) {
+      console.error("Error updating adgroup name:", error);
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: `Failed to update adgroup name: ${errorMessage}`,
+      });
+    } finally {
+      setAdgroupNameEditLoading(false);
+    }
+  };
+
+  const handleBidConfirmationSave = async () => {
+    if (!bidConfirmationKeyword || !accountId) return;
+    
+    setBidConfirmationLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        keywordIds: [bidConfirmationKeyword.keyword_id],
+        action: "bid",
+        bid: bidConfirmationNewValue,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        const errorMessage = response.errors[0];
+        setErrorModal({
+          isOpen: true,
+          title: "Update Failed",
+          message: `Failed to update bid: ${errorMessage}`,
+        });
+        setShowBidConfirmationModal(false);
+        return;
+      }
+
+      // Update local state
+      setKeywords((prevKeywords) =>
+        prevKeywords.map((k) =>
+          k.id === bidConfirmationKeyword.id
+            ? { ...k, cpc_bid_dollars: bidConfirmationNewValue }
+            : k
+        )
+      );
+
+      setShowBidConfirmationModal(false);
+      setBidConfirmationKeyword(null);
+      setBidConfirmationOldValue(0);
+      setBidConfirmationNewValue(0);
+    } catch (error: any) {
+      console.error("Error updating bid:", error);
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: `Failed to update bid: ${errorMessage}`,
+      });
+    } finally {
+      setBidConfirmationLoading(false);
+    }
   };
 
   const handleSyncAdGroups = async () => {
@@ -2249,7 +2722,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Campaign Name
                     </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <div className="table-text leading-[1.26]">
                       {campaignDetail.campaign.name || "—"}
                     </div>
                   </div>
@@ -2259,7 +2732,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Campaign ID
                     </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <div className="table-text leading-[1.26]">
                       {campaignDetail.campaign.campaign_id}
                     </div>
                   </div>
@@ -2301,7 +2774,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        className="table-text leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("status");
                           setEditedValue(
@@ -2333,7 +2806,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="number"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
+                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
                           autoFocus
                           onBlur={() => {
                             const budgetValue = parseFloat(editedValue);
@@ -2380,7 +2853,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        className="table-text leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("budget");
                           setEditedValue(
@@ -2402,7 +2875,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Channel Type
                     </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <div className="table-text leading-[1.26]">
                       {campaignDetail.campaign.advertising_channel_type || "—"}
                     </div>
                   </div>
@@ -2412,7 +2885,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Account
                     </label>
-                    <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                    <div className="table-text leading-[1.26]">
                       {campaignDetail.campaign.account_name ||
                         campaignDetail.campaign.customer_id ||
                         "—"}
@@ -2430,7 +2903,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="date"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
+                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
                           autoFocus
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.start_date
@@ -2473,7 +2946,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        className="table-text leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("start_date");
                           const startDate = campaignDetail.campaign.start_date
@@ -2504,7 +2977,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           type="date"
                           value={editedValue}
                           onChange={(e) => setEditedValue(e.target.value)}
-                          className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
+                          className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-40"
                           autoFocus
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.end_date
@@ -2547,7 +3020,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       </div>
                     ) : (
                       <div
-                        className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:underline"
+                        className="table-text leading-[1.26] cursor-pointer hover:underline"
                         onClick={() => {
                           setEditingField("end_date");
                           const endDate = campaignDetail.campaign.end_date
@@ -2642,7 +3115,17 @@ export const GoogleCampaignDetail: React.FC = () => {
                 {tabs.map((tab) => (
                   <button
                     key={tab}
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => {
+                      setActiveTab(tab);
+                      // Update URL param when tab changes
+                      const newSearchParams = new URLSearchParams(searchParams);
+                      if (tab === "Overview") {
+                        newSearchParams.delete("tab");
+                      } else {
+                        newSearchParams.set("tab", tab);
+                      }
+                      setSearchParams(newSearchParams, { replace: true });
+                    }}
                     className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${activeTab === tab
                         ? "border-[#136D6D] text-[#136D6D]"
                         : "border-transparent text-[#556179] hover:text-[#072929]"
@@ -2838,10 +3321,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                     syncMessage={
                       syncMessage.type === "adgroups" ? syncMessage.message : null
                     }
+                    onRefresh={loadAdGroups}
                     formatPercentage={formatPercentage}
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     getSortIcon={getSortIcon}
-                    campaignType={campaignDetail?.campaign?.advertising_channel_type}
                     onUpdateAdGroupStatus={async (
                       adgroupId: number,
                       status: string
@@ -2930,6 +3413,52 @@ export const GoogleCampaignDetail: React.FC = () => {
                         throw error;
                       }
                     }}
+                    onUpdateAdGroupName={async (
+                      adgroupId: number,
+                      name: string
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        // Find the adgroup to get adgroup_id
+                        const adgroup = adgroups.find(
+                          (ag) => ag.id === adgroupId
+                        );
+                        if (!adgroup || !adgroup.adgroup_id) {
+                          alert("Ad group not found");
+                          return;
+                        }
+
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleAdGroups(
+                          accountIdNum,
+                          {
+                            adgroupIds: [adgroup.adgroup_id],
+                            action: "name",
+                            name: name,
+                          }
+                        );
+
+                        // Update local state
+                        setAdgroups((prevAdgroups) =>
+                          prevAdgroups.map((ag) =>
+                            ag.id === adgroupId
+                              ? { ...ag, adgroup_name: name, name: name }
+                              : ag
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update adgroup name:", error);
+                        alert(
+                          error.response?.data?.error ||
+                          "Failed to update adgroup name"
+                        );
+                        throw error;
+                      }
+                    }}
+                    onStartBidConfirmation={handleAdgroupBidConfirmation}
+                    onStartNameEdit={handleAdgroupNameEdit}
                   />
                 </>
               )}
@@ -3020,6 +3549,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     syncMessage={
                       syncMessage.type === "ads" ? syncMessage.message : null
                     }
+                    onRefresh={loadAds}
                     getSortIcon={getSortIcon}
                     onUpdateAdStatus={async (adId: number, status: string) => {
                       try {
@@ -3116,6 +3646,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     syncMessage={
                       syncMessage.type === "keywords" ? syncMessage.message : null
                     }
+                    onRefresh={loadKeywords}
                     getSortIcon={getSortIcon}
                     onUpdateKeywordStatus={async (
                       keywordId: number,
@@ -3153,47 +3684,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                         alert(
                           error.response?.data?.error ||
                           "Failed to update keyword status"
-                        );
-                      }
-                    }}
-                    onUpdateKeywordBid={async (
-                      keywordId: number,
-                      bid: number
-                    ) => {
-                      try {
-                        const accountIdNum = parseInt(accountId!, 10);
-                        if (isNaN(accountIdNum)) return;
-
-                        // Find the keyword to get keyword_id
-                        const keyword = keywords.find((k) => k.id === keywordId);
-                        if (!keyword || !keyword.keyword_id) {
-                          alert("Keyword not found");
-                          return;
-                        }
-
-                        // Call API
-                        await campaignsService.bulkUpdateGoogleKeywords(
-                          accountIdNum,
-                          {
-                            keywordIds: [keyword.keyword_id],
-                            action: "bid",
-                            bid: bid,
-                          }
-                        );
-
-                        // Update local state
-                        setKeywords((prevKeywords) =>
-                          prevKeywords.map((k) =>
-                            k.id === keywordId
-                              ? { ...k, cpc_bid_dollars: bid }
-                              : k
-                          )
-                        );
-                      } catch (error: any) {
-                        console.error("Failed to update keyword bid:", error);
-                        alert(
-                          error.response?.data?.error ||
-                          "Failed to update keyword bid"
                         );
                       }
                     }}
@@ -3237,6 +3727,76 @@ export const GoogleCampaignDetail: React.FC = () => {
                           "Failed to update keyword match type"
                         );
                       }
+                    }}
+                    onStartKeywordTextEdit={(keyword: GoogleKeyword) => {
+                      setKeywordTextEditKeyword(keyword);
+                      setKeywordTextEditValue(keyword.keyword_text || "");
+                      setShowKeywordTextEditModal(true);
+                    }}
+                    onUpdateKeywordBid={async (
+                      keywordId: number,
+                      bid: number
+                    ) => {
+                      try {
+                        const accountIdNum = parseInt(accountId!, 10);
+                        if (isNaN(accountIdNum)) return;
+
+                        // Find the keyword to get keyword_id
+                        const keyword = keywords.find((k) => k.id === keywordId);
+                        if (!keyword || !keyword.keyword_id) {
+                          alert("Keyword not found");
+                          return;
+                        }
+
+                        // Call API
+                        await campaignsService.bulkUpdateGoogleKeywords(
+                          accountIdNum,
+                          {
+                            keywordIds: [keyword.keyword_id],
+                            action: "bid",
+                            bid: bid,
+                          }
+                        );
+
+                        // Update local state
+                        setKeywords((prevKeywords) =>
+                          prevKeywords.map((k) =>
+                            k.id === keywordId
+                              ? { ...k, cpc_bid_dollars: bid }
+                              : k
+                          )
+                        );
+                      } catch (error: any) {
+                        console.error("Failed to update keyword bid:", error);
+                        alert(
+                          error.response?.data?.error ||
+                          "Failed to update keyword bid"
+                        );
+                        throw error;
+                      }
+                    }}
+                    onStartBidConfirmation={handleBidConfirmation}
+                    onStartFinalUrlEdit={(keyword: GoogleKeyword) => {
+                      setFinalUrlKeyword(keyword);
+                      const finalUrls = (keyword as any)?.final_urls || (keyword as any)?.finalUrls || null;
+                      let currentUrl = "";
+                      if (Array.isArray(finalUrls) && finalUrls.length > 0) {
+                        currentUrl = finalUrls[0] || "";
+                      } else if (typeof finalUrls === "string" && finalUrls.trim()) {
+                        currentUrl = finalUrls.trim();
+                      }
+                      setFinalUrlValue(currentUrl);
+                      
+                      const mobileUrls = (keyword as any)?.final_mobile_urls || (keyword as any)?.finalMobileUrls || null;
+                      let currentMobileUrl = "";
+                      if (Array.isArray(mobileUrls) && mobileUrls.length > 0) {
+                        currentMobileUrl = mobileUrls[0] || "";
+                      } else if (typeof mobileUrls === "string" && mobileUrls.trim()) {
+                        currentMobileUrl = mobileUrls.trim();
+                      }
+                      setMobileFinalUrlValue(currentMobileUrl);
+                      setUseMobileFinalUrl(!!currentMobileUrl);
+                      setShowFinalUrlModal(true);
                     }}
                   />
                 </>
@@ -3300,9 +3860,11 @@ export const GoogleCampaignDetail: React.FC = () => {
                     syncMessage={
                       syncMessage.type === "negative_keywords" ? syncMessage.message : null
                     }
+                    onRefresh={loadNegativeKeywords}
                     getSortIcon={getSortIcon}
                     onUpdateNegativeKeywordStatus={handleUpdateNegativeKeywordStatus}
                     onUpdateNegativeKeywordMatchType={handleUpdateNegativeKeywordMatchType}
+                    onUpdateNegativeKeywordText={handleUpdateNegativeKeywordText}
                   />
                 </>
               )}
@@ -3451,13 +4013,12 @@ export const GoogleCampaignDetail: React.FC = () => {
                 </>
               )}
 
-              {/* Logs tab disabled - component not yet implemented */}
-              {/* {activeTab === "Logs" && accountId && (
+              {activeTab === "Logs" && accountId && (
                 <GoogleCampaignDetailLogsTab
                   accountId={accountId}
                   campaignId={campaignId}
                 />
-              )} */}
+              )}
             </div>
           </div>
         </div>
@@ -3526,6 +4087,396 @@ export const GoogleCampaignDetail: React.FC = () => {
         isSuccess={errorModal.isSuccess}
         errorDetails={errorModal.errorDetails}
       />
+
+      {/* Keyword Text Edit Modal */}
+      {showKeywordTextEditModal && keywordTextEditKeyword && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !keywordTextEditLoading) {
+              setShowKeywordTextEditModal(false);
+              setKeywordTextEditKeyword(null);
+              setKeywordTextEditValue("");
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[18px] font-semibold text-[#072929] mb-2">
+              Edit Keyword Text
+            </h3>
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-[12px] text-yellow-800">
+                <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly. 
+                This will create a new keyword with the updated text and remove the old one. 
+                The keyword will appear with a new ID after the update.
+              </p>
+            </div>
+            <div className="mb-6">
+              <input
+                type="text"
+                value={keywordTextEditValue}
+                onChange={(e) => setKeywordTextEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !keywordTextEditLoading) {
+                    handleKeywordTextEditSave();
+                  } else if (e.key === "Escape" && !keywordTextEditLoading) {
+                    setShowKeywordTextEditModal(false);
+                    setKeywordTextEditKeyword(null);
+                    setKeywordTextEditValue("");
+                  }
+                }}
+                disabled={keywordTextEditLoading}
+                autoFocus
+                className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                placeholder="Enter keyword text"
+                maxLength={255}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!keywordTextEditLoading) {
+                    setShowKeywordTextEditModal(false);
+                    setKeywordTextEditKeyword(null);
+                    setKeywordTextEditValue("");
+                  }
+                }}
+                disabled={keywordTextEditLoading}
+                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleKeywordTextEditSave}
+                disabled={keywordTextEditLoading || !keywordTextEditValue.trim()}
+                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {keywordTextEditLoading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bid Confirmation Modal */}
+      {showBidConfirmationModal && bidConfirmationKeyword && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !bidConfirmationLoading) {
+              setShowBidConfirmationModal(false);
+              setBidConfirmationKeyword(null);
+              setBidConfirmationOldValue(0);
+              setBidConfirmationNewValue(0);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+              Confirm Max. CPC Change
+            </h3>
+            <div className="mb-4">
+              <p className="text-[12.8px] text-[#556179] mb-2">
+                Keyword:{" "}
+                <span className="font-semibold text-[#072929]">
+                  {bidConfirmationKeyword.keyword_text || "Unnamed Keyword"}
+                </span>
+              </p>
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12.8px] text-[#556179]">Max. CPC:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12.8px] text-[#556179]">
+                      ${bidConfirmationOldValue.toFixed(2)}
+                    </span>
+                    <span className="text-[12.8px] text-[#556179]">→</span>
+                    <span className="text-[12.8px] font-semibold text-[#072929]">
+                      ${bidConfirmationNewValue.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!bidConfirmationLoading) {
+                    setShowBidConfirmationModal(false);
+                    setBidConfirmationKeyword(null);
+                    setBidConfirmationOldValue(0);
+                    setBidConfirmationNewValue(0);
+                  }
+                }}
+                disabled={bidConfirmationLoading}
+                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleBidConfirmationSave}
+                disabled={bidConfirmationLoading}
+                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bidConfirmationLoading ? "Saving..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Adgroup Bid Confirmation Modal */}
+      {showAdgroupBidConfirmationModal && adgroupBidConfirmationAdgroup && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !adgroupBidConfirmationLoading) {
+              setShowAdgroupBidConfirmationModal(false);
+              setAdgroupBidConfirmationAdgroup(null);
+              setAdgroupBidConfirmationOldValue(0);
+              setAdgroupBidConfirmationNewValue(0);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+              Confirm Default max. CPC Change
+            </h3>
+            <div className="mb-4">
+              <p className="text-[12.8px] text-[#556179] mb-2">
+                Ad Group:{" "}
+                <span className="font-semibold text-[#072929]">
+                  {adgroupBidConfirmationAdgroup.adgroup_name || adgroupBidConfirmationAdgroup.name || "Unnamed Ad Group"}
+                </span>
+              </p>
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12.8px] text-[#556179]">Default max. CPC:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12.8px] text-[#556179]">
+                      ${adgroupBidConfirmationOldValue.toFixed(2)}
+                    </span>
+                    <span className="text-[12.8px] text-[#556179]">→</span>
+                    <span className="text-[12.8px] font-semibold text-[#072929]">
+                      ${adgroupBidConfirmationNewValue.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!adgroupBidConfirmationLoading) {
+                    setShowAdgroupBidConfirmationModal(false);
+                    setAdgroupBidConfirmationAdgroup(null);
+                    setAdgroupBidConfirmationOldValue(0);
+                    setAdgroupBidConfirmationNewValue(0);
+                  }
+                }}
+                disabled={adgroupBidConfirmationLoading}
+                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAdgroupBidConfirmationSave}
+                disabled={adgroupBidConfirmationLoading}
+                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {adgroupBidConfirmationLoading ? "Saving..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Adgroup Name Edit Modal */}
+      {showAdgroupNameEditModal && adgroupNameEditAdgroup && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !adgroupNameEditLoading) {
+              setShowAdgroupNameEditModal(false);
+              setAdgroupNameEditAdgroup(null);
+              setAdgroupNameEditValue("");
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[18px] font-semibold text-[#072929] mb-2">
+              Edit Ad Group Name
+            </h3>
+            <div className="mb-6">
+              <input
+                type="text"
+                value={adgroupNameEditValue}
+                onChange={(e) => setAdgroupNameEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !adgroupNameEditLoading) {
+                    handleAdgroupNameEditSave();
+                  } else if (e.key === "Escape" && !adgroupNameEditLoading) {
+                    setShowAdgroupNameEditModal(false);
+                    setAdgroupNameEditAdgroup(null);
+                    setAdgroupNameEditValue("");
+                  }
+                }}
+                disabled={adgroupNameEditLoading}
+                autoFocus
+                className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                placeholder="Enter ad group name"
+                maxLength={255}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!adgroupNameEditLoading) {
+                    setShowAdgroupNameEditModal(false);
+                    setAdgroupNameEditAdgroup(null);
+                    setAdgroupNameEditValue("");
+                  }
+                }}
+                disabled={adgroupNameEditLoading}
+                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAdgroupNameEditSave}
+                disabled={adgroupNameEditLoading || !adgroupNameEditValue.trim()}
+                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {adgroupNameEditLoading ? (
+                  <>
+                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                    Saving...
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Final URL Edit Modal */}
+      {showFinalUrlModal && finalUrlKeyword && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !finalUrlEditLoading) {
+              setShowFinalUrlModal(false);
+              setFinalUrlKeyword(null);
+              setFinalUrlValue("");
+              setMobileFinalUrlValue("");
+              setUseMobileFinalUrl(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+              Edit Final URL
+            </h3>
+            <div className="mb-6 space-y-4">
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#136D6D] mb-2">
+                  Final URL
+                </label>
+                <input
+                  type="text"
+                  value={finalUrlValue}
+                  onChange={(e) => setFinalUrlValue(e.target.value)}
+                  disabled={finalUrlEditLoading}
+                  autoFocus
+                  className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="www.example.com"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="use-mobile-url"
+                  checked={useMobileFinalUrl}
+                  onChange={(e) => setUseMobileFinalUrl(e.target.checked)}
+                  disabled={finalUrlEditLoading}
+                  className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] disabled:opacity-50"
+                />
+                <label 
+                  htmlFor="use-mobile-url"
+                  className="text-[13.3px] text-[#072929] cursor-pointer"
+                >
+                  Use a different final URL for mobile
+                </label>
+              </div>
+              {useMobileFinalUrl && (
+                <div>
+                  <label className="block text-[11.2px] font-semibold text-[#136D6D] mb-2">
+                    Mobile Final URL
+                  </label>
+                  <input
+                    type="text"
+                    value={mobileFinalUrlValue}
+                    onChange={(e) => setMobileFinalUrlValue(e.target.value)}
+                    disabled={finalUrlEditLoading}
+                    className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="www.example.com"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!finalUrlEditLoading) {
+                    setShowFinalUrlModal(false);
+                    setFinalUrlKeyword(null);
+                    setFinalUrlValue("");
+                    setMobileFinalUrlValue("");
+                    setUseMobileFinalUrl(false);
+                  }
+                }}
+                disabled={finalUrlEditLoading}
+                className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleFinalUrlEditSave}
+                disabled={finalUrlEditLoading || !finalUrlValue.trim()}
+                className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {finalUrlEditLoading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
