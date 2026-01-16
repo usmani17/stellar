@@ -181,23 +181,14 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       minWidth: "min-w-[300px]",
       maxWidth: "max-w-[400px]",
       editable: false,
-      navigateTo: (row: GoogleCampaign, accountId: string) => 
+      navigateTo: (row: GoogleCampaign, accountId: string) =>
         `/accounts/${accountId}/google-campaigns/${row.campaign_id}`,
       getValue: (row: GoogleCampaign) => row.campaign_name || "Unnamed Campaign",
       render: (value: any, row: GoogleCampaign) => {
         const navPath = `/accounts/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
           <div className="group relative flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(navPath);
-              }}
-              className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1 text-left hover:text-[#136d6d] hover:underline cursor-pointer"
-            >
-              {value}
-            </button>
+            
             {onEditCampaign && (
               <button
                 type="button"
@@ -228,6 +219,16 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
                 )}
               </button>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(navPath);
+              }}
+              className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1 text-left hover:text-[#136d6d] hover:underline cursor-pointer"
+            >
+              {value}
+            </button>
           </div>
         );
       },
@@ -246,9 +247,9 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       type: "text",
       sortable: true,
       render: (_value: any, row: GoogleCampaign) => (
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
+        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
           {getChannelTypeLabel(row.advertising_channel_type) || "—"}
-                        </span>
+        </span>
       ),
       getValue: (row: GoogleCampaign) => row.advertising_channel_type,
     },
@@ -261,9 +262,9 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       maxWidth: "max-w-[140px]",
       editable: true,
       statusOptions: [
-                              { value: "ENABLED", label: "Enabled" },
-                              { value: "PAUSED", label: "Paused" },
-                              { value: "REMOVED", label: "Removed" },
+        { value: "ENABLED", label: "Enabled" },
+        { value: "PAUSED", label: "Paused" },
+        { value: "REMOVED", label: "Removed" },
       ],
       getValue: (row: GoogleCampaign) => row.status || "ENABLED",
     },
@@ -402,7 +403,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleCampaign) => (row as any).acos || 0,
     },
-  ], [getChannelTypeLabel]);
+  ], [getChannelTypeLabel, accountId]);
 
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, _field: string) => {
