@@ -81,6 +81,11 @@ export const GoogleAds: React.FC = () => {
   const [pendingStatusAction, setPendingStatusAction] = useState<
     "ENABLED" | "PAUSED" | "REMOVED" | null
   >(null);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline edit state
@@ -702,11 +707,21 @@ export const GoogleAds: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+      setBulkUpdateResults(null);
+
+      const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
         adIds: Array.from(selectedAds),
         action: "status",
         status: statusValue,
       });
+
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
       // Reload ads after successful update
       setSorting(true); // Show loading overlay on table
       await loadAds(accountIdNum);
@@ -716,7 +731,12 @@ export const GoogleAds: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update ads", error);
-      alert("Failed to update ads. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update ads. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAds.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -1005,6 +1025,67 @@ export const GoogleAds: React.FC = () => {
             <div className="flex items-center justify-end gap-2">
               <div
                 className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="edit-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowBulkActions((prev) => !prev);
+                    setShowExportDropdown(false);
+                  }}
+                >
+                  <svg
+                    className="w-5 h-5 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                  <span className="text-[10.64px] text-[#072929] font-normal">
+                    Edit
+                  </span>
+                </Button>
+                {showBulkActions && (
+                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="overflow-y-auto">
+                      {[
+                        { value: "ENABLED", label: "Enable" },
+                        { value: "PAUSED", label: "Pause" },
+                        { value: "REMOVED", label: "Remove" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          disabled={selectedAds.size === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedAds.size === 0) return;
+                            setPendingStatusAction(
+                              opt.value as "ENABLED" | "PAUSED" | "REMOVED"
+                            );
+                            setShowConfirmationModal(true);
+                            setShowBulkActions(false);
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div
+                className="relative inline-flex justify-end"
                 ref={exportDropdownRef}
               >
                 <div className="relative">
@@ -1113,67 +1194,6 @@ export const GoogleAds: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div
-                className="relative inline-flex justify-end"
-                ref={dropdownRef}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="edit-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowBulkActions((prev) => !prev);
-                    setShowExportDropdown(false);
-                  }}
-                >
-                  <svg
-                    className="w-5 h-5 text-[#072929]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                  <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
-                  </span>
-                </Button>
-                {showBulkActions && (
-                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    <div className="overflow-y-auto">
-                      {[
-                        { value: "ENABLED", label: "Enable" },
-                        { value: "PAUSED", label: "Pause" },
-                        { value: "REMOVED", label: "Remove" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          disabled={selectedAds.size === 0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedAds.size === 0) return;
-                            setPendingStatusAction(
-                              opt.value as "ENABLED" | "PAUSED" | "REMOVED"
-                            );
-                            setShowConfirmationModal(true);
-                            setShowBulkActions(false);
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Google Ads Table Card with overlay when panel is open */}
@@ -1201,24 +1221,89 @@ export const GoogleAds: React.FC = () => {
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      Confirm Status Changes
+                      {bulkUpdateResults
+                        ? "Update Results"
+                        : "Confirm Status Changes"}
                     </h3>
 
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedAds.size} ad{selectedAds.size !== 1 ? "s" : ""}{" "}
-                          will be updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          Status change
-                        </span>
-                      </div>
-                    </div>
+                    {/* Results Summary */}
+                    {bulkUpdateResults ? (
+                      <div className="mb-6">
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Update Summary:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-forest-f40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Successfully updated:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-forest-f40">
+                                {bulkUpdateResults.updated}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-red-r40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Failed:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-red-r40">
+                                {bulkUpdateResults.failed}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* Ads Preview Table */}
-                    {(() => {
+                        {/* Errors */}
+                        {bulkUpdateResults.errors.length > 0 && (
+                          <div className="bg-red-r0 border border-red-r20 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-red-r40 mb-2">
+                              Errors ({bulkUpdateResults.errors.length}):
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              <ul className="list-disc list-inside space-y-1">
+                                {bulkUpdateResults.errors.map((error, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-[11.2px] text-red-r40"
+                                  >
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Success message if all succeeded */}
+                        {bulkUpdateResults.failed === 0 && bulkUpdateResults.updated > 0 && (
+                          <div className="bg-forest-f0 border border-forest-f40 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-forest-f60">
+                              ✓ All ads updated successfully!
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Confirmation Summary */
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {selectedAds.size} ad{selectedAds.size !== 1 ? "s" : ""}{" "}
+                            will be updated:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            Status change
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ads Preview Table - Only show before update */}
+                    {!bulkUpdateResults && (() => {
                       const selectedAdsData = getSelectedAdsData();
                       const previewCount = Math.min(10, selectedAdsData.length);
                       const hasMore = selectedAdsData.length > 10;
@@ -1280,6 +1365,8 @@ export const GoogleAds: React.FC = () => {
                       );
                     })()}
 
+                    {/* Action Details - Only show before update */}
+                    {!bulkUpdateResults && (
                     <div className="flex justify-between items-center py-2 border-b border-gray-200 mb-6">
                       <span className="text-[12.16px] text-[#556179]">
                         New Status:
@@ -1291,36 +1378,51 @@ export const GoogleAds: React.FC = () => {
                           : ""}
                       </span>
                     </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!bulkLoading) {
-                            setShowConfirmationModal(false);
-                            setPendingStatusAction(null);
-                          }
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (pendingStatusAction && !bulkLoading) {
-                            await runBulkStatus(pendingStatusAction);
+                      {bulkUpdateResults ? (
+                        <button
+                          type="button"
+                          onClick={() => {
                             setShowConfirmationModal(false);
                             setShowBulkActions(false);
                             setPendingStatusAction(null);
-                          }
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Updating..." : "Confirm"}
-                      </button>
+                            setBulkUpdateResults(null);
+                          }}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                        >
+                          Close
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!bulkLoading) {
+                                setShowConfirmationModal(false);
+                                setPendingStatusAction(null);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (pendingStatusAction && !bulkLoading) {
+                                await runBulkStatus(pendingStatusAction);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {bulkLoading ? "Updating..." : "Confirm"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -96,6 +96,11 @@ export const GoogleAdGroups: React.FC = () => {
     "ENABLED" | "PAUSED" | null
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline edit state
@@ -854,16 +859,22 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
+      setBulkUpdateResults(null);
 
-      await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
         adgroupIds: Array.from(selectedAdgroups),
         action: "status",
         status: statusValue,
       });
 
-      // Close modal and reload adgroups with loading state
-      setShowConfirmationModal(false);
-      setShowBulkActions(false);
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload adgroups with loading state
       setSorting(true); // Show loading overlay
       await loadAdgroups(accountIdNum);
       // Hide loading overlay after a short delay
@@ -872,7 +883,12 @@ export const GoogleAdGroups: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update adgroups", error);
-      alert("Failed to update adgroups. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update adgroups. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAdgroups.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -935,6 +951,7 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
+      setBulkUpdateResults(null);
 
       // For each selected adgroup, calculate new bid and update
       const selectedAdgroupsData = getSelectedAdgroupsData();
@@ -944,19 +961,43 @@ export const GoogleAdGroups: React.FC = () => {
         return { adgroupId: adgroup.adgroup_id, newBid };
       });
 
+      // Track results
+      let totalUpdated = 0;
+      let totalFailed = 0;
+      const allErrors: string[] = [];
+
       // Update each adgroup individually (bulk update doesn't support increase/decrease)
       for (const update of updates) {
-        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-          adgroupIds: [update.adgroupId],
-          action: "bid",
-          bid: update.newBid,
-        });
+        try {
+          const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+            adgroupIds: [update.adgroupId],
+            action: "bid",
+            bid: update.newBid,
+          });
+          if (response.updated && response.updated > 0) {
+            totalUpdated += response.updated;
+          }
+          if (response.failed && response.failed > 0) {
+            totalFailed += response.failed;
+          }
+          if (response.errors && response.errors.length > 0) {
+            allErrors.push(...response.errors);
+          }
+        } catch (error: any) {
+          totalFailed += 1;
+          const errorMessage = error?.response?.data?.error || error?.message || "Failed to update adgroup";
+          allErrors.push(`Adgroup ${update.adgroupId}: ${errorMessage}`);
+        }
       }
 
-      // Close modal and reload adgroups with loading state
-      setShowConfirmationModal(false);
-      setShowBidPanel(false);
-      setShowBulkActions(false);
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: totalUpdated,
+        failed: totalFailed,
+        errors: allErrors,
+      });
+
+      // Reload adgroups with loading state
       setSorting(true); // Show loading overlay
       await loadAdgroups(accountIdNum);
       // Hide loading overlay after a short delay
@@ -965,7 +1006,12 @@ export const GoogleAdGroups: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update adgroups", error);
-      alert("Failed to update adgroups. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update adgroups. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAdgroups.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -1272,48 +1318,6 @@ export const GoogleAdGroups: React.FC = () => {
                   type="button"
                   variant="ghost"
                   className="edit-button"
-                  onClick={() => setShowExportModal(true)}
-                  disabled={exporting || loading || adgroups.length === 0}
-                >
-                  {exporting ? (
-                    <>
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                      </div>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Exporting...
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Export
-                      </span>
-                    </>
-                  )}
-                </Button>
-              </div>
-              <div
-                className="relative inline-flex justify-end"
-                ref={dropdownRef}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="edit-button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowBulkActions((prev) => !prev);
@@ -1372,6 +1376,48 @@ export const GoogleAdGroups: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+              <div
+                className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="edit-button"
+                  onClick={() => setShowExportModal(true)}
+                  disabled={exporting || loading || adgroups.length === 0}
+                >
+                  {exporting ? (
+                    <>
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                      </div>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Exporting...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Export
+                      </span>
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
 
@@ -1531,27 +1577,92 @@ export const GoogleAdGroups: React.FC = () => {
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBidChange
+                      {bulkUpdateResults
+                        ? "Update Results"
+                        : isBidChange
                         ? "Confirm Bid Changes"
                         : "Confirm Status Changes"}
                     </h3>
 
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedAdgroups.size} adgroup
-                          {selectedAdgroups.size !== 1 ? "s" : ""} will be
-                          updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBidChange ? "Bid" : "Status"} change
-                        </span>
-                      </div>
-                    </div>
+                    {/* Results Summary */}
+                    {bulkUpdateResults ? (
+                      <div className="mb-6">
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Update Summary:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-forest-f40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Successfully updated:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-forest-f40">
+                                {bulkUpdateResults.updated}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-red-r40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Failed:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-red-r40">
+                                {bulkUpdateResults.failed}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* AdGroup Preview Table */}
-                    {(() => {
+                        {/* Errors */}
+                        {bulkUpdateResults.errors.length > 0 && (
+                          <div className="bg-red-r0 border border-red-r20 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-red-r40 mb-2">
+                              Errors ({bulkUpdateResults.errors.length}):
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              <ul className="list-disc list-inside space-y-1">
+                                {bulkUpdateResults.errors.map((error, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-[11.2px] text-red-r40"
+                                  >
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Success message if all succeeded */}
+                        {bulkUpdateResults.failed === 0 && bulkUpdateResults.updated > 0 && (
+                          <div className="bg-forest-f0 border border-forest-f40 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-forest-f60">
+                              ✓ All ad groups updated successfully!
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Confirmation Summary */
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {selectedAdgroups.size} adgroup
+                            {selectedAdgroups.size !== 1 ? "s" : ""} will be
+                            updated:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {isBidChange ? "Bid" : "Status"} change
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AdGroup Preview Table - Only show before update */}
+                    {!bulkUpdateResults && (() => {
                       const selectedAdgroupsData = getSelectedAdgroupsData();
                       const previewCount = Math.min(
                         10,
@@ -1629,6 +1740,8 @@ export const GoogleAdGroups: React.FC = () => {
                       );
                     })()}
 
+                    {/* Action Details - Only show before update */}
+                    {!bulkUpdateResults && (
                     <div className="space-y-3 mb-6">
                       {isBidChange ? (
                         <>
@@ -1704,33 +1817,51 @@ export const GoogleAdGroups: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowConfirmationModal(false);
-                          setPendingStatusAction(null);
-                        }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (isBidChange) {
-                            await runBulkBid();
-                          } else if (pendingStatusAction) {
-                            await runBulkStatus(pendingStatusAction);
-                          }
-                          setPendingStatusAction(null);
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Updating..." : "Confirm"}
-                      </button>
+                      {bulkUpdateResults ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowConfirmationModal(false);
+                            setShowBidPanel(false);
+                            setShowBulkActions(false);
+                            setPendingStatusAction(null);
+                            setBulkUpdateResults(null);
+                          }}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                        >
+                          Close
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowConfirmationModal(false);
+                              setPendingStatusAction(null);
+                            }}
+                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (isBidChange) {
+                                await runBulkBid();
+                              } else if (pendingStatusAction) {
+                                await runBulkStatus(pendingStatusAction);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {bulkLoading ? "Updating..." : "Confirm"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

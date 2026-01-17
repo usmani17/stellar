@@ -145,6 +145,11 @@ export const GoogleCampaigns: React.FC = () => {
     "ENABLED" | "PAUSED" | null
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline edit state
@@ -1839,15 +1844,36 @@ export const GoogleCampaigns: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      setBulkUpdateResults(null);
+
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "status",
         status: statusValue,
       });
+
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload campaigns with loading state
+      setSorting(true); // Show loading overlay
       await loadCampaigns(accountIdNum);
+      // Hide loading overlay after a short delay
+      setTimeout(() => {
+        setSorting(false);
+      }, 300);
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
-      alert("Failed to update campaigns. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update campaigns. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedCampaigns.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -1912,8 +1938,9 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
+      setBulkUpdateResults(null);
 
-      await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
         budgetAction,
@@ -1923,10 +1950,14 @@ export const GoogleCampaigns: React.FC = () => {
         lowerLimit: lower,
       });
 
-      // Close modal and reload campaigns with loading state
-      setShowConfirmationModal(false);
-      setShowBudgetPanel(false);
-      setShowBulkActions(false);
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload campaigns with loading state
       setSorting(true); // Show loading overlay
       await loadCampaigns(accountIdNum);
       // Hide loading overlay after a short delay
@@ -1935,7 +1966,12 @@ export const GoogleCampaigns: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
-      alert("Failed to update campaigns. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update campaigns. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedCampaigns.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -2673,27 +2709,92 @@ export const GoogleCampaigns: React.FC = () => {
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBudgetChange
+                      {bulkUpdateResults
+                        ? "Update Results"
+                        : isBudgetChange
                         ? "Confirm Budget Changes"
                         : "Confirm Status Changes"}
                     </h3>
 
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedCampaigns.size} campaign
-                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
-                          updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBudgetChange ? "Budget" : "Status"} change
-                        </span>
-                      </div>
-                    </div>
+                    {/* Results Summary */}
+                    {bulkUpdateResults ? (
+                      <div className="mb-6">
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Update Summary:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-forest-f40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Successfully updated:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-forest-f40">
+                                {bulkUpdateResults.updated}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-red-r40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Failed:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-red-r40">
+                                {bulkUpdateResults.failed}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* Campaign Preview Table */}
-                    {(() => {
+                        {/* Errors */}
+                        {bulkUpdateResults.errors.length > 0 && (
+                          <div className="bg-red-r0 border border-red-r20 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-red-r40 mb-2">
+                              Errors ({bulkUpdateResults.errors.length}):
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              <ul className="list-disc list-inside space-y-1">
+                                {bulkUpdateResults.errors.map((error, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-[11.2px] text-red-r40"
+                                  >
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Success message if all succeeded */}
+                        {bulkUpdateResults.failed === 0 && bulkUpdateResults.updated > 0 && (
+                          <div className="bg-forest-f0 border border-forest-f40 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-forest-f60">
+                              ✓ All campaigns updated successfully!
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Confirmation Summary */
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {selectedCampaigns.size} campaign
+                            {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                            updated:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {isBudgetChange ? "Budget" : "Status"} change
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Campaign Preview Table - Only show before update */}
+                    {!bulkUpdateResults && (() => {
                       const selectedCampaignsData = getSelectedCampaignsData();
                       const previewCount = Math.min(
                         10,
@@ -2773,6 +2874,8 @@ export const GoogleCampaigns: React.FC = () => {
                       );
                     })()}
 
+                    {/* Action Details - Only show before update */}
+                    {!bulkUpdateResults && (
                     <div className="space-y-3 mb-6">
                       {isBudgetChange ? (
                         <>
@@ -2849,35 +2952,51 @@ export const GoogleCampaigns: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowConfirmationModal(false);
-                          setPendingStatusAction(null);
-                        }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (isBudgetChange) {
-                            await runBulkBudget();
-                          } else if (pendingStatusAction) {
+                      {bulkUpdateResults ? (
+                        <button
+                          type="button"
+                          onClick={() => {
                             setShowConfirmationModal(false);
-                            await runBulkStatus(pendingStatusAction);
+                            setShowBudgetPanel(false);
                             setShowBulkActions(false);
-                          }
-                          setPendingStatusAction(null);
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Updating..." : "Confirm"}
-                      </button>
+                            setPendingStatusAction(null);
+                            setBulkUpdateResults(null);
+                          }}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                        >
+                          Close
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowConfirmationModal(false);
+                              setPendingStatusAction(null);
+                            }}
+                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (isBudgetChange) {
+                                await runBulkBudget();
+                              } else if (pendingStatusAction) {
+                                await runBulkStatus(pendingStatusAction);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {bulkLoading ? "Updating..." : "Confirm"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
