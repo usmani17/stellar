@@ -1902,8 +1902,8 @@ export const Campaigns: React.FC = () => {
         })(),
         status: normalizedStatus || "Enabled",
         startDate: campaign.startDate || row.startDate,
-        // Only include endDate for non-SB campaigns
-        ...(campaignTypeUpper !== "SB" && { endDate: campaign.endDate }),
+        // Include endDate for all campaign types (SB campaigns now support endDate)
+        endDate: campaign.endDate,
         // Only include targetingType for SP campaigns
         ...(campaignTypeUpper === "SP" && {
           targetingType:
@@ -1923,6 +1923,11 @@ export const Campaigns: React.FC = () => {
           brandEntityId: (campaign as any).brandEntityId || undefined,
           goal: (campaign as any).goal || "PAGE_VISIT",
           productLocation: (campaign as any).productLocation || "",
+        }),
+        // SD-specific fields
+        ...(campaignTypeUpper === "SD" && {
+          tactic: (campaign as any).tactic || (row as any).tactic || undefined,
+          costType: (campaign as any).costType || (row as any).costType || undefined,
         }),
         // Map tags from object to array format
         tags: (() => {

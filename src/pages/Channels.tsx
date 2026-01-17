@@ -295,6 +295,29 @@ export const Channels: React.FC = () => {
                 {account ? `${account.name} Channels` : "Channels"}
               </h1>
               <div className="flex items-center gap-2">
+                {/* Search */}
+                <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
+                  <svg
+                    className="w-3 h-3 text-[#556179]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
+                  />
+                </div>
                 {/* Connect Button */}
                 <Menu
                   trigger={
@@ -303,9 +326,7 @@ export const Channels: React.FC = () => {
                       disabled={isConnecting}
                       className="create-entity-button"
                     >
-                      <span>
-                        {isConnecting ? "Connecting..." : "Connect"}
-                      </span>
+                      <span>{isConnecting ? "Connecting..." : "Connect"}</span>
                     </Button>
                   }
                   items={[
@@ -351,247 +372,212 @@ export const Channels: React.FC = () => {
                   ]}
                   align="left"
                 />
-                {/* Search */}
-                <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
-                  <svg
-                    className="w-3 h-3 text-[#556179]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search..."
-                    className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
-                  />
-                </div>
               </div>
             </div>
 
             {/* Table */}
-              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
-                <div className="overflow-x-auto overflow-y-visible">
-                  <table className="w-full">
-                    <thead>
-                      <tr>
-                        <th className="table-header">
-                          Channel Name
-                        </th>
-                        <th className="table-header">
-                          Type
-                        </th>
-                        <th className="table-header">
-                          Channel Created
-                        </th>
-                        <th className="table-header">
-                          Profiles
-                        </th>
-                        <th className="table-header">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loading ? (
-                        // Loading skeleton rows
-                        Array.from({ length: 3 }).map((_, index) => (
-                          <tr key={`skeleton-${index}`} className="table-row">
-                            <td className="table-cell">
-                              <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
-                            </td>
-                            <td className="table-cell">
-                              <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
-                            </td>
-                            <td className="table-cell">
-                              <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
-                            </td>
-                            <td className="table-cell">
-                              <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
-                            </td>
-                            <td className="table-cell">
-                              <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : filteredChannels.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="table-cell text-center py-8">
-                            <p className="text-[14px] text-[#556179] mb-4">
-                              {searchQuery ? "No channels found" : "No channels yet"}
-                            </p>
+            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
+              <div className="overflow-x-auto overflow-y-visible">
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      <th className="table-header">Channel Name</th>
+                      <th className="table-header">Type</th>
+                      <th className="table-header">Channel Created</th>
+                      <th className="table-header">Profiles</th>
+                      <th className="table-header">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      // Loading skeleton rows
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <tr key={`skeleton-${index}`} className="table-row">
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
                           </td>
                         </tr>
-                      ) : (
-                        filteredChannels.map((channel) => {
-
-                          return (
-                            <tr
-                              key={channel.id}
-                              className="table-row group"
-                            >
-                              <td className="table-cell group">
-                                {editingChannel?.channelId === channel.id &&
-                                editingChannel.field === "channel_name" ? (
-                                  <input
-                                    type="text"
-                                    value={editedChannelName}
-                                    onChange={(e) =>
-                                      setEditedChannelName(e.target.value)
+                      ))
+                    ) : filteredChannels.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="table-cell text-center py-8">
+                          <p className="text-[14px] text-[#556179] mb-4">
+                            {searchQuery
+                              ? "No channels found"
+                              : "No channels yet"}
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredChannels.map((channel) => {
+                        return (
+                          <tr key={channel.id} className="table-row group">
+                            <td className="table-cell group">
+                              {editingChannel?.channelId === channel.id &&
+                              editingChannel.field === "channel_name" ? (
+                                <input
+                                  type="text"
+                                  value={editedChannelName}
+                                  onChange={(e) =>
+                                    setEditedChannelName(e.target.value)
+                                  }
+                                  onBlur={(e) => {
+                                    const inputValue = e.target.value.trim();
+                                    if (
+                                      inputValue === channel.channel_name ||
+                                      inputValue === ""
+                                    ) {
+                                      cancelEditChannelName();
+                                    } else {
+                                      confirmEditChannelName(inputValue);
                                     }
-                                    onBlur={(e) => {
-                                      const inputValue = e.target.value.trim();
-                                      if (
-                                        inputValue === channel.channel_name ||
-                                        inputValue === ""
-                                      ) {
-                                        cancelEditChannelName();
-                                      } else {
-                                        confirmEditChannelName(inputValue);
-                                      }
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.currentTarget.blur();
-                                      } else if (e.key === "Escape") {
-                                        cancelEditChannelName();
-                                      }
-                                    }}
-                                    autoFocus
-                                    disabled={updatingChannel}
-                                    className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
-                                  />
-                                ) : (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => {
-                                        if (channel.channel_type === "amazon") {
-                                          navigate(
-                                            `/accounts/${accountId}/campaigns`
-                                          );
-                                        } else if (
-                                          channel.channel_type === "google"
-                                        ) {
-                                          navigate(
-                                            `/accounts/${accountId}/google-campaigns`
-                                          );
-                                        } else if (
-                                          channel.channel_type === "tiktok"
-                                        ) {
-                                          navigate(
-                                            `/accounts/${accountId}/tiktok/campaigns`
-                                          );
-                                        }
-                                      }}
-                                      className="table-edit-link"
-                                    >
-                                      {channel.channel_name}
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        startEditChannelName(
-                                          channel,
-                                          "channel_name"
-                                        );
-                                      }}
-                                      className="table-edit-icon"
-                                      title="Edit channel name"
-                                    >
-                                      <svg
-                                        className="w-4 h-4 text-[#556179]"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                        />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="table-cell">
-                                <span className="table-text">
-                                  {formatChannelType(channel.channel_type)}
-                                </span>
-                              </td>
-                              <td className="table-cell">
-                                <span className="table-text whitespace-nowrap">
-                                  {formatDate(channel.created_at)}
-                                </span>
-                              </td>
-                              <td className="table-cell">
-                                <span className="table-text">
-                                  {profileCounts[channel.id]
-                                    ? `${profileCounts[channel.id].selected}/${
-                                        profileCounts[channel.id].total
-                                      }`
-                                    : "—"}
-                                </span>
-                              </td>
-                              <td className="table-cell relative">
-                                <div className="flex items-center gap-3">
-                                  <Button
-                                    size="sm"
-                                    className="create-entity-button"
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    } else if (e.key === "Escape") {
+                                      cancelEditChannelName();
+                                    }
+                                  }}
+                                  autoFocus
+                                  disabled={updatingChannel}
+                                  className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
+                                />
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <button
                                     onClick={() => {
-                                      if (channel.channel_type === "google") {
+                                      if (channel.channel_type === "amazon") {
                                         navigate(
-                                          `/channels/${channel.id}/select-google-accounts`
+                                          `/accounts/${accountId}/campaigns`
+                                        );
+                                      } else if (
+                                        channel.channel_type === "google"
+                                      ) {
+                                        navigate(
+                                          `/accounts/${accountId}/google-campaigns`
                                         );
                                       } else if (
                                         channel.channel_type === "tiktok"
                                       ) {
                                         navigate(
-                                          `/channels/${channel.id}/select-tiktok-profiles`
-                                        );
-                                      } else {
-                                        navigate(
-                                          `/channels/${channel.id}/list-profiles`
+                                          `/accounts/${accountId}/tiktok/campaigns`
                                         );
                                       }
                                     }}
+                                    className="table-edit-link"
                                   >
-                                    <span className="text-[14px] font-medium">
-                                      Profiles
-                                    </span>
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDeleteChannel(channel)}
-                                    disabled={deletingChannelId === channel.id}
-                                    className="cancel-button"
+                                    {channel.channel_name}
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startEditChannelName(
+                                        channel,
+                                        "channel_name"
+                                      );
+                                    }}
+                                    className="table-edit-icon"
+                                    title="Edit channel name"
                                   >
-                                    <span className="text-[14px] font-medium">
-                                      {deletingChannelId === channel.id
-                                        ? "Deleting..."
-                                        : "Delete"}
-                                    </span>
-                                  </Button>
+                                    <svg
+                                      className="w-4 h-4 text-[#556179]"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                      />
+                                    </svg>
+                                  </button>
                                 </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                              )}
+                            </td>
+                            <td className="table-cell">
+                              <span className="table-text">
+                                {formatChannelType(channel.channel_type)}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <span className="table-text whitespace-nowrap">
+                                {formatDate(channel.created_at)}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <span className="table-text">
+                                {profileCounts[channel.id]
+                                  ? `${profileCounts[channel.id].selected}/${
+                                      profileCounts[channel.id].total
+                                    }`
+                                  : "—"}
+                              </span>
+                            </td>
+                            <td className="table-cell relative">
+                              <div className="flex items-center gap-3">
+                                <Button
+                                  size="sm"
+                                  className="create-entity-button"
+                                  onClick={() => {
+                                    if (channel.channel_type === "google") {
+                                      navigate(
+                                        `/channels/${channel.id}/select-google-accounts`
+                                      );
+                                    } else if (
+                                      channel.channel_type === "tiktok"
+                                    ) {
+                                      navigate(
+                                        `/channels/${channel.id}/select-tiktok-profiles`
+                                      );
+                                    } else {
+                                      navigate(
+                                        `/channels/${channel.id}/list-profiles`
+                                      );
+                                    }
+                                  }}
+                                >
+                                  <span className="text-[14px] font-medium">
+                                    Profiles
+                                  </span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteChannel(channel)}
+                                  disabled={deletingChannelId === channel.id}
+                                  className="cancel-button"
+                                >
+                                  <span className="text-[14px] font-medium">
+                                    {deletingChannelId === channel.id
+                                      ? "Deleting..."
+                                      : "Delete"}
+                                  </span>
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
+            </div>
           </div>
         </div>
       </div>
