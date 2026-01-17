@@ -5,7 +5,7 @@ import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
-import type { GoogleAd } from "./types";
+import type { GoogleAd } from "./GoogleTypes";
 
 interface GoogleCampaignDetailAdsTabProps {
   ads: GoogleAd[];
@@ -234,9 +234,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
             }}
             initialFilters={filters}
             filterFields={[
-              { value: "name", label: "Ad Type" },
+              { value: "name", label: "Ad Name" },
               { value: "status", label: "Status" },
-              { value: "adgroup_name", label: "Ad Group Name" },
             ]}
           />
         </div>

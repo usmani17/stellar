@@ -32,7 +32,7 @@ export interface FilterItem {
     | "match_type"
     | "expression";
   operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, keyword_text, match_type, expression
-  value: string | number | string[]; // Support arrays for multi-select fields (type, state, profile_name)
+  value: string | number | string[] | { min: number; max: number }; // Support arrays for multi-select fields (type, state, profile_name), and object for "between" operator
 }
 
 export type FilterValues = FilterItem[];

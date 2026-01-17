@@ -8,7 +8,7 @@ import {
   FilterPanel,
   type FilterValues,
 } from "../../../../components/filters/FilterPanel";
-import type { GoogleKeyword } from "./types";
+import type { GoogleKeyword } from "./GoogleTypes";
 
 interface GoogleCampaignDetailKeywordsTabProps {
   keywords: GoogleKeyword[];
@@ -26,6 +26,7 @@ interface GoogleCampaignDetailKeywordsTabProps {
   onToggleFilterPanel: () => void;
   filters: FilterValues;
   onApplyFilters: (filters: FilterValues) => void;
+  accountId: string;
   syncing: boolean;
   onSync: () => void;
   syncingAnalytics?: boolean;
@@ -70,6 +71,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
   onToggleFilterPanel,
   filters,
   onApplyFilters,
+  accountId,
   syncing,
   onSync,
   syncingAnalytics,
@@ -366,10 +368,8 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
             }}
             initialFilters={filters}
             filterFields={[
-              { value: "name", label: "Keyword" },
-              { value: "type", label: "Match Type" },
+              { value: "keyword_text", label: "Keyword" },
               { value: "status", label: "Status" },
-              { value: "adgroup_name", label: "Ad Group Name" },
             ]}
           />
         </div>

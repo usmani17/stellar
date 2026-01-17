@@ -59,4 +59,3 @@ export type FilterValues = Array<{
   operator: string;
   value: string;
 }>;
-

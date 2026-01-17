@@ -8,7 +8,7 @@ import {
   FilterPanel,
   type FilterValues,
 } from "../../../../components/filters/FilterPanel";
-import type { GoogleNegativeKeyword } from "./types";
+import type { GoogleNegativeKeyword } from "./GoogleTypes";
 
 interface GoogleCampaignDetailNegativeKeywordsTabProps {
   negativeKeywords: GoogleNegativeKeyword[];
@@ -396,11 +396,8 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
             }}
             initialFilters={filters}
             filterFields={[
-              { value: "keyword_text", label: "Keyword Text" },
-              { value: "match_type", label: "Match Type" },
+              { value: "keyword_text", label: "Keyword" },
               { value: "status", label: "Status" },
-              { value: "level", label: "Level" },
-              { value: "adgroup_name", label: "Ad Group Name" },
             ]}
           />
         </div>

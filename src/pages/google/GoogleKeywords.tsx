@@ -1,5 +1,5 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -10,10 +10,11 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
-  FilterPanel,
+  DynamicFilterPanel,
   type FilterValues,
-} from "../../components/filters/FilterPanel";
-import { campaignsService } from "../../services/campaigns";
+} from "../../components/filters/DynamicFilterPanel";
+import { googleAdwordsKeywordsService } from "../../services/googleAdwords/googleAdwordsKeywords";
+import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleKeywordsTable,
@@ -62,6 +63,7 @@ export const GoogleKeywords: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const isLoadingRef = useRef(false);
 
   // Chart toggles
   const [chartToggles, setChartToggles] = useState({
@@ -92,6 +94,11 @@ export const GoogleKeywords: React.FC = () => {
     "ENABLED" | "PAUSED" | null
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline edit state
@@ -211,124 +218,16 @@ export const GoogleKeywords: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (sorting) return;
+  // Removed buildFilterParams - now passing filters array directly to service
 
-    if (accountId) {
-      const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
-        loadKeywords(accountIdNum);
-      } else {
-        setLoading(false);
-      }
-    } else {
-      setLoading(false);
+  const loadKeywords = useCallback(async (accountId: number) => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
     }
-  }, [accountId, currentPage, filters, startDate, endDate]);
 
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    filterList.forEach((filter) => {
-      const field = filter.field as string;
-      if (field === "keyword_text") {
-        if (filter.operator === "contains") {
-          params.keyword_text__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.keyword_text__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.keyword_text = filter.value;
-        }
-      } else if (field === "bid") {
-        if (filter.operator === "lt") {
-          params.bid__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.bid__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.bid = filter.value;
-        } else if (filter.operator === "lte") {
-          params.bid__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.bid__gte = filter.value;
-        }
-      } else if (field === "status") {
-        params.status = filter.value;
-      } else if (field === "match_type") {
-        params.match_type = filter.value;
-      } else if (field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
-        }
-      } else if (field === "adgroup_name") {
-        if (filter.operator === "contains") {
-          params.adgroup_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.adgroup_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.adgroup_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
-
-  const loadKeywordsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
     try {
-      setLoading(true);
-      const params: any = {
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filterList),
-      };
-
-      const response = await campaignsService.getGoogleKeywords(
-        accountId,
-        undefined,
-        undefined,
-        params
-      );
-      setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedKeywords(new Set());
-    } catch (error) {
-      console.error("Failed to load Google keywords:", error);
-      setKeywords([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadKeywords = async (accountId: number) => {
-    try {
+      isLoadingRef.current = true;
       setLoading(true);
       const params: any = {
         sort_by: sortBy,
@@ -339,10 +238,10 @@ export const GoogleKeywords: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters, // Pass filters array directly
       };
 
-      const response = await campaignsService.getGoogleKeywords(
+      const response = await googleAdwordsKeywordsService.getGoogleKeywords(
         accountId,
         undefined,
         undefined,
@@ -386,8 +285,82 @@ export const GoogleKeywords: React.FC = () => {
       setTotal(0);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+
+  useEffect(() => {
+    if (sorting) return;
+
+    if (accountId) {
+      const accountIdNum = parseInt(accountId, 10);
+      if (!isNaN(accountIdNum)) {
+        loadKeywords(accountIdNum);
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadKeywords, sorting]);
+
+  const loadKeywordsWithFilters = async (
+    accountId: number,
+    filterList: FilterValues
+  ) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        sort_by: sortBy,
+        order: sortOrder,
+        page: 1,
+        page_size: itemsPerPage,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        filters: filterList, // Pass filters array directly
+      };
+
+      const response = await googleAdwordsKeywordsService.getGoogleKeywords(
+        accountId,
+        undefined,
+        undefined,
+        params
+      );
+      setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
+      setTotalPages(response.total_pages || 0);
+      setTotal(response.total || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      const responseWithChart = response as any;
+      if (
+        responseWithChart.chart_data &&
+        Array.isArray(responseWithChart.chart_data)
+      ) {
+        setChartDataFromApi(responseWithChart.chart_data);
+      } else {
+        setChartDataFromApi([]);
+      }
+      setSelectedKeywords(new Set());
+    } catch (error) {
+      console.error("Failed to load Google keywords:", error);
+      setKeywords([]);
+      setTotalPages(0);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Sync status hook (after loadKeywords is defined)
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+    accountId,
+    entityType: "keywords",
+    currentData: keywords,
+    loadFunction: loadKeywords,
+  });
 
   const handleSync = async () => {
     if (!accountId) return;
@@ -397,7 +370,7 @@ export const GoogleKeywords: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleKeywords(accountIdNum);
+      const result = await googleAdwordsKeywordsService.syncGoogleKeywords(accountIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} keywords`;
 
@@ -411,6 +384,9 @@ export const GoogleKeywords: React.FC = () => {
       }
 
       setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
 
       if (result.synced > 0) {
         setCurrentPage(1);
@@ -450,7 +426,7 @@ export const GoogleKeywords: React.FC = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
       
-      const result = await campaignsService.syncGoogleKeywordAnalytics(
+      const result = await googleAdwordsKeywordsService.syncGoogleKeywordAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
         today.toISOString().split("T")[0]
@@ -522,10 +498,10 @@ export const GoogleKeywords: React.FC = () => {
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-            ...buildFilterParams(filters),
+            filters: filters, // Pass filters array directly
           };
 
-          const response = await campaignsService.getGoogleKeywords(
+          const response = await googleAdwordsKeywordsService.getGoogleKeywords(
             accountIdNum,
             undefined,
             undefined,
@@ -688,7 +664,7 @@ export const GoogleKeywords: React.FC = () => {
       }
 
       // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
         keywordIds: [keywordTextEditKeyword.keyword_id],
         action: "keyword_text",
         keyword_text: trimmedText,
@@ -828,7 +804,7 @@ export const GoogleKeywords: React.FC = () => {
       }
 
       // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
-      const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
         keywordIds: [finalUrlKeyword.keyword_id],
         action: "final_urls",
         final_url: finalUrl,
@@ -1009,7 +985,7 @@ export const GoogleKeywords: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "status",
           status: statusValue,
@@ -1025,7 +1001,7 @@ export const GoogleKeywords: React.FC = () => {
           throw new Error("Invalid bid value");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "bid",
           bid: bidValue,
@@ -1046,7 +1022,7 @@ export const GoogleKeywords: React.FC = () => {
         };
         const matchTypeValue = matchTypeMap[inlineEditNewValue] || "EXACT";
 
-        const response = await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
           keywordIds: [inlineEditKeyword.keyword_id],
           action: "match_type",
           match_type: matchTypeValue,
@@ -1079,15 +1055,22 @@ export const GoogleKeywords: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
-      await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      setBulkUpdateResults(null);
+
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
         keywordIds: Array.from(selectedKeywords),
         action: "status",
         status: statusValue,
       });
 
-      // Close modal and reload keywords with loading state
-      setShowConfirmationModal(false);
-      setShowBulkActions(false);
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload keywords with loading state
       setSorting(true); // Show loading overlay
       await loadKeywords(accountIdNum);
       // Hide loading overlay after a short delay
@@ -1096,7 +1079,12 @@ export const GoogleKeywords: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update keywords", error);
-      alert("Failed to update keywords. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update keywords. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedKeywords.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -1161,16 +1149,32 @@ export const GoogleKeywords: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
+      setBulkUpdateResults(null);
+
+      let totalUpdated = 0;
+      let totalFailed = 0;
+      const allErrors: string[] = [];
 
       if (bidAction === "set") {
         // For "set", we can update all keywords with the same bid in a single call
-        await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
-          keywordIds: Array.from(selectedKeywords),
-          action: "bid",
-          bid: valueNum,
-        });
+        try {
+          const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+            keywordIds: Array.from(selectedKeywords),
+            action: "bid",
+            bid: valueNum,
+          });
+          totalUpdated = response.updated || 0;
+          totalFailed = response.failed || 0;
+          if (response.errors) {
+            allErrors.push(...response.errors);
+          }
+        } catch (error: any) {
+          totalFailed = selectedKeywords.size;
+          const errorMessage = error?.response?.data?.error || error?.message || "Failed to update keywords";
+          allErrors.push(errorMessage);
+        }
       } else {
-        // For "increase" or "decrease", calculate individual bids and update each keyword
+        // For "increase" or "decrease", calculate individual bids and group by bid value
         const keywordUpdates = getSelectedKeywordsData().map((keyword) => {
           const currentBid = keyword.cpc_bid_dollars || 0;
           let newBid = currentBid;
@@ -1198,20 +1202,49 @@ export const GoogleKeywords: React.FC = () => {
           return { keywordId: keyword.keyword_id, bid: Math.max(0, newBid) };
         });
 
-        // Update each keyword individually
+        // Group keywords by their new bid value to batch them together
+        const keywordsByBid = new Map<number, string[]>();
         for (const update of keywordUpdates) {
-          await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
-            keywordIds: [update.keywordId],
-            action: "bid",
-            bid: update.bid,
-          });
+          const bidKey = Math.round(update.bid * 10000) / 10000; // Round to 4 decimal places to group similar bids
+          if (!keywordsByBid.has(bidKey)) {
+            keywordsByBid.set(bidKey, []);
+          }
+          keywordsByBid.get(bidKey)!.push(String(update.keywordId));
+        }
+
+        // Update keywords in batches grouped by bid value
+        for (const [bidValue, keywordIds] of keywordsByBid.entries()) {
+          try {
+            const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+              keywordIds: keywordIds,
+              action: "bid",
+              bid: bidValue,
+            });
+            if (response.updated && response.updated > 0) {
+              totalUpdated += response.updated;
+            }
+            if (response.failed && response.failed > 0) {
+              totalFailed += response.failed;
+            }
+            if (response.errors && response.errors.length > 0) {
+              allErrors.push(...response.errors);
+            }
+          } catch (error: any) {
+            totalFailed += keywordIds.length;
+            const errorMessage = error?.response?.data?.error || error?.message || "Failed to update keywords";
+            allErrors.push(`Keywords [${keywordIds.join(", ")}]: ${errorMessage}`);
+          }
         }
       }
 
-      // Close modal and reload keywords with loading state
-      setShowConfirmationModal(false);
-      setShowBidPanel(false);
-      setShowBulkActions(false);
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: totalUpdated,
+        failed: totalFailed,
+        errors: allErrors,
+      });
+
+      // Reload keywords with loading state
       setSorting(true); // Show loading overlay
       await loadKeywords(accountIdNum);
       // Hide loading overlay after a short delay
@@ -1220,7 +1253,12 @@ export const GoogleKeywords: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update keywords", error);
-      alert("Failed to update keywords. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update keywords. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedKeywords.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -1242,7 +1280,7 @@ export const GoogleKeywords: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters, // Pass filters array directly
       };
 
       // Add pagination for current view export
@@ -1251,7 +1289,7 @@ export const GoogleKeywords: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleKeywords(
+      await googleAdwordsKeywordsService.exportGoogleKeywords(
         accountIdNum,
         params,
         exportType
@@ -1483,30 +1521,41 @@ export const GoogleKeywords: React.FC = () => {
               </div>
             )}
 
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
+
             {/* Filter Panel */}
-            {isFilterPanelOpen && (
-              <FilterPanel
+            {isFilterPanelOpen && accountId && (
+              <DynamicFilterPanel
                 isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
-                  setFilters(newFilters);
+                  // Convert DynamicFilterValues to FilterValues format for compatibility
+                  const convertedFilters: FilterValues = newFilters.map((f) => ({
+                    id: f.id,
+                    field: f.field as FilterValues[0]["field"],
+                    operator: f.operator,
+                    value: f.value,
+                  }));
+                  setFilters(convertedFilters);
                   setCurrentPage(1);
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadKeywordsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
+                  // Removed direct call to loadKeywordsWithFilters - useEffect will handle it when filters change
+                  // This prevents double requests
+                  // if (accountId) {
+                  //   const accountIdNum = parseInt(accountId, 10);
+                  //   if (!isNaN(accountIdNum)) {
+                  //     loadKeywordsWithFilters(accountIdNum, convertedFilters);
+                  //   }
+                  // }
                 }}
-                initialFilters={filters}
-                filterFields={[
-                  { value: "keyword_text", label: "Keyword Text" },
-                  { value: "status", label: "Status" },
-                  { value: "match_type", label: "Match Type" },
-                  { value: "bid", label: "Bid" },
-                  { value: "campaign_name", label: "Campaign Name" },
-                  { value: "adgroup_name", label: "Ad Group Name" },
-                ]}
+                initialFilters={filters.map((f) => ({
+                  id: f.id,
+                  field: f.field as string,
+                  operator: f.operator,
+                  value: f.value,
+                }))}
+                accountId={accountId}
+                marketplace="google_adwords"
               />
             )}
 
@@ -1520,6 +1569,74 @@ export const GoogleKeywords: React.FC = () => {
 
             {/* Edit and Export Buttons - Above Table */}
             <div className="flex items-center justify-end gap-2">
+              <div
+                className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="edit-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowBulkActions((prev) => !prev);
+                    setShowBidPanel(false);
+                    setShowExportDropdown(false);
+                  }}
+                >
+                  <svg
+                    className="w-5 h-5 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                  <span className="text-[10.64px] text-[#072929] font-normal">
+                    Edit
+                  </span>
+                </Button>
+                {showBulkActions && (
+                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="overflow-y-auto">
+                      {[
+                        { value: "ENABLED", label: "Enable" },
+                        { value: "PAUSED", label: "Pause" },
+                        { value: "edit_bid", label: "Edit Bid" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          disabled={selectedKeywords.size === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedKeywords.size === 0) return;
+                            if (opt.value === "edit_bid") {
+                              setShowBidPanel(true);
+                            } else {
+                              setShowBidPanel(false);
+                              setPendingStatusAction(
+                                opt.value as "ENABLED" | "PAUSED"
+                              );
+                              setIsBidChange(false);
+                              setShowConfirmationModal(true);
+                            }
+                            setShowBulkActions(false);
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div
                 className="relative inline-flex justify-end"
                 ref={exportDropdownRef}
@@ -1628,74 +1745,6 @@ export const GoogleKeywords: React.FC = () => {
                         ))}
                       </div>
                     )}
-                  </div>
-                )}
-              </div>
-              <div
-                className="relative inline-flex justify-end"
-                ref={dropdownRef}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="edit-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowBulkActions((prev) => !prev);
-                    setShowBidPanel(false);
-                    setShowExportDropdown(false);
-                  }}
-                >
-                  <svg
-                    className="w-5 h-5 text-[#072929]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                  <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
-                  </span>
-                </Button>
-                {showBulkActions && (
-                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    <div className="overflow-y-auto">
-                      {[
-                        { value: "ENABLED", label: "Enable" },
-                        { value: "PAUSED", label: "Pause" },
-                        { value: "edit_bid", label: "Edit Bid" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          disabled={selectedKeywords.size === 0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedKeywords.size === 0) return;
-                            if (opt.value === "edit_bid") {
-                              setShowBidPanel(true);
-                            } else {
-                              setShowBidPanel(false);
-                              setPendingStatusAction(
-                                opt.value as "ENABLED" | "PAUSED"
-                              );
-                              setIsBidChange(false);
-                              setShowConfirmationModal(true);
-                            }
-                            setShowBulkActions(false);
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 )}
               </div>
@@ -1857,27 +1906,92 @@ export const GoogleKeywords: React.FC = () => {
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBidChange
+                      {bulkUpdateResults
+                        ? "Update Results"
+                        : isBidChange
                         ? "Confirm Bid Changes"
                         : "Confirm Status Changes"}
                     </h3>
 
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedKeywords.size} keyword
-                          {selectedKeywords.size !== 1 ? "s" : ""} will be
-                          updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBidChange ? "Bid" : "Status"} change
-                        </span>
-                      </div>
-                    </div>
+                    {/* Results Summary */}
+                    {bulkUpdateResults ? (
+                      <div className="mb-6">
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Update Summary:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-forest-f40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Successfully updated:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-forest-f40">
+                                {bulkUpdateResults.updated}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-red-r40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Failed:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-red-r40">
+                                {bulkUpdateResults.failed}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* Keyword Preview Table */}
-                    {(() => {
+                        {/* Errors */}
+                        {bulkUpdateResults.errors.length > 0 && (
+                          <div className="bg-red-r0 border border-red-r20 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-red-r40 mb-2">
+                              Errors ({bulkUpdateResults.errors.length}):
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              <ul className="list-disc list-inside space-y-1">
+                                {bulkUpdateResults.errors.map((error, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-[11.2px] text-red-r40"
+                                  >
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Success message if all succeeded */}
+                        {bulkUpdateResults.failed === 0 && bulkUpdateResults.updated > 0 && (
+                          <div className="bg-forest-f0 border border-forest-f40 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-forest-f60">
+                              ✓ All keywords updated successfully!
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Confirmation Summary */
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {selectedKeywords.size} keyword
+                            {selectedKeywords.size !== 1 ? "s" : ""} will be
+                            updated:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {isBidChange ? "Bid" : "Status"} change
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Keyword Preview Table - Only show before update */}
+                    {!bulkUpdateResults && (() => {
                       const selectedKeywordsData = getSelectedKeywordsData();
                       const previewCount = Math.min(
                         10,
@@ -1954,6 +2068,8 @@ export const GoogleKeywords: React.FC = () => {
                       );
                     })()}
 
+                    {/* Action Details - Only show before update */}
+                    {!bulkUpdateResults && (
                     <div className="space-y-3 mb-6">
                       {isBidChange ? (
                         <>
@@ -2029,33 +2145,51 @@ export const GoogleKeywords: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowConfirmationModal(false);
-                          setPendingStatusAction(null);
-                        }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (isBidChange) {
-                            await runBulkBid();
-                          } else if (pendingStatusAction) {
-                            await runBulkStatus(pendingStatusAction);
+                      {bulkUpdateResults ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowConfirmationModal(false);
+                            setShowBidPanel(false);
+                            setShowBulkActions(false);
                             setPendingStatusAction(null);
-                          }
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Updating..." : "Confirm"}
-                      </button>
+                            setBulkUpdateResults(null);
+                          }}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                        >
+                          Close
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowConfirmationModal(false);
+                              setPendingStatusAction(null);
+                            }}
+                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (isBidChange) {
+                                await runBulkBid();
+                              } else if (pendingStatusAction) {
+                                await runBulkStatus(pendingStatusAction);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {bulkLoading ? "Updating..." : "Confirm"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

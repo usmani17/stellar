@@ -1,6 +1,6 @@
 import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -11,10 +11,12 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
-  FilterPanel,
+  DynamicFilterPanel,
   type FilterValues,
-} from "../../components/filters/FilterPanel";
+} from "../../components/filters/DynamicFilterPanel";
 import { campaignsService } from "../../services/campaigns";
+import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
+import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleCampaignsTable,
@@ -79,6 +81,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const isLoadingRef = useRef(false);
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
     useState(false);
   const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
@@ -139,9 +142,14 @@ export const GoogleCampaigns: React.FC = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<
-    "ENABLED" | "PAUSED" | "REMOVED" | null
+    "ENABLED" | "PAUSED" | null
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline edit state
@@ -266,116 +274,16 @@ export const GoogleCampaigns: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    // Don't reload if we're currently sorting (handleSort will handle the reload)
-    // Also don't reload when sortBy/sortOrder changes (handleSort handles that)
-    if (sorting) return;
+  // Removed buildFilterParams - now passing filters array directly to service
 
-    if (accountId) {
-      const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
-        loadCampaigns(accountIdNum);
-      } else {
-        setLoading(false);
-      }
-    } else {
-      setLoading(false);
+  const loadCampaigns = useCallback(async (accountId: number) => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
     }
-  }, [accountId, currentPage, filters, startDate, endDate]);
 
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    filterList.forEach((filter) => {
-      if (filter.field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
-        }
-      } else if (filter.field === "budget") {
-        if (filter.operator === "lt") {
-          params.budget__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.budget__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.budget = filter.value;
-        } else if (filter.operator === "lte") {
-          params.budget__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.budget__gte = filter.value;
-        }
-      } else if (filter.field === "status") {
-        params.status = filter.value;
-      } else if (filter.field === "advertising_channel_type") {
-        params.advertising_channel_type = filter.value;
-      } else if (filter.field === "account_name") {
-        if (filter.operator === "contains") {
-          params.account_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.account_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.account_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
-
-  const loadCampaignsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
     try {
-      setLoading(true);
-      const params: any = {
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filterList),
-      };
-
-      const response = await campaignsService.getGoogleCampaigns(
-        accountId,
-        params
-      );
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedCampaigns(new Set());
-    } catch (error) {
-      console.error("Failed to load Google campaigns:", error);
-      setCampaigns([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCampaigns = async (accountId: number) => {
-    try {
+      isLoadingRef.current = true;
       setLoading(true);
       const params: any = {
         sort_by: sortBy,
@@ -386,10 +294,17 @@ export const GoogleCampaigns: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters || [], // Pass filters array directly - ensure it's always an array
       };
 
-      const response = await campaignsService.getGoogleCampaigns(
+      console.log("🔍 [FILTERS DEBUG] Sending filters to service:", {
+        filters,
+        filtersType: Array.isArray(filters) ? "array" : typeof filters,
+        filtersLength: Array.isArray(filters) ? filters.length : "N/A",
+        params,
+      });
+
+      const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
         accountId,
         params
       );
@@ -431,18 +346,86 @@ export const GoogleCampaigns: React.FC = () => {
         responseWithChart.chart_data &&
         Array.isArray(responseWithChart.chart_data)
       ) {
-        console.log(
-          "✅ [CHART DEBUG] Setting chart data, length:",
-          responseWithChart.chart_data.length
-        );
         setChartDataFromApi(responseWithChart.chart_data);
       } else {
-        console.log(
-          "❌ [CHART DEBUG] No chart_data found or not an array, setting empty array"
-        );
         setChartDataFromApi([]);
       }
       // Clear selection when campaigns reload
+      setSelectedCampaigns(new Set());
+    } catch (error) {
+      console.error("Failed to load Google campaigns:", error);
+      setCampaigns([]);
+      setTotalPages(0);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+
+  // Sync status hook (after loadCampaigns is defined)
+  const { syncStatus: campaignsSyncStatus, SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+    accountId,
+    entityType: "campaigns",
+    currentData: campaigns,
+    loadFunction: loadCampaigns,
+  });
+
+  useEffect(() => {
+    // Don't reload if we're currently sorting (handleSort will handle the reload)
+    // Also don't reload when sortBy/sortOrder changes (handleSort handles that)
+    if (sorting) return;
+
+    if (accountId) {
+      const accountIdNum = parseInt(accountId, 10);
+      if (!isNaN(accountIdNum)) {
+        loadCampaigns(accountIdNum);
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadCampaigns, sorting]);
+
+  const loadCampaignsWithFilters = async (
+    accountId: number,
+    filterList: FilterValues
+  ) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        filters: filterList, // Pass filters array directly
+        sort_by: sortBy,
+        order: sortOrder,
+        page: 1,
+        page_size: itemsPerPage,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+      };
+
+      const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
+        accountId,
+        params
+      );
+      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
+      setTotalPages(response.total_pages || 0);
+      setTotal(response.total || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      // Store chart data from API if available
+      const responseWithChart = response as any;
+      if (
+        responseWithChart.chart_data &&
+        Array.isArray(responseWithChart.chart_data)
+      ) {
+        setChartDataFromApi(responseWithChart.chart_data);
+      } else {
+        setChartDataFromApi([]);
+      }
       setSelectedCampaigns(new Set());
     } catch (error) {
       console.error("Failed to load Google campaigns:", error);
@@ -471,7 +454,7 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.createGoogleCampaign(
+      const response = await googleAdwordsCampaignsService.createGoogleCampaign(
         accountIdNum,
         data
       );
@@ -622,15 +605,12 @@ export const GoogleCampaigns: React.FC = () => {
         campaignIds: [campaignId],
       };
 
-      let hasChanges = false;
-
       // 1. Check if name changed
       const originalName = original.name || "";
       const newName = data.name || "";
       if (newName !== originalName && newName) {
         console.log("Name changed:", { originalName, newName });
         updatePayload.name = newName;
-        hasChanges = true;
       }
 
       // 2. Check if status changed
@@ -639,7 +619,6 @@ export const GoogleCampaigns: React.FC = () => {
       if (newStatus !== originalStatus && newStatus) {
         console.log("Status changed:", { originalStatus, newStatus });
         updatePayload.status = newStatus;
-        hasChanges = true;
       }
 
       // 3. Check if budget changed
@@ -650,7 +629,6 @@ export const GoogleCampaigns: React.FC = () => {
         updatePayload.value = newBudget;
         updatePayload.budgetAction = "set";
         updatePayload.unit = "amount";
-        hasChanges = true;
       }
 
       // 4. Check if start_date changed
@@ -659,7 +637,6 @@ export const GoogleCampaigns: React.FC = () => {
       if (newStartDate !== originalStartDate && newStartDate) {
         console.log("Start date changed:", { originalStartDate, newStartDate });
         updatePayload.start_date = newStartDate;
-        hasChanges = true;
       }
 
       // 5. Check if end_date changed
@@ -668,7 +645,6 @@ export const GoogleCampaigns: React.FC = () => {
       if (newEndDate !== originalEndDate && newEndDate) {
         console.log("End date changed:", { originalEndDate, newEndDate });
         updatePayload.end_date = newEndDate;
-        hasChanges = true;
       }
 
       // 6. Check if Shopping Settings changed (only for SHOPPING campaigns)
@@ -682,7 +658,6 @@ export const GoogleCampaigns: React.FC = () => {
             newMerchantId,
           });
           updatePayload.merchant_id = newMerchantId;
-          hasChanges = true;
         }
 
         // Check sales_country
@@ -694,7 +669,6 @@ export const GoogleCampaigns: React.FC = () => {
             newSalesCountry,
           });
           updatePayload.sales_country = newSalesCountry;
-          hasChanges = true;
         }
 
         // Check campaign_priority
@@ -706,7 +680,6 @@ export const GoogleCampaigns: React.FC = () => {
             newPriority,
           });
           updatePayload.campaign_priority = newPriority;
-          hasChanges = true;
         }
 
         // Check enable_local
@@ -718,7 +691,6 @@ export const GoogleCampaigns: React.FC = () => {
             newEnableLocal,
           });
           updatePayload.enable_local = newEnableLocal;
-          hasChanges = true;
         }
       }
 
@@ -736,7 +708,6 @@ export const GoogleCampaigns: React.FC = () => {
         ) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.headlines = newHeadlines;
-          hasChanges = true;
         }
 
         // Check descriptions
@@ -749,7 +720,6 @@ export const GoogleCampaigns: React.FC = () => {
         ) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.descriptions = newDescriptions;
-          hasChanges = true;
         }
 
         // Check final_url
@@ -759,7 +729,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newFinalUrl !== originalFinalUrl && newFinalUrl) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.final_url = newFinalUrl;
-          hasChanges = true;
         }
 
         // Check business_name
@@ -769,7 +738,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newBusinessName !== originalBusinessName && newBusinessName) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.business_name = newBusinessName;
-          hasChanges = true;
         }
 
         // Check logo_url
@@ -779,7 +747,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newLogoUrl !== originalLogoUrl && newLogoUrl) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.logo_url = newLogoUrl;
-          hasChanges = true;
         }
 
         // Check marketing_image_url
@@ -791,7 +758,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newMarketingImage !== originalMarketingImage && newMarketingImage) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.marketing_image_url = newMarketingImage;
-          hasChanges = true;
         }
 
         // Check square_marketing_image_url
@@ -803,7 +769,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newSquareImage !== originalSquareImage && newSquareImage) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.square_marketing_image_url = newSquareImage;
-          hasChanges = true;
         }
 
         // Check long_headline
@@ -813,7 +778,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newLongHeadline !== originalLongHeadline && newLongHeadline) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.long_headline = newLongHeadline;
-          hasChanges = true;
         }
 
         // Check asset_group_name
@@ -823,7 +787,6 @@ export const GoogleCampaigns: React.FC = () => {
         if (newAssetGroupName !== originalAssetGroupName && newAssetGroupName) {
           updatePayload.pmax_assets = updatePayload.pmax_assets || {};
           updatePayload.pmax_assets.asset_group_name = newAssetGroupName;
-          hasChanges = true;
         }
       }
 
@@ -855,7 +818,7 @@ export const GoogleCampaigns: React.FC = () => {
       // Update campaign-level fields if there are any changes
       if (hasCampaignChanges) {
         console.log("Executing campaign update with changes...");
-        const result = await campaignsService.bulkUpdateGoogleCampaigns(
+        const result = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           campaignUpdatePayload
         );
@@ -996,7 +959,7 @@ export const GoogleCampaigns: React.FC = () => {
         });
         // Fallback: Fetch from database
         try {
-          const campaignDetail = await campaignsService.getGoogleCampaignDetail(
+          const campaignDetail = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
             accountIdNum,
             row.campaign_id
           );
@@ -1118,7 +1081,7 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleCampaigns(accountIdNum);
+      const result = await googleAdwordsCampaignsService.syncGoogleCampaigns(accountIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} campaigns`;
 
@@ -1132,6 +1095,9 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
 
       // Reset to first page and reload campaigns after sync
       if (result.synced > 0) {
@@ -1173,7 +1139,7 @@ export const GoogleCampaigns: React.FC = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
 
-      const result = await campaignsService.syncGoogleCampaignAnalytics(
+      const result = await googleAdwordsCampaignsService.syncGoogleCampaignAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
         today.toISOString().split("T")[0]
@@ -1250,10 +1216,10 @@ export const GoogleCampaigns: React.FC = () => {
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-            ...buildFilterParams(filters),
+            filters: filters, // Pass filters array directly
           };
 
-          const response = await campaignsService.getGoogleCampaigns(
+          const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
             accountIdNum,
             params
           );
@@ -1645,22 +1611,23 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       if (inlineEditField === "status") {
-        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
+        // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
+        // REMOVED is read-only and cannot be set via update operation
         // Handle both formatted display values (from modal) and raw values
-        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
           ENABLED: "ENABLED",
           PAUSED: "PAUSED",
-          REMOVED: "REMOVED",
           Enabled: "ENABLED",
           Paused: "PAUSED",
-          Removed: "REMOVED",
           enable: "ENABLED",
           pause: "PAUSED",
-          removed: "REMOVED",
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+        
+        // REMOVED is not in statusMap, so it cannot be set via update operation
+        // If user somehow selects REMOVED, it will be caught by backend validation
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
@@ -1682,7 +1649,7 @@ export const GoogleCampaigns: React.FC = () => {
           throw new Error("Invalid budget value");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
@@ -1708,7 +1675,7 @@ export const GoogleCampaigns: React.FC = () => {
           dateValue = "";
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
             campaignIds: [inlineEditCampaign.campaign_id],
@@ -1786,7 +1753,7 @@ export const GoogleCampaigns: React.FC = () => {
           }
         }
 
-        const response = await campaignsService.bulkUpdateGoogleCampaigns(
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           payload
         );
@@ -1869,7 +1836,7 @@ export const GoogleCampaigns: React.FC = () => {
   };
 
   const runBulkStatus = async (
-    statusValue: "ENABLED" | "PAUSED" | "REMOVED"
+    statusValue: "ENABLED" | "PAUSED"
   ) => {
     if (!accountId || selectedCampaigns.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -1877,15 +1844,36 @@ export const GoogleCampaigns: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      setBulkUpdateResults(null);
+
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "status",
         status: statusValue,
       });
+
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload campaigns with loading state
+      setSorting(true); // Show loading overlay
       await loadCampaigns(accountIdNum);
+      // Hide loading overlay after a short delay
+      setTimeout(() => {
+        setSorting(false);
+      }, 300);
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
-      alert("Failed to update campaigns. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update campaigns. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedCampaigns.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -1950,8 +1938,9 @@ export const GoogleCampaigns: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
+      setBulkUpdateResults(null);
 
-      await campaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
+      const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(accountIdNum, {
         campaignIds: Array.from(selectedCampaigns),
         action: "budget",
         budgetAction,
@@ -1961,10 +1950,14 @@ export const GoogleCampaigns: React.FC = () => {
         lowerLimit: lower,
       });
 
-      // Close modal and reload campaigns with loading state
-      setShowConfirmationModal(false);
-      setShowBudgetPanel(false);
-      setShowBulkActions(false);
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload campaigns with loading state
       setSorting(true); // Show loading overlay
       await loadCampaigns(accountIdNum);
       // Hide loading overlay after a short delay
@@ -1973,7 +1966,12 @@ export const GoogleCampaigns: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update campaigns", error);
-      alert("Failed to update campaigns. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update campaigns. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedCampaigns.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -1995,7 +1993,7 @@ export const GoogleCampaigns: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters, // Pass filters array directly
       };
 
       // Add pagination for current view export
@@ -2005,7 +2003,7 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       // Call export API
-      const result = await campaignsService.exportGoogleCampaigns(
+      const result = await googleAdwordsCampaignsService.exportGoogleCampaigns(
         accountIdNum,
         params,
         exportType
@@ -2051,42 +2049,6 @@ export const GoogleCampaigns: React.FC = () => {
     return `${value.toFixed(2)}%`;
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "—";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formatSyncDate = (dateString?: string) => {
-    if (!dateString) return "Never";
-    try {
-      const date = new Date(dateString);
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const year = date.getFullYear();
-
-      // Format time in 12-hour format with AM/PM (no leading zero for hours)
-      let hours = date.getHours();
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12; // the hour '0' should be '12'
-      // Don't pad hours - show as "5:09 PM" not "05:09 PM"
-      const hoursFormatted = String(hours);
-
-      return `${month}/${day}/${year} ${hoursFormatted}:${minutes} ${ampm}`;
-    } catch {
-      return dateString;
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -2354,29 +2316,41 @@ export const GoogleCampaigns: React.FC = () => {
               </div>
             )}
 
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
+
             {/* Filter Panel - inline, matching Amazon layout */}
-            {isFilterPanelOpen && (
-              <FilterPanel
+            {isFilterPanelOpen && accountId && (
+              <DynamicFilterPanel
                 isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
-                  setFilters(newFilters);
+                  // Convert DynamicFilterValues to FilterValues format for compatibility
+                  const convertedFilters: FilterValues = newFilters.map((f) => ({
+                    id: f.id,
+                    field: f.field as FilterValues[0]["field"],
+                    operator: f.operator,
+                    value: f.value as string | number | string[] | { min: number; max: number },
+                  })) as FilterValues;
+                  setFilters(convertedFilters);
                   setCurrentPage(1);
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadCampaignsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
+                  // Removed direct call to loadCampaignsWithFilters - useEffect will handle it when filters change
+                  // This prevents double requests
+                  // if (accountId) {
+                  //   const accountIdNum = parseInt(accountId, 10);
+                  //   if (!isNaN(accountIdNum)) {
+                  //     loadCampaignsWithFilters(accountIdNum, convertedFilters);
+                  //   }
+                  // }
                 }}
-                initialFilters={filters}
-                filterFields={[
-                  { value: "campaign_name", label: "Campaign Name" },
-                  { value: "status", label: "Status" },
-                  { value: "budget", label: "Budget" },
-                  { value: "advertising_channel_type", label: "Channel Type" },
-                  { value: "account_name", label: "Account Name" },
-                ]}
+                initialFilters={filters.map((f) => ({
+                  id: f.id,
+                  field: f.field as string,
+                  operator: f.operator,
+                  value: f.value,
+                }))}
+                accountId={accountId}
+                marketplace="google_adwords"
               />
             )}
 
@@ -2433,7 +2407,8 @@ export const GoogleCampaigns: React.FC = () => {
                       {[
                         { value: "ENABLED", label: "Enable" },
                         { value: "PAUSED", label: "Pause" },
-                        { value: "REMOVED", label: "Remove" },
+                        // REMOVED cannot be set via status update - it's read-only
+                        // To remove campaigns, use delete operation instead
                         { value: "edit_budget", label: "Edit Budget" },
                       ].map((opt) => (
                         <button
@@ -2449,7 +2424,7 @@ export const GoogleCampaigns: React.FC = () => {
                             } else {
                               setShowBudgetPanel(false);
                               setPendingStatusAction(
-                                opt.value as "ENABLED" | "PAUSED" | "REMOVED"
+                                opt.value as "ENABLED" | "PAUSED"
                               );
                               setIsBudgetChange(false);
                               setShowConfirmationModal(true);
@@ -2734,27 +2709,92 @@ export const GoogleCampaigns: React.FC = () => {
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBudgetChange
+                      {bulkUpdateResults
+                        ? "Update Results"
+                        : isBudgetChange
                         ? "Confirm Budget Changes"
                         : "Confirm Status Changes"}
                     </h3>
 
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedCampaigns.size} campaign
-                          {selectedCampaigns.size !== 1 ? "s" : ""} will be
-                          updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBudgetChange ? "Budget" : "Status"} change
-                        </span>
-                      </div>
-                    </div>
+                    {/* Results Summary */}
+                    {bulkUpdateResults ? (
+                      <div className="mb-6">
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Update Summary:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-forest-f40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Successfully updated:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-forest-f40">
+                                {bulkUpdateResults.updated}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-red-r40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Failed:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-red-r40">
+                                {bulkUpdateResults.failed}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* Campaign Preview Table */}
-                    {(() => {
+                        {/* Errors */}
+                        {bulkUpdateResults.errors.length > 0 && (
+                          <div className="bg-red-r0 border border-red-r20 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-red-r40 mb-2">
+                              Errors ({bulkUpdateResults.errors.length}):
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              <ul className="list-disc list-inside space-y-1">
+                                {bulkUpdateResults.errors.map((error, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-[11.2px] text-red-r40"
+                                  >
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Success message if all succeeded */}
+                        {bulkUpdateResults.failed === 0 && bulkUpdateResults.updated > 0 && (
+                          <div className="bg-forest-f0 border border-forest-f40 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-forest-f60">
+                              ✓ All campaigns updated successfully!
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Confirmation Summary */
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {selectedCampaigns.size} campaign
+                            {selectedCampaigns.size !== 1 ? "s" : ""} will be
+                            updated:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {isBudgetChange ? "Budget" : "Status"} change
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Campaign Preview Table - Only show before update */}
+                    {!bulkUpdateResults && (() => {
                       const selectedCampaignsData = getSelectedCampaignsData();
                       const previewCount = Math.min(
                         10,
@@ -2834,6 +2874,8 @@ export const GoogleCampaigns: React.FC = () => {
                       );
                     })()}
 
+                    {/* Action Details - Only show before update */}
+                    {!bulkUpdateResults && (
                     <div className="space-y-3 mb-6">
                       {isBudgetChange ? (
                         <>
@@ -2910,35 +2952,51 @@ export const GoogleCampaigns: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowConfirmationModal(false);
-                          setPendingStatusAction(null);
-                        }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (isBudgetChange) {
-                            await runBulkBudget();
-                          } else if (pendingStatusAction) {
+                      {bulkUpdateResults ? (
+                        <button
+                          type="button"
+                          onClick={() => {
                             setShowConfirmationModal(false);
-                            await runBulkStatus(pendingStatusAction);
+                            setShowBudgetPanel(false);
                             setShowBulkActions(false);
-                          }
-                          setPendingStatusAction(null);
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Updating..." : "Confirm"}
-                      </button>
+                            setPendingStatusAction(null);
+                            setBulkUpdateResults(null);
+                          }}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                        >
+                          Close
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowConfirmationModal(false);
+                              setPendingStatusAction(null);
+                            }}
+                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (isBudgetChange) {
+                                await runBulkBudget();
+                              } else if (pendingStatusAction) {
+                                await runBulkStatus(pendingStatusAction);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {bulkLoading ? "Updating..." : "Confirm"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
