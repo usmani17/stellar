@@ -88,7 +88,7 @@ export const googleAdwordsLogsService = {
     }
 
     const queryString = queryParams.toString();
-    const url = `/google-adwords/${accountId}/logs${
+    const url = `/google-adwords/${accountId}/logs/${
       queryString ? `?${queryString}` : ""
     }`;
     const response = await api.get<GoogleLogsResponse>(url);

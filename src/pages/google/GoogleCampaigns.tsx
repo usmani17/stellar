@@ -1,6 +1,6 @@
 import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -11,10 +11,8 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
-  type FilterValues,
-} from "../../components/filters/FilterPanel";
-import {
   DynamicFilterPanel,
+  type FilterValues,
 } from "../../components/filters/DynamicFilterPanel";
 import { campaignsService } from "../../services/campaigns";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
@@ -82,6 +80,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const isLoadingRef = useRef(false);
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
     useState(false);
   const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
@@ -142,7 +141,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<
-    "ENABLED" | "PAUSED" | "REMOVED" | null
+    "ENABLED" | "PAUSED" | null
   >(null);
   const [isBudgetChange, setIsBudgetChange] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -269,76 +268,16 @@ export const GoogleCampaigns: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    // Don't reload if we're currently sorting (handleSort will handle the reload)
-    // Also don't reload when sortBy/sortOrder changes (handleSort handles that)
-    if (sorting) return;
-
-    if (accountId) {
-      const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
-        loadCampaigns(accountIdNum);
-      } else {
-        setLoading(false);
-      }
-    } else {
-      setLoading(false);
-    }
-  }, [accountId, currentPage, filters, startDate, endDate]);
-
   // Removed buildFilterParams - now passing filters array directly to service
 
-  const loadCampaignsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        filters: filterList, // Pass filters array directly
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-      };
-
-      const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
-        accountId,
-        params
-      );
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedCampaigns(new Set());
-    } catch (error) {
-      console.error("Failed to load Google campaigns:", error);
-      setCampaigns([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
+  const loadCampaigns = useCallback(async (accountId: number) => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
     }
-  };
 
-  const loadCampaigns = async (accountId: number) => {
     try {
+      isLoadingRef.current = true;
       setLoading(true);
       const params: any = {
         sort_by: sortBy,
@@ -401,18 +340,78 @@ export const GoogleCampaigns: React.FC = () => {
         responseWithChart.chart_data &&
         Array.isArray(responseWithChart.chart_data)
       ) {
-        console.log(
-          "✅ [CHART DEBUG] Setting chart data, length:",
-          responseWithChart.chart_data.length
-        );
         setChartDataFromApi(responseWithChart.chart_data);
       } else {
-        console.log(
-          "❌ [CHART DEBUG] No chart_data found or not an array, setting empty array"
-        );
         setChartDataFromApi([]);
       }
       // Clear selection when campaigns reload
+      setSelectedCampaigns(new Set());
+    } catch (error) {
+      console.error("Failed to load Google campaigns:", error);
+      setCampaigns([]);
+      setTotalPages(0);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+
+  useEffect(() => {
+    // Don't reload if we're currently sorting (handleSort will handle the reload)
+    // Also don't reload when sortBy/sortOrder changes (handleSort handles that)
+    if (sorting) return;
+
+    if (accountId) {
+      const accountIdNum = parseInt(accountId, 10);
+      if (!isNaN(accountIdNum)) {
+        loadCampaigns(accountIdNum);
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadCampaigns, sorting]);
+
+  const loadCampaignsWithFilters = async (
+    accountId: number,
+    filterList: FilterValues
+  ) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        filters: filterList, // Pass filters array directly
+        sort_by: sortBy,
+        order: sortOrder,
+        page: 1,
+        page_size: itemsPerPage,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+      };
+
+      const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
+        accountId,
+        params
+      );
+      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
+      setTotalPages(response.total_pages || 0);
+      setTotal(response.total || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      // Store chart data from API if available
+      const responseWithChart = response as any;
+      if (
+        responseWithChart.chart_data &&
+        Array.isArray(responseWithChart.chart_data)
+      ) {
+        setChartDataFromApi(responseWithChart.chart_data);
+      } else {
+        setChartDataFromApi([]);
+      }
       setSelectedCampaigns(new Set());
     } catch (error) {
       console.error("Failed to load Google campaigns:", error);
@@ -1595,20 +1594,21 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       if (inlineEditField === "status") {
-        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
+        // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
+        // REMOVED is read-only and cannot be set via update operation
         // Handle both formatted display values (from modal) and raw values
-        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
           ENABLED: "ENABLED",
           PAUSED: "PAUSED",
-          REMOVED: "REMOVED",
           Enabled: "ENABLED",
           Paused: "PAUSED",
-          Removed: "REMOVED",
           enable: "ENABLED",
           pause: "PAUSED",
-          removed: "REMOVED",
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+        
+        // REMOVED is not in statusMap, so it cannot be set via update operation
+        // If user somehow selects REMOVED, it will be caught by backend validation
 
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
@@ -1819,7 +1819,7 @@ export const GoogleCampaigns: React.FC = () => {
   };
 
   const runBulkStatus = async (
-    statusValue: "ENABLED" | "PAUSED" | "REMOVED"
+    statusValue: "ENABLED" | "PAUSED"
   ) => {
     if (!accountId || selectedCampaigns.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -2279,16 +2279,18 @@ export const GoogleCampaigns: React.FC = () => {
                     id: f.id,
                     field: f.field as FilterValues[0]["field"],
                     operator: f.operator,
-                    value: f.value,
-                  }));
+                    value: f.value as string | number | string[] | { min: number; max: number },
+                  })) as FilterValues;
                   setFilters(convertedFilters);
                   setCurrentPage(1);
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadCampaignsWithFilters(accountIdNum, convertedFilters);
-                    }
-                  }
+                  // Removed direct call to loadCampaignsWithFilters - useEffect will handle it when filters change
+                  // This prevents double requests
+                  // if (accountId) {
+                  //   const accountIdNum = parseInt(accountId, 10);
+                  //   if (!isNaN(accountIdNum)) {
+                  //     loadCampaignsWithFilters(accountIdNum, convertedFilters);
+                  //   }
+                  // }
                 }}
                 initialFilters={filters.map((f) => ({
                   id: f.id,
@@ -2354,7 +2356,8 @@ export const GoogleCampaigns: React.FC = () => {
                       {[
                         { value: "ENABLED", label: "Enable" },
                         { value: "PAUSED", label: "Pause" },
-                        { value: "REMOVED", label: "Remove" },
+                        // REMOVED cannot be set via status update - it's read-only
+                        // To remove campaigns, use delete operation instead
                         { value: "edit_budget", label: "Edit Budget" },
                       ].map((opt) => (
                         <button
@@ -2370,7 +2373,7 @@ export const GoogleCampaigns: React.FC = () => {
                             } else {
                               setShowBudgetPanel(false);
                               setPendingStatusAction(
-                                opt.value as "ENABLED" | "PAUSED" | "REMOVED"
+                                opt.value as "ENABLED" | "PAUSED"
                               );
                               setIsBudgetChange(false);
                               setShowConfirmationModal(true);

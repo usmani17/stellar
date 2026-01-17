@@ -3,6 +3,7 @@ import React from "react";
 interface ChipProps {
   children: React.ReactNode;
   onClose?: () => void;
+  onClick?: () => void;
   className?: string;
   variant?: "default" | "outline";
 }
@@ -10,6 +11,7 @@ interface ChipProps {
 export const Chip: React.FC<ChipProps> = ({
   children,
   onClose,
+  onClick,
   className = "",
   variant = "default",
 }) => {
@@ -21,14 +23,17 @@ export const Chip: React.FC<ChipProps> = ({
     outline: "bg-transparent border border-forest-f60 text-forest-f60",
   };
 
+  const clickableStyles = onClick ? "cursor-pointer hover:opacity-80" : "";
+
   return (
     <span
-      className={`${baseStyles} ${variantStyles[variant]} ${className}`}
+      className={`${baseStyles} ${variantStyles[variant]} ${clickableStyles} ${className}`}
       style={
         variant === "default"
           ? { backgroundColor: "rgb(7, 41, 41)" }
           : undefined
       }
+      onClick={onClick}
     >
       {children}
       {onClose && (

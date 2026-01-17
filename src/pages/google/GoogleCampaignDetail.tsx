@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -106,6 +106,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [campaignDetail, setCampaignDetail] =
     useState<GoogleCampaignDetail | null>(null);
+  const isLoadingRef = useRef(false);
 
   // Inline edit state
   const [editingField, setEditingField] = useState<
@@ -361,6 +362,55 @@ export const GoogleCampaignDetail: React.FC = () => {
     };
   }, [campaignDetail]);
 
+  const loadCampaignDetail = useCallback(async () => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
+    }
+
+    try {
+      isLoadingRef.current = true;
+      setLoading(true);
+      // Clear previous data immediately
+      setCampaignDetail(null);
+      const accountIdNum = parseInt(accountId!, 10);
+      const currentCampaignId = campaignId; // Capture current campaignId
+
+      if (isNaN(accountIdNum) || !currentCampaignId) {
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
+      }
+
+      // Parse campaignId - it's a string from URL params
+      const campaignIdNum = parseInt(currentCampaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        console.error("Invalid campaign ID:", currentCampaignId);
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
+      }
+
+      const data = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
+        accountIdNum,
+        campaignIdNum,
+        startDate ? startDate.toISOString().split("T")[0] : undefined,
+        endDate ? endDate.toISOString().split("T")[0] : undefined
+      );
+
+      // Only set data if we're still on the same campaign (check for race conditions)
+      if (currentCampaignId === campaignId) {
+        setCampaignDetail(data);
+      }
+    } catch (error) {
+      console.error("Failed to load Google campaign detail:", error);
+      setCampaignDetail(null);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [accountId, campaignId, startDate, endDate]);
+
   useEffect(() => {
     // Reset state when campaignId changes
     setCampaignDetail(null);
@@ -387,7 +437,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     if (accountId && campaignId) {
       loadCampaignDetail();
     }
-  }, [accountId, campaignId, startDate, endDate]);
+  }, [accountId, campaignId, startDate?.toISOString(), endDate?.toISOString(), loadCampaignDetail]);
 
   // Reset pagination when date range, tab, or filters change
   useEffect(() => {
@@ -630,46 +680,6 @@ export const GoogleCampaignDetail: React.FC = () => {
       setActiveTab("Overview");
     }
   }, [tabs, activeTab]);
-
-  const loadCampaignDetail = async () => {
-    try {
-      setLoading(true);
-      // Clear previous data immediately
-      setCampaignDetail(null);
-      const accountIdNum = parseInt(accountId!, 10);
-      const currentCampaignId = campaignId; // Capture current campaignId
-
-      if (isNaN(accountIdNum) || !currentCampaignId) {
-        setLoading(false);
-        return;
-      }
-
-      // Parse campaignId - it's a string from URL params
-      const campaignIdNum = parseInt(currentCampaignId, 10);
-      if (isNaN(campaignIdNum)) {
-        console.error("Invalid campaign ID:", currentCampaignId);
-        setLoading(false);
-        return;
-      }
-
-      const data = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
-        accountIdNum,
-        campaignIdNum,
-        startDate ? startDate.toISOString().split("T")[0] : undefined,
-        endDate ? endDate.toISOString().split("T")[0] : undefined
-      );
-
-      // Only set data if we're still on the same campaign (check for race conditions)
-      if (currentCampaignId === campaignId) {
-        setCampaignDetail(data);
-      }
-    } catch (error) {
-      console.error("Failed to load Google campaign detail:", error);
-      setCampaignDetail(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Removed all buildFilterParams functions - now passing filters array directly to services
 
@@ -2428,7 +2438,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           options={[
                             { value: "ENABLED", label: "Enabled" },
                             { value: "PAUSED", label: "Paused" },
-                            { value: "REMOVED", label: "Removed" },
+                            // REMOVED is read-only - cannot be set via update operation
                           ]}
                           value={editedValue}
                           onChange={(val) => {

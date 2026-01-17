@@ -24,17 +24,24 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const isLoadingRef = useRef(false);
 
   // Load logs - memoized with useCallback
   const loadLogs = useCallback(async () => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
+    }
+
     if (!accountId) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-
     try {
+      isLoadingRef.current = true;
+      setLoading(true);
+
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
@@ -65,8 +72,10 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
       setTotalPages(1);
       setTotal(0);
       setLoading(false);
+    } finally {
+      isLoadingRef.current = false;
     }
-  }, [accountId, campaignId, startDate, endDate, currentPage, pageSize, search]);
+  }, [accountId, campaignId, startDate?.toISOString(), endDate?.toISOString(), currentPage, pageSize, search]);
 
   // Initial load and reload when filters or page change
   useEffect(() => {
@@ -76,7 +85,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, startDate, endDate]);
+  }, [search, startDate?.toISOString(), endDate?.toISOString()]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);

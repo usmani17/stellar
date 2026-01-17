@@ -263,7 +263,8 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
-        { value: "REMOVED", label: "Removed" },
+        // REMOVED is read-only - cannot be set via update operation
+        // It only appears when filtering/displaying campaigns that have been deleted
       ],
       getValue: (row: GoogleCampaign) => row.status || "ENABLED",
     },

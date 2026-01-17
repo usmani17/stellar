@@ -1,5 +1,5 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -62,6 +62,7 @@ export const GoogleKeywords: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const isLoadingRef = useRef(false);
 
   // Chart toggles
   const [chartToggles, setChartToggles] = useState({
@@ -211,75 +212,16 @@ export const GoogleKeywords: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (sorting) return;
-
-    if (accountId) {
-      const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
-        loadKeywords(accountIdNum);
-      } else {
-        setLoading(false);
-      }
-    } else {
-      setLoading(false);
-    }
-  }, [accountId, currentPage, filters, startDate, endDate]);
-
   // Removed buildFilterParams - now passing filters array directly to service
 
-  const loadKeywordsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        filters: filterList, // Pass filters array directly
-      };
-
-      const response = await googleAdwordsKeywordsService.getGoogleKeywords(
-        accountId,
-        undefined,
-        undefined,
-        params
-      );
-      setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedKeywords(new Set());
-    } catch (error) {
-      console.error("Failed to load Google keywords:", error);
-      setKeywords([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
+  const loadKeywords = useCallback(async (accountId: number) => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
     }
-  };
 
-  const loadKeywords = async (accountId: number) => {
     try {
+      isLoadingRef.current = true;
       setLoading(true);
       const params: any = {
         sort_by: sortBy,
@@ -315,6 +257,72 @@ export const GoogleKeywords: React.FC = () => {
       }
       
       setKeywords(keywordsArray);
+      setTotalPages(response.total_pages || 0);
+      setTotal(response.total || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      const responseWithChart = response as any;
+      if (
+        responseWithChart.chart_data &&
+        Array.isArray(responseWithChart.chart_data)
+      ) {
+        setChartDataFromApi(responseWithChart.chart_data);
+      } else {
+        setChartDataFromApi([]);
+      }
+      setSelectedKeywords(new Set());
+    } catch (error) {
+      console.error("Failed to load Google keywords:", error);
+      setKeywords([]);
+      setTotalPages(0);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+
+  useEffect(() => {
+    if (sorting) return;
+
+    if (accountId) {
+      const accountIdNum = parseInt(accountId, 10);
+      if (!isNaN(accountIdNum)) {
+        loadKeywords(accountIdNum);
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadKeywords, sorting]);
+
+  const loadKeywordsWithFilters = async (
+    accountId: number,
+    filterList: FilterValues
+  ) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        sort_by: sortBy,
+        order: sortOrder,
+        page: 1,
+        page_size: itemsPerPage,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        filters: filterList, // Pass filters array directly
+      };
+
+      const response = await googleAdwordsKeywordsService.getGoogleKeywords(
+        accountId,
+        undefined,
+        undefined,
+        params
+      );
+      setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
       if (response.summary) {

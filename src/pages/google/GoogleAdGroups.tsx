@@ -1,5 +1,5 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -64,6 +64,7 @@ export const GoogleAdGroups: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const isLoadingRef = useRef(false);
 
   // Chart toggles (visual parity with Amazon Campaigns)
   const [chartToggles, setChartToggles] = useState({
@@ -189,6 +190,66 @@ export const GoogleAdGroups: React.FC = () => {
     };
   }, []);
 
+  // Removed buildFilterParams - now passing filters array directly to service
+
+  const loadAdgroups = useCallback(async (accountId: number) => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
+    }
+
+    try {
+      isLoadingRef.current = true;
+      setLoading(true);
+      const params: any = {
+        filters: filters, // Pass filters array directly
+        sort_by: sortBy,
+        order: sortOrder,
+        page: currentPage,
+        page_size: itemsPerPage,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+      };
+
+      const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
+        accountId,
+        undefined,
+        params
+      );
+      const adgroupsArray = Array.isArray(response.adgroups)
+        ? response.adgroups
+        : [];
+      setAdgroups(adgroupsArray);
+      setTotalPages(response.total_pages || 0);
+      setTotal(response.total || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      // Store chart data from API if available
+      const responseWithChart = response as any;
+      if (
+        responseWithChart.chart_data &&
+        Array.isArray(responseWithChart.chart_data)
+      ) {
+        setChartDataFromApi(responseWithChart.chart_data);
+      } else {
+        setChartDataFromApi([]);
+      }
+      // Clear selection when adgroups reload
+      setSelectedAdgroups(new Set());
+    } catch (error) {
+      console.error("Failed to load Google adgroups:", error);
+      setAdgroups([]);
+      setTotalPages(0);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
+
   useEffect(() => {
     // Don't reload if we're currently sorting (handleSort will handle the reload)
     // Also don't reload when sortBy/sortOrder changes (handleSort handles that)
@@ -204,9 +265,7 @@ export const GoogleAdGroups: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate, endDate]);
-
-  // Removed buildFilterParams - now passing filters array directly to service
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAdgroups, sorting]);
 
   const loadAdgroupsWithFilters = async (
     accountId: number,
@@ -247,57 +306,6 @@ export const GoogleAdGroups: React.FC = () => {
       } else {
         setChartDataFromApi([]);
       }
-      setSelectedAdgroups(new Set());
-    } catch (error) {
-      console.error("Failed to load Google adgroups:", error);
-      setAdgroups([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAdgroups = async (accountId: number) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        filters: filters, // Pass filters array directly
-        sort_by: sortBy,
-        order: sortOrder,
-        page: currentPage,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-      };
-
-      const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
-        accountId,
-        undefined,
-        params
-      );
-      const adgroupsArray = Array.isArray(response.adgroups)
-        ? response.adgroups
-        : [];
-      setAdgroups(adgroupsArray);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      // Clear selection when adgroups reload
       setSelectedAdgroups(new Set());
     } catch (error) {
       console.error("Failed to load Google adgroups:", error);
