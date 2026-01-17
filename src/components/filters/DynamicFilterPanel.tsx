@@ -37,6 +37,75 @@ const NUMERIC_OPERATORS = [
   { value: "between", label: "Between" },
 ];
 
+// Feature flag to enable/disable test filter button - set to false or comment out to disable
+const ENABLE_TEST_FILTER_BUTTON = false;
+
+// Test filter generation function - generates filters for all operators across all fields
+// Comment out this entire function to remove test functionality
+const generateTestFilters = (filterFields: FilterField[]): FilterValues => {
+  const testFilters: FilterValues = [];
+
+  filterFields.forEach((field) => {
+    // Get available operators for this field
+    const operators = field.operators && field.operators.length > 0 
+      ? field.operators 
+      : [];
+
+    // If no operators defined, skip this field
+    if (operators.length === 0) {
+      return;
+    }
+
+    operators.forEach((operator) => {
+      let testValue: string | number | string[] | { min: number; max: number };
+
+      // Handle different field types and operators
+      if (operator === "between" && (field.type === "number" || field.type === "string")) {
+        // Between operator needs min/max object
+        testValue = { min: 50, max: 200 };
+      } else if (field.type === "number") {
+        // Numeric operators
+        testValue = 100;
+      } else if (field.type === "static_dropdown") {
+        // Static dropdown fields - use first option if available
+        if (field.options && field.options.length > 0) {
+          testValue = field.options[0].value;
+        } else {
+          // No options available, skip this operator
+          return;
+        }
+      } else if (field.type === "dynamic_dropdown") {
+        // Dynamic dropdown fields - use placeholder value for testing
+        // Note: Actual options would need to be fetched, but for testing we use a placeholder
+        testValue = "test";
+      } else if (field.type === "multi_select") {
+        // Multi-select fields - use first option if available
+        if (field.options && field.options.length > 0) {
+          testValue = [field.options[0].value];
+        } else {
+          // No options available, skip this operator
+          return;
+        }
+      } else {
+        // String/text fields
+        testValue = "test";
+      }
+
+      // Create filter item
+      const filterItem: FilterItem = {
+        id: `${field.field_name}-${operator}-${Date.now()}-${Math.random()}`,
+        field: field.field_name,
+        operator: operator,
+        value: testValue,
+      };
+
+      testFilters.push(filterItem);
+    });
+  });
+
+  return testFilters;
+};
+
 export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   isOpen,
   onClose,
@@ -320,6 +389,14 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     setActiveFilters([]);
     onApply([]);
     onClose();
+  };
+
+  const handleTestAllOperators = () => {
+    if (!ENABLE_TEST_FILTER_BUTTON) return;
+    
+    const testFilters = generateTestFilters(filterFields);
+    setActiveFilters(testFilters);
+    onApply(testFilters);
   };
 
   const getOperatorLabel = (operator: string): string => {
@@ -651,6 +728,16 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
+        {ENABLE_TEST_FILTER_BUTTON && (
+          <button 
+            type="button" 
+            onClick={handleTestAllOperators}
+            className="px-4 py-2 bg-yellow-500 text-white text-[10.64px] rounded-lg hover:bg-yellow-600 transition-colors"
+            disabled={filterFields.length === 0}
+          >
+            Test All Operators
+          </button>
+        )}
         <button onClick={handleClearAll} className="cancel-button">
           Clear All
         </button>

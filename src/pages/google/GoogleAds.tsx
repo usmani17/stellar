@@ -958,12 +958,14 @@ export const GoogleAds: React.FC = () => {
                   }));
                   setFilters(convertedFilters);
                   setCurrentPage(1);
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadAdsWithFilters(accountIdNum, convertedFilters);
-                    }
-                  }
+                  // Removed direct call to loadAdsWithFilters - useEffect will handle it when filters change
+                  // This prevents double requests
+                  // if (accountId) {
+                  //   const accountIdNum = parseInt(accountId, 10);
+                  //   if (!isNaN(accountIdNum)) {
+                  //     loadAdsWithFilters(accountIdNum, convertedFilters);
+                  //   }
+                  // }
                 }}
                 initialFilters={filters.map((f) => ({
                   id: f.id,
