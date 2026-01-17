@@ -347,6 +347,14 @@ export const GoogleCampaignDetail: React.FC = () => {
   const [keywordTextEditKeyword, setKeywordTextEditKeyword] = useState<GoogleKeyword | null>(null);
   const [keywordTextEditValue, setKeywordTextEditValue] = useState<string>("");
   const [keywordTextEditLoading, setKeywordTextEditLoading] = useState(false);
+  
+  // Final URL edit modal state
+  const [showFinalUrlModal, setShowFinalUrlModal] = useState(false);
+  const [finalUrlKeyword, setFinalUrlKeyword] = useState<GoogleKeyword | null>(null);
+  const [finalUrlValue, setFinalUrlValue] = useState<string>("");
+  const [mobileFinalUrlValue, setMobileFinalUrlValue] = useState<string>("");
+  const [useMobileFinalUrl, setUseMobileFinalUrl] = useState(false);
+  const [finalUrlEditLoading, setFinalUrlEditLoading] = useState(false);
 
   // Compute available tabs based on campaign type
   const tabs = useMemo(() => {
@@ -1122,6 +1130,138 @@ export const GoogleCampaignDetail: React.FC = () => {
     setKeywordTextEditKeyword(keyword);
     setKeywordTextEditValue(keyword.keyword_text || "");
     setShowKeywordTextEditModal(true);
+  };
+
+  // Final URL edit handlers
+  const handleStartFinalUrlEdit = (keyword: GoogleKeyword) => {
+    if (!keyword) {
+      console.error("Cannot edit final URL: keyword is null");
+      return;
+    }
+    
+    setFinalUrlKeyword(keyword);
+    // Get first URL from final_urls array if available
+    const finalUrls = (keyword as any)?.final_urls || (keyword as any)?.finalUrls || null;
+    let currentUrl = "";
+    if (Array.isArray(finalUrls) && finalUrls.length > 0) {
+      currentUrl = finalUrls[0] || "";
+    } else if (typeof finalUrls === "string" && finalUrls.trim()) {
+      currentUrl = finalUrls.trim();
+    }
+    setFinalUrlValue(currentUrl);
+    
+    const mobileUrls = (keyword as any)?.final_mobile_urls || (keyword as any)?.finalMobileUrls || null;
+    let currentMobileUrl = "";
+    if (Array.isArray(mobileUrls) && mobileUrls.length > 0) {
+      currentMobileUrl = mobileUrls[0] || "";
+    } else if (typeof mobileUrls === "string" && mobileUrls.trim()) {
+      currentMobileUrl = mobileUrls.trim();
+    }
+    setMobileFinalUrlValue(currentMobileUrl);
+    setUseMobileFinalUrl(!!currentMobileUrl);
+    setShowFinalUrlModal(true);
+  };
+  
+  const handleFinalUrlEditSave = async () => {
+    if (!finalUrlKeyword || !accountId) return;
+    
+    const trimmedUrl = finalUrlValue.trim();
+    if (!trimmedUrl) {
+      setErrorModal({
+        isOpen: true,
+        title: "Validation Error",
+        message: "Final URL cannot be empty. Please enter a URL.",
+      });
+      return;
+    }
+    
+    // Validate URL format
+    let finalUrl = trimmedUrl;
+    if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+      finalUrl = "https://" + finalUrl;
+    }
+    
+    try {
+      new URL(finalUrl);
+    } catch {
+      setErrorModal({
+        isOpen: true,
+        title: "Invalid URL",
+        message: "Please enter a valid URL. URLs should start with http:// or https://",
+      });
+      return;
+    }
+    
+    let mobileUrl = "";
+    if (useMobileFinalUrl) {
+      const trimmedMobileUrl = mobileFinalUrlValue.trim();
+      if (!trimmedMobileUrl) {
+        setErrorModal({
+          isOpen: true,
+          title: "Validation Error",
+          message: "Mobile final URL cannot be empty when the checkbox is checked. Please enter a mobile URL or uncheck the option.",
+        });
+        return;
+      }
+      mobileUrl = trimmedMobileUrl;
+      if (!mobileUrl.startsWith("http://") && !mobileUrl.startsWith("https://")) {
+        mobileUrl = "https://" + mobileUrl;
+      }
+      try {
+        new URL(mobileUrl);
+      } catch {
+        setErrorModal({
+          isOpen: true,
+          title: "Invalid Mobile URL",
+          message: "Please enter a valid mobile URL. URLs should start with http:// or https://",
+        });
+        return;
+      }
+    }
+    
+    setFinalUrlEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Include adgroup_id to ensure we only update the specific keyword in the specific ad group
+      const response = await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
+        keywordIds: [finalUrlKeyword.keyword_id],
+        action: "final_urls",
+        final_url: finalUrl,
+        final_mobile_url: useMobileFinalUrl ? mobileUrl : undefined,
+        adgroupIds: finalUrlKeyword.adgroup_id ? [finalUrlKeyword.adgroup_id] : undefined,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        const errorMessage = response.errors[0];
+        setErrorModal({
+          isOpen: true,
+          title: "Update Failed",
+          message: `Failed to update final URL: ${errorMessage}`,
+        });
+        return;
+      }
+
+      await loadKeywords();
+      setShowFinalUrlModal(false);
+      setFinalUrlKeyword(null);
+      setFinalUrlValue("");
+      setMobileFinalUrlValue("");
+      setUseMobileFinalUrl(false);
+    } catch (error: any) {
+      console.error("Error updating final URL:", error);
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: `Failed to update final URL: ${errorMessage}`,
+      });
+    } finally {
+      setFinalUrlEditLoading(false);
+    }
   };
 
   const handleKeywordTextEditSave = async () => {
@@ -3826,6 +3966,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }
                     }}
                     onStartKeywordTextEdit={handleStartKeywordTextEdit}
+                    onStartFinalUrlEdit={handleStartFinalUrlEdit}
                   />
                 </>
               )}
@@ -4353,6 +4494,104 @@ export const GoogleCampaignDetail: React.FC = () => {
                 ) : (
                   "Save"
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Final URL Edit Modal */}
+      {showFinalUrlModal && finalUrlKeyword && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !finalUrlEditLoading) {
+              setShowFinalUrlModal(false);
+              setFinalUrlKeyword(null);
+              setFinalUrlValue("");
+              setMobileFinalUrlValue("");
+              setUseMobileFinalUrl(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+              Edit Final URL
+            </h3>
+            <div className="mb-6 space-y-4">
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#136D6D] mb-2">
+                  Final URL
+                </label>
+                <input
+                  type="text"
+                  value={finalUrlValue}
+                  onChange={(e) => setFinalUrlValue(e.target.value)}
+                  disabled={finalUrlEditLoading}
+                  autoFocus
+                  className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="www.example.com"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="use-mobile-url"
+                  checked={useMobileFinalUrl}
+                  onChange={(e) => setUseMobileFinalUrl(e.target.checked)}
+                  disabled={finalUrlEditLoading}
+                  className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] disabled:opacity-50"
+                />
+                <label 
+                  htmlFor="use-mobile-url"
+                  className="text-[13.3px] text-[#072929] cursor-pointer"
+                >
+                  Use a different final URL for mobile
+                </label>
+              </div>
+              {useMobileFinalUrl && (
+                <div>
+                  <label className="block text-[11.2px] font-semibold text-[#136D6D] mb-2">
+                    Mobile Final URL
+                  </label>
+                  <input
+                    type="text"
+                    value={mobileFinalUrlValue}
+                    onChange={(e) => setMobileFinalUrlValue(e.target.value)}
+                    disabled={finalUrlEditLoading}
+                    className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="www.example.com"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!finalUrlEditLoading) {
+                    setShowFinalUrlModal(false);
+                    setFinalUrlKeyword(null);
+                    setFinalUrlValue("");
+                    setMobileFinalUrlValue("");
+                    setUseMobileFinalUrl(false);
+                  }
+                }}
+                disabled={finalUrlEditLoading}
+                className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleFinalUrlEditSave}
+                disabled={finalUrlEditLoading || !finalUrlValue.trim()}
+                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {finalUrlEditLoading ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
