@@ -48,7 +48,9 @@ import { googleAdwordsAssetGroupsService } from "../../services/googleAdwords/go
 import {
   CreateGooglePmaxAssetGroupPanel,
   type PmaxAssetGroupInput,
+  type AssetGroupInitialData,
 } from "../../components/google/CreateGooglePmaxAssetGroupPanel";
+import { campaignsService } from "../../services/campaigns";
 import {
   CreateGoogleShoppingEntitiesPanel,
   type ShoppingEntityInput,
@@ -294,6 +296,27 @@ export const GoogleCampaignDetail: React.FC = () => {
   const [createShoppingEntitiesError, setCreateShoppingEntitiesError] =
     useState<string | null>(null);
 
+  // Edit asset group state
+  const [editingAssetGroupId, setEditingAssetGroupId] = useState<number | null>(
+    null
+  );
+  const [editingAssetGroupData, setEditingAssetGroupData] =
+    useState<AssetGroupInitialData | null>(null);
+  const [isEditAssetGroupPanelOpen, setIsEditAssetGroupPanelOpen] =
+    useState(false);
+  const [editAssetGroupLoading, setEditAssetGroupLoading] = useState(false);
+  const [editAssetGroupError, setEditAssetGroupError] = useState<string | null>(
+    null
+  );
+  const [editLoadingAssetGroupId, setEditLoadingAssetGroupId] = useState<
+    number | null
+  >(null);
+  const [refreshAssetGroupMessage, setRefreshAssetGroupMessage] = useState<{
+    type: "loading" | "success" | "error";
+    message: string;
+    details?: string;
+  } | null>(null);
+
   // Error modal state
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
@@ -433,6 +456,15 @@ export const GoogleCampaignDetail: React.FC = () => {
     setAssetGroupsCurrentPage(1);
     setProductGroupsCurrentPage(1);
     setSyncMessage({ type: null, message: null });
+    // Reset edit asset group state
+    setIsEditAssetGroupPanelOpen(false);
+    setEditingAssetGroupId(null);
+    setEditingAssetGroupData(null);
+    setEditAssetGroupError(null);
+    setRefreshAssetGroupMessage(null);
+    setEditLoadingAssetGroupId(null);
+    setIsCreatePmaxAssetGroupPanelOpen(false);
+    setCreatePmaxAssetGroupError(null);
 
     if (accountId && campaignId) {
       loadCampaignDetail();
@@ -2100,6 +2132,295 @@ export const GoogleCampaignDetail: React.FC = () => {
     }
   };
 
+  // Safe mapping function to convert API data to form data
+  const mapApiDataToForm = (apiData: any): AssetGroupInitialData => {
+    // Ensure minimum arrays for headlines (3 required) and descriptions (2 required)
+    let headlinesArray: string[] = [];
+    if (Array.isArray(apiData?.headlines) && apiData.headlines.length > 0) {
+      headlinesArray = apiData.headlines;
+    }
+    // Pad to minimum 3 if needed
+    while (headlinesArray.length < 3) {
+      headlinesArray.push("");
+    }
+
+    let descriptionsArray: string[] = [];
+    if (Array.isArray(apiData?.descriptions) && apiData.descriptions.length > 0) {
+      descriptionsArray = apiData.descriptions;
+    }
+    // Pad to minimum 2 if needed
+    while (descriptionsArray.length < 2) {
+      descriptionsArray.push("");
+    }
+
+    return {
+      asset_group_name: apiData?.asset_group_name || "",
+      final_url: apiData?.final_urls?.[0] || apiData?.final_url || "",
+      headlines: headlinesArray,
+      descriptions: descriptionsArray,
+      long_headline: apiData?.long_headline || "",
+      marketing_image_url: apiData?.marketing_image_url || "",
+      square_marketing_image_url: apiData?.square_marketing_image_url || "",
+      business_name: apiData?.business_name || "",
+      logo_url: apiData?.logo_url || "",
+    };
+  };
+
+  // Handler for editing asset group (fetches data when edit button is clicked)
+  const handleEditAssetGroup = async (assetGroup: any) => {
+    if (!accountId || !campaignId) return;
+
+    try {
+      // Step 1: Show loading state immediately
+      setEditLoadingAssetGroupId(assetGroup.id);
+      setRefreshAssetGroupMessage({
+        type: "loading",
+        message: "Fetching latest asset group data from Google Ads API...",
+      });
+      setEditAssetGroupLoading(true);
+
+      // Step 2: Open panel and close create panel
+      setIsCreatePmaxAssetGroupPanelOpen(false);
+      setCreatePmaxAssetGroupError(null);
+      setIsEditAssetGroupPanelOpen(true);
+
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      // Step 3: Fetch data from API using refresh endpoint (same as campaigns page)
+      // This returns campaign data with extra_data containing all asset group fields
+      let refreshedCampaignData = null;
+      try {
+        const refreshResponse =
+          await campaignsService.refreshGoogleCampaignFromAPI(
+            accountIdNum,
+            campaignIdNum
+          );
+        refreshedCampaignData = refreshResponse.campaign;
+        // Success - data refreshed from API
+        setRefreshAssetGroupMessage({
+          type: "success",
+          message: "Asset group data refreshed from Google Ads API",
+          details: refreshResponse.message || "Latest data loaded successfully",
+        });
+      } catch (refreshError: any) {
+        // Failed to refresh from API, use cached data from database
+        console.warn(
+          "Failed to refresh campaign from API, using cached data:",
+          refreshError
+        );
+        const errorMessage =
+          refreshError?.response?.data?.error ||
+          refreshError?.message ||
+          "Could not fetch latest from Google API";
+        setRefreshAssetGroupMessage({
+          type: "error",
+          message: "Using cached data",
+          details: errorMessage,
+        });
+        // Fallback: Fetch from database
+        try {
+          const campaignDetail = await googleAdwordsCampaignsService.getGoogleCampaignDetail(
+            accountIdNum,
+            campaignIdNum
+          );
+          refreshedCampaignData = campaignDetail?.campaign || null;
+        } catch (detailError) {
+          console.warn("Failed to fetch campaign detail:", detailError);
+        }
+      }
+
+      // Step 4: Extract asset group data from extra_data (same as campaigns page)
+      const extra_data = refreshedCampaignData?.extra_data || {};
+      const mappedData = mapApiDataToForm(extra_data);
+      setEditingAssetGroupData(mappedData);
+      setEditingAssetGroupId(assetGroup.asset_group_id);
+
+      // Scroll to edit panel section after data is loaded and panel is rendered
+      // Use a small delay to ensure the panel is rendered before scrolling
+      setTimeout(() => {
+        // Find the edit panel element and scroll to it
+        const editPanelElement = document.querySelector('[data-edit-asset-group-panel]');
+        if (editPanelElement) {
+          editPanelElement.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          // Fallback to scrolling to top if panel not found yet
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }, 100);
+    } catch (error: any) {
+      console.error("Failed to fetch asset group data:", error);
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Could not fetch latest from Google API";
+
+      // On error: fallback to table row data if available
+      setRefreshAssetGroupMessage({
+        type: "error",
+        message: "Using cached data",
+        details: errorMessage,
+      });
+
+      // Try to map from table row data as fallback
+      if (assetGroup) {
+        const fallbackData: AssetGroupInitialData = {
+          asset_group_name: assetGroup.name || "",
+          final_url: assetGroup.final_urls?.[0] || "",
+          headlines: ["", "", ""], // Minimum 3 required
+          descriptions: ["", ""], // Minimum 2 required
+          long_headline: "",
+          marketing_image_url: "",
+          square_marketing_image_url: "",
+          business_name: "",
+          logo_url: "",
+        };
+        setEditingAssetGroupData(fallbackData);
+        setEditingAssetGroupId(assetGroup.asset_group_id);
+      }
+    } finally {
+      setEditAssetGroupLoading(false);
+      setEditLoadingAssetGroupId(null);
+    }
+  };
+
+  // Handler for updating asset group status
+  const handleUpdateAssetGroupStatus = async (
+    assetGroupId: number,
+    status: string
+  ) => {
+    if (!accountId || !campaignId) return;
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      const campaignIdNum = parseInt(campaignId, 10);
+
+      if (isNaN(accountIdNum) || isNaN(campaignIdNum)) {
+        throw new Error("Invalid account or campaign ID");
+      }
+
+      // Find the asset group to get asset_group_id
+      const assetGroup = assetGroups.find((ag) => ag.id === assetGroupId);
+      if (!assetGroup || !assetGroup.asset_group_id) {
+        throw new Error("Asset group not found");
+      }
+
+      // Call API to update status
+      await googleAdwordsAssetGroupsService.updateAssetGroupStatus(
+        accountIdNum,
+        assetGroup.asset_group_id,
+        campaignIdNum,
+        status as "ENABLED" | "PAUSED"
+      );
+
+      // Update local state
+      setAssetGroups((prevAssetGroups) =>
+        prevAssetGroups.map((ag) =>
+          ag.id === assetGroupId ? { ...ag, status: status } : ag
+        )
+      );
+    } catch (error: any) {
+      console.error("Failed to update asset group status:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to update asset group status";
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+      throw error;
+    }
+  };
+
+  // Handler for updating asset group
+  const handleUpdateAssetGroup = async (entity: PmaxAssetGroupInput) => {
+    if (!accountId || !campaignId || !editingAssetGroupId) return;
+
+    setEditAssetGroupLoading(true);
+    setEditAssetGroupError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const campaignIdNum = parseInt(campaignId, 10);
+      if (isNaN(campaignIdNum)) {
+        throw new Error("Invalid campaign ID");
+      }
+
+      // Map form data to backend format (all fields including business_name and logo_url)
+      const assetData = {
+        asset_group_name: entity.asset_group.name,
+        final_url: entity.asset_group.final_url,
+        headlines: entity.assets.headlines,
+        descriptions: entity.assets.descriptions,
+        long_headline: entity.assets.long_headline,
+        marketing_image_url: entity.assets.marketing_image_url,
+        square_marketing_image_url: entity.assets.square_marketing_image_url,
+        business_name: entity.assets.business_name,
+        logo_url: entity.assets.logo_url,
+      };
+
+      // Call existing API
+      await campaignsService.updateGooglePmaxAssetGroup(
+        accountIdNum,
+        campaignIdNum,
+        assetData
+      );
+
+      // Success - show success message
+      setErrorModal({
+        isOpen: true,
+        title: "Success",
+        message: "Asset group updated successfully!",
+        isSuccess: true,
+      });
+
+      // Reload asset groups after successful update
+      await loadAssetGroups();
+
+      // Close panel and reset state on success
+      handleCloseEditPanel();
+    } catch (error: any) {
+      console.error("Failed to update asset group:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to update asset group. Please try again.";
+      setEditAssetGroupError(errorMessage);
+      setErrorModal({
+        isOpen: true,
+        title: "Error",
+        message: errorMessage,
+        isSuccess: false,
+      });
+    } finally {
+      setEditAssetGroupLoading(false);
+    }
+  };
+
+  // Handler to close edit panel and reset state
+  const handleCloseEditPanel = () => {
+    setIsEditAssetGroupPanelOpen(false);
+    setEditingAssetGroupId(null);
+    setEditingAssetGroupData(null);
+    setEditAssetGroupError(null);
+    setRefreshAssetGroupMessage(null);
+    setEditLoadingAssetGroupId(null);
+  };
+
   // Handler for creating Shopping ad group only (for Ad Groups tab)
   const handleCreateShoppingAdGroup = async (entity: AdGroupInput) => {
     if (!accountId || !campaignId) return;
@@ -2840,6 +3161,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                               !isCreatePmaxAssetGroupPanelOpen
                             );
                             setIsAssetGroupsFilterPanelOpen(false);
+                            // Close edit panel when opening create panel
+                            if (!isCreatePmaxAssetGroupPanelOpen) {
+                              handleCloseEditPanel();
+                            }
                           }}
                         />
                       </div>
@@ -2856,6 +3181,24 @@ export const GoogleCampaignDetail: React.FC = () => {
                           submitError={createPmaxAssetGroupError}
                         />
                       )}
+                      {isEditAssetGroupPanelOpen &&
+                        editingAssetGroupId !== null &&
+                        campaignId && (
+                          <div data-edit-asset-group-panel>
+                            <CreateGooglePmaxAssetGroupPanel
+                              isOpen={isEditAssetGroupPanelOpen}
+                              onClose={handleCloseEditPanel}
+                              onSubmit={handleUpdateAssetGroup}
+                              campaignId={campaignId}
+                              loading={editAssetGroupLoading}
+                              submitError={editAssetGroupError}
+                              editMode={true}
+                              initialData={editingAssetGroupData}
+                              assetGroupId={editingAssetGroupId}
+                              refreshMessage={refreshAssetGroupMessage}
+                            />
+                          </div>
+                        )}
                     </>
                   )}
                   <GoogleCampaignDetailAssetGroupsTab
@@ -2926,6 +3269,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                     formatPercentage={formatPercentage}
                     formatCurrency2Decimals={formatCurrency2Decimals}
                     getSortIcon={getSortIcon}
+                    onEditAssetGroup={handleEditAssetGroup}
+                    editLoadingAssetGroupId={editLoadingAssetGroupId}
+                    onUpdateAssetGroupStatus={handleUpdateAssetGroupStatus}
                   />
                 </>
               )}

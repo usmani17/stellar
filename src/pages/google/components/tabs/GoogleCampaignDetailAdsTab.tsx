@@ -234,9 +234,8 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
             }}
             initialFilters={filters}
             filterFields={[
-              { value: "name", label: "Ad Type" },
+              { value: "name", label: "Ad Name" },
               { value: "status", label: "Status" },
-              { value: "adgroup_name", label: "Ad Group Name" },
             ]}
           />
         </div>

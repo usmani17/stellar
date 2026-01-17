@@ -717,6 +717,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                 key={filter.id}
                 onClose={() => handleRemoveFilter(filter.id)}
                 onClick={() => handleEditFilter(filter.id)}
+                editable={true}
                 className={editingFilterId === filter.id ? "ring-2 ring-[#136D6D] ring-offset-1" : ""}
               >
                 {getFieldLabel(filter.field)}: {getFilterDisplayValue(filter)}

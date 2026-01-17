@@ -5,9 +5,9 @@ import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
 import {
-  DynamicFilterPanel,
+  FilterPanel,
   type FilterValues,
-} from "../../../../components/filters/DynamicFilterPanel";
+} from "../../../../components/filters/FilterPanel";
 import type { GoogleKeyword } from "./GoogleTypes";
 
 interface GoogleCampaignDetailKeywordsTabProps {
@@ -358,29 +358,19 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       </div>
 
       {/* Filter Panel */}
-      {isFilterPanelOpen && accountId && (
+      {isFilterPanelOpen && (
         <div className="mb-4">
-          <DynamicFilterPanel
+          <FilterPanel
             isOpen={true}
             onClose={onToggleFilterPanel}
             onApply={(newFilters) => {
-              // Convert DynamicFilterValues to FilterValues format for compatibility
-              const convertedFilters: FilterValues = newFilters.map((f) => ({
-                id: f.id,
-                field: f.field as FilterValues[0]["field"],
-                operator: f.operator,
-                value: f.value,
-              }));
-              onApplyFilters(convertedFilters);
+              onApplyFilters(newFilters);
             }}
-            initialFilters={filters.map((f) => ({
-              id: f.id,
-              field: f.field as string,
-              operator: f.operator,
-              value: f.value,
-            }))}
-            accountId={accountId}
-            marketplace="google_adwords"
+            initialFilters={filters}
+            filterFields={[
+              { value: "keyword_text", label: "Keyword" },
+              { value: "status", label: "Status" },
+            ]}
           />
         </div>
       )}

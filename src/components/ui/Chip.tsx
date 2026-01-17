@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 interface ChipProps {
   children: React.ReactNode;
@@ -6,6 +6,7 @@ interface ChipProps {
   onClick?: () => void;
   className?: string;
   variant?: "default" | "outline";
+  editable?: boolean;
 }
 
 export const Chip: React.FC<ChipProps> = ({
@@ -14,28 +15,78 @@ export const Chip: React.FC<ChipProps> = ({
   onClick,
   className = "",
   variant = "default",
+  editable = false,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   const baseStyles =
-    "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11.2px] font-medium transition-colors";
+    "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11.2px] font-medium transition-all duration-200";
 
   const variantStyles = {
     default: "bg-forest-f60 text-white",
     outline: "bg-transparent border border-forest-f60 text-forest-f60",
   };
 
-  const clickableStyles = onClick ? "cursor-pointer hover:opacity-80" : "";
+  // Enhanced hover styles for editable chips
+  const getHoverStyles = () => {
+    if (!editable || !onClick) {
+      return onClick ? "cursor-pointer hover:opacity-80" : "";
+    }
+
+    // Editable hover styles - white background for both variants
+    if (variant === "default") {
+      // For dark background, change to white on hover with dark text
+      return "cursor-pointer";
+    } else {
+      // For outline variant, use white background
+      return "cursor-pointer";
+    }
+  };
+
+  const clickableStyles = getHoverStyles();
+
+  // Get dynamic styles for hover state
+  const getDynamicStyles = () => {
+    if (!editable || !onClick || !isHovered) {
+      return variant === "default" ? { backgroundColor: "rgb(7, 41, 41)" } : {};
+    }
+
+    // Hover state styles
+    if (variant === "default") {
+      return {
+        backgroundColor: "#ffffff",
+        color: "#136D6D",
+        border: "1px solid #136D6D",
+      };
+    } else {
+      return {
+        backgroundColor: "#ffffff",
+        borderColor: "#136D6D",
+      };
+    }
+  };
 
   return (
     <span
-      className={`${baseStyles} ${variantStyles[variant]} ${clickableStyles} ${className}`}
-      style={
-        variant === "default"
-          ? { backgroundColor: "rgb(7, 41, 41)" }
-          : undefined
-      }
+      className={`${baseStyles} ${variantStyles[variant]} ${clickableStyles} ${className} group`}
+      style={getDynamicStyles()}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
+      title={editable && onClick ? "Click to edit" : undefined}
     >
       {children}
+      {editable && onClick && (
+        <svg
+          className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[#136D6D]"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+        </svg>
+      )}
       {onClose && (
         <button
           onClick={(e) => {

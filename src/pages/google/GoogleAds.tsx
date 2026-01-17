@@ -13,6 +13,7 @@ import {
   type FilterValues,
 } from "../../components/filters/DynamicFilterPanel";
 import { googleAdwordsAdsService } from "../../services/googleAdwords/googleAdwordsAds";
+import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleAdsListTable } from "./components/GoogleAdsListTable";
 import type { GoogleAd } from "./components/tabs/GoogleTypes";
@@ -252,6 +253,14 @@ export const GoogleAds: React.FC = () => {
     }
   }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
 
+  // Sync status hook (after loadAds is defined)
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+    accountId,
+    entityType: "ads",
+    currentData: ads,
+    loadFunction: loadAds,
+  });
+
   useEffect(() => {
     if (sorting) return;
 
@@ -342,6 +351,9 @@ export const GoogleAds: React.FC = () => {
       }
 
       setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
 
       if (result.synced > 0) {
         setCurrentPage(1);
@@ -942,6 +954,9 @@ export const GoogleAds: React.FC = () => {
                 />
               </div>
             )}
+
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
 
             {/* Filter Panel */}
             {isFilterPanelOpen && accountId && (

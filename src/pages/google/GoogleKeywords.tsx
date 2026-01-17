@@ -14,6 +14,7 @@ import {
   type FilterValues,
 } from "../../components/filters/DynamicFilterPanel";
 import { googleAdwordsKeywordsService } from "../../services/googleAdwords/googleAdwordsKeywords";
+import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleKeywordsTable,
@@ -348,6 +349,14 @@ export const GoogleKeywords: React.FC = () => {
     }
   };
 
+  // Sync status hook (after loadKeywords is defined)
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+    accountId,
+    entityType: "keywords",
+    currentData: keywords,
+    loadFunction: loadKeywords,
+  });
+
   const handleSync = async () => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -370,6 +379,9 @@ export const GoogleKeywords: React.FC = () => {
       }
 
       setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
 
       if (result.synced > 0) {
         setCurrentPage(1);
@@ -409,7 +421,7 @@ export const GoogleKeywords: React.FC = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
       
-      const result = await campaignsService.syncGoogleKeywordAnalytics(
+      const result = await googleAdwordsKeywordsService.syncGoogleKeywordAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
         today.toISOString().split("T")[0]
@@ -1038,7 +1050,7 @@ export const GoogleKeywords: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
-      await campaignsService.bulkUpdateGoogleKeywords(accountIdNum, {
+      await googleAdwordsKeywordsService.bulkUpdateGoogleKeywords(accountIdNum, {
         keywordIds: Array.from(selectedKeywords),
         action: "status",
         status: statusValue,
@@ -1441,6 +1453,9 @@ export const GoogleKeywords: React.FC = () => {
                 />
               </div>
             )}
+
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
 
             {/* Filter Panel */}
             {isFilterPanelOpen && accountId && (

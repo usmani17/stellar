@@ -78,4 +78,18 @@ export const googleAdwordsAssetGroupsService = {
     );
     return response.data;
   },
+
+  // Update asset group status
+  updateAssetGroupStatus: async (
+    accountId: number,
+    assetGroupId: string | number,
+    campaignId: string | number,
+    status: "ENABLED" | "PAUSED"
+  ): Promise<any> => {
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/update-asset-group/`;
+    const response = await api.post(url, {
+      status: status,
+    });
+    return response.data;
+  },
 };

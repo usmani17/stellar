@@ -16,6 +16,7 @@ import {
 } from "../../components/filters/DynamicFilterPanel";
 import { campaignsService } from "../../services/campaigns";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
+import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleCampaignsTable,
@@ -356,6 +357,14 @@ export const GoogleCampaigns: React.FC = () => {
       isLoadingRef.current = false;
     }
   }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+
+  // Sync status hook (after loadCampaigns is defined)
+  const { syncStatus: campaignsSyncStatus, SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+    accountId,
+    entityType: "campaigns",
+    currentData: campaigns,
+    loadFunction: loadCampaigns,
+  });
 
   useEffect(() => {
     // Don't reload if we're currently sorting (handleSort will handle the reload)
@@ -1081,6 +1090,9 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
 
       // Reset to first page and reload campaigns after sync
       if (result.synced > 0) {
@@ -2267,6 +2279,9 @@ export const GoogleCampaigns: React.FC = () => {
                 />
               </div>
             )}
+
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
 
             {/* Filter Panel - inline, matching Amazon layout */}
             {isFilterPanelOpen && accountId && (

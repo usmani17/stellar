@@ -15,6 +15,7 @@ import {
   type FilterValues,
 } from "../../components/filters/DynamicFilterPanel";
 import { googleAdwordsAdGroupsService } from "../../services/googleAdwords/googleAdwordsAdGroups";
+import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleAdGroupsTable,
@@ -317,6 +318,14 @@ export const GoogleAdGroups: React.FC = () => {
     }
   };
 
+  // Sync status hook (after loadAdgroups is defined)
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+    accountId,
+    entityType: "adgroups",
+    currentData: adgroups,
+    loadFunction: loadAdgroups,
+  });
+
   const handleSync = async () => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -339,6 +348,9 @@ export const GoogleAdGroups: React.FC = () => {
       }
 
       setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
 
       // Reset to first page and reload adgroups after sync
       if (result.synced > 0) {
@@ -1203,6 +1215,9 @@ export const GoogleAdGroups: React.FC = () => {
                 />
               </div>
             )}
+
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
 
             {/* Filter Panel - inline, matching Amazon layout */}
             {isFilterPanelOpen && accountId && (
