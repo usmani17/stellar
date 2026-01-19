@@ -205,7 +205,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
                   e.stopPropagation();
                   onEditCampaign(row);
                 }}
-className="table-edit-icon flex-shrink-0"
+                className="table-edit-icon flex-shrink-0"
                 title="Edit campaign"
                 disabled={editLoadingCampaignId === row.campaign_id}
               >
@@ -228,16 +228,6 @@ className="table-edit-icon flex-shrink-0"
                 )}
               </button>
             )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(navPath);
-              }}
-              className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1 text-left hover:text-[#136d6d] hover:underline cursor-pointer"
-            >
-              {value}
-            </button>
           </div>
         );
       },
@@ -273,7 +263,8 @@ className="table-edit-icon flex-shrink-0"
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
         { value: "PAUSED", label: "Paused" },
-        { value: "REMOVED", label: "Removed" },
+        // REMOVED is read-only - cannot be set via update operation
+        // It only appears when filtering/displaying campaigns that have been deleted
       ],
       getValue: (row: GoogleCampaign) => row.status || "ENABLED",
     },

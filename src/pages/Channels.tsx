@@ -289,143 +289,156 @@ export const Channels: React.FC = () => {
           )}
 
           <div className="space-y-6">
-            {/* Channels Table Card */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-6 flex flex-col gap-6">
-              {/* Header with Search and Connect Button */}
-              <div className="flex items-center justify-between gap-6">
-                <h2 className="text-[24px] font-medium text-[#072929] leading-[normal]">
-                  {account ? `${account.name} Channels` : "Channels"}
-                </h2>
-                <div className="flex items-center gap-6">
-                  {/* Search */}
-                  <div className="bg-[#f0f0ed] border border-[#e8e8e3] rounded-[8px] h-[40px] w-[272px] flex items-center gap-2 px-[10px]">
-                    <svg
-                      className="w-3 h-3 text-[#556179]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+            {/* Header with Connect Button and Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h1 className="text-[22px] sm:text-[24px] font-medium text-[#072929] leading-[normal]">
+                {account ? `${account.name} Channels` : "Channels"}
+              </h1>
+              <div className="flex items-center gap-2">
+                {/* Connect Button */}
+                <Menu
+                  trigger={
+                    <Button
+                      size="sm"
+                      disabled={isConnecting}
+                      className="create-entity-button"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search..."
-                      className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
+                      <span>
+                        {isConnecting ? "Connecting..." : "Connect"}
+                      </span>
+                    </Button>
+                  }
+                  items={[
+                    {
+                      label: "Amazon",
+                      icon: (
+                        <img
+                          src={AmazonIcon}
+                          alt="Amazon"
+                          className="w-5 h-5"
+                        />
+                      ),
+                      onClick: handleConnectAmazon,
+                      disabled: isConnecting,
+                    },
+                    {
+                      label: "Google",
+                      icon: (
+                        <img
+                          src={GoogleIcon}
+                          alt="Google"
+                          className="w-5 h-5"
+                        />
+                      ),
+                      onClick: handleConnectGoogle,
+                      disabled: isConnecting,
+                    },
+                    {
+                      label: "TikTok",
+                      icon: (
+                        <svg
+                          className="w-5 h-5"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                        </svg>
+                      ),
+                      onClick: handleConnectTikTok,
+                      disabled: isConnecting,
+                    },
+                  ]}
+                  align="left"
+                />
+                {/* Search */}
+                <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
+                  <svg
+                    className="w-3 h-3 text-[#556179]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                     />
-                  </div>
-                  {/* Connect Button */}
-                  <Menu
-                    trigger={
-                      <Button
-                        size="sm"
-                        disabled={isConnecting}
-                        className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
-                      >
-                        <span className="text-[14px] font-medium">
-                          {isConnecting ? "Connecting..." : "Connect"}
-                        </span>
-                      </Button>
-                    }
-                    items={[
-                      {
-                        label: "Amazon",
-                        icon: (
-                          <img
-                            src={AmazonIcon}
-                            alt="Amazon"
-                            className="w-5 h-5"
-                          />
-                        ),
-                        onClick: handleConnectAmazon,
-                        disabled: isConnecting,
-                      },
-                      {
-                        label: "Google",
-                        icon: (
-                          <img
-                            src={GoogleIcon}
-                            alt="Google"
-                            className="w-5 h-5"
-                          />
-                        ),
-                        onClick: handleConnectGoogle,
-                        disabled: isConnecting,
-                      },
-                      {
-                        label: "TikTok",
-                        icon: (
-                          <svg
-                            className="w-5 h-5"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                          </svg>
-                        ),
-                        onClick: handleConnectTikTok,
-                        disabled: isConnecting,
-                      },
-                    ]}
-                    align="left"
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179]"
                   />
                 </div>
               </div>
+            </div>
 
-              {/* Table */}
+            {/* Table */}
               <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
-                {loading ? (
-                  <div className="text-center py-8 text-[#556179] text-[14px]">
-                    Loading channels...
-                  </div>
-                ) : filteredChannels.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-[14px] text-[#556179] mb-4">
-                      {searchQuery ? "No channels found" : "No channels yet"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto relative">
-                    <table className="w-full relative">
-                      <thead>
-                        <tr className="border-b border-[#e8e8e3]">
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Channel Name
-                          </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Type
-                          </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Channel Created
-                          </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Profiles
-                          </th>
-                          <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                            Actions
-                          </th>
+                <div className="overflow-x-auto overflow-y-visible">
+                  <table className="w-full">
+                    <thead>
+                      <tr>
+                        <th className="table-header">
+                          Channel Name
+                        </th>
+                        <th className="table-header">
+                          Type
+                        </th>
+                        <th className="table-header">
+                          Channel Created
+                        </th>
+                        <th className="table-header">
+                          Profiles
+                        </th>
+                        <th className="table-header">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        // Loading skeleton rows
+                        Array.from({ length: 3 }).map((_, index) => (
+                          <tr key={`skeleton-${index}`} className="table-row">
+                            <td className="table-cell">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
+                            </td>
+                            <td className="table-cell">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                            </td>
+                            <td className="table-cell">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
+                            </td>
+                            <td className="table-cell">
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                            </td>
+                            <td className="table-cell">
+                              <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : filteredChannels.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="table-cell text-center py-8">
+                            <p className="text-[14px] text-[#556179] mb-4">
+                              {searchQuery ? "No channels found" : "No channels yet"}
+                            </p>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {filteredChannels.map((channel, index) => {
-                          const isLastRow =
-                            index === filteredChannels.length - 1;
+                      ) : (
+                        filteredChannels.map((channel) => {
 
                           return (
                             <tr
                               key={channel.id}
-                              className={`${
-                                !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                              } hover:bg-gray-50 transition-colors`}
+                              className="table-row group"
                             >
-                              <td className="py-4 px-5 group">
+                              <td className="table-cell group">
                                 {editingChannel?.channelId === channel.id &&
                                 editingChannel.field === "channel_name" ? (
                                   <input
@@ -478,7 +491,7 @@ export const Channels: React.FC = () => {
                                           );
                                         }
                                       }}
-                                      className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
+                                      className="table-edit-link"
                                     >
                                       {channel.channel_name}
                                     </button>
@@ -510,18 +523,18 @@ export const Channels: React.FC = () => {
                                   </div>
                                 )}
                               </td>
-                              <td className="py-4 px-5">
-                                <span className="text-[14px] text-[#0b0f16] leading-[normal]">
+                              <td className="table-cell">
+                                <span className="table-text">
                                   {formatChannelType(channel.channel_type)}
                                 </span>
                               </td>
-                              <td className="py-4 px-5">
-                                <span className="text-[14px] text-[#0b0f16] leading-[normal] whitespace-nowrap">
+                              <td className="table-cell">
+                                <span className="table-text whitespace-nowrap">
                                   {formatDate(channel.created_at)}
                                 </span>
                               </td>
-                              <td className="py-4 px-5">
-                                <span className="text-[14px] text-[#0b0f16] leading-[normal]">
+                              <td className="table-cell">
+                                <span className="table-text">
                                   {profileCounts[channel.id]
                                     ? `${profileCounts[channel.id].selected}/${
                                         profileCounts[channel.id].total
@@ -529,11 +542,11 @@ export const Channels: React.FC = () => {
                                     : "—"}
                                 </span>
                               </td>
-                              <td className="py-4 px-5 relative">
+                              <td className="table-cell relative">
                                 <div className="flex items-center gap-3">
                                   <Button
                                     size="sm"
-                                    className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
+                                    className="create-entity-button"
                                     onClick={() => {
                                       if (channel.channel_type === "google") {
                                         navigate(
@@ -561,7 +574,7 @@ export const Channels: React.FC = () => {
                                     variant="outline"
                                     onClick={() => handleDeleteChannel(channel)}
                                     disabled={deletingChannelId === channel.id}
-                                    className="px-2 py-1.5 h-[36px] rounded-lg flex items-center justify-center"
+                                    className="cancel-button"
                                   >
                                     <span className="text-[14px] font-medium">
                                       {deletingChannelId === channel.id
@@ -573,13 +586,12 @@ export const Channels: React.FC = () => {
                               </td>
                             </tr>
                           );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
           </div>
         </div>
       </div>

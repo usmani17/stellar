@@ -404,61 +404,6 @@ export interface TargetsResponse {
   total_pages: number;
 }
 
-// Google Ad Groups Query Params
-export interface GoogleAdGroupsQueryParams {
-  sort_by?: string;
-  order?: "asc" | "desc";
-  start_date?: string;
-  end_date?: string;
-  page?: number;
-  page_size?: number;
-  adgroup_name?: string;
-  adgroup_name__icontains?: string;
-  adgroup_name__not_icontains?: string;
-  status?: string;
-  cpc_bid_dollars?: number;
-  cpc_bid_dollars__lt?: number;
-  cpc_bid_dollars__gt?: number;
-  cpc_bid_dollars__lte?: number;
-  cpc_bid_dollars__gte?: number;
-  account_name?: string;
-  account_name__icontains?: string;
-  account_name__not_icontains?: string;
-  campaign_name?: string;
-  campaign_name__icontains?: string;
-  campaign_name__not_icontains?: string;
-  spends?: number;
-  spends__lt?: number;
-  spends__gt?: number;
-  spends__lte?: number;
-  spends__gte?: number;
-  sales?: number;
-  sales__lt?: number;
-  sales__gt?: number;
-  sales__lte?: number;
-  sales__gte?: number;
-  impressions?: number;
-  impressions__lt?: number;
-  impressions__gt?: number;
-  impressions__lte?: number;
-  impressions__gte?: number;
-  clicks?: number;
-  clicks__lt?: number;
-  clicks__gt?: number;
-  clicks__lte?: number;
-  clicks__gte?: number;
-  acos?: number;
-  acos__lt?: number;
-  acos__gt?: number;
-  acos__lte?: number;
-  acos__gte?: number;
-  roas?: number;
-  roas__lt?: number;
-  roas__gt?: number;
-  roas__lte?: number;
-  roas__gte?: number;
-}
-
 export const campaignsService = {
   getCampaigns: async (
     accountId: number,
@@ -1983,172 +1928,6 @@ export const campaignsService = {
     return response.data;
   },
 
-  createGoogleCampaign: async (
-    accountId: number,
-    payload: {
-      campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH";
-      customer_id?: string; // Optional - for selecting specific profile
-      name: string;
-      budget_amount: number; // In dollars, backend converts to micros
-      budget_name?: string;
-      start_date?: string; // YYYY-MM-DD format
-      end_date?: string; // YYYY-MM-DD format
-      status?: "ENABLED" | "PAUSED";
-      bidding_strategy_type?: string;
-      target_cpa_micros?: number; // Target CPA in micros (e.g., 1000000 = $1.00)
-      target_roas?: number; // Target ROAS (e.g., 3.0 = 300%)
-      target_impression_share_location?: string; // TOP_OF_PAGE, ABSOLUTE_TOP_OF_PAGE, ANYWHERE_ON_PAGE
-      target_impression_share_location_fraction_micros?: number; // Target impression share in micros (e.g., 800000 = 80%)
-      target_impression_share_cpc_bid_ceiling_micros?: number; // Maximum CPC bid ceiling in micros (e.g., 1000000 = $1.00)
-      // Performance Max fields
-      final_url?: string;
-      asset_group_name?: string;
-      headlines?: string[]; // Min 3, max 15
-      descriptions?: string[]; // Min 2, max 4
-      business_name?: string;
-      logo_url?: string;
-      marketing_image_url?: string;
-      square_marketing_image_url?: string;
-      long_headline?: string;
-      // Shopping fields
-      merchant_id?: string;
-      sales_country?: string; // Default "US"
-      campaign_priority?: number; // 0-2, default 0
-      enable_local?: boolean;
-      // Search fields
-      adgroup_name?: string; // Default "Ad Group 1"
-      keywords?: string[] | string; // Can be array or comma-separated string
-      match_type?: "BROAD" | "PHRASE" | "EXACT"; // Default "BROAD"
-    }
-  ): Promise<{
-    success: boolean;
-    message: string;
-    campaign_resource_name: string;
-    customer_id: string;
-    campaign_id?: string;
-  }> => {
-    const url = `/accounts/${accountId}/google-campaigns/create/`;
-    const response = await api.post(url, payload);
-    return response.data;
-  },
-
-  createGoogleSearchEntities: async (
-    accountId: number,
-    campaignId: number,
-    payload: {
-      adgroup_id?: number; // Optional: use existing adgroup
-      adgroup?: {
-        name: string;
-        cpc_bid?: number; // Optional, in dollars
-      };
-      ad?: {
-        headlines: string[]; // Min 3, max 15
-        descriptions: string[]; // Min 2, max 4
-        final_url?: string; // Optional
-      };
-      keywords?: Array<{
-        text: string;
-        match_type: "EXACT" | "PHRASE" | "BROAD";
-        cpc_bid?: number; // Optional, in dollars
-      }>;
-    }
-  ): Promise<{
-    adgroup?: {
-      id: string;
-      resource_name: string;
-      name: string;
-    };
-    ad?: {
-      id: string;
-      resource_name: string;
-      headlines: string[];
-      descriptions: string[];
-    };
-    keywords?: Array<{
-      id: string;
-      resource_name: string;
-      text: string;
-      match_type: string;
-    }>;
-    errors?: string[];
-    error_details?: Array<{
-      entity?: string;
-      type?: string;
-      policy_name?: string;
-      policy_description?: string;
-      violating_text?: string;
-      error_code?: string;
-      message?: string;
-      is_exemptible?: boolean;
-      user_message?: string;
-    }>;
-  }> => {
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/search-entities/create/`;
-    const response = await api.post(url, payload);
-    return response.data;
-  },
-
-  createGooglePmaxAssetGroup: async (
-    accountId: number,
-    campaignId: number,
-    payload: {
-      asset_group: {
-        name: string;
-        final_url?: string; // Optional
-      };
-      assets: {
-        headlines: string[]; // Min 3, max 15
-        descriptions: string[]; // Min 2, max 4
-        long_headline: string; // Required
-      };
-    }
-  ): Promise<{
-    asset_group: {
-      id: string;
-      resource_name: string;
-      name: string;
-    };
-    assets: {
-      headlines: number;
-      descriptions: number;
-      long_headline: string;
-    };
-    error?: string;
-  }> => {
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/pmax-asset-group/create/`;
-    const response = await api.post(url, payload);
-    return response.data;
-  },
-
-  createGoogleShoppingEntities: async (
-    accountId: number,
-    campaignId: number,
-    payload: {
-      adgroup_id?: number; // Optional: use existing adgroup
-      adgroup?: {
-        name: string;
-      };
-      product_group: {
-        cpc_bid?: number; // Optional, in dollars, default 0.01
-      };
-    }
-  ): Promise<{
-    adgroup?: {
-      id: string;
-      resource_name: string;
-      name: string;
-    };
-    product_group?: {
-      id: string;
-      resource_name: string;
-    };
-    error?: string;
-  }> => {
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/shopping-entities/create/`;
-    const response = await api.post(url, payload);
-    return response.data;
-  },
-
   getTargetsList: async (
     accountId: number,
     params?: TargetsQueryParams
@@ -2521,7 +2300,7 @@ export const campaignsService = {
     accountId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/accounts/${accountId}/google-campaigns/sync/`
+      `/google-adwords/${accountId}/campaigns/sync/`
     );
     return response.data;
   },
@@ -2544,7 +2323,7 @@ export const campaignsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/accounts/${accountId}/google-campaigns/analytics-sync/`,
+      `/google-adwords/${accountId}/campaigns/analytics-sync/`,
       payload
     );
     return response.data;
@@ -2568,7 +2347,7 @@ export const campaignsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/accounts/${accountId}/google-adgroups/analytics-sync/`,
+      `/google-adwords/${accountId}/adgroups/analytics-sync/`,
       payload
     );
     return response.data;
@@ -2592,7 +2371,7 @@ export const campaignsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/accounts/${accountId}/google-ads/analytics-sync/`,
+      `/google-adwords/${accountId}/ads/analytics-sync/`,
       payload
     );
     return response.data;
@@ -2616,7 +2395,7 @@ export const campaignsService = {
     if (startDate) payload.start_date = startDate;
     if (endDate) payload.end_date = endDate;
     const response = await api.post(
-      `/accounts/${accountId}/google-keywords/analytics-sync/`,
+      `/google-adwords/${accountId}/keywords/analytics-sync/`,
       payload
     );
     return response.data;
@@ -2709,7 +2488,7 @@ export const campaignsService = {
       filters.account_name__not_icontains = params.account_name__not_icontains;
 
     const response = await api.post(
-      `/accounts/${accountId}/google-campaigns/`,
+      `/google-adwords/${accountId}/campaigns/`,
       { filters }
     );
     return response.data;
@@ -2738,7 +2517,7 @@ export const campaignsService = {
       lowerLimit?: number;
     }
   ) => {
-    const url = `/accounts/${accountId}/google-campaigns/bulk-update/`;
+    const url = `/google-adwords/${accountId}/campaigns/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -2758,7 +2537,7 @@ export const campaignsService = {
       logo_url?: string;
     }
   ) => {
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/update-asset-group/`;
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/update-asset-group/`;
     const response = await api.post(url, assetData);
     return response.data;
   },
@@ -2802,7 +2581,7 @@ export const campaignsService = {
 
     // Make request with responseType blob to handle CSV file
     const response = await api.post(
-      `/accounts/${accountId}/google-ads/export/`,
+      `/google-adwords/${accountId}/ads/export/`,
       {
         filters,
         export_type: exportType,
@@ -2885,7 +2664,7 @@ export const campaignsService = {
       filters.account_name__not_icontains = params.account_name__not_icontains;
 
     // Send POST request with filters and export_type in body
-    const url = `/accounts/${accountId}/google-campaigns/export/`;
+    const url = `/google-adwords/${accountId}/campaigns/export/`;
     const response = await api.post<{ url: string; filename: string }>(url, {
       filters,
       export_type: exportType,
@@ -3067,7 +2846,7 @@ export const campaignsService = {
 
   exportGoogleAdGroups: async (
     accountId: number,
-    params?: GoogleAdGroupsQueryParams,
+    params?: Record<string, any>,
     exportType: "current_view" | "all_data" = "all_data"
   ): Promise<void> => {
     const filters: any = {};
@@ -3151,7 +2930,7 @@ export const campaignsService = {
 
     // Make request with responseType blob to handle CSV file
     const response = await api.post(
-      `/accounts/${accountId}/google-adgroups/export/`,
+      `/google-adwords/${accountId}/adgroups/export/`,
       { filters, export_type: exportType },
       {
         responseType: "blob",
@@ -3192,7 +2971,7 @@ export const campaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.get(url);
     return response.data;
@@ -3237,7 +3016,7 @@ export const campaignsService = {
       enable_local?: boolean;
     };
   }> => {
-    const url = `/accounts/${accountId}/google-campaigns/${campaignId}/refresh/`;
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
     const response = await api.post(url);
     return response.data;
   },
@@ -3316,7 +3095,7 @@ export const campaignsService = {
     if (params?.account_name__not_icontains)
       filters.account_name__not_icontains = params.account_name__not_icontains;
 
-    const response = await api.post(`/accounts/${accountId}/google-adgroups/`, {
+    const response = await api.post(`/google-adwords/${accountId}/adgroups/`, {
       filters,
     });
     return response.data;
@@ -3372,7 +3151,7 @@ export const campaignsService = {
       filters.account_name__icontains = params.account_name__icontains;
 
     const response = await api.post(
-      `/accounts/${accountId}/google-asset-groups/`,
+      `/google-adwords/${accountId}/asset-groups/`,
       {
         filters,
       }
@@ -3400,7 +3179,7 @@ export const campaignsService = {
     const params = new URLSearchParams();
     if (campaignId) params.append("campaign_id", String(campaignId));
     const queryString = params.toString();
-    const url = `/accounts/${accountId}/google-asset-groups/${assetGroupId}/assets/${
+    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${
       queryString ? `?${queryString}` : ""
     }`;
     const response = await api.get(url);
@@ -3470,7 +3249,7 @@ export const campaignsService = {
     if (params?.account_name__not_icontains)
       filters.account_name__not_icontains = params.account_name__not_icontains;
 
-    const response = await api.post(`/accounts/${accountId}/google-ads/`, {
+    const response = await api.post(`/google-adwords/${accountId}/ads/`, {
       filters,
     });
     return response.data;
@@ -3570,7 +3349,7 @@ export const campaignsService = {
     if (params?.adgroup_name__not_icontains)
       filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
 
-    const response = await api.post(`/accounts/${accountId}/google-keywords/`, {
+    const response = await api.post(`/google-adwords/${accountId}/keywords/`, {
       filters,
     });
     return response.data;
@@ -3581,7 +3360,7 @@ export const campaignsService = {
     accountId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/accounts/${accountId}/google-adgroups/sync/`
+      `/google-adwords/${accountId}/adgroups/sync/`
     );
     return response.data;
   },
@@ -3589,7 +3368,7 @@ export const campaignsService = {
   syncGoogleAds: async (
     accountId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
-    const response = await api.post(`/accounts/${accountId}/google-ads/sync/`);
+    const response = await api.post(`/google-adwords/${accountId}/ads/sync/`);
     return response.data;
   },
 
@@ -3597,7 +3376,7 @@ export const campaignsService = {
     accountId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/accounts/${accountId}/google-keywords/sync/`
+      `/google-adwords/${accountId}/keywords/sync/`
     );
     return response.data;
   },
@@ -3606,7 +3385,7 @@ export const campaignsService = {
     accountId: number
   ): Promise<{ synced: number; errors?: string[]; message?: string }> => {
     const response = await api.post(
-      `/accounts/${accountId}/google-asset-groups/sync/`
+      `/google-adwords/${accountId}/asset-groups/sync/`
     );
     return response.data;
   },
@@ -3622,7 +3401,7 @@ export const campaignsService = {
       adGroupId?: string;  // Optional: filter by ad group (for product groups)
     }
   ) => {
-    const url = `/accounts/${accountId}/google-ads/bulk-update/`;
+    const url = `/google-adwords/${accountId}/ads/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -3641,7 +3420,7 @@ export const campaignsService = {
       adgroupIds?: Array<string | number>; // Optional: for filtering keywords by ad group
     }
   ) => {
-    const url = `/accounts/${accountId}/google-keywords/bulk-update/`;
+    const url = `/google-adwords/${accountId}/keywords/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
   },
@@ -3656,93 +3435,9 @@ export const campaignsService = {
       name?: string;
     }
   ) => {
-    const url = `/accounts/${accountId}/google-adgroups/bulk-update/`;
+    const url = `/google-adwords/${accountId}/adgroups/bulk-update/`;
     const response = await api.post(url, payload);
     return response.data;
-  },
-
-  exportGoogleKeywords: async (
-    accountId: number,
-    params?: {
-      sort_by?: string;
-      order?: "asc" | "desc";
-      start_date?: string;
-      end_date?: string;
-      page?: number;
-      page_size?: number;
-      keyword_text?: string;
-      keyword_text__icontains?: string;
-      keyword_text__not_icontains?: string;
-      match_type?: string;
-      status?: string;
-      bid?: number | string;
-      bid__lt?: number | string;
-      bid__gt?: number | string;
-      bid__lte?: number | string;
-      bid__gte?: number | string;
-      campaign_name?: string;
-      campaign_name__icontains?: string;
-      campaign_name__not_icontains?: string;
-      adgroup_name?: string;
-      adgroup_name__icontains?: string;
-      adgroup_name__not_icontains?: string;
-    },
-    exportType: "current_view" | "all_data" = "all_data"
-  ): Promise<void> => {
-    const filters: any = {};
-
-    if (params?.sort_by) filters.sort_by = params.sort_by;
-    if (params?.order) filters.order = params.order;
-    if (params?.start_date) filters.start_date = params.start_date;
-    if (params?.end_date) filters.end_date = params.end_date;
-    if (params?.page !== undefined) filters.page = params.page;
-    if (params?.page_size !== undefined) filters.page_size = params.page_size;
-    if (params?.keyword_text) filters.keyword_text = params.keyword_text;
-    if (params?.keyword_text__icontains)
-      filters.keyword_text__icontains = params.keyword_text__icontains;
-    if (params?.keyword_text__not_icontains)
-      filters.keyword_text__not_icontains = params.keyword_text__not_icontains;
-    if (params?.match_type) filters.match_type = params.match_type;
-    if (params?.status) filters.status = params.status;
-    if (params?.bid !== undefined) filters.bid = params.bid;
-    if (params?.bid__lt !== undefined) filters.bid__lt = params.bid__lt;
-    if (params?.bid__gt !== undefined) filters.bid__gt = params.bid__gt;
-    if (params?.bid__lte !== undefined) filters.bid__lte = params.bid__lte;
-    if (params?.bid__gte !== undefined) filters.bid__gte = params.bid__gte;
-    if (params?.campaign_name) filters.campaign_name = params.campaign_name;
-    if (params?.campaign_name__icontains)
-      filters.campaign_name__icontains = params.campaign_name__icontains;
-    if (params?.campaign_name__not_icontains)
-      filters.campaign_name__not_icontains =
-        params.campaign_name__not_icontains;
-    if (params?.adgroup_name) filters.adgroup_name = params.adgroup_name;
-    if (params?.adgroup_name__icontains)
-      filters.adgroup_name__icontains = params.adgroup_name__icontains;
-    if (params?.adgroup_name__not_icontains)
-      filters.adgroup_name__not_icontains = params.adgroup_name__not_icontains;
-
-    // Make request with responseType blob to handle CSV file
-    const response = await api.post(
-      `/accounts/${accountId}/google-keywords/export/`,
-      { filters, export_type: exportType },
-      {
-        responseType: "blob",
-      }
-    );
-
-    // Create blob and download
-    const blob = new Blob([response.data], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute(
-      "download",
-      `google-keywords-${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
   },
 
   // TikTok Campaign Methods

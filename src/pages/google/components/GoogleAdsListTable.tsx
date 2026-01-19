@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
 import type { ColumnDefinition } from "./GoogleAdsTable";
-import type { GoogleAd } from "./tabs/types";
+import type { GoogleAd } from "./tabs/GoogleTypes";
 
 export interface GoogleAdsListTableProps {
   ads: GoogleAd[];

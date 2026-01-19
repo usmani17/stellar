@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Button } from "../ui";
-import type { GoogleAdGroup } from "../../pages/google/components/tabs/types";
+import type { GoogleAdGroup } from "../../pages/google/components/tabs/GoogleTypes";
 
 export interface NegativeKeywordInput {
   text: string;
@@ -14,7 +14,7 @@ interface CreateGoogleNegativeKeywordPanelProps {
   onSubmit: (data: { negativeKeywords: NegativeKeywordInput[]; level: "campaign" | "adgroup"; adGroupId?: string }) => void;
   campaignId: string;
   accountId: string;
-  campaignType?: string; // To determine if Shopping (campaign-level) or Search (adgroup-level)
+  campaignType?: string;
   adgroups?: GoogleAdGroup[];
   loading?: boolean;
   submitError?: string | null;
@@ -39,14 +39,14 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
   isOpen,
   onClose,
   onSubmit,
-  campaignId,
-  accountId,
-  campaignType,
+  campaignId: _campaignId,
+  accountId: _accountId,
+  campaignType: _campaignType,
   adgroups = [],
   loading = false,
   submitError = null,
-  createdNegativeKeywords = [],
-  failedNegativeKeywords = [],
+  createdNegativeKeywords: _createdNegativeKeywords = [],
+  failedNegativeKeywords: _failedNegativeKeywords = [],
 }) => {
   // Default to campaign level for negative keywords
   const [level, setLevel] = useState<"campaign" | "adgroup">("campaign");

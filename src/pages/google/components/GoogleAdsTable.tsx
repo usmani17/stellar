@@ -622,10 +622,12 @@ export function GoogleAdsTable<T = any>({
                 {data.map((row, index) => {
                   const isLastRow = index === data.length - 1;
                   const itemId = getId(row);
+                  // Use combination of itemId and index to ensure unique keys
+                  const uniqueKey = `${itemId}-${index}`;
                   
                   return (
                     <tr
-                      key={itemId}
+                      key={uniqueKey}
                       className="table-row group"
                     >
                       {/* Checkbox */}
