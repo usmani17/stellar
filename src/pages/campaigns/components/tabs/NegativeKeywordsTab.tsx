@@ -135,6 +135,49 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
             Negative Keywords
           </h2>
           <div className="flex items-center gap-2">
+            {/* Create Negative Keyword Button */}
+            <button
+              onClick={async () => {
+                const newState = !isCreatePanelOpen;
+                onToggleCreatePanel();
+                onCloseFilterPanel();
+                onCloseBulkActions();
+                if (newState) {
+                  await onLoadAllAdGroups();
+                }
+              }}
+              className="create-entity-button text-[10.64px] font-normal"
+            >
+              <svg
+                className="w-4 h-4 !text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Create Negative Keywords
+              <svg
+                className={`w-4 h-4 !text-white transition-transform ${
+                  isCreatePanelOpen ? "rotate-180" : ""
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
             {/* Bulk Actions Dropdown */}
             <div
               className="relative inline-flex justify-end"
@@ -197,49 +240,6 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                 </div>
               )}
             </div>
-            {/* Create Negative Keyword Button */}
-            <button
-              onClick={async () => {
-                const newState = !isCreatePanelOpen;
-                onToggleCreatePanel();
-                onCloseFilterPanel();
-                onCloseBulkActions();
-                if (newState) {
-                  await onLoadAllAdGroups();
-                }
-              }}
-              className="create-entity-button text-[10.64px] font-normal"
-            >
-              <svg
-                className="w-4 h-4 !text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Create Negative Keywords
-              <svg
-                className={`w-4 h-4 !text-white transition-transform ${
-                  isCreatePanelOpen ? "rotate-180" : ""
-                }`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
             {/* Add Filter Button */}
             <button
               onClick={() => {
