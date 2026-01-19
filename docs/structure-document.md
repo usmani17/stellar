@@ -41,13 +41,13 @@ The frontend communicates with a REST API backend providing:
 
 | Module | Endpoints | Purpose |
 |--------|-----------|---------|
-| **Campaigns** | `/api/accounts/{accountId}/{platform}/campaigns/*` | CRUD operations for campaigns (platform: google, amazon, tiktok) |
+| **Campaigns** | `/api/{platform}/{accountId}/campaigns/*` | CRUD operations for campaigns (platform: google, amazon, tiktok) |
 | **Accounts** | `/api/accounts/*` | Account management and synchronization |
 | **Channels** | `/api/channels/*` | Channel/platform configuration |
-| **Keywords** | `/api/accounts/{accountId}/{platform}/keywords/*` | Keyword management for search advertising |
-| **Targets** | `/api/accounts/{accountId}/{platform}/targets/*` | Audience targeting and refinement |
+| **Keywords** | `/api/{platform}/{accountId}/keywords/*` | Keyword management for search advertising |
+| **Targets** | `/api/{platform}/{accountId}/targets/*` | Audience targeting and refinement |
 | **Logs** | `/api/logs/*` | Activity and change history logging |
-| **Analytics** | `/api/accounts/{accountId}/{platform}/analytics/*` | Performance metrics and reporting |
+| **Analytics** | `/api/{platform}/{accountId}/analytics/*` | Performance metrics and reporting |
 
 ### Technology Stack
 
@@ -166,72 +166,6 @@ stellar-frontend/
 6. **Dependency Management:** Properly manage `useMemo` and `useCallback` dependencies
 7. **File Size Limit:** Components should not exceed 500 lines; split if larger
 8. **TypeScript:** Full type annotations required; no `any` types without justification
-
-#### Example: Campaign Management Component
-
-```typescript
-// src/components/campaigns/CampaignCard.tsx
-import React, { useMemo } from "react";
-import type { Campaign } from "@/types/campaign";
-import { formatCurrency } from "@/utils/formatHelpers";
-
-interface CampaignCardProps {
-  campaign: Campaign;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  onEdit?: (campaign: Campaign) => void;
-}
-
-export const CampaignCard: React.FC<CampaignCardProps> = React.memo(({
-  campaign,
-  isSelected,
-  onSelect,
-  onEdit,
-}) => {
-  // Memoize complex calculations
-  const metrics = useMemo(() => ({
-    roi: campaign.sales / campaign.spends,
-    cpc: campaign.spends / campaign.clicks,
-  }), [campaign.sales, campaign.spends, campaign.clicks]);
-
-  return (
-    <div className={`border rounded-lg p-4 ${isSelected ? 'border-teal-600' : 'border-gray-300'}`}>
-      <h3 className="font-semibold text-[#0b0f16]">{campaign.name}</h3>
-      <p className="text-sm text-gray-600">{campaign.status}</p>
-      
-      <div className="mt-4 grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-xs text-gray-500">Budget</p>
-          <p className="font-medium">{formatCurrency(campaign.daily_budget)}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500">Spend</p>
-          <p className="font-medium">{formatCurrency(campaign.spends)}</p>
-        </div>
-      </div>
-
-      <div className="mt-4 flex gap-2">
-        <button
-          onClick={() => onSelect(campaign.id)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded hover:bg-gray-50"
-        >
-          {isSelected ? "Deselect" : "Select"}
-        </button>
-        {onEdit && (
-          <button
-            onClick={() => onEdit(campaign)}
-            className="flex-1 px-3 py-2 bg-teal-600 text-white rounded hover:bg-teal-700"
-          >
-            Edit
-          </button>
-        )}
-      </div>
-    </div>
-  );
-});
-
-CampaignCard.displayName = "CampaignCard";
-```
 
 #### Example: Table Component with Inline Editing
 
@@ -823,79 +757,6 @@ export const useAccounts = (): AccountsContextType => {
 4. **Naming Convention:** Use descriptive names; avoid generic names like "Data"
 5. **Documentation:** Add JSDoc comments for complex types
 
-#### Example: Campaign Types
-
-```typescript
-// src/types/campaign.ts
-/**
- * Domain model representing a campaign across all platforms
- */
-export interface Campaign {
-  id: string;
-  account_id: string;
-  platform: "google" | "amazon" | "tiktok";
-  name: string;
-  status: "ENABLED" | "PAUSED" | "REMOVED";
-  daily_budget: number;
-  start_date?: string;
-  end_date?: string;
-  created_at: string;
-  updated_at: string;
-  // Performance metrics
-  spends: number;
-  sales: number;
-  impressions: number;
-  clicks: number;
-  conversions?: number;
-  acos?: number; // Amazon metric
-  roas?: number; // ROAS metric
-}
-
-/**
- * Payload for creating a campaign
- */
-export interface CreateCampaignPayload {
-  name: string;
-  platform: "google" | "amazon" | "tiktok";
-  daily_budget: number;
-  start_date?: string;
-  end_date?: string;
-  campaign_type?: string;
-  // Platform-specific fields handled by backend
-  [key: string]: any;
-}
-
-/**
- * Payload for updating a campaign
- */
-export type UpdateCampaignPayload = Partial<Omit<Campaign, 'id' | 'account_id' | 'created_at' | 'updated_at'>>;
-
-/**
- * API response for campaign list
- */
-export interface CampaignListResponse {
-  data: Campaign[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-/**
- * Filter options for campaigns
- */
-export interface CampaignFilter {
-  platform?: "google" | "amazon" | "tiktok";
-  status?: Campaign["status"];
-  dateRange?: {
-    start: string;
-    end: string;
-  };
-  searchTerm?: string;
-}
-```
-
----
-
 ### 6. Utility Functions
 
 #### Rules
@@ -928,23 +789,6 @@ export const formatPercentage = (value: number, decimals = 2): string => {
   return `${(value * 100).toFixed(decimals)}%`;
 };
 
-/**
- * Format large numbers with abbreviation
- */
-export const formatNumber = (value: number): string => {
-  if (value >= 1e9) return (value / 1e9).toFixed(1) + "B";
-  if (value >= 1e6) return (value / 1e6).toFixed(1) + "M";
-  if (value >= 1e3) return (value / 1e3).toFixed(1) + "K";
-  return value.toString();
-};
-
-/**
- * Format date to readable string
- */
-export const formatDate = (dateString: string, format = "MMM dd, yyyy"): string => {
-  // Implementation using date-fns or similar
-  return new Date(dateString).toLocaleDateString("en-US");
-};
 ```
 
 ---
@@ -1166,45 +1010,14 @@ VITE_API_TIMEOUT=30000
 All platform-specific endpoints follow a consistent RESTful structure:
 
 ```
-/api/accounts/{accountId}/{platform}/{resource}/              # List/Create
-/api/accounts/{accountId}/{platform}/{resource}/{id}/         # Retrieve/Update/Delete
-/api/accounts/{accountId}/{platform}/{resource}/{id}/{action}/ # Custom actions
+/api/{platform}/{accountId}/{resource}/              # List/Create
+/api/{platform}/{accountId}/{resource}/{id}/         # Retrieve/Update/Delete
+/api/{platform}/{accountId}/{resource}/{id}/{action}/ # Custom actions
 ```
 
 **Platforms:** `google`, `amazon`, `tiktok`  
 **Resources:** `campaigns`, `keywords`, `targets`, `adgroups`, `assets`
 
-**Complete Examples:**
-
-```
-# Campaign Operations
-GET    /api/accounts/20/google/campaigns/              # List Google campaigns
-POST   /api/accounts/20/google/campaigns/              # Create Google campaign
-GET    /api/accounts/20/google/campaigns/123/          # Get campaign details
-PATCH  /api/accounts/20/google/campaigns/123/          # Update campaign
-DELETE /api/accounts/20/google/campaigns/123/          # Delete campaign
-POST   /api/accounts/20/google/campaigns/123/sync/     # Custom action (sync)
-
-# Amazon Campaigns
-GET    /api/accounts/20/amazon/campaigns/
-POST   /api/accounts/20/amazon/campaigns/
-GET    /api/accounts/20/amazon/campaigns/456/
-
-# TikTok Campaigns
-GET    /api/accounts/20/tiktok/campaigns/
-POST   /api/accounts/20/tiktok/campaigns/
-GET    /api/accounts/20/tiktok/campaigns/789/
-
-# Keywords
-GET    /api/accounts/20/google/keywords/
-POST   /api/accounts/20/google/keywords/
-PATCH  /api/accounts/20/google/keywords/456/
-
-# Targets
-GET    /api/accounts/20/amazon/targets/
-POST   /api/accounts/20/amazon/targets/
-DELETE /api/accounts/20/amazon/targets/789/
-```
 
 #### Request/Response Pattern
 
@@ -1606,169 +1419,5 @@ Is state used by multiple components?
    ├─ Yes: Create custom hook with useReducer
    └─ No: Use useState in the component
 ```
-
----
-
-## Team Implementation Checklist
-
-### Code Review Checklist
-
-- [ ] **Type Safety**
-  - [ ] No `any` types without justification
-  - [ ] All props interface defined
-  - [ ] API types match backend contracts
-  - [ ] Return types specified on functions
-
-- [ ] **Code Organization**
-  - [ ] File placed in correct directory
-  - [ ] Naming conventions followed
-  - [ ] No circular dependencies
-  - [ ] Imports organized (relative, absolute, local)
-
-- [ ] **Component Quality**
-  - [ ] Props interface created
-  - [ ] React.memo used where appropriate
-  - [ ] useMemo dependencies correct
-  - [ ] No inline objects/arrays in deps
-  - [ ] Accessibility attributes present (aria-*, role, etc.)
-
-- [ ] **Performance**
-  - [ ] No unnecessary re-renders
-  - [ ] Large lists use keys properly
-  - [ ] Images optimized or use lazy loading
-  - [ ] Queries cached appropriately
-  - [ ] Component size < 500 lines
-
-- [ ] **Error Handling**
-  - [ ] Try-catch blocks for API calls
-  - [ ] Error states displayed to user
-  - [ ] Network errors handled
-  - [ ] Validation errors specific
-
-- [ ] **Testing**
-  - [ ] Unit tests written (80%+ coverage)
-  - [ ] Component renders without errors
-  - [ ] User interactions tested
-  - [ ] Error cases tested
-
-- [ ] **Documentation**
-  - [ ] JSDoc comments on public functions
-  - [ ] Complex logic documented
-  - [ ] Props documented for complex components
-  - [ ] README updated if needed
-
----
-
-### Pre-Commit Checklist
-
-- [ ] **Syntax & Linting**
-  - [ ] No ESLint errors: `npm run lint`
-  - [ ] TypeScript passes: `npm run type-check`
-  - [ ] Code formatted: `npm run format`
-
-- [ ] **Testing**
-  - [ ] Unit tests pass: `npm run test`
-  - [ ] No console errors in browser
-  - [ ] No console warnings in browser
-
-- [ ] **Build**
-  - [ ] Production build succeeds: `npm run build`
-  - [ ] No build warnings
-  - [ ] Bundle size reasonable
-
-- [ ] **Git**
-  - [ ] Commit message descriptive
-  - [ ] Only relevant files committed
-  - [ ] No sensitive data committed
-  - [ ] No merge conflicts left
-
----
-
-### Feature Development Checklist
-
-When developing a new feature:
-
-1. **Planning** (30 mins)
-   - [ ] Clarify requirements with PM/Designer
-   - [ ] Identify affected components/services
-   - [ ] Plan API integration points
-   - [ ] Discuss state management approach
-
-2. **API Integration** (1-2 hours)
-   - [ ] Define types in `src/types/`
-   - [ ] Create service in `src/services/`
-   - [ ] Add error handling
-   - [ ] Document API contract changes
-
-3. **State Management** (1 hour)
-   - [ ] Create Context if needed
-   - [ ] Define query/mutation hooks
-   - [ ] Set up caching strategy
-   - [ ] Add loading/error states
-
-4. **Component Development** (2-4 hours)
-   - [ ] Create components in `src/components/`
-   - [ ] Write TypeScript interfaces
-   - [ ] Add accessibility attributes
-   - [ ] Style with Tailwind CSS
-   - [ ] Handle loading/error states
-
-5. **Integration & Testing** (2-3 hours)
-   - [ ] Write unit tests (80%+ coverage)
-   - [ ] Test with real API (or mocked)
-   - [ ] Test error scenarios
-   - [ ] Cross-browser testing
-
-6. **Code Review** (1-2 hours)
-   - [ ] Self-review against checklist
-   - [ ] Request peer review
-   - [ ] Address review comments
-   - [ ] Verify tests pass
-
-7. **Documentation** (30 mins)
-   - [ ] Update component documentation
-   - [ ] Add examples if needed
-   - [ ] Document API integration
-   - [ ] Update this file if architecture changed
-
----
-
-### Deployment Checklist
-
-Before deploying to production:
-
-- [ ] **Code Quality**
-  - [ ] All tests passing
-  - [ ] No TypeScript errors
-  - [ ] No ESLint errors
-  - [ ] Code review approved
-
-- [ ] **Features**
-  - [ ] Feature flags added for incomplete features
-  - [ ] All user stories completed
-  - [ ] Edge cases handled
-
-- [ ] **Performance**
-  - [ ] Bundle size checked
-  - [ ] Lighthouse score > 80
-  - [ ] No console errors
-  - [ ] Load time acceptable
-
-- [ ] **Security**
-  - [ ] No hardcoded secrets
-  - [ ] API keys in environment variables
-  - [ ] CSRF tokens handled
-  - [ ] XSS protections in place
-
-- [ ] **Testing**
-  - [ ] Unit tests pass
-  - [ ] Manual QA completed
-  - [ ] Cross-browser tested
-  - [ ] Mobile responsive tested
-
-- [ ] **Documentation**
-  - [ ] CHANGELOG updated
-  - [ ] Release notes prepared
-  - [ ] Documentation updated
 
 ---
