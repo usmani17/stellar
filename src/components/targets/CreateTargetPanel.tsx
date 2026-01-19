@@ -161,10 +161,17 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
       state: "ENABLED",
     });
     setErrors({});
+    // Clear all previous target errors when adding a new target
+    setTargetErrors([]);
   };
 
   const handleRemoveTarget = (index: number) => {
+    // Remove the target from the list
     setAddedTargets((prev) => prev.filter((_, i) => i !== index));
+    
+    // Clear all previous target errors when removing a target
+    // This ensures a clean slate since the user is actively fixing issues
+    setTargetErrors([]);
   };
 
   const handleSubmit = () => {

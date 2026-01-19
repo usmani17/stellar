@@ -99,6 +99,18 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
     setAddedProductAds((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleEditProductAd = (index: number) => {
+    const productAdToEdit = addedProductAds[index];
+    if (productAdToEdit) {
+      // Populate form with the product ad data
+      setCurrentProductAd(productAdToEdit);
+      // Remove from added list
+      setAddedProductAds((prev) => prev.filter((_, i) => i !== index));
+      // Clear any errors
+      setErrors({});
+    }
+  };
+
   const handleSubmit = () => {
     if (addedProductAds.length === 0) {
       alert("Please add at least one product ad before submitting.");
@@ -148,7 +160,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
           {/* Single line inputs */}
           <div className="flex flex-wrap items-end gap-3">
             {/* Ad Group Dropdown */}
-            <div className="flex-1 min-w-[180px]">
+            <div className="flex-1 min-w-[180px] w-full">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Ad Group *
               </label>
@@ -178,7 +190,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 type="text"
                 value={currentProductAd.asin}
                 onChange={(e) => handleChange("asin", e.target.value)}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="campaign-input w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter ASIN"
               />
               {errors.asin && (
@@ -195,7 +207,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 type="text"
                 value={currentProductAd.sku || ""}
                 onChange={(e) => handleChange("sku", e.target.value)}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="campaign-input w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter SKU (optional)"
               />
             </div>
@@ -210,7 +222,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 value={currentProductAd.customText || ""}
                 onChange={(e) => handleChange("customText", e.target.value)}
                 maxLength={150}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="campaign-input w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter custom text (optional, max 150 chars)"
               />
               {errors.customText && (
@@ -231,14 +243,14 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 onChange={(e) =>
                   handleChange("catalogSourceCountryCode", e.target.value)
                 }
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="campaign-input w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="e.g., US (optional)"
                 maxLength={2}
               />
             </div>
 
             {/* State Dropdown */}
-            <div className="flex-1 min-w-[120px]">
+            <div className="flex-1 min-w-[120px] w-full">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 State *
               </label>
@@ -340,25 +352,46 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                               </span>
                             </td>
                             <td className="table-cell">
-                              <button
-                                onClick={() => handleRemoveProductAd(index)}
-                                className="text-red-500 hover:text-red-700 transition-colors"
-                                title="Remove"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleEditProductAd(index)}
+                                  className="edit-button"
+                                  title="Edit"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveProductAd(index)}
+                                  className="text-red-500 hover:text-red-700 transition-colors"
+                                  title="Remove"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
