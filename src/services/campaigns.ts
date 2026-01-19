@@ -3181,7 +3181,7 @@ export const campaignsService = {
     const queryString = params.toString();
     const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${
       queryString ? `?${queryString}` : ""
-    }`;
+      }`;
     const response = await api.get(url);
     return response.data;
   },
@@ -3642,9 +3642,11 @@ export const campaignsService = {
       budget_mode: string;
       budget: number;
       schedule_type: string;
-      schedule_start_time: string;
+      schedule_start_time?: string;
+      schedule_end_time?: string;
       optimization_goal: string;
       billing_event: string;
+      [key: string]: any; // Allow other optional fields
     }
   ): Promise<any> => {
     const url = `/accounts/${accountId}/tiktok-adgroups/create/`;

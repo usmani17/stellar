@@ -73,6 +73,11 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(externalIsFilterPanelOpen);
 
+    // Creation state
+    const [createdAdGroups, setCreatedAdGroups] = useState<any[]>([]);
+    const [failedAdGroupCount, setFailedAdGroupCount] = useState(0);
+    const [failedAdGroups, setFailedAdGroups] = useState<any[]>([]);
+
     // Inline edit state
     const [editingCell, setEditingCell] = useState<{
         adgroup_id: string;
@@ -558,25 +563,54 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
             {/* Create Ad Group Panel */}
             <CreateTikTokAdGroupPanel
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() => {
+                    setIsCreateModalOpen(false);
+                    // Reset state on close
+                    setCreatedAdGroups([]);
+                    setFailedAdGroupCount(0);
+                    setFailedAdGroups([]);
+                }}
                 campaignId={campaignId!}
                 campaignName={campaignName}
                 objectiveType={objectiveType}
+                createdAdGroups={createdAdGroups}
+                failedCount={failedAdGroupCount}
+                failedAdGroups={failedAdGroups}
                 onSubmit={async (dataArray) => {
-                    try {
-                        if (!accountId) return;
-                        // Create all ad groups in the array
-                        for (const data of dataArray) {
-                            await campaignsService.createTikTokAdGroup(parseInt(accountId), {
+                    if (!accountId) return;
+
+                    const created: any[] = [];
+                    const failed: any[] = [];
+                    let failCount = 0;
+
+                    // Create all ad groups in the array
+                    for (const [index, data] of dataArray.entries()) {
+                        try {
+                            const response = await campaignsService.createTikTokAdGroup(parseInt(accountId), {
                                 ...data,
-                                schedule_start_time: data.schedule_start_time || "",
+                                schedule_start_time: data.schedule_start_time || undefined,
+                            });
+                            // Store index to map back to original list in panel
+                            created.push({ ...response, index, name: data.adgroup_name });
+                        } catch (error: any) {
+                            console.error(`Failed to create ad group ${data.adgroup_name}:`, error.response?.data || error.message);
+                            failCount++;
+                            failed.push({
+                                index,
+                                adgroup: data,
+                                errors: [{ message: JSON.stringify(error.response?.data || error.message) }]
                             });
                         }
-                        if (onRefresh) onRefresh();
-                        setIsCreateModalOpen(false);
-                    } catch (error) {
-                        console.error("Failed to create ad groups:", error);
                     }
+
+                    setCreatedAdGroups(created);
+                    setFailedAdGroupCount(failCount);
+                    setFailedAdGroups(failed);
+
+                    if (onRefresh) onRefresh();
+
+                    // Do not close modal automatically to show results
+                    // Unless clear success on all? Amazon logic keeps it open.
                 }}
             />
 
