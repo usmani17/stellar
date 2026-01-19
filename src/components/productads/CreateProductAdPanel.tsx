@@ -158,7 +158,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
 
         <div className="space-y-4">
           {/* Single line inputs */}
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex items-end gap-3">
             {/* Ad Group Dropdown */}
             <div className="flex-1 min-w-[180px] w-full">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
@@ -172,7 +172,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 value={currentProductAd.adGroupId}
                 onChange={(value) => handleChange("adGroupId", value)}
                 placeholder="Select ad group"
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
               />
               {errors.adGroupId && (
                 <p className="text-[10px] text-red-500 mt-1">
@@ -190,7 +190,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 type="text"
                 value={currentProductAd.asin}
                 onChange={(e) => handleChange("asin", e.target.value)}
-                className="campaign-input w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter ASIN"
               />
               {errors.asin && (
@@ -207,7 +207,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 type="text"
                 value={currentProductAd.sku || ""}
                 onChange={(e) => handleChange("sku", e.target.value)}
-                className="campaign-input w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter SKU (optional)"
               />
             </div>
@@ -222,7 +222,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 value={currentProductAd.customText || ""}
                 onChange={(e) => handleChange("customText", e.target.value)}
                 maxLength={150}
-                className="campaign-input w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter custom text (optional, max 150 chars)"
               />
               {errors.customText && (
@@ -243,7 +243,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 onChange={(e) =>
                   handleChange("catalogSourceCountryCode", e.target.value)
                 }
-                className="campaign-input w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="e.g., US (optional)"
                 maxLength={2}
               />
@@ -261,7 +261,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                   handleChange("state", value as "ENABLED" | "PAUSED")
                 }
                 placeholder="Select state"
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
               />
             </div>
 

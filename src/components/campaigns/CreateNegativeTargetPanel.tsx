@@ -102,8 +102,9 @@ export const CreateNegativeTargetPanel: React.FC<
 
   const handleChange = (
     field: "adGroupId" | "expressionType" | "expressionValue" | "state",
-    value: string
+    value: string | undefined
   ) => {
+    if (value === undefined) return;
     setCurrentNegativeTarget((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field
     if (errors[field as keyof typeof errors]) {
@@ -169,7 +170,7 @@ export const CreateNegativeTargetPanel: React.FC<
             expression: expressionData,  // SP uses expression (singular)
             state: currentNegativeTarget.state 
           }),
-    };
+    } as NegativeTargetInput;
 
     setAddedNegativeTargets([...addedNegativeTargets, negativeTarget]);
     setCurrentNegativeTarget({
@@ -248,11 +249,11 @@ export const CreateNegativeTargetPanel: React.FC<
       )}
 
       {/* Form */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+      <div className="flex items-end gap-3 mb-4">
         {/* Ad Group */}
-        <div>
+        <div className="flex-1 min-w-[180px]">
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-            Ad Group
+            Ad Group *
           </label>
           <Dropdown
             options={adgroups.map((ag) => ({
@@ -262,65 +263,65 @@ export const CreateNegativeTargetPanel: React.FC<
             value={currentNegativeTarget.adGroupId}
             onChange={(value) => handleChange("adGroupId", value)}
             placeholder="Select Ad Group"
-            buttonClassName="w-full bg-[#FEFEFB]"
+            buttonClassName="edit-button w-full"
           />
           {errors.adGroupId && (
-            <p className="mt-1 text-[11.2px] text-red-600">{errors.adGroupId}</p>
+            <p className="mt-1 text-[10px] text-red-500">{errors.adGroupId}</p>
           )}
           {fieldErrors.adGroupId && (
-            <p className="mt-1 text-[11.2px] text-red-600">
+            <p className="mt-1 text-[10px] text-red-500">
               {fieldErrors.adGroupId}
             </p>
           )}
         </div>
 
         {/* Expression Type */}
-        <div>
+        <div className="w-[180px]">
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-            Expression Type
+            Expression Type *
           </label>
           <Dropdown
             options={EXPRESSION_TYPE_OPTIONS}
             value={currentNegativeTarget.expressionType}
             onChange={(value) => handleChange("expressionType", value)}
             placeholder="Select Type"
-            buttonClassName="w-full bg-[#FEFEFB]"
+            buttonClassName="edit-button w-full"
           />
           {errors.expressionType && (
-            <p className="mt-1 text-[11.2px] text-red-600">
+            <p className="mt-1 text-[10px] text-red-500">
               {errors.expressionType}
             </p>
           )}
           {fieldErrors.expressionType && (
-            <p className="mt-1 text-[11.2px] text-red-600">
+            <p className="mt-1 text-[10px] text-red-500">
               {fieldErrors.expressionType}
             </p>
           )}
         </div>
 
         {/* Expression Value */}
-        <div>
+        <div className="flex-1 min-w-[200px]">
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-            Expression Value
+            Expression Value *
           </label>
           <input
             type="text"
             value={currentNegativeTarget.expressionValue}
             onChange={(e) => handleChange("expressionValue", e.target.value)}
             placeholder="Enter value"
-            className={`w-full px-3 py-2 border rounded-lg text-[13.3px] bg-[#FEFEFB] ${
+            className={`campaign-input bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
               errors.expressionValue || fieldErrors.expressionValue
-                ? "border-red-300"
+                ? "border-red-500"
                 : "border-gray-200"
             }`}
           />
           {errors.expressionValue && (
-            <p className="mt-1 text-[11.2px] text-red-600">
+            <p className="mt-1 text-[10px] text-red-500">
               {errors.expressionValue}
             </p>
           )}
           {fieldErrors.expressionValue && (
-            <p className="mt-1 text-[11.2px] text-red-600">
+            <p className="mt-1 text-[10px] text-red-500">
               {fieldErrors.expressionValue}
             </p>
           )}
@@ -328,32 +329,32 @@ export const CreateNegativeTargetPanel: React.FC<
 
         {/* State - hidden for SB campaigns (state cannot be set at creation) */}
         {campaignType !== "SB" && (
-          <div>
+          <div className="w-[140px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-              State
+              State *
             </label>
             <Dropdown
               options={STATE_OPTIONS}
               value={currentNegativeTarget.state}
-              onChange={(value) =>
+              onChange={(value: string) =>
                 handleChange("state", value as "ENABLED" | "PAUSED")
               }
               placeholder="Select State"
-              buttonClassName="w-full bg-[#FEFEFB]"
+              buttonClassName="edit-button w-full"
             />
           </div>
         )}
-      </div>
 
-      {/* Add Button */}
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={handleAddNegativeTarget}
-          className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors text-[11.2px] font-semibold"
-        >
-          Add Negative Target
-        </button>
+        {/* Add Button */}
+        <div className="w-[160px]">
+          <button
+            type="button"
+            onClick={handleAddNegativeTarget}
+            className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+          >
+            Add Negative Target
+          </button>
+        </div>
       </div>
 
       {/* Added Negative Targets Table */}
