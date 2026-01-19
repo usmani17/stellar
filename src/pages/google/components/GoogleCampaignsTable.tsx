@@ -403,7 +403,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleCampaign) => (row as any).acos || 0,
     },
-  ], [getChannelTypeLabel, accountId]);
+  ], [getChannelTypeLabel, accountId, navigate, onEditCampaign, editLoadingCampaignId]);
 
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, _field: string) => {

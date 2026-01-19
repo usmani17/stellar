@@ -1,5 +1,7 @@
 import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
+import { formatCurrency, formatPercentage } from "../../utils/formatters";
+import { getStatusBadgeLabel, getChannelTypeLabel } from "../../utils/statusLabels";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -7,7 +9,6 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button } from "../../components/ui";
-import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
@@ -2036,46 +2037,6 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(2)}%`;
-  };
-
-
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, string> = {
-      ENABLED: "Enable",
-      PAUSED: "Paused",
-      REMOVED: "Removed",
-    };
-    const statusLabel = statusMap[status.toUpperCase()] || "Paused";
-    return <StatusBadge status={statusLabel} />;
-  };
-
-  const getChannelTypeLabel = (type?: string) => {
-    if (!type) return "—";
-    const typeMap: Record<string, string> = {
-      SEARCH: "Search",
-      DISPLAY: "Display",
-      SHOPPING: "Shopping",
-      PERFORMANCE_MAX: "Performance Max",
-      VIDEO: "Video",
-      HOTEL: "Hotel",
-      MULTI_CHANNEL: "Multi Channel",
-      LOCAL: "Local",
-      SMART: "Smart",
-    };
-    return typeMap[type] || type;
-  };
-
   const allSelected =
     campaigns.length > 0 && selectedCampaigns.size === campaigns.length;
   const someSelected =
@@ -3269,7 +3230,7 @@ export const GoogleCampaigns: React.FC = () => {
                     onConfirmInlineEdit={confirmInlineEdit}
                     formatCurrency={formatCurrency}
                     formatPercentage={formatPercentage}
-                    getStatusBadge={getStatusBadge}
+                    getStatusBadge={getStatusBadgeLabel}
                     getChannelTypeLabel={getChannelTypeLabel}
                     getSortIcon={getSortIcon}
                     onEditCampaign={handleOpenEditCampaign}
