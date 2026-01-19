@@ -1,5 +1,5 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -11,10 +11,11 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
-  FilterPanel,
+  DynamicFilterPanel,
   type FilterValues,
-} from "../../components/filters/FilterPanel";
-import { campaignsService } from "../../services/campaigns";
+} from "../../components/filters/DynamicFilterPanel";
+import { googleAdwordsAdGroupsService } from "../../services/googleAdwords/googleAdwordsAdGroups";
+import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleAdGroupsTable,
@@ -64,6 +65,7 @@ export const GoogleAdGroups: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const isLoadingRef = useRef(false);
 
   // Chart toggles (visual parity with Amazon Campaigns)
   const [chartToggles, setChartToggles] = useState({
@@ -94,6 +96,11 @@ export const GoogleAdGroups: React.FC = () => {
     "ENABLED" | "PAUSED" | null
   >(null);
   const [isBidChange, setIsBidChange] = useState(false);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline edit state
@@ -105,7 +112,7 @@ export const GoogleAdGroups: React.FC = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [updatingField, setUpdatingField] = useState<{
+  const [updatingField, _setUpdatingField] = useState<{
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
   } | null>(null);
@@ -189,125 +196,19 @@ export const GoogleAdGroups: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    // Don't reload if we're currently sorting (handleSort will handle the reload)
-    // Also don't reload when sortBy/sortOrder changes (handleSort handles that)
-    if (sorting) return;
+  // Removed buildFilterParams - now passing filters array directly to service
 
-    if (accountId) {
-      const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
-        loadAdgroups(accountIdNum);
-      } else {
-        setLoading(false);
-      }
-    } else {
-      setLoading(false);
+  const loadAdgroups = useCallback(async (accountId: number) => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
     }
-  }, [accountId, currentPage, filters, startDate, endDate]);
 
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    filterList.forEach((filter) => {
-      if (filter.field === "campaign_name") {
-        if (filter.operator === "contains") {
-          params.campaign_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.campaign_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.campaign_name = filter.value;
-        }
-      } else if (filter.field === "bid") {
-        if (filter.operator === "lt") {
-          params.bid__lt = filter.value;
-        } else if (filter.operator === "gt") {
-          params.bid__gt = filter.value;
-        } else if (filter.operator === "eq") {
-          params.bid = filter.value;
-        } else if (filter.operator === "lte") {
-          params.bid__lte = filter.value;
-        } else if (filter.operator === "gte") {
-          params.bid__gte = filter.value;
-        }
-      } else if (filter.field === "adgroup_name") {
-        if (filter.operator === "contains") {
-          params.adgroup_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.adgroup_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.adgroup_name = filter.value;
-        }
-      } else if (filter.field === "status") {
-        params.status = filter.value;
-      } else if (filter.field === "account_name") {
-        if (filter.operator === "contains") {
-          params.account_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.account_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.account_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
-
-  const loadAdgroupsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
     try {
+      isLoadingRef.current = true;
       setLoading(true);
       const params: any = {
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filterList),
-      };
-
-      const response = await campaignsService.getGoogleAdGroups(
-        accountId,
-        undefined,
-        params
-      );
-      setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedAdgroups(new Set());
-    } catch (error) {
-      console.error("Failed to load Google adgroups:", error);
-      setAdgroups([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAdgroups = async (accountId: number) => {
-    try {
-      setLoading(true);
-      const params: any = {
+        filters: filters, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         page: currentPage,
@@ -316,10 +217,9 @@ export const GoogleAdGroups: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
       };
 
-      const response = await campaignsService.getGoogleAdGroups(
+      const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
         accountId,
         undefined,
         params
@@ -352,8 +252,84 @@ export const GoogleAdGroups: React.FC = () => {
       setTotal(0);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
+
+  useEffect(() => {
+    // Don't reload if we're currently sorting (handleSort will handle the reload)
+    // Also don't reload when sortBy/sortOrder changes (handleSort handles that)
+    if (sorting) return;
+
+    if (accountId) {
+      const accountIdNum = parseInt(accountId, 10);
+      if (!isNaN(accountIdNum)) {
+        loadAdgroups(accountIdNum);
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAdgroups, sorting]);
+
+  const loadAdgroupsWithFilters = async (
+    accountId: number,
+    filterList: FilterValues
+  ) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        filters: filterList, // Pass filters array directly
+        sort_by: sortBy,
+        order: sortOrder,
+        page: 1,
+        page_size: itemsPerPage,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+      };
+
+      const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
+        accountId,
+        undefined,
+        params
+      );
+      setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
+      setTotalPages(response.total_pages || 0);
+      setTotal(response.total || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      // Store chart data from API if available
+      const responseWithChart = response as any;
+      if (
+        responseWithChart.chart_data &&
+        Array.isArray(responseWithChart.chart_data)
+      ) {
+        setChartDataFromApi(responseWithChart.chart_data);
+      } else {
+        setChartDataFromApi([]);
+      }
+      setSelectedAdgroups(new Set());
+    } catch (error) {
+      console.error("Failed to load Google adgroups:", error);
+      setAdgroups([]);
+      setTotalPages(0);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Sync status hook (after loadAdgroups is defined)
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+    accountId,
+    entityType: "adgroups",
+    currentData: adgroups,
+    loadFunction: loadAdgroups,
+  });
 
   const handleSync = async () => {
     if (!accountId) return;
@@ -363,7 +339,7 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleAdGroups(accountIdNum);
+      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroups(accountIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} adgroups`;
 
@@ -377,6 +353,9 @@ export const GoogleAdGroups: React.FC = () => {
       }
 
       setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
 
       // Reset to first page and reload adgroups after sync
       if (result.synced > 0) {
@@ -418,7 +397,7 @@ export const GoogleAdGroups: React.FC = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
       
-      const result = await campaignsService.syncGoogleAdGroupAnalytics(
+      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroupAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
         today.toISOString().split("T")[0]
@@ -495,10 +474,10 @@ export const GoogleAdGroups: React.FC = () => {
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-            ...buildFilterParams(filters),
+            filters: filters, // Pass filters array directly
           };
 
-          const response = await campaignsService.getGoogleAdGroups(
+          const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
             accountIdNum,
             undefined,
             params
@@ -771,7 +750,7 @@ export const GoogleAdGroups: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
           adgroupIds: [inlineEditAdgroup.adgroup_id],
           action: "status",
           status: statusValue,
@@ -786,7 +765,7 @@ export const GoogleAdGroups: React.FC = () => {
           throw new Error("Invalid bid value");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
           adgroupIds: [inlineEditAdgroup.adgroup_id],
           action: "bid",
           bid: bidValue,
@@ -801,7 +780,7 @@ export const GoogleAdGroups: React.FC = () => {
           throw new Error("Name cannot be empty");
         }
 
-        const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
           adgroupIds: [inlineEditAdgroup.adgroup_id],
           action: "name",
           name: nameValue,
@@ -850,7 +829,7 @@ export const GoogleAdGroups: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
         adgroupIds: [nameEditAdgroup.adgroup_id],
         action: "name",
         name: trimmedName,
@@ -880,16 +859,22 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
+      setBulkUpdateResults(null);
 
-      await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
         adgroupIds: Array.from(selectedAdgroups),
         action: "status",
         status: statusValue,
       });
 
-      // Close modal and reload adgroups with loading state
-      setShowConfirmationModal(false);
-      setShowBulkActions(false);
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
+      // Reload adgroups with loading state
       setSorting(true); // Show loading overlay
       await loadAdgroups(accountIdNum);
       // Hide loading overlay after a short delay
@@ -898,7 +883,12 @@ export const GoogleAdGroups: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update adgroups", error);
-      alert("Failed to update adgroups. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update adgroups. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAdgroups.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -961,6 +951,7 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       // Show loading in modal
       setBulkLoading(true);
+      setBulkUpdateResults(null);
 
       // For each selected adgroup, calculate new bid and update
       const selectedAdgroupsData = getSelectedAdgroupsData();
@@ -970,19 +961,43 @@ export const GoogleAdGroups: React.FC = () => {
         return { adgroupId: adgroup.adgroup_id, newBid };
       });
 
+      // Track results
+      let totalUpdated = 0;
+      let totalFailed = 0;
+      const allErrors: string[] = [];
+
       // Update each adgroup individually (bulk update doesn't support increase/decrease)
       for (const update of updates) {
-        await campaignsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-          adgroupIds: [update.adgroupId],
-          action: "bid",
-          bid: update.newBid,
-        });
+        try {
+          const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+            adgroupIds: [update.adgroupId],
+            action: "bid",
+            bid: update.newBid,
+          });
+          if (response.updated && response.updated > 0) {
+            totalUpdated += response.updated;
+          }
+          if (response.failed && response.failed > 0) {
+            totalFailed += response.failed;
+          }
+          if (response.errors && response.errors.length > 0) {
+            allErrors.push(...response.errors);
+          }
+        } catch (error: any) {
+          totalFailed += 1;
+          const errorMessage = error?.response?.data?.error || error?.message || "Failed to update adgroup";
+          allErrors.push(`Adgroup ${update.adgroupId}: ${errorMessage}`);
+        }
       }
 
-      // Close modal and reload adgroups with loading state
-      setShowConfirmationModal(false);
-      setShowBidPanel(false);
-      setShowBulkActions(false);
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: totalUpdated,
+        failed: totalFailed,
+        errors: allErrors,
+      });
+
+      // Reload adgroups with loading state
       setSorting(true); // Show loading overlay
       await loadAdgroups(accountIdNum);
       // Hide loading overlay after a short delay
@@ -991,7 +1006,12 @@ export const GoogleAdGroups: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update adgroups", error);
-      alert("Failed to update adgroups. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update adgroups. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAdgroups.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -1005,13 +1025,13 @@ export const GoogleAdGroups: React.FC = () => {
     try {
       setExporting(true);
       const params: any = {
+        filters: filters, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         start_date: startDate
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
       };
 
       // Add pagination for current view export
@@ -1020,7 +1040,7 @@ export const GoogleAdGroups: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleAdGroups(
+      await googleAdwordsAdGroupsService.exportGoogleAdGroups(
         accountIdNum,
         params,
         exportType
@@ -1045,43 +1065,6 @@ export const GoogleAdGroups: React.FC = () => {
 
   const formatPercentage = (value: number) => {
     return `${value.toFixed(2)}%`;
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "—";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formatSyncDate = (dateString?: string) => {
-    if (!dateString) return "Never";
-    try {
-      const date = new Date(dateString);
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const year = date.getFullYear();
-
-      // Format time in 12-hour format with AM/PM (no leading zero for hours)
-      let hours = date.getHours();
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12; // the hour '0' should be '12'
-      // Don't pad hours - show as "5:09 PM" not "05:09 PM"
-      const hoursFormatted = String(hours);
-
-      return `${month}/${day}/${year} ${hoursFormatted}:${minutes} ${ampm}`;
-    } catch {
-      return dateString;
-    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -1279,29 +1262,41 @@ export const GoogleAdGroups: React.FC = () => {
               </div>
             )}
 
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
+
             {/* Filter Panel - inline, matching Amazon layout */}
-            {isFilterPanelOpen && (
-              <FilterPanel
+            {isFilterPanelOpen && accountId && (
+              <DynamicFilterPanel
                 isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
-                  setFilters(newFilters);
+                  // Convert DynamicFilterValues to FilterValues format for compatibility
+                  const convertedFilters: FilterValues = newFilters.map((f) => ({
+                    id: f.id,
+                    field: f.field as FilterValues[0]["field"],
+                    operator: f.operator,
+                    value: f.value,
+                  }));
+                  setFilters(convertedFilters);
                   setCurrentPage(1);
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadAdgroupsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
+                  // Removed direct call to loadAdgroupsWithFilters - useEffect will handle it when filters change
+                  // This prevents double requests
+                  // if (accountId) {
+                  //   const accountIdNum = parseInt(accountId, 10);
+                  //   if (!isNaN(accountIdNum)) {
+                  //     loadAdgroupsWithFilters(accountIdNum, convertedFilters);
+                  //   }
+                  // }
                 }}
-                initialFilters={filters}
-                filterFields={[
-                  { value: "adgroup_name", label: "Ad Group Name" },
-                  { value: "campaign_name", label: "Campaign Name" },
-                  { value: "status", label: "Status" },
-                  { value: "bid", label: "Bid" },
-                  { value: "account_name", label: "Account Name" },
-                ]}
+                initialFilters={filters.map((f) => ({
+                  id: f.id,
+                  field: f.field as string,
+                  operator: f.operator,
+                  value: f.value,
+                }))}
+                accountId={accountId}
+                marketplace="google_adwords"
               />
             )}
 
@@ -1315,48 +1310,6 @@ export const GoogleAdGroups: React.FC = () => {
 
             {/* Edit and Export Buttons - Above Table */}
             <div className="flex items-center justify-end gap-2">
-              <div
-                className="relative inline-flex justify-end"
-                ref={dropdownRef}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="edit-button"
-                  onClick={() => setShowExportModal(true)}
-                  disabled={exporting || loading || adgroups.length === 0}
-                >
-                  {exporting ? (
-                    <>
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                      </div>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Exporting...
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Export
-                      </span>
-                    </>
-                  )}
-                </Button>
-              </div>
               <div
                 className="relative inline-flex justify-end"
                 ref={dropdownRef}
@@ -1423,6 +1376,48 @@ export const GoogleAdGroups: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+              <div
+                className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="edit-button"
+                  onClick={() => setShowExportModal(true)}
+                  disabled={exporting || loading || adgroups.length === 0}
+                >
+                  {exporting ? (
+                    <>
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                      </div>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Exporting...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5 text-[#072929]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      <span className="text-[10.64px] text-[#072929] font-normal">
+                        Export
+                      </span>
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
 
@@ -1582,27 +1577,92 @@ export const GoogleAdGroups: React.FC = () => {
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      {isBidChange
+                      {bulkUpdateResults
+                        ? "Update Results"
+                        : isBidChange
                         ? "Confirm Bid Changes"
                         : "Confirm Status Changes"}
                     </h3>
 
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedAdgroups.size} adgroup
-                          {selectedAdgroups.size !== 1 ? "s" : ""} will be
-                          updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          {isBidChange ? "Bid" : "Status"} change
-                        </span>
-                      </div>
-                    </div>
+                    {/* Results Summary */}
+                    {bulkUpdateResults ? (
+                      <div className="mb-6">
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Update Summary:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-forest-f40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Successfully updated:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-forest-f40">
+                                {bulkUpdateResults.updated}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-red-r40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Failed:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-red-r40">
+                                {bulkUpdateResults.failed}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* AdGroup Preview Table */}
-                    {(() => {
+                        {/* Errors */}
+                        {bulkUpdateResults.errors.length > 0 && (
+                          <div className="bg-red-r0 border border-red-r20 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-red-r40 mb-2">
+                              Errors ({bulkUpdateResults.errors.length}):
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              <ul className="list-disc list-inside space-y-1">
+                                {bulkUpdateResults.errors.map((error, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-[11.2px] text-red-r40"
+                                  >
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Success message if all succeeded */}
+                        {bulkUpdateResults.failed === 0 && bulkUpdateResults.updated > 0 && (
+                          <div className="bg-forest-f0 border border-forest-f40 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-forest-f60">
+                              ✓ All ad groups updated successfully!
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Confirmation Summary */
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {selectedAdgroups.size} adgroup
+                            {selectedAdgroups.size !== 1 ? "s" : ""} will be
+                            updated:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {isBidChange ? "Bid" : "Status"} change
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AdGroup Preview Table - Only show before update */}
+                    {!bulkUpdateResults && (() => {
                       const selectedAdgroupsData = getSelectedAdgroupsData();
                       const previewCount = Math.min(
                         10,
@@ -1680,6 +1740,8 @@ export const GoogleAdGroups: React.FC = () => {
                       );
                     })()}
 
+                    {/* Action Details - Only show before update */}
+                    {!bulkUpdateResults && (
                     <div className="space-y-3 mb-6">
                       {isBidChange ? (
                         <>
@@ -1755,33 +1817,51 @@ export const GoogleAdGroups: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowConfirmationModal(false);
-                          setPendingStatusAction(null);
-                        }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (isBidChange) {
-                            await runBulkBid();
-                          } else if (pendingStatusAction) {
-                            await runBulkStatus(pendingStatusAction);
-                          }
-                          setPendingStatusAction(null);
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Updating..." : "Confirm"}
-                      </button>
+                      {bulkUpdateResults ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowConfirmationModal(false);
+                            setShowBidPanel(false);
+                            setShowBulkActions(false);
+                            setPendingStatusAction(null);
+                            setBulkUpdateResults(null);
+                          }}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                        >
+                          Close
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowConfirmationModal(false);
+                              setPendingStatusAction(null);
+                            }}
+                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (isBidChange) {
+                                await runBulkBid();
+                              } else if (pendingStatusAction) {
+                                await runBulkStatus(pendingStatusAction);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {bulkLoading ? "Updating..." : "Confirm"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

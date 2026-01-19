@@ -10,6 +10,7 @@ import { DateRangeProvider } from "./contexts/DateRangeContext";
 import { AccountsProvider } from "./contexts/AccountsContext";
 import { GlobalStateProvider } from "./contexts/GlobalStateContext";
 import { SidebarProvider } from "./contexts/SidebarContext";
+import { GoogleSyncStatusWrapper } from "./components/google/GoogleSyncStatusWrapper";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { PublicRoute } from "./components/auth/PublicRoute";
 import { AccountRequiredRoute } from "./components/auth/AccountRequiredRoute";
@@ -329,9 +330,11 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <AccountRequiredRoute>
-                          <Layout>
-                            <GoogleCreateCampaign />
-                          </Layout>
+                          <GoogleSyncStatusWrapper>
+                            <Layout>
+                              <GoogleCreateCampaign />
+                            </Layout>
+                          </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
                       </ProtectedRoute>
                     }
@@ -341,9 +344,11 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <AccountRequiredRoute>
-                          <Layout>
-                            <GoogleCampaigns />
-                          </Layout>
+                          <GoogleSyncStatusWrapper>
+                            <Layout>
+                              <GoogleCampaigns />
+                            </Layout>
+                          </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
                       </ProtectedRoute>
                     }
@@ -353,9 +358,11 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <AccountRequiredRoute>
-                          <Layout>
-                            <GoogleCampaignDetail />
-                          </Layout>
+                          <GoogleSyncStatusWrapper>
+                            <Layout>
+                              <GoogleCampaignDetail />
+                            </Layout>
+                          </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
                       </ProtectedRoute>
                     }
@@ -365,9 +372,11 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <AccountRequiredRoute>
-                          <Layout>
-                            <GoogleAdGroups />
-                          </Layout>
+                          <GoogleSyncStatusWrapper>
+                            <Layout>
+                              <GoogleAdGroups />
+                            </Layout>
+                          </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
                       </ProtectedRoute>
                     }
@@ -377,9 +386,11 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <AccountRequiredRoute>
-                          <Layout>
-                            <GoogleAds />
-                          </Layout>
+                          <GoogleSyncStatusWrapper>
+                            <Layout>
+                              <GoogleAds />
+                            </Layout>
+                          </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
                       </ProtectedRoute>
                     }
@@ -389,9 +400,11 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <AccountRequiredRoute>
-                          <Layout>
-                            <GoogleKeywords />
-                          </Layout>
+                          <GoogleSyncStatusWrapper>
+                            <Layout>
+                              <GoogleKeywords />
+                            </Layout>
+                          </GoogleSyncStatusWrapper>
                         </AccountRequiredRoute>
                       </ProtectedRoute>
                     }
@@ -501,7 +514,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                </Routes>
+                  </Routes>
               </Router>
               {import.meta.env.DEV && (
                 <ReactQueryDevtools initialIsOpen={false} />

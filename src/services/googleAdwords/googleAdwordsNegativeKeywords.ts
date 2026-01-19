@@ -1,4 +1,4 @@
-import api from "./api";
+import api from "../api";
 
 export interface GoogleNegativeKeyword {
   id: number;
@@ -29,19 +29,13 @@ export interface GoogleNegativeKeywordsResponse {
 }
 
 export interface GoogleNegativeKeywordsQueryParams {
-  filters?: {
-    keyword_text?: string;
-    keyword_text__icontains?: string;
-    match_type?: string;
-    status?: string;
-    level?: "campaign" | "adgroup";
-    campaign_id?: string;
-    adgroup_id?: string;
-    page?: number;
-    page_size?: number;
-    sort_by?: string;
-    order?: "asc" | "desc";
-  };
+  filters?: Array<{ field: string; operator?: string; value: any }>; // Dynamic filters from DynamicFilterPanel
+  page?: number;
+  page_size?: number;
+  sort_by?: string;
+  order?: "asc" | "desc";
+  campaign_id?: string;
+  adgroup_id?: string;
 }
 
 export interface CreateNegativeKeywordInput {
@@ -67,20 +61,33 @@ export interface BulkDeleteNegativeKeywordsRequest {
   negativeKeywordIds: string[];
 }
 
-export const googleNegativeKeywordsService = {
+export const googleAdwordsNegativeKeywordsService = {
   getGoogleNegativeKeywords: async (
     accountId: number,
     params?: GoogleNegativeKeywordsQueryParams
   ): Promise<GoogleNegativeKeywordsResponse> => {
-    const url = `/accounts/${accountId}/google-negative-keywords/`;
-    const response = await api.post<GoogleNegativeKeywordsResponse>(url, params || {});
+    // Send filters array and params directly to backend - let backend handle conversion
+    const payload: any = {
+      filters: params?.filters || [],
+      sort_by: params?.sort_by,
+      order: params?.order,
+      page: params?.page,
+      page_size: params?.page_size,
+    };
+    
+    // Add campaign_id and adgroup_id if provided (not part of filters array)
+    if (params?.campaign_id) payload.campaign_id = params.campaign_id;
+    if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
+    
+    const url = `/google-adwords/${accountId}/negative-keywords/`;
+    const response = await api.post<GoogleNegativeKeywordsResponse>(url, payload);
     return response.data;
   },
 
   syncGoogleNegativeKeywords: async (
     accountId: number
   ): Promise<{ synced: number; errors: string[]; total_errors: number }> => {
-    const url = `/accounts/${accountId}/google-negative-keywords/sync/`;
+    const url = `/google-adwords/${accountId}/negative-keywords/sync/`;
     const response = await api.post<{ synced: number; errors: string[]; total_errors: number }>(url);
     return response.data;
   },
@@ -90,7 +97,7 @@ export const googleNegativeKeywordsService = {
     campaignId: string,
     data: CreateNegativeKeywordsRequest
   ): Promise<{ created: number; negative_keywords: GoogleNegativeKeyword[] }> => {
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/google-negative-keywords/create/`;
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/negative-keywords/create/`;
     const response = await api.post<{ created: number; negative_keywords: GoogleNegativeKeyword[] }>(url, data);
     return response.data;
   },
@@ -108,7 +115,7 @@ export const googleNegativeKeywordsService = {
       [key: string]: any;
     }>;
   }> => {
-    const url = `/accounts/${accountId}/google-negative-keywords/bulk-update/`;
+    const url = `/google-adwords/${accountId}/negative-keywords/bulk-update/`;
     const response = await api.post(url, data);
     return response.data;
   },
@@ -121,7 +128,7 @@ export const googleNegativeKeywordsService = {
     failed: number;
     errors: string[];
   }> => {
-    const url = `/accounts/${accountId}/google-negative-keywords/bulk-delete/`;
+    const url = `/google-adwords/${accountId}/negative-keywords/bulk-delete/`;
     const response = await api.post(url, data);
     return response.data;
   },

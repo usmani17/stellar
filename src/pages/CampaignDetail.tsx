@@ -1610,9 +1610,18 @@ export const CampaignDetail: React.FC = () => {
             name: ag.name,
             state: ag.state,
           };
-          // Only include defaultBid for SP campaigns (not SB)
+          // Only include defaultBid for SP and SD campaigns (not SB)
           if (campaignType !== "SB" && ag.defaultBid !== undefined) {
             adgroupData.defaultBid = ag.defaultBid;
+          }
+          // Include SD-specific fields
+          if (campaignType === "SD") {
+            if (ag.bidOptimization) {
+              adgroupData.bidOptimization = ag.bidOptimization;
+            }
+            if (ag.creativeType !== undefined) {
+              adgroupData.creativeType = ag.creativeType; // Can be null
+            }
           }
           return adgroupData;
         }),
@@ -2765,11 +2774,15 @@ export const CampaignDetail: React.FC = () => {
         return;
       }
 
+      // Get profileId from campaign to filter assets
+      const profileId = campaignDetail?.campaign?.profile_id;
+
       const data = await campaignsService.getAssets(accountIdNum, {
         page: assetsCurrentPage,
         page_size: 10,
         sort_by: assetsSortBy,
         order: assetsSortOrder,
+        ...(profileId && { profileId }), // Include profileId if available
         ...buildAssetsFilterParams(assetsFilters),
       });
 
@@ -6530,6 +6543,9 @@ export const CampaignDetail: React.FC = () => {
                   <CreateSBAdPanel
                     isOpen={isCreateSBAdPanelOpen}
                     accountId={parseInt(accountId || "0", 10)}
+                    profileId={
+                      campaignDetail?.campaign?.profile_id || undefined
+                    }
                     onClose={() => {
                       setIsCreateSBAdPanelOpen(false);
                       setCreateSBAdError(null);

@@ -2298,7 +2298,7 @@ export const Campaigns: React.FC = () => {
             {/* Search, Edit and Export Buttons - Above Table */}
             <div className="flex items-center justify-end gap-2">
               {/* Search Box */}
-              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[8px] flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
+              <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
                 <div className="relative shrink-0 size-[12px]">
                   <svg
                     width="12"

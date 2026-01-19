@@ -118,6 +118,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   refreshMessage = null,
 }) => {
   const [showRefreshDetails, setShowRefreshDetails] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [marketingImagePreview, setMarketingImagePreview] = useState<string | null>(null);
+  const [squareMarketingImagePreview, setSquareMarketingImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateGoogleCampaignData>({
     campaign_type: "PERFORMANCE_MAX",
     name: "",
@@ -164,6 +167,39 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         ...prev,
         ...initialData,
       }));
+      // Set logo preview if logo_url exists in initial data
+      if (initialData.logo_url && typeof initialData.logo_url === "string") {
+        const urlValue = initialData.logo_url.trim();
+        if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+          setLogoPreview(urlValue);
+        } else {
+          setLogoPreview(null);
+        }
+      } else {
+        setLogoPreview(null);
+      }
+      // Set marketing image preview if marketing_image_url exists in initial data
+      if (initialData.marketing_image_url && typeof initialData.marketing_image_url === "string") {
+        const urlValue = initialData.marketing_image_url.trim();
+        if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+          setMarketingImagePreview(urlValue);
+        } else {
+          setMarketingImagePreview(null);
+        }
+      } else {
+        setMarketingImagePreview(null);
+      }
+      // Set square marketing image preview if square_marketing_image_url exists in initial data
+      if (initialData.square_marketing_image_url && typeof initialData.square_marketing_image_url === "string") {
+        const urlValue = initialData.square_marketing_image_url.trim();
+        if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+          setSquareMarketingImagePreview(urlValue);
+        } else {
+          setSquareMarketingImagePreview(null);
+        }
+      } else {
+        setSquareMarketingImagePreview(null);
+      }
     }
   }, [isOpen, mode, initialData]);
 
@@ -183,6 +219,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       enable_local: false,
     });
     setErrors({});
+    setLogoPreview(null);
+    setMarketingImagePreview(null);
+    setSquareMarketingImagePreview(null);
   };
 
   // Get available bidding strategies based on campaign type
@@ -274,6 +313,39 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     });
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+    
+    // Update logo preview when logo_url changes
+    if (field === "logo_url") {
+      const urlValue = typeof value === "string" ? value.trim() : "";
+      // More lenient URL validation - accept any string that starts with http:// or https://
+      if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+        setLogoPreview(urlValue);
+      } else {
+        setLogoPreview(null);
+      }
+    }
+    
+    // Update marketing image preview when marketing_image_url changes
+    if (field === "marketing_image_url") {
+      const urlValue = typeof value === "string" ? value.trim() : "";
+      // More lenient URL validation - accept any string that starts with http:// or https://
+      if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+        setMarketingImagePreview(urlValue);
+      } else {
+        setMarketingImagePreview(null);
+      }
+    }
+    
+    // Update square marketing image preview when square_marketing_image_url changes
+    if (field === "square_marketing_image_url") {
+      const urlValue = typeof value === "string" ? value.trim() : "";
+      // More lenient URL validation - accept any string that starts with http:// or https://
+      if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
+        setSquareMarketingImagePreview(urlValue);
+      } else {
+        setSquareMarketingImagePreview(null);
+      }
     }
   };
 
@@ -1183,11 +1255,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                             // Validate file size (max 5MB)
                             if (file.size > 5 * 1024 * 1024) {
                               setErrors({ ...errors, logo_url: "File size must be less than 5MB" });
+                              setLogoPreview(null);
                               return;
                             }
                             // Validate file type
                             if (!file.type.startsWith("image/")) {
                               setErrors({ ...errors, logo_url: "File must be an image" });
+                              setLogoPreview(null);
                               return;
                             }
                             
@@ -1208,6 +1282,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                                       ...errors, 
                                       logo_url: `Logo must be square (1:1 aspect ratio). Current dimensions: ${width}x${height}px. Please use a square image.` 
                                     });
+                                    setLogoPreview(null);
                                     reject(new Error("Not square"));
                                     return;
                                   }
@@ -1218,9 +1293,20 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                                       ...errors, 
                                       logo_url: `Logo must be at least 128x128 pixels. Current dimensions: ${width}x${height}px. Recommended: 128x128px or larger.` 
                                     });
+                                    setLogoPreview(null);
                                     reject(new Error("Too small"));
                                     return;
                                   }
+                                  
+                                  // Create preview using FileReader
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setLogoPreview(reader.result as string);
+                                  };
+                                  reader.onerror = () => {
+                                    setLogoPreview(null);
+                                  };
+                                  reader.readAsDataURL(file);
                                   
                                   resolve(null);
                                 };
@@ -1228,6 +1314,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                                 img.onerror = () => {
                                   URL.revokeObjectURL(objectUrl);
                                   setErrors({ ...errors, logo_url: "Failed to load image. Please try a different file." });
+                                  setLogoPreview(null);
                                   reject(new Error("Image load failed"));
                                 };
                                 
@@ -1253,22 +1340,27 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                                 if (!response.ok) {
                                   const errorMessage = responseData.error || responseData.message || "Upload failed";
                                   setErrors({ ...errors, logo_url: errorMessage });
+                                  setLogoPreview(null);
                                   return;
                                 }
                                 
                                 if (responseData.url) {
                                   handleChange("logo_url", responseData.url);
                                   setErrors({ ...errors, logo_url: undefined });
+                                  // Preview will be updated by handleChange
                                 } else {
                                   setErrors({ ...errors, logo_url: "Upload succeeded but no URL returned" });
+                                  setLogoPreview(null);
                                 }
                               } catch (error: any) {
                                 setErrors({ ...errors, logo_url: error.message || "Failed to upload logo. Please try again or use a URL." });
+                                setLogoPreview(null);
                               }
                             } catch (error: any) {
                               // Dimension validation error already set
                               if (!error.message || (error.message !== "Not square" && error.message !== "Too small" && error.message !== "Image load failed")) {
                                 setErrors({ ...errors, logo_url: "Failed to validate image dimensions. Please try a different file." });
+                                setLogoPreview(null);
                               }
                             }
                           }
@@ -1283,6 +1375,28 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                         Upload Logo
                       </label>
                     </div>
+                    {/* Logo Preview */}
+                    {logoPreview && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                        <div className="inline-block border border-gray-200 rounded p-1 bg-white">
+                          <img
+                            src={logoPreview}
+                            alt="Logo preview"
+                            className="w-32 h-32 object-contain rounded"
+                            onError={(e) => {
+                              // Hide preview on error (e.g., CORS issues, invalid URL)
+                              const img = e.currentTarget;
+                              img.style.display = "none";
+                              // Clear preview after a short delay to allow for retries
+                              setTimeout(() => {
+                                setLogoPreview(null);
+                              }, 500);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     {errors.logo_url && (
                       <p className="text-[10px] text-red-500 mt-1">
                         {errors.logo_url}
@@ -1307,6 +1421,25 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                     placeholder="https://example.com/image.png"
                   />
+                  {/* Marketing Image Preview */}
+                  {marketingImagePreview && (
+                    <div className="mt-2">
+                      <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                      <div className="inline-block border border-gray-200 rounded bg-white p-1">
+                        <img
+                          src={marketingImagePreview}
+                          alt="Marketing image preview"
+                          className="max-w-48 max-h-32 w-auto h-auto object-contain block rounded"
+                          onError={(e) => {
+                            // Hide preview on error (e.g., CORS issues)
+                            const img = e.currentTarget;
+                            img.style.display = "none";
+                            setMarketingImagePreview(null);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1322,6 +1455,25 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                     placeholder="https://example.com/square-image.png"
                   />
+                  {/* Square Marketing Image Preview */}
+                  {squareMarketingImagePreview && (
+                    <div className="mt-2">
+                      <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                      <div className="inline-block border border-gray-200 rounded p-1 bg-white">
+                        <img
+                          src={squareMarketingImagePreview}
+                          alt="Square marketing image preview"
+                          className="w-32 h-32 object-contain rounded"
+                          onError={(e) => {
+                            // Hide preview on error (e.g., CORS issues)
+                            const img = e.currentTarget;
+                            img.style.display = "none";
+                            setSquareMarketingImagePreview(null);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
