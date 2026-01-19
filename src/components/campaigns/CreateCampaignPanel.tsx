@@ -372,14 +372,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
   // Prevent formData from being reset when in edit mode - preserve all data
   useEffect(() => {
-    // If we're in edit mode and formData.type is empty but we have initialized campaign,
-    // restore formData from snapshot to prevent fields from disappearing
+    // If we're in edit mode and we have snapshot data but formData.type is missing,
+    // restore formData from snapshot to prevent fields from disappearing when reopening
+    // This handles the case when the panel is closed and reopened with the same campaign
     if (
       isOpen &&
       mode === "edit" &&
-      initializedCampaignId === campaignId &&
       snapshotInitialData &&
-      !formData.type
+      campaignId &&
+      (!formData.type || (formData.type as string) === "")
     ) {
       console.warn(
         "Form data type is empty in edit mode, restoring from snapshot"
@@ -406,11 +407,18 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           snapshotInitialData.siteRestrictions || formData.siteRestrictions,
         // Preserve tactic for SD campaigns
         tactic: snapshotInitialData.tactic || formData.tactic,
+        // Preserve SB-specific fields
+        brandEntityId: snapshotInitialData.brandEntityId || formData.brandEntityId,
+        goal: snapshotInitialData.goal || formData.goal,
+        productLocation: snapshotInitialData.productLocation || formData.productLocation,
+        costType: snapshotInitialData.costType || formData.costType,
+        targetedPGDealId: snapshotInitialData.targetedPGDealId || formData.targetedPGDealId,
+        smartDefault: snapshotInitialData.smartDefault || formData.smartDefault,
       };
       setFormData(restoredFormData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, mode, campaignId, initializedCampaignId, formData.type]);
+  }, [isOpen, mode, campaignId, formData.type]);
 
   // When opening in edit mode, pre-populate form with initial data
   useEffect(() => {
@@ -556,8 +564,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
     // IMPORTANT: Never reset form data when in edit mode, even if panel closes
     // This ensures form data persists even when modals open/close
-    // Only reset initialization flags when panel closes AND we're switching away from edit mode
-    if (!isOpen && mode !== "edit") {
+    // However, we need to allow re-initialization when reopening the same campaign
+    // So we reset the initialization flag when panel closes, but keep the snapshot
+    // This way, when reopening, the restoration logic will kick in
+    if (!isOpen && mode === "edit") {
+      // Reset initializedCampaignId so form can be re-initialized on reopen
+      // But keep snapshotInitialData for restoration
+      setInitializedCampaignId(undefined);
+    } else if (!isOpen && mode !== "edit") {
+      // When switching away from edit mode, clear everything
       setInitializedCampaignId(undefined);
       setSnapshotInitialData(null);
     }

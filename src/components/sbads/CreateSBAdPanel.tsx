@@ -665,9 +665,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         )}
 
         {/* Basic Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="flex items-end gap-3 mb-4">
           {/* Ad Name */}
-          <div>
+          <div className="flex-1 min-w-[200px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Ad Name *
             </label>
@@ -677,7 +677,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               onChange={(e) => handleChange("name", e.target.value)}
               placeholder="Enter ad name"
               disabled={!currentAd.adType}
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.name ? "border-red-500" : "border-gray-200"
               } ${!currentAd.adType ? "opacity-50 cursor-not-allowed" : ""}`}
             />
@@ -687,7 +687,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           </div>
 
           {/* State */}
-          <div>
+          <div className="w-[140px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               State *
             </label>
@@ -698,13 +698,13 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 handleChange("state", value as "ENABLED" | "PAUSED")
               }
               placeholder="Select state"
-              buttonClassName={`w-full ${!currentAd.adType ? "opacity-50 cursor-not-allowed" : ""}`}
+              buttonClassName={`edit-button w-full ${!currentAd.adType ? "opacity-50 cursor-not-allowed" : ""}`}
               disabled={!currentAd.adType}
             />
           </div>
 
           {/* Ad Type */}
-          <div>
+          <div className="w-[140px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Ad Type *
             </label>
@@ -738,53 +738,12 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 }
               }}
               placeholder="Select ad type"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
           </div>
 
-          {/* Video Ad Type Toggle - Only show when Video is selected */}
-          {currentAd.adType === "VIDEO" && (
-            <div className="mb-4">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                Video Type
-              </label>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="videoAdType"
-                    value="PRODUCT"
-                    checked={currentAd.videoAdType === "PRODUCT"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        handleChange("videoAdType", "PRODUCT");
-                      }
-                    }}
-                    className="accent-forest-f40"
-                  />
-                  <span className="text-[11.2px] text-[#556179]">Product Video</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="videoAdType"
-                    value="BRAND"
-                    checked={currentAd.videoAdType === "BRAND"}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        handleChange("videoAdType", "BRAND");
-                      }
-                    }}
-                    className="accent-forest-f40"
-                  />
-                  <span className="text-[11.2px] text-[#556179]">Brand Video</span>
-                </label>
-              </div>
-            </div>
-          )}
-
           {/* Ad Group */}
-          <div>
+          <div className="flex-1 min-w-[180px] w-full">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Ad Group *
             </label>
@@ -796,7 +755,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               value={currentAd.adGroupId}
               onChange={(value) => handleChange("adGroupId", value)}
               placeholder="Select ad group"
-              buttonClassName={`w-full ${!currentAd.adType ? "opacity-50 cursor-not-allowed" : ""}`}
+              buttonClassName={`edit-button w-full ${!currentAd.adType ? "opacity-50 cursor-not-allowed" : ""}`}
               disabled={!currentAd.adType}
             />
             {errors.adGroupId && (
@@ -807,13 +766,54 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           </div>
         </div>
 
+        {/* Video Ad Type Toggle - Only show when Video is selected */}
+        {currentAd.adType === "VIDEO" && (
+          <div className="mb-4">
+            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              Video Type
+            </label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="videoAdType"
+                  value="PRODUCT"
+                  checked={currentAd.videoAdType === "PRODUCT"}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleChange("videoAdType", "PRODUCT");
+                    }
+                  }}
+                  className="accent-forest-f40"
+                />
+                <span className="text-[11.2px] text-[#556179]">Product Video</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="videoAdType"
+                  value="BRAND"
+                  checked={currentAd.videoAdType === "BRAND"}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleChange("videoAdType", "BRAND");
+                    }
+                  }}
+                  className="accent-forest-f40"
+                />
+                <span className="text-[11.2px] text-[#556179]">Brand Video</span>
+              </label>
+            </div>
+          </div>
+        )}
+
         {/* Landing Page Section */}
-        <div className={`mb-4 p-3 bg-white border border-gray-200 rounded-lg ${!currentAd.adType ? "opacity-50 pointer-events-none" : ""}`}>
+        <div className={`mb-4 p-3  border border-gray-200 rounded-lg ${!currentAd.adType ? "opacity-50 pointer-events-none" : ""}`}>
           <h3 className="text-[13px] font-semibold text-[#072929] mb-3">
             Landing Page {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" ? "" : "(Optional)"}
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+          <div className="flex items-end gap-3">
+            <div className="w-[180px]">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Page Type
               </label>
@@ -824,11 +824,11 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   handleChange("landingPage.pageType", value)
                 }
                 placeholder="Select page type"
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
                 disabled={!currentAd.adType}
               />
             </div>
-            <div>
+            <div className="flex-1 min-w-[200px]">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 URL {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" ? "*" : ""}
               </label>
@@ -838,7 +838,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 onChange={(e) => handleChange("landingPage.url", e.target.value)}
                 placeholder="https://www.amazon.com/s?me=TEST"
                 disabled={!currentAd.adType}
-                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                   !currentAd.adType ? "opacity-50 cursor-not-allowed border-gray-200" : 
                   (currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" && errors.landingPageUrl) ? "border-red-500" : "border-gray-200"
                 }`}
@@ -861,7 +861,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     handleArrayChange("landingPage.asins", index, e.target.value)
                   }
                   placeholder="B01EXAMPLE"
-                  className="flex-1 bg-white px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                 />
                 <button
                   type="button"
@@ -883,7 +883,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         </div>
 
         {/* Creative Section */}
-        <div className="mb-4 p-3 bg-white border border-gray-200 rounded-lg">
+        <div className="mb-4 p-3  border border-gray-200 rounded-lg">
           <h3 className="text-[13px] font-semibold text-[#072929] mb-3">
             Creative (Optional)
           </h3>
@@ -906,7 +906,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         parseInt(e.target.value) || 0
                       )
                     }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                    className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                   />
                 </div>
                 <div>
@@ -920,7 +920,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         parseInt(e.target.value) || 0
                       )
                     }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                    className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                   />
                 </div>
                 <div>
@@ -934,7 +934,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         parseInt(e.target.value) || 100
                       )
                     }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                    className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                   />
                 </div>
                 <div>
@@ -948,7 +948,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         parseInt(e.target.value) || 100
                       )
                     }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                    className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                   />
                 </div>
               </div>
@@ -968,7 +968,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     value={currentAd.creative?.brandName || ""}
                     onChange={(e) => handleChange("creative.brandName", e.target.value)}
                     placeholder="My Brand"
-                    className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className="w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                   />
                 </div>
                 <div>
@@ -1009,7 +1009,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         handleChange("creative.brandLogoAssetID", value);
                       }}
                       placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                      buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] flex-shrink-0 truncate"
+                      buttonClassName="edit-button w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] flex-shrink-0 truncate"
                       menuClassName="max-w-[300px]"
                       optionClassName="truncate"
                       renderOption={(option, isSelected) => (
@@ -1043,7 +1043,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     value={currentAd.creative?.headline || ""}
                     onChange={(e) => handleChange("creative.headline", e.target.value)}
                     placeholder="Shop Our Best Products"
-                    className="bg-white w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className="w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                   />
                 </div>
               </div>
@@ -1061,7 +1061,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     value={currentAd.creative?.brandName || ""}
                     onChange={(e) => handleChange("creative.brandName", e.target.value)}
                     placeholder="My Brand"
-                    className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                       errors.brandName ? "border-red-500" : "border-gray-200"
                     }`}
                   />
@@ -1081,7 +1081,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         handleChange("creative.brandLogoAssetID", e.target.value)
                       }
                       placeholder="amzn1.assetlibrary.asset1..."
-                      className={`flex-1 bg-white px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                      className={`flex-1 w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                         errors.brandLogoAssetID ? "border-red-500" : "border-gray-200"
                       }`}
                     />
@@ -1109,7 +1109,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         handleChange("creative.brandLogoAssetID", value);
                       }}
                       placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                      buttonClassName="px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] flex-shrink-0 truncate"
+                      buttonClassName="edit-button w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] flex-shrink-0 truncate"
                       menuClassName="max-w-[300px]"
                       optionClassName="truncate"
                       renderOption={(option, isSelected) => (
@@ -1146,7 +1146,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     value={currentAd.creative?.headline || ""}
                     onChange={(e) => handleChange("creative.headline", e.target.value)}
                     placeholder="Shop Our Best Products"
-                    className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                       errors.headline ? "border-red-500" : "border-gray-200"
                     }`}
                   />
@@ -1167,7 +1167,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     <input
                       type="text"
                       placeholder="amzn1.assetlibrary.asset1..."
-                      className="flex-1 bg-white px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                      className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -1229,7 +1229,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         }
                       }}
                       placeholder={assetsLoading ? "Loading..." : "Select Video Asset"}
-                      buttonClassName="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px]"
+                      buttonClassName="edit-button w-full flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px]"
                       menuClassName="min-w-[400px]"
                       optionClassName="truncate"
                       renderOption={(option, isSelected) => (
@@ -1302,7 +1302,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     <input
                       type="text"
                       placeholder="amzn1.assetlibrary.asset1..."
-                      className="flex-1 bg-white px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                      className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -1364,7 +1364,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         }
                       }}
                       placeholder={assetsLoading ? "Loading..." : "Select Video Asset"}
-                      buttonClassName="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px]"
+                      buttonClassName="edit-button w-full flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 min-w-[400px]"
                       menuClassName="min-w-[400px]"
                       optionClassName="truncate"
                       renderOption={(option, isSelected) => (
@@ -1437,7 +1437,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                     handleArrayChange("creative.asins", index, e.target.value)
                   }
                   placeholder="B01EXAMPLE"
-                  className="flex-1 bg-white px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                 />
                 <button
                   type="button"
@@ -1532,7 +1532,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               {(currentAd.creative?.customImages || []).map((image, index) => (
               <div
                 key={index}
-                className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                className="mb-4 p-3  border border-gray-200 rounded-lg"
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11.2px] font-semibold text-[#072929]">
@@ -1559,7 +1559,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                           handleCustomImageChange(index, "assetId", e.target.value)
                         }
                         placeholder="amzn1.assetlibrary.asset1..."
-                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                        className="flex-1 w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                       />
                       <Dropdown<string>
                         options={assets
@@ -1584,7 +1584,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                           handleCustomImageChange(index, "assetId", value)
                         }
                         placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                        buttonClassName="px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] truncate"
+                        buttonClassName="edit-button px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] truncate"
                         menuClassName="max-w-[300px]"
                         optionClassName="truncate"
                         renderOption={(option, isSelected) => (
@@ -1620,7 +1620,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         handleCustomImageChange(index, "url", e.target.value)
                       }
                       placeholder="https://example.com/image.png"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                      className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                     />
                   </div>
                 </div>
@@ -1639,7 +1639,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         onChange={(e) =>
                           handleCustomImageChange(index, "crop.top", parseInt(e.target.value) || 0)
                         }
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                        className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
                       />
                     </div>
                     <div>
@@ -1652,7 +1652,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         onChange={(e) =>
                           handleCustomImageChange(index, "crop.left", parseInt(e.target.value) || 0)
                         }
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                        className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
                       />
                     </div>
                     <div>
@@ -1665,7 +1665,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         onChange={(e) =>
                           handleCustomImageChange(index, "crop.width", parseInt(e.target.value) || 100)
                         }
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                        className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
                       />
                     </div>
                     <div>
@@ -1678,7 +1678,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                         onChange={(e) =>
                           handleCustomImageChange(index, "crop.height", parseInt(e.target.value) || 100)
                         }
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded text-[10px]"
+                        className="w-full campaign-input px-2 py-1.5 border border-gray-200 rounded text-[10px]"
                       />
                     </div>
                   </div>
