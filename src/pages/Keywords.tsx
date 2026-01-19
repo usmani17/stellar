@@ -1234,7 +1234,7 @@ export const Keywords: React.FC = () => {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                  className="edit-button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowBulkActions((prev) => !prev);
@@ -1309,7 +1309,7 @@ export const Keywords: React.FC = () => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="edit-button"
                     onClick={(e) => {
                       if (exportLoading) return;
                       e.stopPropagation();
@@ -1734,7 +1734,7 @@ export const Keywords: React.FC = () => {
                     <thead>
                       <tr className="border-b border-[#e8e8e3]">
                         {/* Checkbox Header */}
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                        <th className="table-header w-[35px]">
                           <div className="flex items-center justify-center">
                             <Checkbox
                               checked={allSelected}
@@ -1747,7 +1747,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Ad Group Name */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[150px] max-w-[200px]`}
+                          className={`table-header cursor-pointer hover:bg-gray-50 min-w-[150px] max-w-[200px]`}
                           onClick={() => handleSort("name")}
                         >
                           <div className="flex items-center gap-1">
@@ -1758,7 +1758,7 @@ export const Keywords: React.FC = () => {
 
                         {/* State */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[115px]`}
+                          className={`table-header cursor-pointer hover:bg-gray-50 min-w-[115px]`}
                           onClick={() => handleSort("status")}
                         >
                           <div className="flex items-center gap-1">
@@ -1769,7 +1769,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Keyword Bid */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("bid")}
                         >
                           <div className="flex items-center gap-1">
@@ -1779,23 +1779,23 @@ export const Keywords: React.FC = () => {
                         </th>
 
                         {/* Campaign Name */}
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[150px] max-w-[200px]">
+                        <th className="table-header min-w-[150px] max-w-[200px]">
                           Campaign Name
                         </th>
 
                         {/* Profile */}
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Profile
                         </th>
 
                         {/* Country */}
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[100px]">
+                        <th className="table-header min-w-[100px]">
                           Country
                         </th>
 
                         {/* Type */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("type")}
                         >
                           <div className="flex items-center gap-1">
@@ -1806,7 +1806,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Spends */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("spends")}
                         >
                           <div className="flex items-center gap-1">
@@ -1817,7 +1817,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Sales */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("sales")}
                         >
                           <div className="flex items-center gap-1">
@@ -1828,7 +1828,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Impressions */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("impressions")}
                         >
                           <div className="flex items-center gap-1">
@@ -1839,7 +1839,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Clicks */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("clicks")}
                         >
                           <div className="flex items-center gap-1">
@@ -1850,7 +1850,7 @@ export const Keywords: React.FC = () => {
 
                         {/* CTR */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("ctr")}
                         >
                           <div className="flex items-center gap-1">
@@ -1861,7 +1861,7 @@ export const Keywords: React.FC = () => {
 
                         {/* ACOS */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("acos")}
                         >
                           <div className="flex items-center gap-1">
@@ -1872,7 +1872,7 @@ export const Keywords: React.FC = () => {
 
                         {/* ROAS */}
                         <th
-                          className={`text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50`}
                           onClick={() => handleSort("roas")}
                         >
                           <div className="flex items-center gap-1">
@@ -1885,34 +1885,34 @@ export const Keywords: React.FC = () => {
                     <tbody>
                       {/* Summary Row */}
                       {summary && (
-                        <tr className="bg-[#f5f5f0] font-semibold">
-                          <td className="py-[10px] px-[10px]"></td>
-                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                        <tr className="table-summary-row">
+                          <td className="table-cell"></td>
+                          <td className="table-cell table-text leading-[1.26]">
                             Total ({summary.total_keywords})
                           </td>
-                          <td className="py-[10px] px-[10px]"></td>
-                          <td className="py-[10px] px-[10px]"></td>
-                          <td className="py-[10px] px-[10px]"></td>
-                          <td className="py-[10px] px-[10px]"></td>
-                          <td className="py-[10px] px-[10px]"></td>
-                          <td className="py-[10px] px-[10px]"></td>
-                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell"></td>
+                          <td className="table-cell"></td>
+                          <td className="table-cell"></td>
+                          <td className="table-cell"></td>
+                          <td className="table-cell"></td>
+                          <td className="table-cell"></td>
+                          <td className="table-cell table-text leading-[1.26]">
                             {formatCurrency(summary.total_spends)}
                           </td>
-                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {formatCurrency(summary.total_sales)}
                           </td>
-                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.total_impressions.toLocaleString()}
                           </td>
-                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.total_clicks.toLocaleString()}
                           </td>
-                          <td className="py-[10px] px-[10px]"></td>
-                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell"></td>
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.avg_acos.toFixed(2)}%
                           </td>
-                          <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                          <td className="table-cell table-text leading-[1.26]">
                             {summary.avg_roas.toFixed(2)}x
                           </td>
                         </tr>
@@ -1933,7 +1933,7 @@ export const Keywords: React.FC = () => {
                             } transition-colors`}
                           >
                             {/* Checkbox */}
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <div className="flex items-center justify-center">
                                 <Checkbox
                                   checked={selectedKeywords.has(
@@ -1962,14 +1962,14 @@ export const Keywords: React.FC = () => {
                             </td>
 
                             {/* Keyword Name */}
-                            <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] text-left truncate block w-full">
+                            <td className="table-cell min-w-[150px] max-w-[200px]">
+                              <span className="table-text leading-[1.26] text-left truncate block w-full">
                                 {keyword.name || "Unnamed Keyword"}
                               </span>
                             </td>
 
                             {/* State */}
-                            <td className="py-[10px] px-[10px] min-w-[115px]">
+                            <td className="table-cell min-w-[115px]">
                               {editingCell?.keywordId === keyword.keywordId &&
                               editingCell?.field === "status" ? (
                                 <Dropdown
@@ -2045,7 +2045,7 @@ export const Keywords: React.FC = () => {
                             </td>
 
                             {/* Keyword Bid */}
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               {editingCell?.keywordId === keyword.keywordId &&
                               editingCell?.field === "bid" ? (
                                 <div className="flex items-center justify-center">
@@ -2075,7 +2075,7 @@ export const Keywords: React.FC = () => {
                                   onClick={() =>
                                     startInlineEdit(keyword, "bid")
                                   }
-                                  className="text-[13.3px] text-[#0b0f16] leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
+                                  className="table-text leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
                                 >
                                   {keyword.bid || "$0.00"}
                                 </p>
@@ -2083,7 +2083,7 @@ export const Keywords: React.FC = () => {
                             </td>
 
                             {/* Campaign Name */}
-                            <td className="py-[10px] px-[10px] min-w-[150px] max-w-[200px]">
+                            <td className="table-cell min-w-[150px] max-w-[200px]">
                               <button
                                 onClick={() => {
                                   if (accountId && keyword.campaignId) {
@@ -2099,15 +2099,15 @@ export const Keywords: React.FC = () => {
                                     );
                                   }
                                 }}
-                                className="text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate block w-full"
+                                className="table-edit-link block w-full"
                               >
                                 {keyword.campaign_name || "—"}
                               </button>
                             </td>
 
                             {/* Profile */}
-                            <td className="py-[10px] px-[10px] min-w-[150px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                            <td className="table-cell min-w-[150px]">
+                              <span className="table-text leading-[1.26] whitespace-nowrap">
                                 {keyword.profile_name &&
                                 keyword.profile_name.trim() !== ""
                                   ? keyword.profile_name
@@ -2116,8 +2116,8 @@ export const Keywords: React.FC = () => {
                             </td>
 
                             {/* Country */}
-                            <td className="py-[10px] px-[10px] min-w-[100px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                            <td className="table-cell min-w-[100px]">
+                              <span className="table-text leading-[1.26] whitespace-nowrap">
                                 {keyword.profile_country_code &&
                                 keyword.profile_country_code.trim() !== ""
                                   ? keyword.profile_country_code
@@ -2126,50 +2126,50 @@ export const Keywords: React.FC = () => {
                             </td>
 
                             {/* Type */}
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.type || "SP"}
                               </span>
                             </td>
 
                             {/* Spends */}
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.spends || "$0.00"}
                               </span>
                             </td>
 
                             {/* Sales */}
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.sales || "$0.00"}
                               </span>
                             </td>
 
                             {/* Impressions */}
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {(keyword.impressions || 0).toLocaleString()}
                               </span>
                             </td>
 
                             {/* Clicks */}
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {(keyword.clicks || 0).toLocaleString()}
                               </span>
                             </td>
 
                             {/* CTR */}
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.ctr || "0.00%"}
                               </span>
                             </td>
 
                             {/* ACOS */}
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.acos
                                   ? `${parseFloat(keyword.acos).toFixed(2)}%`
                                   : "0.00%"}
@@ -2177,8 +2177,8 @@ export const Keywords: React.FC = () => {
                             </td>
 
                             {/* ROAS */}
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {keyword.roas
                                   ? `${parseFloat(keyword.roas).toFixed(2)} x`
                                   : "0.00 x"}
@@ -2186,7 +2186,7 @@ export const Keywords: React.FC = () => {
                             </td>
 
                             {/* Delete Icon - Show on hover */}
-                            <td className="py-[10px] px-[10px] w-[40px] relative group">
+                            <td className="table-cell w-[40px] relative group">
                               <button
                                 type="button"
                                 onClick={(e) => {

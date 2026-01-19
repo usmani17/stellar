@@ -1155,8 +1155,8 @@ export const Campaigns: React.FC = () => {
             : "";
           if (newTargetingTypeStr) {
             updatePayload.targetingType = newTargetingTypeStr as
-            | "AUTO"
-            | "MANUAL";
+              | "AUTO"
+              | "MANUAL";
           }
         }
 
@@ -2298,7 +2298,7 @@ export const Campaigns: React.FC = () => {
             {/* Search, Edit and Export Buttons - Above Table */}
             <div className="flex items-center justify-end gap-2">
               {/* Search Box */}
-              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[8px] flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
+              <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
                 <div className="relative shrink-0 size-[12px]">
                   <svg
                     width="12"
@@ -2349,7 +2349,7 @@ export const Campaigns: React.FC = () => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="!h-10 px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
+                    className="edit-button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowBulkActions((prev) => !prev);
@@ -2422,7 +2422,7 @@ export const Campaigns: React.FC = () => {
                     <Button
                       type="button"
                       variant="ghost"
-                      className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="edit-button"
                       onClick={(e) => {
                         if (exportLoading) return;
                         e.stopPropagation();
@@ -3038,7 +3038,7 @@ export const Campaigns: React.FC = () => {
                       <thead>
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                          <th className="table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={
@@ -3068,7 +3068,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Campaign Name Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[300px] max-w-[400px] sticky left-[35px] z-30 border-r border-[#e8e8e3]"
+                            className="table-header min-w-[300px] max-w-[400px] table-sticky-first-column"
                             onClick={() => handleSort("campaign_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3079,7 +3079,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Profile Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
+                            className="table-header cursor-pointer hover:bg-gray-50 min-w-[200px]"
                             onClick={() => handleSort("profile_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3089,13 +3089,13 @@ export const Campaigns: React.FC = () => {
                           </th>
 
                           {/* Country Header */}
-                          <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] min-w-[100px]">
+                          <th className="table-header min-w-[100px]">
                             Country
                           </th>
 
                           {/* Campaign Type Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("type")}
                           >
                             <div className="flex items-center gap-1">
@@ -3106,7 +3106,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* State Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[115px]"
+                            className="table-header cursor-pointer hover:bg-gray-50 min-w-[115px]"
                             onClick={() => handleSort("status")}
                           >
                             <div className="flex items-center gap-1">
@@ -3117,7 +3117,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Budget Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("budget")}
                           >
                             <div className="flex items-center gap-1">
@@ -3128,7 +3128,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Budget Type Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("budgetType")}
                           >
                             <div className="flex items-center gap-1">
@@ -3139,7 +3139,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Start Date Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 whitespace-nowrap"
+                            className="table-header cursor-pointer hover:bg-gray-50 whitespace-nowrap"
                             onClick={() => handleSort("startDate")}
                           >
                             <div className="flex items-center gap-1">
@@ -3150,7 +3150,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Spends Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("spends")}
                           >
                             <div className="flex items-center gap-1">
@@ -3161,7 +3161,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Sales Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("sales")}
                           >
                             <div className="flex items-center gap-1">
@@ -3172,7 +3172,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Impressions Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("impressions")}
                           >
                             <div className="flex items-center gap-1">
@@ -3183,7 +3183,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Clicks Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("clicks")}
                           >
                             <div className="flex items-center gap-1">
@@ -3194,7 +3194,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* ACOS Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("acos")}
                           >
                             <div className="flex items-center gap-1">
@@ -3205,7 +3205,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* ROAS Header */}
                           <th
-                            className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                            className="table-header"
                             onClick={() => handleSort("roas")}
                           >
                             <div className="flex items-center gap-1">
@@ -3218,34 +3218,34 @@ export const Campaigns: React.FC = () => {
                       <tbody>
                         {/* Summary Row */}
                         {summary && (
-                          <tr className="bg-[#f5f5f0] font-semibold">
-                            <td className="py-[10px] px-[10px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] sticky left-[35px] z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                          <tr className="table-summary-row">
+                            <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                            <td className="table-cell table-sticky-first-column">
                               Total ({summary.total_campaigns})
                             </td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell table-text leading-[1.26]">
                               {formatCurrency(summary.total_spends)}
                             </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {formatCurrency(summary.total_sales)}
                             </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {summary.total_impressions.toLocaleString()}
                             </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {summary.total_clicks.toLocaleString()}
                             </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {summary.avg_acos.toFixed(2)}%
                             </td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell table-text leading-[1.26]">
                               {summary.avg_roas.toFixed(2)}x
                             </td>
                           </tr>
@@ -3257,16 +3257,12 @@ export const Campaigns: React.FC = () => {
                           return (
                             <tr
                               key={campaign.campaignId}
-                              className={`group ${
-                                !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                              } ${
-                                isArchived
-                                  ? "bg-gray-100 opacity-60"
-                                  : "hover:bg-gray-100"
-                              } transition-colors`}
+                              className={`table-row group ${
+                                isArchived ? "bg-gray-100 opacity-60" : ""
+                              }`}
                             >
                               {/* Checkbox */}
-                              <td className="py-[10px] px-[10px] sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                              <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                 <div className="flex items-center justify-center">
                                   <Checkbox
                                     checked={selectedCampaigns.has(
@@ -3297,7 +3293,7 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Campaign Name (with edit icon) */}
-                              <td className="py-[10px] px-[10px] min-w-[300px] max-w-[400px] sticky left-[35px] z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                              <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-gray-100">
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
@@ -3305,7 +3301,7 @@ export const Campaigns: React.FC = () => {
                                       e.stopPropagation();
                                       handleOpenEditCampaign(campaign);
                                     }}
-                                    className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60"
+                                    className="table-edit-icon"
                                     title="Edit campaign"
                                     disabled={
                                       editLoadingCampaignId ===
@@ -3366,7 +3362,7 @@ export const Campaigns: React.FC = () => {
                                         );
                                       }
                                     }}
-                                    className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
+                                    className="table-edit-link"
                                   >
                                     {campaign.campaign_name ||
                                       "Unnamed Campaign"}
@@ -3375,8 +3371,8 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Profile */}
-                              <td className="py-[10px] px-[10px] min-w-[200px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                              <td className="table-cell min-w-[200px]">
+                                <span className="table-text leading-[1.26] whitespace-nowrap">
                                   {campaign.profile_name &&
                                   campaign.profile_name.trim() !== ""
                                     ? campaign.profile_name
@@ -3385,8 +3381,8 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Country */}
-                              <td className="py-[10px] px-[10px] min-w-[100px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                              <td className="table-cell min-w-[100px]">
+                                <span className="table-text leading-[1.26] whitespace-nowrap">
                                   {campaign.profile_country_code &&
                                   campaign.profile_country_code.trim() !== ""
                                     ? campaign.profile_country_code
@@ -3395,14 +3391,14 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Type */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <td className="table-cell">
+                                <span className="table-text leading-[1.26]">
                                   {campaign.type || "SP"}
                                 </span>
                               </td>
 
                               {/* Status */}
-                              <td className="py-[10px] px-[10px] min-w-[115px]">
+                              <td className="table-cell min-w-[115px]">
                                 {editingCell?.campaignId ===
                                   campaign.campaignId &&
                                 editingCell?.field === "status" ? (
@@ -3477,7 +3473,7 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Daily Budget */}
-                              <td className="py-[10px] px-[10px]">
+                              <td className="table-cell">
                                 {editingCell?.campaignId ===
                                   campaign.campaignId &&
                                 editingCell?.field === "budget" ? (
@@ -3515,7 +3511,7 @@ export const Campaigns: React.FC = () => {
                                       }
                                       startInlineEdit(campaign, "budget");
                                     }}
-                                    className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
+                                    className={`table-text leading-[1.26] rounded px-2 py-1 ${
                                       (
                                         campaign.status || "Enabled"
                                       ).toUpperCase() === "ARCHIVED"
@@ -3536,7 +3532,7 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Budget Type */}
-                              <td className="py-[10px] px-[10px]">
+                              <td className="table-cell">
                                 {editingCell?.campaignId ===
                                   campaign.campaignId &&
                                 editingCell?.field === "budgetType" ? (
@@ -3577,7 +3573,7 @@ export const Campaigns: React.FC = () => {
                                       }
                                       startInlineEdit(campaign, "budgetType");
                                     }}
-                                    className={`text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 ${
+                                    className={`table-text leading-[1.26] rounded px-2 py-1 ${
                                       (
                                         campaign.status || "Enabled"
                                       ).toUpperCase() === "ARCHIVED"
@@ -3598,8 +3594,8 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Start Date */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                              <td className="table-cell">
+                                <span className="table-text leading-[1.26] whitespace-nowrap">
                                   {campaign.startDate
                                     ? new Date(
                                         campaign.startDate
@@ -3613,43 +3609,43 @@ export const Campaigns: React.FC = () => {
                               </td>
 
                               {/* Spends */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <td className="table-cell">
+                                <span className="table-text leading-[1.26]">
                                   {formatCurrency(campaign.spends || 0)}
                                 </span>
                               </td>
 
                               {/* Sales */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <td className="table-cell">
+                                <span className="table-text leading-[1.26]">
                                   {formatCurrency(campaign.sales || 0)}
                                 </span>
                               </td>
 
                               {/* Impressions */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <td className="table-cell">
+                                <span className="table-text leading-[1.26]">
                                   {(campaign.impressions || 0).toLocaleString()}
                                 </span>
                               </td>
 
                               {/* Clicks */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <td className="table-cell">
+                                <span className="table-text leading-[1.26]">
                                   {(campaign.clicks || 0).toLocaleString()}
                                 </span>
                               </td>
 
                               {/* ACOS */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <td className="table-cell">
+                                <span className="table-text leading-[1.26]">
                                   {formatPercentage(campaign.acos || 0)}
                                 </span>
                               </td>
 
                               {/* ROAS */}
-                              <td className="py-[10px] px-[10px]">
-                                <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                              <td className="table-cell">
+                                <span className="table-text leading-[1.26]">
                                   {campaign.roas
                                     ? `${campaign.roas.toFixed(2)} x`
                                     : "0.00 x"}

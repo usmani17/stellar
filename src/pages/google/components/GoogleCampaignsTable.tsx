@@ -181,7 +181,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       minWidth: "min-w-[300px]",
       maxWidth: "max-w-[400px]",
       editable: false,
-      navigateTo: (row: GoogleCampaign, accountId: string) => 
+      navigateTo: (row: GoogleCampaign, accountId: string) =>
         `/accounts/${accountId}/google-campaigns/${row.campaign_id}`,
       getValue: (row: GoogleCampaign) => row.campaign_name || "Unnamed Campaign",
       render: (value: any, row: GoogleCampaign) => {
@@ -194,7 +194,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
                 e.stopPropagation();
                 navigate(navPath);
               }}
-              className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate flex-1 text-left hover:text-[#136d6d] hover:underline cursor-pointer"
+              className="table-edit-link"
             >
               {value}
             </button>
@@ -205,7 +205,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
                   e.stopPropagation();
                   onEditCampaign(row);
                 }}
-                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60 flex-shrink-0"
+                className="table-edit-icon flex-shrink-0"
                 title="Edit campaign"
                 disabled={editLoadingCampaignId === row.campaign_id}
               >
@@ -246,9 +246,9 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       type: "text",
       sortable: true,
       render: (_value: any, row: GoogleCampaign) => (
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] font-semibold text-[#7a4dff]">
+                        <span className="table-text leading-[1.26] font-semibold text-[#7a4dff]">
           {getChannelTypeLabel(row.advertising_channel_type) || "—"}
-                        </span>
+        </span>
       ),
       getValue: (row: GoogleCampaign) => row.advertising_channel_type,
     },
@@ -261,9 +261,10 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       maxWidth: "max-w-[140px]",
       editable: true,
       statusOptions: [
-                              { value: "ENABLED", label: "Enabled" },
-                              { value: "PAUSED", label: "Paused" },
-                              { value: "REMOVED", label: "Removed" },
+        { value: "ENABLED", label: "Enabled" },
+        { value: "PAUSED", label: "Paused" },
+        // REMOVED is read-only - cannot be set via update operation
+        // It only appears when filtering/displaying campaigns that have been deleted
       ],
       getValue: (row: GoogleCampaign) => row.status || "ENABLED",
     },
@@ -402,7 +403,7 @@ export const GoogleCampaignsTable: React.FC<GoogleCampaignsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleCampaign) => (row as any).acos || 0,
     },
-  ], [getChannelTypeLabel]);
+  ], [getChannelTypeLabel, accountId]);
 
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, _field: string) => {

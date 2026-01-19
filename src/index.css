@@ -353,3 +353,469 @@ body input[type="submit"]:disabled {
   );
 }
 
+/* ============================================
+   Table Cell Styling
+   ============================================ */
+
+/* Standard table cell padding - used across all tables */
+.table-cell {
+  padding: 10px;
+}
+
+/* Table header cell padding */
+.table-header-cell {
+  padding: 10px;
+}
+
+/* Table summary row styling - used for total/summary rows */
+.table-summary-row {
+  background-color: #f5f5f0;
+  font-weight: 600;
+}
+
+/* First sticky column after checkbox - used in all data tables */
+.table-sticky-first-column {
+  position: sticky;
+  left: 35px;
+  z-index: 30;
+  background-color: #f5f5f0;
+  border-right: 1px solid #e8e8e3;
+  font-size: 13.3px;
+  color: #0b0f16;
+  line-height: 1.26;
+}
+
+/* Table header cell styling - used for all table headers (th) */
+.table-header {
+  text-align: left;
+  padding: 10px;
+  font-size: 13.3px;
+  font-weight: 500;
+  color: #29303f;
+  line-height: 16.2px;
+  cursor: pointer;
+  background-color: #FEFEFB;
+}
+
+.table-header:hover {
+  background-color: #f9fafb;
+}
+
+/* Edit button/link styling - used for clickable text elements in tables */
+.table-edit-link {
+  flex: 1;
+  font-size: 13.3px;
+  color: #0b0f16;
+  line-height: 1.26;
+  text-align: left;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.table-edit-link:hover {
+  color: #136d6d;
+  text-decoration: underline;
+}
+
+/* Edit icon button - appears on hover in table rows */
+.table-edit-icon {
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.group:hover .table-edit-icon {
+  opacity: 1;
+}
+
+.table-edit-icon:hover {
+  background-color: #f3f4f6;
+}
+
+.table-edit-icon:disabled {
+  opacity: 0.6;
+}
+
+/* Checkbox button base styling - used for all checkbox buttons in data tables */
+.checkbox-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #A3A8B3;
+  transition: background-color 0.2s, border-color 0.2s;
+  outline: none;
+  cursor: pointer;
+}
+
+.checkbox-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px #fff, 0 0 0 3px #136d6d;
+}
+
+.checkbox-button:disabled {
+  cursor: not-allowed;
+}
+
+/* Table row styling - applied to all data table rows (except header and summary rows) */
+.table-row {
+  border-bottom: 1px solid #e8e8e3;
+  transition: background-color 0.2s;
+}
+
+.table-row:hover {
+  background-color: #f3f4f6;
+}
+
+/* Last row in table - remove bottom border */
+.table-row:last-child {
+  border-bottom: none;
+}
+
+/* Status badge base styling */
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 100%;
+}
+
+/* Enabled state */
+.status-badge-enabled {
+  background-color: rgba(30, 199, 122, 0.1);
+  color: #1ec77a;
+}
+
+/* Paused state */
+.status-badge-paused {
+  background-color: rgba(255, 182, 92, 0.1);
+  color: #ffb65c;
+}
+
+/* Archived state */
+.status-badge-archived {
+  background-color: rgba(163, 168, 179, 0.1);
+  color: #a3a8b3;
+}
+
+/* Common text styling - used for table cells, spans, and divs */
+.table-text {
+  font-size: 13.3px;
+  color: #0b0f16;
+}
+
+/* Edit button styling - used for all edit buttons in the application */
+/* Overrides Button component's default styles */
+.edit-button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  height: 40px !important;
+  padding: 8px 12px !important;
+  background-color: #FEFEFB !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  font-size: 10.64px !important;
+  font-weight: 400 !important;
+  color: #072929 !important;
+  transition: background-color 0.2s, border-color 0.2s !important;
+  cursor: pointer !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.edit-button:hover {
+  border-color: #136D6D !important;
+  background-color: #f5f5f0 !important;
+  box-shadow: none !important;
+}
+
+.edit-button:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d !important;
+}
+
+.edit-button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Larger edit button variant - for buttons with px-4 py-2 and text-[16px] */
+/* Overrides Button component's default styles */
+.edit-button-large {
+  display: flex !important;
+  align-items: center !important;
+  padding: 8px 16px !important;
+  background-color: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: #072929 !important;
+  transition: background-color 0.2s, border-color 0.2s !important;
+  cursor: pointer !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.edit-button-large:hover {
+  background-color: #f9fafb !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+.edit-button-large:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d !important;
+}
+
+.edit-button-large:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Button base styles - used for all button variants */
+.btn {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  outline: none;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Button variants */
+.btn-primary {
+  background-color: #136d6d;
+  color: #ffffff;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #0e5a5a;
+  color: #ffffff;
+}
+
+.btn-primary:focus {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d;
+}
+
+.btn-secondary {
+  background-color: #FEFEFB;
+  color: #072929;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background-color: #f5f5f0;
+}
+
+.btn-secondary:focus {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: #136d6d;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-outline:hover {
+  background-color: #f9fafb;
+}
+
+.btn-outline:focus {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: #072929;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-ghost:hover {
+  background-color: #f9fafb;
+}
+
+.btn-ghost:focus {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d;
+}
+
+/* Button sizes */
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.btn-md {
+  padding: 8px 16px;
+  font-size: 16px;
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 18px;
+}
+
+/* Create entity button - used for "Create Campaign", "Create Target", "Create Keyword", etc. */
+.create-entity-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 8px 12px;
+  background-color: #136D6D;
+  color: #ffffff;
+  border: 1px solid #136D6D;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.create-entity-button:hover {
+  background-color: #0e5a5a;
+  color: #ffffff;
+}
+
+.create-entity-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cancel/Clear button styling - used for cancel and clear buttons */
+.cancel-button {
+  padding: 8px 16px;
+  color: #556179;
+  background-color: #FEFEFB;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 11.2px;
+  transition: background-color 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.cancel-button:hover {
+  border-color: #136D6D !important;
+  background-color: #f5f5f0 !important;
+  box-shadow: none !important;
+
+}
+
+.cancel-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Apply/Add Filter button styling - used for primary action buttons in filter panels */
+.apply-button {
+  padding: 8px 16px;
+  background-color: #136D6D;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 11.2px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.apply-button:hover {
+  background-color: #0e5a5a;
+  color: #ffffff;
+}
+
+.apply-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Add Filter button variant with slightly more padding */
+.apply-button-add {
+  padding: 10px 16px;
+  background-color: #136D6D;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 11.2px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  white-space: nowrap;
+  height: 40px;
+}
+
+.apply-button-add:hover {
+  background-color: #0e5a5a;
+  color: #ffffff;
+}
+
+.apply-button-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Campaign input field styling - used for all input fields on campaign creation page */
+.campaign-input {
+  background-color: #FEFEFB;
+  padding: 10px 16px;
+  height: 40px;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px;
+  font-size: 10.64px !important;
+  color: #072929;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.campaign-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px #136D6D;
+  border-color: #136D6D;
+}
+
+.campaign-input::placeholder {
+  color: #9ca3af;
+}
+
+/* Search input container - used for search boxes with hover and focus effects */
+.search-input-container {
+  background-color: #f0f0ed;
+  border: 1px solid #e8e8e3;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input-container:hover {
+  border-color: #136D6D;
+}
+
+.search-input-container:focus-within {
+  border-color: #136D6D;
+  box-shadow: 0 0 0 2px rgba(19, 109, 109, 0.1);
+}
+
+.search-input-container input {
+  background-color: transparent;
+  border: none;
+  outline: none;
+}
+
+.search-input-container input:focus {
+  outline: none;
+}
+

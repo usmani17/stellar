@@ -45,14 +45,14 @@ export const Checkbox: React.FC<CheckboxProps> = ({
       if (checked || indeterminate) {
         return "bg-forest-f40 border-forest-f40 opacity-50";
       }
-      return "border-[#A3A8B3]";
+      return "";
     }
 
     if (checked || indeterminate) {
       return "bg-forest-f40 border-forest-f40";
     }
 
-    return "border-[#A3A8B3]";
+    return "";
   };
 
   const checkboxId =
@@ -68,11 +68,9 @@ export const Checkbox: React.FC<CheckboxProps> = ({
         disabled={disabled}
         onClick={handleClick}
         className={cn(
-          "relative inline-flex items-center justify-center border transition-colors focus:outline-none focus:ring-2 focus:ring-forest-f40 focus:ring-offset-1",
+          "checkbox-button",
           sizeClasses[size],
           getStateClasses(),
-          disabled && "cursor-not-allowed",
-          !disabled && "cursor-pointer",
           !disabled &&
             (checked || indeterminate) &&
             "hover:bg-[#169aa3] hover:border-[#169aa3]"

@@ -21,10 +21,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
   return (
     <>
       {/* Add Filter Button */}
-      <button
-        onClick={onToggle}
-        className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
-      >
+      <button onClick={onToggle} className="edit-button">
         <svg
           className="w-5 h-5 text-[#072929]"
           fill="none"
@@ -44,7 +41,7 @@ export const FilterSection: React.FC<FilterSectionProps> = ({
         <svg
           className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
             isOpen ? "rotate-180" : ""
-            }`}
+          }`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -81,17 +78,17 @@ export const FilterSectionPanel: React.FC<{
   accountId,
   channelType,
 }) => {
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    return (
-      <FilterPanel
-        isOpen={true}
-        onClose={onToggle}
-        onApply={onApply}
-        initialFilters={initialFilters || filters}
-        filterFields={filterFields}
-        accountId={accountId}
-        channelType={channelType}
-      />
-    );
-  };
+  return (
+    <FilterPanel
+      isOpen={true}
+      onClose={onToggle}
+      onApply={onApply}
+      initialFilters={initialFilters || filters}
+      filterFields={filterFields}
+      accountId={accountId}
+      channelType={channelType}
+    />
+  );
+};

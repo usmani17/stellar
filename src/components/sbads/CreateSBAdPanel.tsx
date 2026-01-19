@@ -49,6 +49,7 @@ interface CreateSBAdPanelProps {
   adgroups: Array<{ adGroupId: string; name: string }>;
   campaignId: string;
   accountId?: number;
+  profileId?: string; // Profile ID to filter assets
   loading?: boolean;
   submitError?: string | null;
   fieldErrors?: Record<string, string>;
@@ -90,6 +91,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   onSubmit,
   adgroups,
   accountId,
+  profileId,
   loading = false,
   submitError = null,
   fieldErrors = {},
@@ -105,7 +107,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     if (isOpen && accountId) {
       loadAssets();
     }
-  }, [isOpen, accountId]);
+  }, [isOpen, accountId, profileId]);
 
   const loadAssets = async () => {
     if (!accountId) return;
@@ -115,6 +117,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       const data = await campaignsService.getAssets(accountId, {
         page: 1,
         page_size: 100, // Get all assets for dropdown
+        ...(profileId && { profileId }), // Include profileId if available to filter assets
       });
       setAssets(data.assets || []);
     } catch (error) {
@@ -1723,16 +1726,16 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-[#e8e8e3]">
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    <th className="table-header">
                       Ad Name
                     </th>
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    <th className="table-header">
                       State
                     </th>
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    <th className="table-header">
                       Ad Group
                     </th>
-                    <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                    <th className="table-header">
                       Action
                     </th>
                   </tr>
@@ -1747,22 +1750,22 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                           : ""
                       } hover:bg-gray-50 transition-colors`}
                     >
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {ad.name}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {ad.state}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell">
+                        <span className="table-text leading-[1.26]">
                           {getAdGroupName(ad.adGroupId)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <button
                           type="button"
                           onClick={() => handleRemoveAd(index)}

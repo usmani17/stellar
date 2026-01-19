@@ -236,7 +236,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                     <thead>
                         <tr className="border-b border-[#e8e8e3]">
                             {/* Checkbox Header */}
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                            <th className="table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                                 <div className="flex items-center justify-center">
                                     <Checkbox
                                         checked={allSelected}
@@ -247,7 +247,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 w-[400px] sticky left-[35px] z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"
+                                className="table-header cursor-pointer hover:bg-gray-50 w-[400px] table-sticky-first-column"
                                 onClick={() => onSort?.("campaign_name")}
                             >
                                 <div className="flex items-center gap-1">
@@ -256,7 +256,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[200px]"
+                                className="table-header cursor-pointer hover:bg-gray-50 min-w-[200px]"
                                 onClick={() => onSort?.("profile_name")}
                             >
                                 <div className="flex items-center gap-1">
@@ -264,14 +264,14 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                     {getSortIcon("profile_name")}
                                 </div>
                             </th>
-                            <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[60px] whitespace-nowrap" onClick={() => onSort?.("objective_type")}>
+                            <th className="table-header cursor-pointer hover:bg-gray-50 min-w-[60px] whitespace-nowrap" onClick={() => onSort?.("objective_type")}>
                                 <div className="flex items-center gap-1">
                                     Type
                                     {getSortIcon("objective_type")}
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 min-w-[115px]"
+                                className="table-header cursor-pointer hover:bg-gray-50 min-w-[115px]"
                                 onClick={() => onSort?.("operation_status")}
                             >
                                 <div className="flex items-center gap-1">
@@ -280,7 +280,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                className="table-header"
                                 onClick={() => onSort?.("budget")}
                             >
                                 <div className="flex items-center gap-1">
@@ -289,7 +289,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                className="table-header"
                                 onClick={() => onSort?.("budgetType")}
                             >
                                 <div className="flex items-center gap-1">
@@ -301,7 +301,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                className="table-header"
                                 onClick={() => onSort?.("spends")}
                             >
                                 <div className="flex items-center gap-1">
@@ -310,7 +310,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                className="table-header"
                                 onClick={() => onSort?.("conversions")}
                             >
                                 <div className="flex items-center gap-1">
@@ -319,7 +319,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                className="table-header"
                                 onClick={() => onSort?.("cpa")}
                             >
                                 <div className="flex items-center gap-1">
@@ -328,7 +328,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                                className="table-header"
                                 onClick={() => onSort?.("roas")}
                             >
                                 <div className="flex items-center gap-1">
@@ -340,20 +340,20 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                     </thead>
                     <tbody>
                         {/* Summary Row */}
-                        <tr className="bg-[#f5f5f0] font-semibold">
-                            <td className="py-[10px] px-[10px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                            <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16] leading-[1.26] sticky left-[35px] z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                        <tr className="table-summary-row">
+                            <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                            <td className="table-cell table-sticky-first-column">
                                 Total ({campaigns.length})
                             </td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
-                            <td className="py-[10px] px-[10px]"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
+                            <td className="table-cell"></td>
                         </tr>
                         {campaigns.map((campaign, index) => {
                             const isLastRow = index === campaigns.length - 1;
@@ -361,14 +361,14 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                             return (
                                 <tr
                                     key={campaign.id}
-                                    className={`group ${!isLastRow ? "border-b border-[#e8e8e3]" : ""
-                                        } ${campaignIsDeleted
+                                    className={`table-row group ${
+                                        campaignIsDeleted
                                             ? "bg-gray-100 opacity-60"
-                                            : "hover:bg-gray-100"
-                                        } transition-colors`}
+                                            : ""
+                                    }`}
                                 >
                                     <td
-                                        className="py-[10px] px-[10px] sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]"
+                                        className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]"
                                         onClick={(e) => e.stopPropagation()}
                                     >
                                         <div className="flex items-center justify-center">
@@ -379,7 +379,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             />
                                         </div>
                                     </td>
-                                    <td className="py-[10px] px-[10px] w-[400px] sticky left-[35px] z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                                    <td className="table-cell table-sticky-first-column w-[400px] group-hover:bg-gray-100">
                                         <div className="flex items-center gap-2">
                                             <button
                                                 type="button"
@@ -389,7 +389,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                                         onEditCampaign(campaign);
                                                     }
                                                 }}
-                                                className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                className="table-edit-icon"
                                                 title="Edit campaign"
                                             >
                                                 <svg
@@ -408,25 +408,25 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             </button>
                                             <button
                                                 onClick={() => handleCampaignClick(campaign.campaign_id)}
-                                                className="flex-1 text-[13.3px] text-[#0b0f16] leading-[1.26] hover:text-[#136d6d] hover:underline cursor-pointer text-left truncate"
+                                                className="table-edit-link"
                                             >
                                                 {campaign.campaign_name || "Unnamed Campaign"}
                                             </button>
                                         </div>
                                     </td>
-                                    <td className="py-[10px] px-[10px] min-w-[200px] text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] whitespace-nowrap">
+                                    <td className="table-cell min-w-[200px] text-left">
+                                        <span className="table-text leading-[1.26] whitespace-nowrap">
                                             {campaign.profile_name && campaign.profile_name.trim() !== ""
                                                 ? campaign.profile_name
                                                 : "—"}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    <td className="table-cell text-left">
+                                        <span className="table-text leading-[1.26]">
                                             {getObjectiveLabel(campaign.objective_type)}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] min-w-[115px] text-left">
+                                    <td className="table-cell min-w-[115px] text-left">
                                         {/* Deleted campaigns cannot be edited - mimic Amazon archived behavior */}
                                         {campaignIsDeleted ? (
                                             <div
@@ -483,10 +483,10 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             </div>
                                         )}
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-left">
+                                    <td className="table-cell text-left">
                                         {/* Deleted campaigns cannot be edited - show budget only, mimic Amazon archived behavior */}
                                         {campaignIsDeleted ? (
-                                            <p className="text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 cursor-not-allowed opacity-60" title="Deleted campaigns cannot be modified.">
+                                            <p className="table-text leading-[1.26] rounded px-2 py-1 cursor-not-allowed opacity-60" title="Deleted campaigns cannot be modified.">
                                                 {formatCurrency(campaign.budget)}
                                             </p>
                                         ) : editingCell?.campaign_id === campaign.campaign_id && editingCell?.field === "budget" ? (
@@ -524,7 +524,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             </div>
                                         ) : (
                                             <p
-                                                className="text-[13.3px] text-[#0b0f16] leading-[1.26] rounded px-2 py-1 cursor-pointer hover:bg-gray-50"
+                                                className="table-text leading-[1.26] rounded px-2 py-1 cursor-pointer hover:bg-gray-50"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     if (onStartInlineEdit) {
@@ -536,28 +536,28 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                             </p>
                                         )}
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    <td className="table-cell text-left">
+                                        <span className="table-text leading-[1.26]">
                                             {formatBudgetType(campaign.budget_mode)}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    <td className="table-cell text-left">
+                                        <span className="table-text leading-[1.26]">
                                             {campaign.spend !== undefined && campaign.spend !== null ? formatCurrency(campaign.spend) : "—"}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    <td className="table-cell text-left">
+                                        <span className="table-text leading-[1.26]">
                                             {campaign.conversions !== undefined && campaign.conversions !== null ? campaign.conversions.toLocaleString() : "—"}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    <td className="table-cell text-left">
+                                        <span className="table-text leading-[1.26]">
                                             {campaign.cpa !== undefined && campaign.cpa !== null && campaign.cpa > 0 ? formatCurrency(campaign.cpa) : "—"}
                                         </span>
                                     </td>
-                                    <td className="py-[10px] px-[10px] text-left">
-                                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    <td className="table-cell text-left">
+                                        <span className="table-text leading-[1.26]">
                                             {campaign.roas !== undefined && campaign.roas !== null && campaign.roas > 0 ? campaign.roas.toFixed(2) : "—"}
                                         </span>
                                     </td>

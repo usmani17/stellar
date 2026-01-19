@@ -1,5 +1,5 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -9,13 +9,14 @@ import { Button } from "../../components/ui";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Banner } from "../../components/ui/Banner";
 import {
-  FilterPanel,
+  DynamicFilterPanel,
   type FilterValues,
-} from "../../components/filters/FilterPanel";
-import { campaignsService } from "../../services/campaigns";
+} from "../../components/filters/DynamicFilterPanel";
+import { googleAdwordsAdsService } from "../../services/googleAdwords/googleAdwordsAds";
+import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleAdsListTable } from "./components/GoogleAdsListTable";
-import type { GoogleAd } from "./components/tabs/types";
+import type { GoogleAd } from "./components/tabs/GoogleTypes";
 
 export const GoogleAds: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
@@ -58,6 +59,7 @@ export const GoogleAds: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const isLoadingRef = useRef(false);
 
   // Chart toggles
   const [chartToggles, setChartToggles] = useState({
@@ -79,6 +81,11 @@ export const GoogleAds: React.FC = () => {
   const [pendingStatusAction, setPendingStatusAction] = useState<
     "ENABLED" | "PAUSED" | "REMOVED" | null
   >(null);
+  const [bulkUpdateResults, setBulkUpdateResults] = useState<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline edit state
@@ -170,105 +177,19 @@ export const GoogleAds: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (sorting) return;
+  // Removed buildFilterParams - now passing filters array directly to service
 
-    if (accountId) {
-      const accountIdNum = parseInt(accountId, 10);
-      if (!isNaN(accountIdNum)) {
-        loadAds(accountIdNum);
-      } else {
-        setLoading(false);
-      }
-    } else {
-      setLoading(false);
+  const loadAds = useCallback(async (accountId: number) => {
+    // Prevent duplicate concurrent calls
+    if (isLoadingRef.current) {
+      return;
     }
-  }, [accountId, currentPage, filters, startDate, endDate]);
 
-  const buildFilterParams = (filterList: FilterValues) => {
-    const params: any = {};
-
-    filterList.forEach((filter) => {
-      const field = filter.field as string;
-      if (field === "ad_type") {
-        params.ad_type = filter.value;
-      } else if (field === "status") {
-        params.status = filter.value;
-      } else if (field === "campaign_id") {
-        params.campaign_id = filter.value;
-      } else if (field === "adgroup_id") {
-        params.adgroup_id = filter.value;
-      } else if (field === "account_name") {
-        if (filter.operator === "contains") {
-          params.account_name__icontains = filter.value;
-        } else if (filter.operator === "not_contains") {
-          params.account_name__not_icontains = filter.value;
-        } else if (filter.operator === "equals") {
-          params.account_name = filter.value;
-        }
-      }
-    });
-
-    return params;
-  };
-
-  const loadAdsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
     try {
+      isLoadingRef.current = true;
       setLoading(true);
       const params: any = {
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filterList),
-      };
-
-      const response = await campaignsService.getGoogleAds(
-        accountId,
-        undefined,
-        undefined,
-        params
-      );
-      setAds(Array.isArray(response.ads) ? response.ads : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-          if (responseWithChart.summary) {
-            setSummary(responseWithChart.summary);
-          } else {
-            setSummary(null);
-          }
-          setSelectedAds(new Set());
-    } catch (error) {
-      console.error("Failed to load Google ads:", error);
-      setAds([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAds = async (accountId: number) => {
-    try {
-      setLoading(true);
-      const params: any = {
+        filters: filters, // Pass filters array directly
         sort_by: sortBy,
         order: sortOrder,
         page: currentPage,
@@ -277,10 +198,9 @@ export const GoogleAds: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
       };
 
-      const response = await campaignsService.getGoogleAds(
+      const response = await googleAdwordsAdsService.getGoogleAds(
         accountId,
         undefined,
         undefined,
@@ -334,6 +254,83 @@ export const GoogleAds: React.FC = () => {
       setTotal(0);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
+
+  // Sync status hook (after loadAds is defined)
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+    accountId,
+    entityType: "ads",
+    currentData: ads,
+    loadFunction: loadAds,
+  });
+
+  useEffect(() => {
+    if (sorting) return;
+
+    if (accountId) {
+      const accountIdNum = parseInt(accountId, 10);
+      if (!isNaN(accountIdNum)) {
+        loadAds(accountIdNum);
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAds, sorting]);
+
+  const loadAdsWithFilters = async (
+    accountId: number,
+    filterList: FilterValues
+  ) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        filters: filterList, // Pass filters array directly
+        sort_by: sortBy,
+        order: sortOrder,
+        page: 1,
+        page_size: itemsPerPage,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+      };
+
+      const response = await googleAdwordsAdsService.getGoogleAds(
+        accountId,
+        undefined,
+        undefined,
+        params
+      );
+      setAds(Array.isArray(response.ads) ? response.ads : []);
+      setTotalPages(response.total_pages || 0);
+      setTotal(response.total || 0);
+      // Store chart data from API if available
+      const responseWithChart = response as any;
+      if (
+        responseWithChart.chart_data &&
+        Array.isArray(responseWithChart.chart_data)
+      ) {
+        setChartDataFromApi(responseWithChart.chart_data);
+      } else {
+        setChartDataFromApi([]);
+      }
+          if (responseWithChart.summary) {
+            setSummary(responseWithChart.summary);
+          } else {
+            setSummary(null);
+          }
+          setSelectedAds(new Set());
+    } catch (error) {
+      console.error("Failed to load Google ads:", error);
+      setAds([]);
+      setTotalPages(0);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -345,7 +342,7 @@ export const GoogleAds: React.FC = () => {
     try {
       setSyncing(true);
       setSyncMessage(null);
-      const result = await campaignsService.syncGoogleAds(accountIdNum);
+      const result = await googleAdwordsAdsService.syncGoogleAds(accountIdNum);
       let message =
         result.message || `Successfully synced ${result.synced} ads`;
 
@@ -359,6 +356,9 @@ export const GoogleAds: React.FC = () => {
       }
 
       setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
 
       if (result.synced > 0) {
         setCurrentPage(1);
@@ -398,7 +398,7 @@ export const GoogleAds: React.FC = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
       
-      const result = await campaignsService.syncGoogleAdAnalytics(
+      const result = await googleAdwordsAdsService.syncGoogleAdAnalytics(
         accountIdNum,
         oneYearAgo.toISOString().split("T")[0],
         today.toISOString().split("T")[0]
@@ -470,10 +470,10 @@ export const GoogleAds: React.FC = () => {
               ? startDate.toISOString().split("T")[0]
               : undefined,
             end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-            ...buildFilterParams(filters),
+            filters: filters, // Pass filters array directly
           };
 
-          const response = await campaignsService.getGoogleAds(
+          const response = await googleAdwordsAdsService.getGoogleAds(
             accountIdNum,
             undefined,
             undefined,
@@ -673,7 +673,7 @@ export const GoogleAds: React.FC = () => {
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
 
-        const response = await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+        const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
           adIds: [inlineEditAd.ad_id || inlineEditAd.id],
           action: "status",
           status: statusValue,
@@ -707,11 +707,21 @@ export const GoogleAds: React.FC = () => {
 
     try {
       setBulkLoading(true);
-      await campaignsService.bulkUpdateGoogleAds(accountIdNum, {
+      setBulkUpdateResults(null);
+
+      const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
         adIds: Array.from(selectedAds),
         action: "status",
         status: statusValue,
       });
+
+      // Store results and show them in modal
+      setBulkUpdateResults({
+        updated: response.updated || 0,
+        failed: response.failed || 0,
+        errors: response.errors || [],
+      });
+
       // Reload ads after successful update
       setSorting(true); // Show loading overlay on table
       await loadAds(accountIdNum);
@@ -721,7 +731,12 @@ export const GoogleAds: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error("Failed to update ads", error);
-      alert("Failed to update ads. Please try again.");
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to update ads. Please try again.";
+      setBulkUpdateResults({
+        updated: 0,
+        failed: selectedAds.size,
+        errors: [errorMessage],
+      });
     } finally {
       setBulkLoading(false);
     }
@@ -747,7 +762,7 @@ export const GoogleAds: React.FC = () => {
           ? startDate.toISOString().split("T")[0]
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        ...buildFilterParams(filters),
+        filters: filters, // Pass filters array directly
       };
 
       // Add pagination for current view export
@@ -756,7 +771,7 @@ export const GoogleAds: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await campaignsService.exportGoogleAds(accountIdNum, params, exportType);
+      await googleAdwordsAdsService.exportGoogleAds(accountIdNum, params, exportType);
       
       // Close dropdown after a short delay to show success
       setTimeout(() => {
@@ -900,7 +915,7 @@ export const GoogleAds: React.FC = () => {
                 <Button
                   onClick={handleSync}
                   disabled={syncing || syncingAnalytics}
-                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+                  className="create-entity-button disabled:opacity-50"
                 >
                   {syncing ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -914,7 +929,7 @@ export const GoogleAds: React.FC = () => {
                 <Button
                   onClick={handleSyncAnalytics}
                   disabled={syncing || syncingAnalytics}
-                  className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+                  className="create-entity-button disabled:opacity-50"
                 >
                   {syncingAnalytics ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -960,29 +975,41 @@ export const GoogleAds: React.FC = () => {
               </div>
             )}
 
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
+
             {/* Filter Panel */}
-            {isFilterPanelOpen && (
-              <FilterPanel
+            {isFilterPanelOpen && accountId && (
+              <DynamicFilterPanel
                 isOpen={true}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(newFilters) => {
-                  setFilters(newFilters);
+                  // Convert DynamicFilterValues to FilterValues format for compatibility
+                  const convertedFilters: FilterValues = newFilters.map((f) => ({
+                    id: f.id,
+                    field: f.field as FilterValues[0]["field"],
+                    operator: f.operator,
+                    value: f.value,
+                  }));
+                  setFilters(convertedFilters);
                   setCurrentPage(1);
-                  if (accountId) {
-                    const accountIdNum = parseInt(accountId, 10);
-                    if (!isNaN(accountIdNum)) {
-                      loadAdsWithFilters(accountIdNum, newFilters);
-                    }
-                  }
+                  // Removed direct call to loadAdsWithFilters - useEffect will handle it when filters change
+                  // This prevents double requests
+                  // if (accountId) {
+                  //   const accountIdNum = parseInt(accountId, 10);
+                  //   if (!isNaN(accountIdNum)) {
+                  //     loadAdsWithFilters(accountIdNum, convertedFilters);
+                  //   }
+                  // }
                 }}
-                initialFilters={filters}
-                filterFields={[
-                  { value: "ad_type", label: "Ad Type" },
-                  { value: "status", label: "Status" },
-                  { value: "campaign_id", label: "Campaign ID" },
-                  { value: "adgroup_id", label: "Ad Group ID" },
-                  { value: "account_name", label: "Account Name" },
-                ]}
+                initialFilters={filters.map((f) => ({
+                  id: f.id,
+                  field: f.field as string,
+                  operator: f.operator,
+                  value: f.value,
+                }))}
+                accountId={accountId}
+                marketplace="google_adwords"
               />
             )}
 
@@ -998,13 +1025,74 @@ export const GoogleAds: React.FC = () => {
             <div className="flex items-center justify-end gap-2">
               <div
                 className="relative inline-flex justify-end"
+                ref={dropdownRef}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="edit-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowBulkActions((prev) => !prev);
+                    setShowExportDropdown(false);
+                  }}
+                >
+                  <svg
+                    className="w-5 h-5 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                  <span className="text-[10.64px] text-[#072929] font-normal">
+                    Edit
+                  </span>
+                </Button>
+                {showBulkActions && (
+                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="overflow-y-auto">
+                      {[
+                        { value: "ENABLED", label: "Enable" },
+                        { value: "PAUSED", label: "Pause" },
+                        { value: "REMOVED", label: "Remove" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          disabled={selectedAds.size === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedAds.size === 0) return;
+                            setPendingStatusAction(
+                              opt.value as "ENABLED" | "PAUSED" | "REMOVED"
+                            );
+                            setShowConfirmationModal(true);
+                            setShowBulkActions(false);
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div
+                className="relative inline-flex justify-end"
                 ref={exportDropdownRef}
               >
                 <div className="relative">
                   <Button
                     type="button"
                     variant="ghost"
-                    className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="edit-button"
                     onClick={(e) => {
                       if (exportLoading) return;
                       e.stopPropagation();
@@ -1106,67 +1194,6 @@ export const GoogleAds: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div
-                className="relative inline-flex justify-end"
-                ref={dropdownRef}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[10.64px] text-[#072929] font-normal"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowBulkActions((prev) => !prev);
-                    setShowExportDropdown(false);
-                  }}
-                >
-                  <svg
-                    className="w-5 h-5 text-[#072929]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                  <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
-                  </span>
-                </Button>
-                {showBulkActions && (
-                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    <div className="overflow-y-auto">
-                      {[
-                        { value: "ENABLED", label: "Enable" },
-                        { value: "PAUSED", label: "Pause" },
-                        { value: "REMOVED", label: "Remove" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          disabled={selectedAds.size === 0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedAds.size === 0) return;
-                            setPendingStatusAction(
-                              opt.value as "ENABLED" | "PAUSED" | "REMOVED"
-                            );
-                            setShowConfirmationModal(true);
-                            setShowBulkActions(false);
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Google Ads Table Card with overlay when panel is open */}
@@ -1194,24 +1221,89 @@ export const GoogleAds: React.FC = () => {
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                      Confirm Status Changes
+                      {bulkUpdateResults
+                        ? "Update Results"
+                        : "Confirm Status Changes"}
                     </h3>
 
-                    {/* Summary */}
-                    <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12.16px] text-[#556179]">
-                          {selectedAds.size} ad{selectedAds.size !== 1 ? "s" : ""}{" "}
-                          will be updated:
-                        </span>
-                        <span className="text-[12.16px] font-semibold text-[#072929]">
-                          Status change
-                        </span>
-                      </div>
-                    </div>
+                    {/* Results Summary */}
+                    {bulkUpdateResults ? (
+                      <div className="mb-6">
+                        <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Update Summary:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-forest-f40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Successfully updated:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-forest-f40">
+                                {bulkUpdateResults.updated}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-red-r40"></div>
+                              <span className="text-[12.16px] text-[#556179]">
+                                Failed:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-red-r40">
+                                {bulkUpdateResults.failed}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {/* Ads Preview Table */}
-                    {(() => {
+                        {/* Errors */}
+                        {bulkUpdateResults.errors.length > 0 && (
+                          <div className="bg-red-r0 border border-red-r20 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-red-r40 mb-2">
+                              Errors ({bulkUpdateResults.errors.length}):
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              <ul className="list-disc list-inside space-y-1">
+                                {bulkUpdateResults.errors.map((error, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-[11.2px] text-red-r40"
+                                  >
+                                    {error}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Success message if all succeeded */}
+                        {bulkUpdateResults.failed === 0 && bulkUpdateResults.updated > 0 && (
+                          <div className="bg-forest-f0 border border-forest-f40 rounded-lg p-4 mb-4">
+                            <div className="text-[12.16px] font-semibold text-forest-f60">
+                              ✓ All ads updated successfully!
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Confirmation Summary */
+                      <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12.16px] text-[#556179]">
+                            {selectedAds.size} ad{selectedAds.size !== 1 ? "s" : ""}{" "}
+                            will be updated:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            Status change
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ads Preview Table - Only show before update */}
+                    {!bulkUpdateResults && (() => {
                       const selectedAdsData = getSelectedAdsData();
                       const previewCount = Math.min(10, selectedAdsData.length);
                       const hasMore = selectedAdsData.length > 10;
@@ -1273,6 +1365,8 @@ export const GoogleAds: React.FC = () => {
                       );
                     })()}
 
+                    {/* Action Details - Only show before update */}
+                    {!bulkUpdateResults && (
                     <div className="flex justify-between items-center py-2 border-b border-gray-200 mb-6">
                       <span className="text-[12.16px] text-[#556179]">
                         New Status:
@@ -1284,36 +1378,51 @@ export const GoogleAds: React.FC = () => {
                           : ""}
                       </span>
                     </div>
+                    )}
 
                     <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!bulkLoading) {
-                            setShowConfirmationModal(false);
-                            setPendingStatusAction(null);
-                          }
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (pendingStatusAction && !bulkLoading) {
-                            await runBulkStatus(pendingStatusAction);
+                      {bulkUpdateResults ? (
+                        <button
+                          type="button"
+                          onClick={() => {
                             setShowConfirmationModal(false);
                             setShowBulkActions(false);
                             setPendingStatusAction(null);
-                          }
-                        }}
-                        disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bulkLoading ? "Updating..." : "Confirm"}
-                      </button>
+                            setBulkUpdateResults(null);
+                          }}
+                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                        >
+                          Close
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!bulkLoading) {
+                                setShowConfirmationModal(false);
+                                setPendingStatusAction(null);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (pendingStatusAction && !bulkLoading) {
+                                await runBulkStatus(pendingStatusAction);
+                              }
+                            }}
+                            disabled={bulkLoading}
+                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {bulkLoading ? "Updating..." : "Confirm"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

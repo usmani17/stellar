@@ -42,6 +42,9 @@ interface GoogleCampaignDetailAssetGroupsTabProps {
   formatPercentage: (value: number | string | undefined) => string;
   formatCurrency2Decimals: (value: number | string | undefined) => string;
   getSortIcon: (column: string, currentSortBy: string, currentSortOrder: "asc" | "desc") => React.ReactNode;
+  onEditAssetGroup?: (assetGroup: GoogleAssetGroup) => void;
+  editLoadingAssetGroupId?: number | null;
+  onUpdateAssetGroupStatus?: (assetGroupId: number, status: string) => Promise<void>;
 }
 
 export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAssetGroupsTabProps> = ({
@@ -68,7 +71,126 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
   formatPercentage,
   formatCurrency2Decimals,
   getSortIcon,
+  onEditAssetGroup,
+  editLoadingAssetGroupId,
+  onUpdateAssetGroupStatus,
 }) => {
+  const [editingAssetGroupId, setEditingAssetGroupId] = useState<number | null>(null);
+  const [editingField, setEditingField] = useState<"status" | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
+  const [updatingAssetGroupId, setUpdatingAssetGroupId] = useState<number | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusModalData, setStatusModalData] = useState<{
+    assetGroup: GoogleAssetGroup;
+    oldValue: string;
+    newValue: string;
+  } | null>(null);
+
+  const handleStatusClick = (assetGroup: GoogleAssetGroup) => {
+    if (onUpdateAssetGroupStatus) {
+      setEditingAssetGroupId(assetGroup.id);
+      setEditingField("status");
+      // Normalize status to uppercase to match dropdown options
+      const currentStatus = (assetGroup.status || "ENABLED").toUpperCase();
+      // Map common variations to standard values
+      const normalizedStatus =
+        currentStatus === "ENABLE" || currentStatus === "ENABLED"
+          ? "ENABLED"
+          : currentStatus === "PAUSE" || currentStatus === "PAUSED"
+          ? "PAUSED"
+          : currentStatus;
+      setEditingValue(normalizedStatus);
+    }
+  };
+
+  const handleStatusChange = (assetGroupId: number, newStatus: string) => {
+    const assetGroup = assetGroups.find((ag) => ag.id === assetGroupId);
+    if (!assetGroup) {
+      setEditingAssetGroupId(null);
+      setEditingField(null);
+      setEditingValue("");
+      return;
+    }
+
+    // Status uses confirmation modal
+    const currentStatus = (assetGroup.status || "ENABLED").toUpperCase();
+    const normalizedCurrent =
+      currentStatus === "ENABLE" || currentStatus === "ENABLED"
+        ? "ENABLED"
+        : currentStatus === "PAUSE" || currentStatus === "PAUSED"
+        ? "PAUSED"
+        : currentStatus;
+    const newStatusUpper = newStatus.toUpperCase();
+    const hasChanged = newStatusUpper !== normalizedCurrent;
+
+    if (hasChanged) {
+      // Format status values for display
+      const statusDisplayMap: Record<string, string> = {
+        ENABLED: "Enabled",
+        PAUSED: "Paused",
+        Enabled: "Enabled",
+        Paused: "Paused",
+      };
+      const oldValue = statusDisplayMap[normalizedCurrent] || normalizedCurrent;
+      const newValue = statusDisplayMap[newStatusUpper] || newStatus;
+
+      setStatusModalData({
+        assetGroup,
+        oldValue,
+        newValue,
+      });
+      setShowStatusModal(true);
+    }
+    setEditingAssetGroupId(null);
+    setEditingField(null);
+    setEditingValue("");
+  };
+
+  const handleEditEnd = () => {
+    if (!editingAssetGroupId || !editingField) return;
+
+    const assetGroup = assetGroups.find((ag) => ag.id === editingAssetGroupId);
+    if (!assetGroup) {
+      setEditingAssetGroupId(null);
+      setEditingField(null);
+      setEditingValue("");
+      return;
+    }
+
+    if (editingField === "status") {
+      handleStatusChange(editingAssetGroupId, editingValue);
+    }
+  };
+
+  const confirmStatusChange = async () => {
+    if (!statusModalData || !onUpdateAssetGroupStatus) return;
+
+    setUpdatingAssetGroupId(statusModalData.assetGroup.id);
+    try {
+      // Map display value back to API value
+      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+        Enabled: "ENABLED",
+        ENABLED: "ENABLED",
+        Paused: "PAUSED",
+        PAUSED: "PAUSED",
+      };
+      const apiStatus = statusMap[statusModalData.newValue] || statusModalData.newValue.toUpperCase() as "ENABLED" | "PAUSED";
+      
+      await onUpdateAssetGroupStatus(statusModalData.assetGroup.id, apiStatus);
+      setShowStatusModal(false);
+      setStatusModalData(null);
+    } catch (error) {
+      console.error("Failed to update asset group status:", error);
+      alert("Failed to update asset group status. Please try again.");
+    } finally {
+      setUpdatingAssetGroupId(null);
+    }
+  };
+
+  const cancelStatusChange = () => {
+    setShowStatusModal(false);
+    setStatusModalData(null);
+  };
   return (
     <>
       {/* Sync Message */}
@@ -128,7 +250,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
           <button
             onClick={onSync}
             disabled={syncing || syncingAnalytics}
-            className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+            className="create-entity-button disabled:opacity-50"
           >
             {syncing ? (
               <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -143,7 +265,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             <button
               onClick={onSyncAnalytics}
               disabled={syncing || syncingAnalytics}
-              className="px-3 py-2 bg-[#136D6D] text-white border border-[#136D6D] rounded-lg flex items-center gap-2 h-10 hover:bg-[#0e5a5a] transition-colors disabled:opacity-50"
+              className="create-entity-button disabled:opacity-50"
             >
               {syncingAnalytics ? (
                 <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
@@ -193,7 +315,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] w-[35px]">
+                  <th className="table-header w-[35px]">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={
@@ -206,7 +328,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50"
+                    className="table-header"
                     onClick={() => onSort("name")}
                   >
                     <div className="flex items-center gap-1">
@@ -215,7 +337,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                     </div>
                   </th>
                   <th
-                    className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
@@ -223,16 +345,16 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                       {getSortIcon("status", sortBy, sortOrder)}
                     </div>
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden lg:table-cell">
+                  <th className="table-header hidden lg:table-cell">
                     Final URLs
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     CTR
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     Spends
                   </th>
-                  <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px] hidden md:table-cell">
+                  <th className="table-header hidden md:table-cell">
                     Sales
                   </th>
                 </tr>
@@ -247,7 +369,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                         !isLastRow ? "border-b border-[#e8e8e3]" : ""
                       } hover:bg-gray-50 transition-colors`}
                     >
-                      <td className="py-[10px] px-[10px]">
+                      <td className="table-cell">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedAssetGroupIds.has(assetGroup.id)}
@@ -256,33 +378,104 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                           />
                         </div>
                       </td>
-                      <td className="py-[10px] px-[10px]">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
-                          {assetGroup.name || "—"}
-                        </span>
+                      <td className="table-cell">
+                        <div className="group relative flex items-center gap-2">
+                          <span className="table-text leading-[1.26]">
+                            {assetGroup.name || "—"}
+                          </span>
+                          {onEditAssetGroup && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditAssetGroup(assetGroup);
+                              }}
+                              className="table-edit-icon flex-shrink-0"
+                              title="Edit asset group"
+                              disabled={editLoadingAssetGroupId === assetGroup.id}
+                            >
+                              {editLoadingAssetGroupId === assetGroup.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                              ) : (
+                                <svg
+                                  className="w-4 h-4 text-[#072929]"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
-                        <StatusBadge status={assetGroup.status} />
+                      <td className="table-cell hidden md:table-cell">
+                        <div className="flex items-center gap-2">
+                          {updatingAssetGroupId === assetGroup.id ? (
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={assetGroup.status} />
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            </div>
+                          ) : editingAssetGroupId === assetGroup.id &&
+                            editingField === "status" &&
+                            onUpdateAssetGroupStatus ? (
+                            <Dropdown<string>
+                              options={[
+                                { value: "ENABLED", label: "Enabled" },
+                                { value: "PAUSED", label: "Paused" },
+                              ]}
+                              value={editingValue}
+                              onChange={(val) => {
+                                handleStatusChange(assetGroup.id, val as string);
+                              }}
+                              defaultOpen={true}
+                              closeOnSelect={true}
+                              buttonClassName="text-[13.3px] px-2 py-1"
+                              width="w-32"
+                            />
+                          ) : (
+                            <div
+                              className={
+                                onUpdateAssetGroupStatus
+                                  ? "cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
+                                  : ""
+                              }
+                              onClick={() =>
+                                onUpdateAssetGroupStatus && handleStatusClick(assetGroup)
+                              }
+                            >
+                              <StatusBadge status={assetGroup.status} />
+                            </div>
+                          )}
+                        </div>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden lg:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26] truncate block max-w-[300px]">
-                          {assetGroup.final_urls && assetGroup.final_urls.length > 0
+                      <td className="table-cell hidden lg:table-cell">
+                        <span className="table-text leading-[1.26] truncate block max-w-[300px]">
+                          {assetGroup.final_urls && Array.isArray(assetGroup.final_urls) && assetGroup.final_urls.length > 0
                             ? assetGroup.final_urls[0]
+                            : assetGroup.final_urls && typeof assetGroup.final_urls === 'string'
+                            ? assetGroup.final_urls
                             : "—"}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
                           {formatPercentage(assetGroup.ctr)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(assetGroup.spends)}
                         </span>
                       </td>
-                      <td className="py-[10px] px-[10px] hidden md:table-cell">
-                        <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                      <td className="table-cell hidden md:table-cell">
+                        <span className="table-text leading-[1.26]">
                           {formatCurrency2Decimals(assetGroup.sales)}
                         </span>
                       </td>
@@ -355,6 +548,69 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Status Change Confirmation Modal */}
+      {showStatusModal && statusModalData && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              cancelStatusChange();
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+              Confirm Status Change
+            </h3>
+            <div className="mb-4">
+              <p className="text-[12.8px] text-[#556179] mb-2">
+                Asset Group:{" "}
+                <span className="font-semibold text-[#072929]">
+                  {statusModalData.assetGroup.name || "Unnamed Asset Group"}
+                </span>
+              </p>
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12.8px] text-[#556179]">Status:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12.8px] text-[#556179]">
+                      {statusModalData.oldValue}
+                    </span>
+                    <span className="text-[12.8px] text-[#556179]">→</span>
+                    <span className="text-[12.8px] font-semibold text-[#072929]">
+                      {statusModalData.newValue}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelStatusChange}
+                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmStatusChange}
+                disabled={updatingAssetGroupId === statusModalData.assetGroup.id}
+                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {updatingAssetGroupId === statusModalData.assetGroup.id
+                  ? "Updating..."
+                  : "Confirm"}
+              </button>
+            </div>
           </div>
         </div>
       )}

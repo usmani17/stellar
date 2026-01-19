@@ -203,9 +203,13 @@ export const Dropdown = <T extends string | number = string>({
         onClick={toggleDropdown}
         disabled={disabled}
         className={cn(
-          "flex items-center justify-between gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-[10px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white transition-colors",
+          // Only apply default styles if edit-button is not in buttonClassName
+          !buttonClassName?.includes("edit-button") &&
+            "flex items-center justify-between gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-[10px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white transition-colors",
           disabled && "opacity-50 cursor-not-allowed",
-          !disabled && "hover:border-[#556179] cursor-pointer",
+          !disabled &&
+            !buttonClassName?.includes("edit-button") &&
+            "hover:border-[#556179] cursor-pointer",
           buttonClassName
         )}
       >

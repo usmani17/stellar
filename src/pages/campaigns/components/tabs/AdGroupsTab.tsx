@@ -2,9 +2,15 @@ import React, { useRef } from "react";
 import { Button } from "../../../../components/ui";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { AdGroupsTable } from "../../../../components/campaigns/AdGroupsTable";
-import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
+import {
+  FilterPanel,
+  type FilterValues,
+} from "../../../../components/filters/FilterPanel";
 import { CreateAdGroupSection } from "../../../../components/adgroups/CreateAdGroupSection";
-import { CreateAdGroupPanel, type AdGroupInput } from "../../../../components/adgroups/CreateAdGroupPanel";
+import {
+  CreateAdGroupPanel,
+  type AdGroupInput,
+} from "../../../../components/adgroups/CreateAdGroupPanel";
 import { Pagination } from "../Pagination";
 import type { AdGroup, CampaignDetail } from "../../../../services/campaigns";
 
@@ -15,22 +21,22 @@ interface AdGroupsTabProps {
   campaignDetail: CampaignDetail | null;
   campaignId: string | null;
   campaignType: string | null;
-  
+
   // Selection
   selectedAdGroupIds: Set<string | number>;
   onSelectAll: (checked: boolean) => void;
   onSelect: (id: string | number, checked: boolean) => void;
-  
+
   // Pagination
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
-  
+
   // Sorting
   sortBy: string;
   sortOrder: "asc" | "desc";
   onSort: (column: string) => void;
-  
+
   // Filters
   isFilterPanelOpen: boolean;
   onToggleFilterPanel: () => void;
@@ -39,7 +45,7 @@ interface AdGroupsTabProps {
   onApplyFilters: (filters: FilterValues) => void;
   filtersString: string;
   lastAppliedFiltersRef: React.MutableRefObject<string>;
-  
+
   // Create Panel
   isCreatePanelOpen: boolean;
   onToggleCreatePanel: () => void;
@@ -51,7 +57,7 @@ interface AdGroupsTabProps {
   createdAdGroups: any[];
   failedCount: number;
   failedAdGroups: any[];
-  
+
   // Bulk Actions
   showBulkActions: boolean;
   onToggleBulkActions: () => void;
@@ -59,7 +65,7 @@ interface AdGroupsTabProps {
   bulkActionsRef: React.RefObject<HTMLDivElement | null>;
   onBulkStatusAction: (action: "enable" | "pause" | "archive") => void;
   onBulkDelete: () => void;
-  
+
   // Bid Panel
   showBidPanel: boolean;
   bidAction: "increase" | "decrease" | "set";
@@ -75,19 +81,28 @@ interface AdGroupsTabProps {
   onBidPanelCancel: () => void;
   onBidPanelApply: () => void;
   bulkLoading: boolean;
-  
+
   // Inline Edit
   editingField: { id: number; field: "status" | "default_bid" | "name" } | null;
   editedValue: string;
-  onEditStart: (id: number, field: "status" | "default_bid" | "name", currentValue: string) => void;
+  onEditStart: (
+    id: number,
+    field: "status" | "default_bid" | "name",
+    currentValue: string
+  ) => void;
   onEditChange: (value: string) => void;
   onEditEnd: (newValue?: string) => void;
   onEditCancel: () => void;
   editLoading: Set<number>;
-  pendingChange: { id: number; field: "status" | "default_bid" | "name"; newValue: string; oldValue: string } | null;
+  pendingChange: {
+    id: number;
+    field: "status" | "default_bid" | "name";
+    newValue: string;
+    oldValue: string;
+  } | null;
   onConfirmChange: () => Promise<void>;
   onCancelChange: () => void;
-  
+
   // Total Row
   totalRow?: any;
 }
@@ -175,11 +190,14 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
             }}
           />
           {/* Bulk Edit Button */}
-          <div className="relative inline-flex justify-end" ref={bulkActionsRef}>
+          <div
+            className="relative inline-flex justify-end"
+            ref={bulkActionsRef}
+          >
             <Button
               type="button"
               variant="ghost"
-              className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-10 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium"
+              className="edit-button"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleBulkActions();
@@ -229,7 +247,9 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                         } else if (opt.value === "delete") {
                           onBulkDelete();
                         } else {
-                          onBulkStatusAction(opt.value as "enable" | "pause" | "archive");
+                          onBulkStatusAction(
+                            opt.value as "enable" | "pause" | "archive"
+                          );
                         }
                         onToggleBulkActions();
                       }}
@@ -248,7 +268,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
               onCloseCreatePanel();
               onCloseBulkActions();
             }}
-            className="px-3 py-2 bg-[#FEFEFB] border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+            className="edit-button"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -348,12 +368,12 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                   Value
                 </label>
                 <div className="relative">
-                <input
-                  type="number"
-                  value={bidValue}
-                  onChange={(e) => onBidValueChange(e.target.value)}
+                  <input
+                    type="number"
+                    value={bidValue}
+                    onChange={(e) => onBidValueChange(e.target.value)}
                     className="bg-[#FEFEFB] w-full px-4 py-2.5 border border-gray-200 rounded-lg text-[10.64px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
+                  />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.64px] text-[#556179]">
                     {bidUnit === "percent" ? "%" : "$"}
                   </span>
@@ -411,7 +431,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
       {isCreatePanelOpen && campaignId && (
         <CreateAdGroupPanel
           isOpen={isCreatePanelOpen}
-            onClose={onCloseCreatePanel}
+          onClose={onCloseCreatePanel}
           onSubmit={onCreateAdGroups}
           campaignId={campaignId}
           campaignType={campaignType || "SP"}
@@ -434,7 +454,8 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
             onApply={(newFilters) => {
               const filtersStr = JSON.stringify(
                 [...newFilters].sort((a, b) => {
-                  if (a.field !== b.field) return a.field.localeCompare(b.field);
+                  if (a.field !== b.field)
+                    return a.field.localeCompare(b.field);
                   const aOp = a.operator || "";
                   const bOp = b.operator || "";
                   if (aOp !== bOp) return aOp.localeCompare(bOp);
@@ -496,4 +517,3 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
     </>
   );
 };
-

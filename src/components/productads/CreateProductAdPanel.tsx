@@ -178,7 +178,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 type="text"
                 value={currentProductAd.asin}
                 onChange={(e) => handleChange("asin", e.target.value)}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] text-[#0b0f16] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter ASIN"
               />
               {errors.asin && (
@@ -195,7 +195,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 type="text"
                 value={currentProductAd.sku || ""}
                 onChange={(e) => handleChange("sku", e.target.value)}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] text-[#0b0f16] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter SKU (optional)"
               />
             </div>
@@ -210,7 +210,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 value={currentProductAd.customText || ""}
                 onChange={(e) => handleChange("customText", e.target.value)}
                 maxLength={150}
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] text-[#0b0f16] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="Enter custom text (optional, max 150 chars)"
               />
               {errors.customText && (
@@ -231,7 +231,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 onChange={(e) =>
                   handleChange("catalogSourceCountryCode", e.target.value)
                 }
-                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg text-[13.3px] text-[#0b0f16] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
                 placeholder="e.g., US (optional)"
                 maxLength={2}
               />
@@ -275,25 +275,25 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                   <table className="w-full min-w-max">
                     <thead className="sticky top-0 bg-[#fefefb] z-10">
                       <tr className="border-b border-[#e8e8e3]">
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Ad Group
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           ASIN
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           SKU
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Custom Text
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Country Code
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           State
                         </th>
-                        <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                        <th className="table-header">
                           Action
                         </th>
                       </tr>
@@ -307,39 +307,39 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                         return (
                           <tr
                             key={index}
-                            className="border-b border-[#e8e8e3] hover:bg-gray-50 transition-colors"
+                            className="table-row group"
                           >
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {adGroupName}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.asin}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.sku || "—"}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.customText || "—"}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.catalogSourceCountryCode || "—"}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
-                              <span className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                            <td className="table-cell">
+                              <span className="table-text leading-[1.26]">
                                 {productAd.state}
                               </span>
                             </td>
-                            <td className="py-[10px] px-[10px]">
+                            <td className="table-cell">
                               <button
                                 onClick={() => handleRemoveProductAd(index)}
                                 className="text-red-500 hover:text-red-700 transition-colors"

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Button } from "../ui";
-import type { GoogleAdGroup } from "../../pages/google/components/tabs/types";
+import type { GoogleAdGroup } from "../../pages/google/components/tabs/GoogleTypes";
 
 export interface NegativeKeywordInput {
   text: string;
@@ -14,7 +14,7 @@ interface CreateGoogleNegativeKeywordPanelProps {
   onSubmit: (data: { negativeKeywords: NegativeKeywordInput[]; level: "campaign" | "adgroup"; adGroupId?: string }) => void;
   campaignId: string;
   accountId: string;
-  campaignType?: string; // To determine if Shopping (campaign-level) or Search (adgroup-level)
+  campaignType?: string;
   adgroups?: GoogleAdGroup[];
   loading?: boolean;
   submitError?: string | null;
@@ -39,14 +39,14 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
   isOpen,
   onClose,
   onSubmit,
-  campaignId,
-  accountId,
-  campaignType,
+  campaignId: _campaignId,
+  accountId: _accountId,
+  campaignType: _campaignType,
   adgroups = [],
   loading = false,
   submitError = null,
-  createdNegativeKeywords = [],
-  failedNegativeKeywords = [],
+  createdNegativeKeywords: _createdNegativeKeywords = [],
+  failedNegativeKeywords: _failedNegativeKeywords = [],
 }) => {
   // Default to campaign level for negative keywords
   const [level, setLevel] = useState<"campaign" | "adgroup">("campaign");
@@ -279,13 +279,13 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
                 <table className="min-w-full">
                   <thead>
                     <tr className="border-b border-[#e8e8e3]">
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                      <th className="table-header">
                         Keyword Text
                       </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                      <th className="table-header">
                         Match Type
                       </th>
-                      <th className="text-left py-[10px] px-[10px] text-[13.3px] font-medium text-[#29303f]">
+                      <th className="table-header">
                         Action
                       </th>
                     </tr>
@@ -300,13 +300,13 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
                             : ""
                         } hover:bg-gray-50 transition-colors`}
                       >
-                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell table-text">
                           {kw.text}
                         </td>
-                        <td className="py-[10px] px-[10px] text-[13.3px] text-[#0b0f16]">
+                        <td className="table-cell table-text">
                           {kw.match_type}
                         </td>
-                        <td className="py-[10px] px-[10px]">
+                        <td className="table-cell">
                           <button
                             type="button"
                             onClick={() => removeKeyword(index)}

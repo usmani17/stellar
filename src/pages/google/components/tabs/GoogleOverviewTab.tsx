@@ -1,7 +1,7 @@
 import React from "react";
 import { PerformanceChart } from "../../../../components/charts/PerformanceChart";
 
-interface OverviewTabProps {
+interface GoogleOverviewTabProps {
   chartData: Array<{
     date: string;
     sales: number;
@@ -18,7 +18,7 @@ interface OverviewTabProps {
   onToggleChartMetric: (metric: "sales" | "spend" | "clicks" | "orders") => void;
 }
 
-export const OverviewTab: React.FC<OverviewTabProps> = ({
+export const GoogleOverviewTab: React.FC<GoogleOverviewTabProps> = ({
   chartData,
   chartToggles,
   onToggleChartMetric,
@@ -52,4 +52,3 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     </>
   );
 };
-

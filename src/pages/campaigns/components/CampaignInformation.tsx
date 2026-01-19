@@ -34,7 +34,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
           <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
             Campaign Name
           </label>
-          <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+          <div className="table-text leading-[1.26]">
             {campaignDetail.campaign.name || "—"}
           </div>
         </div>
@@ -45,7 +45,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               Campaign ID
             </label>
-            <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+            <div className="table-text leading-[1.26]">
               {campaignDetail.campaign.campaignId}
             </div>
           </div>
@@ -93,7 +93,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
               <select
                 value={editedValue}
                 onChange={(e) => onEditValueChange(e.target.value)}
-                className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1"
+                className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1"
                 autoFocus
                 onBlur={onEditEnd}
                 onKeyDown={(e) => {
@@ -110,7 +110,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
               </select>
             </div>
           ) : (
-            <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+            <div className="table-text leading-[1.26]">
               <StatusBadge
                 status={
                   campaignDetail.campaign.status?.toLowerCase() === "enabled" ||
@@ -165,7 +165,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
                 type="number"
                 value={editedValue}
                 onChange={(e) => onEditValueChange(e.target.value)}
-                className="text-[13.3px] text-[#0b0f16] leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
+                className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-32"
                 autoFocus
                 onBlur={onEditEnd}
                 onKeyDown={(e) => {
@@ -178,7 +178,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
               />
             </div>
           ) : (
-            <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+            <div className="table-text leading-[1.26]">
               ${(campaignDetail.campaign.budget || 0).toLocaleString()}
             </div>
           )}
@@ -190,7 +190,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               Start Date
             </label>
-            <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+            <div className="table-text leading-[1.26]">
               {new Date(
                 campaignDetail.campaign.startDate
               ).toLocaleDateString()}
@@ -204,7 +204,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               End Date
             </label>
-            <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+            <div className="table-text leading-[1.26]">
               {new Date(campaignDetail.campaign.endDate).toLocaleDateString()}
             </div>
           </div>
@@ -217,7 +217,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               Targeting Type
             </label>
-            <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+            <div className="table-text leading-[1.26]">
               {campaignDetail.campaign.targetingType ||
                 campaignDetail.campaign.targeting_type ||
                 "—"}
@@ -231,7 +231,7 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
             <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
               Budget Type
             </label>
-            <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+            <div className="table-text leading-[1.26]">
               {campaignDetail.campaign.budgetType}
             </div>
           </div>

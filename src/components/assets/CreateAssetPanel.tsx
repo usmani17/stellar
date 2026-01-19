@@ -695,7 +695,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                   type="button"
                   onClick={handleAddAsin}
                   disabled={asinList.length >= 100}
-                  className="px-3 py-2 bg-[#136D6D] text-white rounded-lg text-[11.2px] hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="create-entity-button text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add
                 </button>
@@ -752,7 +752,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                 <button
                   type="button"
                   onClick={handleAddTag}
-                  className="px-3 py-2 bg-[#136D6D] text-white rounded-lg text-[11.2px] hover:bg-[#0e5a5a] transition-colors"
+                  className="create-entity-button text-[11.2px]"
                 >
                   Add
                 </button>

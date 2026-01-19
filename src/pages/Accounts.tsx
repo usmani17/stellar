@@ -288,107 +288,19 @@ export const Accounts: React.FC = () => {
           )}
 
           <div className="space-y-6">
-            {/* Header with Create Button */}
+            {/* Header with Create Button and Search */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[22px] sm:text-[24px] font-medium text-[#072929] leading-[normal]">
                 Accounts
               </h1>
-              <Button
-                onClick={() => setShowCreateAccount(!showCreateAccount)}
-                size="sm"
-                className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowCreateAccount(!showCreateAccount)}
+                  className="create-entity-button"
                 >
-                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                </svg>
-                Create Account
-              </Button>
-            </div>
-
-            {/* Create Account Form */}
-            {showCreateAccount && (
-              <div ref={createAccountFormRef}>
-                <Card>
-                  <div className="p-4">
-                    <div className="flex gap-[12px]">
-                      <input
-                        type="text"
-                        value={newAccountName}
-                        onChange={(e) => setNewAccountName(e.target.value)}
-                        placeholder="Account name"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-[14px] focus-visible:outline-none focus:ring-1 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                        onKeyPress={(e) =>
-                          e.key === "Enter" && handleCreateAccount()
-                        }
-                      />
-                      <Button
-                        onClick={() => {
-                          setNewAccountName("");
-                          setShowCreateAccount(false);
-                        }}
-                        size="sm"
-                        className="bg-[#f9f9f6] border border-[#072929] h-[36px] px-2 py-1.5 rounded-[8px] flex items-center justify-center"
-                      >
-                        <span className="text-[14px] font-semibold text-[#072929] ">
-                          Cancel
-                        </span>
-                      </Button>
-                      <Button
-                        onClick={handleCreateAccount}
-                        disabled={createAccountMutation.isPending}
-                        size="sm"
-                        className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {createAccountMutation.isPending ? (
-                          <>
-                            <svg
-                              className="animate-spin h-4 w-4 text-white"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
-                            </svg>
-                            <span className="text-[14px] font-medium">
-                              Creating...
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-[14px] font-medium">
-                            Create
-                          </span>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Accounts Table Card */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-4 sm:p-6 flex flex-col gap-4 sm:gap-6">
-              {/* Header with Search */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <h2 className="text-[20px] sm:text-[22px] md:text-[24px] font-medium text-[#072929] leading-[normal]">
-                  All Accounts
-                </h2>
-                <div className="bg-[#f0f0ed] border border-[#e8e8e3] rounded-[8px] h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
+                  Create Account
+                </button>
+                <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
                   <svg
                     className="w-3 h-3 text-[#556179]"
                     fill="none"
@@ -445,366 +357,411 @@ export const Accounts: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Table */}
-              <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
-                <div className="overflow-x-auto overflow-y-visible">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-[#e8e8e3]">
-                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                          Account Name
-                        </th>
-                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                          Users
-                        </th>
-                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                          Created
-                        </th>
-                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                          Created By
-                        </th>
-                        <th className="text-left py-3 px-5 text-[14px] font-medium text-[#29303f] leading-[20px]">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loading || accountsLoading ? (
-                        // Loading skeleton rows
-                        Array.from({ length: 3 }).map((_, index) => (
-                          <tr
-                            key={`skeleton-${index}`}
-                            className={
-                              index < 2 ? "border-b border-[#e8e8e3]" : ""
-                            }
-                          >
-                            <td className="py-4 px-5">
-                              <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
-                            </td>
-                            <td className="py-4 px-5">
-                              <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
-                            </td>
-                            <td className="py-4 px-5">
-                              <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
-                            </td>
-                            <td className="py-4 px-5">
-                              <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
-                            </td>
-                            <td className="py-4 px-5">
-                              <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : filteredAccounts.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="text-center py-8">
-                            <p className="text-[14px] text-[#556179] mb-4">
-                              {searchQuery
-                                ? "No accounts found"
-                                : "No accounts yet"}
-                            </p>
-                            {!searchQuery && (
-                              <div className="flex justify-center">
-                                <Button
-                                  onClick={() => setShowCreateAccount(true)}
-                                  className="rounded-lg"
-                                >
-                                  Create Your First Account
-                                </Button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredAccounts.map((account, index) => {
-                          const isDeleting = deletingAccountId === account.id;
-                          const isConnecting =
-                            oauthLoading?.accountId === account.id;
-                          const isLastRow =
-                            index === filteredAccounts.length - 1;
-
-                          return (
-                            <tr
-                              key={account.id}
-                              className={`${
-                                !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                              } hover:bg-gray-50 transition-colors ${
-                                isDeleting ? "opacity-50" : ""
-                              }`}
-                            >
-                              <td className="py-4 px-5 group">
-                                {editingAccount?.accountId === account.id ? (
-                                  <input
-                                    type="text"
-                                    value={editedAccountName}
-                                    onChange={(e) =>
-                                      setEditedAccountName(e.target.value)
-                                    }
-                                    onBlur={(e) => {
-                                      const inputValue = e.target.value.trim();
-                                      if (
-                                        inputValue === account.name ||
-                                        inputValue === ""
-                                      ) {
-                                        cancelEditAccountName();
-                                      } else {
-                                        confirmEditAccountName(inputValue);
-                                      }
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.currentTarget.blur();
-                                      } else if (e.key === "Escape") {
-                                        cancelEditAccountName();
-                                      }
-                                    }}
-                                    autoFocus
-                                    disabled={updateAccountMutation.isPending}
-                                    className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
-                                  />
-                                ) : (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => {
-                                        navigate(
-                                          `/accounts/${account.id}/channels`
-                                        );
-                                      }}
-                                      className="text-[14px] text-[#0b0f16] leading-[normal] hover:text-[#136d6d] hover:underline cursor-pointer text-left"
-                                    >
-                                      {account.name}
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        startEditAccountName(account);
-                                      }}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
-                                      title="Edit account name"
-                                    >
-                                      <svg
-                                        className="w-4 h-4 text-[#556179]"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                        />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="py-4 px-5">
-                                <span className="text-[14px] text-[#0b0f16] leading-[normal]">
-                                  {formatUsers(account.users)}
-                                </span>
-                              </td>
-                              <td className="py-4 px-5">
-                                <span className="text-[14px] text-[#0b0f16] leading-[normal] whitespace-nowrap">
-                                  {formatDate(account.created_at)}
-                                </span>
-                              </td>
-                              <td className="py-4 px-5">
-                                <span className="text-[14px] text-[#0b0f16] leading-[normal]">
-                                  {account.created_by_name || "—"}
-                                </span>
-                              </td>
-                              <td className="py-4 px-5">
-                                <div className="flex items-center gap-2 justify-end md:justify-start">
-                                  <div className="relative z-20">
-                                    <Menu
-                                      trigger={
-                                        <Button
-                                          size="sm"
-                                          disabled={isConnecting || isDeleting}
-                                          className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
-                                        >
-                                          <span className="text-[14px] font-medium">
-                                            {isConnecting
-                                              ? "Connecting..."
-                                              : "Connect"}
-                                          </span>
-                                        </Button>
-                                      }
-                                      items={[
-                                        {
-                                          label: "Amazon",
-                                          icon: (
-                                            <img
-                                              src={AmazonIcon}
-                                              alt="Amazon"
-                                              className="w-5 h-5"
-                                            />
-                                          ),
-                                          onClick: () =>
-                                            handleConnectAmazon(account.id),
-                                          disabled: isConnecting || isDeleting,
-                                        },
-                                        {
-                                          label: "Google",
-                                          icon: (
-                                            <img
-                                              src={GoogleIcon}
-                                              alt="Google"
-                                              className="w-5 h-5"
-                                            />
-                                          ),
-                                          onClick: () =>
-                                            handleConnectGoogle(account.id),
-                                          disabled: isConnecting || isDeleting,
-                                        },
-                                        {
-                                          label: "TikTok",
-                                          icon: (
-                                            <svg
-                                              className="w-5 h-5"
-                                              fill="currentColor"
-                                              viewBox="0 0 24 24"
-                                              xmlns="http://www.w3.org/2000/svg"
-                                            >
-                                              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                                            </svg>
-                                          ),
-                                          onClick: () =>
-                                            handleConnectTikTok(account.id),
-                                          disabled: isConnecting || isDeleting,
-                                        },
-                                        // Hide these for now - uncomment when ready to implement
-                                        // {
-                                        //   label: "Walmart",
-                                        //   icon: (
-                                        //     <img
-                                        //       src={WalmartIcon}
-                                        //       alt="Walmart"
-                                        //       className="w-5 h-5"
-                                        //     />
-                                        //   ),
-                                        //   onClick: () => {
-                                        //     // TODO: Implement Walmart OAuth
-                                        //     alert("Walmart integration coming soon");
-                                        //   },
-                                        //   disabled: isConnecting || isDeleting,
-                                        // },
-                                        // {
-                                        //   label: "Instacart",
-                                        //   icon: (
-                                        //     <img
-                                        //       src={InstacartIcon}
-                                        //       alt="Instacart"
-                                        //       className="w-5 h-5"
-                                        //     />
-                                        //   ),
-                                        //   onClick: () => {
-                                        //     // TODO: Implement Instacart OAuth
-                                        //     alert("Instacart integration coming soon");
-                                        //   },
-                                        //   disabled: isConnecting || isDeleting,
-                                        // },
-                                        // {
-                                        //   label: "Criteo",
-                                        //   icon: (
-                                        //     <img
-                                        //       src={CriteoIcon}
-                                        //       alt="Criteo"
-                                        //       className="w-5 h-5"
-                                        //     />
-                                        //   ),
-                                        //   onClick: () => {
-                                        //     // TODO: Implement Criteo OAuth
-                                        //     alert("Criteo integration coming soon");
-                                        //   },
-                                        //   disabled: isConnecting || isDeleting,
-                                        // },
-                                      ]}
-                                      align="left"
-                                    />
-                                  </div>
-                                  <div className="relative z-30">
-                                    <Menu
-                                      items={[
-                                        {
-                                          label: "View Channels",
-                                          icon: <ViewChannelsIcon />,
-                                          onClick: () => {
-                                            navigate(
-                                              `/accounts/${account.id}/channels`
-                                            );
-                                          },
-                                        },
-                                        {
-                                          label: "Assign User",
-                                          icon: <AssignUserIcon />,
-                                          onClick: () => {
-                                            // TODO: Implement assign user functionality
-                                            alert(
-                                              "Assign User functionality coming soon"
-                                            );
-                                          },
-                                        },
-                                        {
-                                          label: "Delete",
-                                          icon: <DeleteIcon />,
-                                          onClick: () =>
-                                            handleDeleteAccount(account.id),
-                                        },
-                                      ]}
-                                    />
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {/* Loading overlay for refreshing after creation */}
-                {(createAccountMutation.isPending ||
-                  updateAccountMutation.isPending ||
-                  deleteAccountMutation.isPending ||
-                  (accountsLoading && accounts.length > 0)) && (
-                  <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
-                    <div className="flex flex-col items-center gap-2">
-                      <svg
-                        className="animate-spin h-8 w-8 text-[#136d6d]"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
+            {/* Create Account Form */}
+            {showCreateAccount && (
+              <div ref={createAccountFormRef}>
+                <Card>
+                  <div className="p-4">
+                    <div className="flex gap-[12px]">
+                      <input
+                        type="text"
+                        value={newAccountName}
+                        onChange={(e) => setNewAccountName(e.target.value)}
+                        placeholder="Account name"
+                        className="campaign-input w-full"
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && handleCreateAccount()
+                        }
+                      />
+                      <button
+                        onClick={() => {
+                          setNewAccountName("");
+                          setShowCreateAccount(false);
+                        }}
+                        className="cancel-button"
                       >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      <p className="text-[14px] text-[#556179]">
-                        {createAccountMutation.isPending
-                          ? "Creating account..."
-                          : updateAccountMutation.isPending
-                          ? "Updating account..."
-                          : deleteAccountMutation.isPending
-                          ? "Deleting account..."
-                          : "Refreshing accounts..."}
-                      </p>
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleCreateAccount}
+                        disabled={createAccountMutation.isPending}
+                        className="create-entity-button"
+                      >
+                        {createAccountMutation.isPending ? (
+                          <>
+                            <svg
+                              className="animate-spin h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Creating...
+                          </>
+                        ) : (
+                          <span className="">Create</span>
+                        )}
+                      </button>
                     </div>
                   </div>
-                )}
+                </Card>
               </div>
+            )}
+
+            {/* Table */}
+            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-x-auto overflow-y-visible relative">
+              <div className="overflow-x-auto overflow-y-visible">
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      <th className="table-header">Account Name</th>
+                      <th className="table-header">Users</th>
+                      <th className="table-header">Created</th>
+                      <th className="table-header">Created By</th>
+                      <th className="table-header">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading || accountsLoading ? (
+                      // Loading skeleton rows
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <tr key={`skeleton-${index}`} className="table-row">
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-32"></div>
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-20"></div>
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                          </td>
+                          <td className="table-cell">
+                            <div className="h-9 bg-gray-200 rounded animate-pulse w-24"></div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : filteredAccounts.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="table-cell text-center py-8">
+                          <p className="text-[14px] text-[#556179] mb-4">
+                            {searchQuery
+                              ? "No accounts found"
+                              : "No accounts yet"}
+                          </p>
+                          {!searchQuery && (
+                            <div className="flex justify-center">
+                              <Button
+                                onClick={() => setShowCreateAccount(true)}
+                                className="rounded-lg"
+                              >
+                                Create Your First Account
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredAccounts.map((account) => {
+                        const isDeleting = deletingAccountId === account.id;
+                        const isConnecting =
+                          oauthLoading?.accountId === account.id;
+
+                        return (
+                          <tr
+                            key={account.id}
+                            className={`table-row group ${
+                              isDeleting ? "opacity-50" : ""
+                            }`}
+                          >
+                            <td className="table-cell">
+                              {editingAccount?.accountId === account.id ? (
+                                <input
+                                  type="text"
+                                  value={editedAccountName}
+                                  onChange={(e) =>
+                                    setEditedAccountName(e.target.value)
+                                  }
+                                  onBlur={(e) => {
+                                    const inputValue = e.target.value.trim();
+                                    if (
+                                      inputValue === account.name ||
+                                      inputValue === ""
+                                    ) {
+                                      cancelEditAccountName();
+                                    } else {
+                                      confirmEditAccountName(inputValue);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    } else if (e.key === "Escape") {
+                                      cancelEditAccountName();
+                                    }
+                                  }}
+                                  autoFocus
+                                  disabled={updateAccountMutation.isPending}
+                                  className="w-full px-2 py-1 text-[14px] text-[#0b0f16] border border-[#136d6d] rounded focus:outline-none focus:ring-2 focus:ring-[#136d6d] bg-white"
+                                />
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      navigate(
+                                        `/accounts/${account.id}/channels`
+                                      );
+                                    }}
+                                    className="table-edit-link"
+                                  >
+                                    {account.name}
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startEditAccountName(account);
+                                    }}
+                                    className="table-edit-icon"
+                                    title="Edit account name"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 text-[#556179]"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                            <td className="table-cell">
+                              <span className="table-text">
+                                {formatUsers(account.users)}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <span className="table-text whitespace-nowrap">
+                                {formatDate(account.created_at)}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <span className="table-text">
+                                {account.created_by_name || "—"}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <div className="flex items-center gap-2 justify-end md:justify-start">
+                                <div className="relative z-20">
+                                  <Menu
+                                    trigger={
+                                      <Button
+                                        size="sm"
+                                        disabled={isConnecting || isDeleting}
+                                        className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
+                                      >
+                                        <span className="text-[14px] font-medium">
+                                          {isConnecting
+                                            ? "Connecting..."
+                                            : "Connect"}
+                                        </span>
+                                      </Button>
+                                    }
+                                    items={[
+                                      {
+                                        label: "Amazon",
+                                        icon: (
+                                          <img
+                                            src={AmazonIcon}
+                                            alt="Amazon"
+                                            className="w-5 h-5"
+                                          />
+                                        ),
+                                        onClick: () =>
+                                          handleConnectAmazon(account.id),
+                                        disabled: isConnecting || isDeleting,
+                                      },
+                                      {
+                                        label: "Google",
+                                        icon: (
+                                          <img
+                                            src={GoogleIcon}
+                                            alt="Google"
+                                            className="w-5 h-5"
+                                          />
+                                        ),
+                                        onClick: () =>
+                                          handleConnectGoogle(account.id),
+                                        disabled: isConnecting || isDeleting,
+                                      },
+                                      {
+                                        label: "TikTok",
+                                        icon: (
+                                          <svg
+                                            className="w-5 h-5"
+                                            fill="currentColor"
+                                            viewBox="0 0 24 24"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                          >
+                                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                          </svg>
+                                        ),
+                                        onClick: () =>
+                                          handleConnectTikTok(account.id),
+                                        disabled: isConnecting || isDeleting,
+                                      },
+                                      // Hide these for now - uncomment when ready to implement
+                                      // {
+                                      //   label: "Walmart",
+                                      //   icon: (
+                                      //     <img
+                                      //       src={WalmartIcon}
+                                      //       alt="Walmart"
+                                      //       className="w-5 h-5"
+                                      //     />
+                                      //   ),
+                                      //   onClick: () => {
+                                      //     // TODO: Implement Walmart OAuth
+                                      //     alert("Walmart integration coming soon");
+                                      //   },
+                                      //   disabled: isConnecting || isDeleting,
+                                      // },
+                                      // {
+                                      //   label: "Instacart",
+                                      //   icon: (
+                                      //     <img
+                                      //       src={InstacartIcon}
+                                      //       alt="Instacart"
+                                      //       className="w-5 h-5"
+                                      //     />
+                                      //   ),
+                                      //   onClick: () => {
+                                      //     // TODO: Implement Instacart OAuth
+                                      //     alert("Instacart integration coming soon");
+                                      //   },
+                                      //   disabled: isConnecting || isDeleting,
+                                      // },
+                                      // {
+                                      //   label: "Criteo",
+                                      //   icon: (
+                                      //     <img
+                                      //       src={CriteoIcon}
+                                      //       alt="Criteo"
+                                      //       className="w-5 h-5"
+                                      //     />
+                                      //   ),
+                                      //   onClick: () => {
+                                      //     // TODO: Implement Criteo OAuth
+                                      //     alert("Criteo integration coming soon");
+                                      //   },
+                                      //   disabled: isConnecting || isDeleting,
+                                      // },
+                                    ]}
+                                    align="left"
+                                  />
+                                </div>
+                                <div className="relative z-30">
+                                  <Menu
+                                    items={[
+                                      {
+                                        label: "View Channels",
+                                        icon: <ViewChannelsIcon />,
+                                        onClick: () => {
+                                          navigate(
+                                            `/accounts/${account.id}/channels`
+                                          );
+                                        },
+                                      },
+                                      {
+                                        label: "Assign User",
+                                        icon: <AssignUserIcon />,
+                                        onClick: () => {
+                                          // TODO: Implement assign user functionality
+                                          alert(
+                                            "Assign User functionality coming soon"
+                                          );
+                                        },
+                                      },
+                                      {
+                                        label: "Delete",
+                                        icon: <DeleteIcon />,
+                                        onClick: () =>
+                                          handleDeleteAccount(account.id),
+                                      },
+                                    ]}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {/* Loading overlay for refreshing after creation */}
+              {(createAccountMutation.isPending ||
+                updateAccountMutation.isPending ||
+                deleteAccountMutation.isPending ||
+                (accountsLoading && accounts.length > 0)) && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center rounded-[12px] z-10">
+                  <div className="flex flex-col items-center gap-2">
+                    <svg
+                      className="animate-spin h-8 w-8 text-[#136d6d]"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <p className="text-[14px] text-[#556179]">
+                      {createAccountMutation.isPending
+                        ? "Creating account..."
+                        : updateAccountMutation.isPending
+                        ? "Updating account..."
+                        : deleteAccountMutation.isPending
+                        ? "Deleting account..."
+                        : "Refreshing accounts..."}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
