@@ -1,5 +1,7 @@
 import { parseDateToYYYYMMDD } from "../../utils/dateHelpers";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
+import { formatCurrency, formatPercentage } from "../../utils/formatters";
+import { getStatusBadgeLabel, getChannelTypeLabel } from "../../utils/statusLabels";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
@@ -7,7 +9,6 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button } from "../../components/ui";
-import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Dropdown } from "../../components/ui/Dropdown";
 import { Banner } from "../../components/ui/Banner";
 import {
@@ -18,42 +19,24 @@ import { campaignsService } from "../../services/campaigns";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
-import {
-  GoogleCampaignsTable,
-  type GoogleCampaign,
-} from "./components/GoogleCampaignsTable";
+import { GoogleCampaignsTable} from "./components/GoogleCampaignsTable";
 import { CreateGoogleCampaignSection } from "../../components/campaigns/CreateGoogleCampaignSection";
 import {
   CreateGoogleCampaignPanel,
   type CreateGoogleCampaignData,
 } from "../../components/campaigns/CreateGoogleCampaignPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
+import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
 
-// GoogleCampaign interface is now imported from GoogleCampaignsTable
+// IGoogleCampaign interface is now imported from GoogleCampaignsTable
 
 export const GoogleCampaigns: React.FC = () => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
-  const [campaigns, setCampaigns] = useState<GoogleCampaign[]>([]);
-  const [summary, setSummary] = useState<{
-    total_campaigns: number;
-    total_spends: number;
-    total_sales: number;
-    total_impressions: number;
-    total_clicks: number;
-    total_conversions?: number;
-    total_interactions?: number;
-    total_budget?: number;
-    avg_acos: number;
-    avg_roas: number;
-    avg_conversion_rate?: number;
-    avg_cost_per_conversion?: number;
-    avg_interaction_rate?: number;
-    avg_cost?: number;
-    avg_cpc?: number;
-  } | null>(null);
+  const [campaigns, setCampaigns] = useState<IGoogleCampaign[]>([]);
+  const [summary, setSummary] = useState<IGoogleCampaignsSummary | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
     Array<{
       date: string;
@@ -176,7 +159,7 @@ export const GoogleCampaigns: React.FC = () => {
       | "bidding_strategy_type";
   } | null>(null);
   const [inlineEditCampaign, setInlineEditCampaign] =
-    useState<GoogleCampaign | null>(null);
+    useState<IGoogleCampaign | null>(null);
   const [inlineEditField, setInlineEditField] = useState<
     | "budget"
     | "status"
@@ -907,7 +890,7 @@ export const GoogleCampaigns: React.FC = () => {
   };
 
   // Open edit mode for an existing campaign
-  const handleOpenEditCampaign = async (row: GoogleCampaign) => {
+  const handleOpenEditCampaign = async (row: IGoogleCampaign) => {
     if (!accountId) return;
 
     try {
@@ -1331,7 +1314,7 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Inline edit handlers
   const startInlineEdit = (
-    campaign: GoogleCampaign,
+    campaign: IGoogleCampaign,
     field:
       | "budget"
       | "status"
@@ -2036,46 +2019,6 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(2)}%`;
-  };
-
-
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, string> = {
-      ENABLED: "Enable",
-      PAUSED: "Paused",
-      REMOVED: "Removed",
-    };
-    const statusLabel = statusMap[status.toUpperCase()] || "Paused";
-    return <StatusBadge status={statusLabel} />;
-  };
-
-  const getChannelTypeLabel = (type?: string) => {
-    if (!type) return "—";
-    const typeMap: Record<string, string> = {
-      SEARCH: "Search",
-      DISPLAY: "Display",
-      SHOPPING: "Shopping",
-      PERFORMANCE_MAX: "Performance Max",
-      VIDEO: "Video",
-      HOTEL: "Hotel",
-      MULTI_CHANNEL: "Multi Channel",
-      LOCAL: "Local",
-      SMART: "Smart",
-    };
-    return typeMap[type] || type;
-  };
-
   const allSelected =
     campaigns.length > 0 && selectedCampaigns.size === campaigns.length;
   const someSelected =
@@ -2108,7 +2051,7 @@ export const GoogleCampaigns: React.FC = () => {
                 day: "numeric",
               });
             }
-          } catch (e) {
+          } catch  {
             // Keep original date if parsing fails
             formattedDate = item.date;
           }
@@ -3269,7 +3212,7 @@ export const GoogleCampaigns: React.FC = () => {
                     onConfirmInlineEdit={confirmInlineEdit}
                     formatCurrency={formatCurrency}
                     formatPercentage={formatPercentage}
-                    getStatusBadge={getStatusBadge}
+                    getStatusBadge={getStatusBadgeLabel}
                     getChannelTypeLabel={getChannelTypeLabel}
                     getSortIcon={getSortIcon}
                     onEditCampaign={handleOpenEditCampaign}

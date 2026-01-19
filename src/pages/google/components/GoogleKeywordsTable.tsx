@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import type { ColumnDefinition } from "./GoogleAdsTable";
+import type { IColumnDefinition } from "./GoogleAdsTable";
 
 export interface GoogleKeyword {
   id: number;
@@ -175,7 +175,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   } : null;
 
   // Define columns for keywords
-  const columns: ColumnDefinition[] = useMemo(() => [
+  const columns: IColumnDefinition[] = useMemo(() => [
     {
       key: "keyword_text",
       label: "Keyword",
