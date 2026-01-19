@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import type { ColumnDefinition } from "./GoogleAdsTable";
+import type { IColumnDefinition } from "./GoogleAdsTable";
 
 export interface GoogleAdGroup {
   id: number;
@@ -114,7 +114,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   } : null;
 
   // Define columns for adgroups
-  const columns: ColumnDefinition[] = useMemo(() => [
+  const columns: IColumnDefinition[] = useMemo(() => [
     {
       key: "adgroup_name",
       label: "Ad Group Name",

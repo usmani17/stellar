@@ -1,15 +1,18 @@
+import { StatusBadge } from "../components/ui/StatusBadge";
+
 /**
  * Convert campaign status to human-readable label
  * @param status - The status string (e.g., "ENABLED", "PAUSED")
  * @returns Human-readable status label
  */
-export const getStatusBadgeLabel = (status: string): string => {
+export const getStatusBadgeLabel = (status: string): any => {
   const statusMap: Record<string, string> = {
     ENABLED: "Enable",
     PAUSED: "Paused",
     REMOVED: "Removed",
   };
-  return statusMap[status.toUpperCase()] || "Paused";
+    const statusLabel = statusMap[status.toUpperCase()] || "Paused";
+    return <StatusBadge status={statusLabel} />;
 };
 
 /**

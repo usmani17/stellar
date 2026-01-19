@@ -172,7 +172,7 @@ stellar-frontend/
 ```typescript
 // src/components/campaigns/CampaignsTable.tsx
 import React, { useMemo, useState } from "react";
-import type { ColumnDefinition, Campaign } from "@/types";
+import type { IColumnDefinition, Campaign } from "@/types";
 
 interface CampaignsTableProps {
   campaigns: Campaign[];
@@ -189,7 +189,7 @@ export const CampaignsTable: React.FC<CampaignsTableProps> = ({
   const [editValue, setEditValue] = useState<string>("");
 
   // Properly memoize columns with all dependencies
-  const columns: ColumnDefinition[] = useMemo(() => [
+  const columns: IColumnDefinition[] = useMemo(() => [
     {
       key: "name",
       label: "Campaign Name",
@@ -919,11 +919,11 @@ export const useNewPlatformCampaigns = (accountId: string) => {
 // src/components/newplatform/NewPlatformCampaignsTable.tsx
 import React from "react";
 import { GoogleAdsTable } from "@/components/google/GoogleAdsTable"; // Reuse shared table
-import type { ColumnDefinition } from "@/types";
+import type { IColumnDefinition } from "@/types";
 
 export const NewPlatformCampaignsTable: React.FC<Props> = (props) => {
   // Map platform-specific data to shared table format
-  const columns: ColumnDefinition[] = [
+  const columns: IColumnDefinition[] = [
     // Platform-specific columns
   ];
 

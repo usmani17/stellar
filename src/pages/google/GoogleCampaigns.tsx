@@ -19,42 +19,24 @@ import { campaignsService } from "../../services/campaigns";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
-import {
-  GoogleCampaignsTable,
-  type GoogleCampaign,
-} from "./components/GoogleCampaignsTable";
+import { GoogleCampaignsTable} from "./components/GoogleCampaignsTable";
 import { CreateGoogleCampaignSection } from "../../components/campaigns/CreateGoogleCampaignSection";
 import {
   CreateGoogleCampaignPanel,
   type CreateGoogleCampaignData,
 } from "../../components/campaigns/CreateGoogleCampaignPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
+import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
 
-// GoogleCampaign interface is now imported from GoogleCampaignsTable
+// IGoogleCampaign interface is now imported from GoogleCampaignsTable
 
 export const GoogleCampaigns: React.FC = () => {
   const navigate = useNavigate();
   const { accountId } = useParams<{ accountId: string }>();
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
-  const [campaigns, setCampaigns] = useState<GoogleCampaign[]>([]);
-  const [summary, setSummary] = useState<{
-    total_campaigns: number;
-    total_spends: number;
-    total_sales: number;
-    total_impressions: number;
-    total_clicks: number;
-    total_conversions?: number;
-    total_interactions?: number;
-    total_budget?: number;
-    avg_acos: number;
-    avg_roas: number;
-    avg_conversion_rate?: number;
-    avg_cost_per_conversion?: number;
-    avg_interaction_rate?: number;
-    avg_cost?: number;
-    avg_cpc?: number;
-  } | null>(null);
+  const [campaigns, setCampaigns] = useState<IGoogleCampaign[]>([]);
+  const [summary, setSummary] = useState<IGoogleCampaignsSummary | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
     Array<{
       date: string;
@@ -177,7 +159,7 @@ export const GoogleCampaigns: React.FC = () => {
       | "bidding_strategy_type";
   } | null>(null);
   const [inlineEditCampaign, setInlineEditCampaign] =
-    useState<GoogleCampaign | null>(null);
+    useState<IGoogleCampaign | null>(null);
   const [inlineEditField, setInlineEditField] = useState<
     | "budget"
     | "status"
@@ -908,7 +890,7 @@ export const GoogleCampaigns: React.FC = () => {
   };
 
   // Open edit mode for an existing campaign
-  const handleOpenEditCampaign = async (row: GoogleCampaign) => {
+  const handleOpenEditCampaign = async (row: IGoogleCampaign) => {
     if (!accountId) return;
 
     try {
@@ -1332,7 +1314,7 @@ export const GoogleCampaigns: React.FC = () => {
 
   // Inline edit handlers
   const startInlineEdit = (
-    campaign: GoogleCampaign,
+    campaign: IGoogleCampaign,
     field:
       | "budget"
       | "status"
@@ -2069,7 +2051,7 @@ export const GoogleCampaigns: React.FC = () => {
                 day: "numeric",
               });
             }
-          } catch (e) {
+          } catch  {
             // Keep original date if parsing fails
             formattedDate = item.date;
           }
