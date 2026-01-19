@@ -999,8 +999,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                         setFilterValue(e.target.value.toUpperCase())
                       }
                       placeholder="Enter ASIN (e.g., B08N5WRWNW)"
-                      className={`w-full px-3 py-2 border rounded-lg text-[13.3px] bg-[#FEFEFB] ${
-                        filterValue && filterValue.length !== 10
+                      className={`w-full px-3 py-2 border rounded-lg text-[13.3px] bg-[#FEFEFB] ${filterValue && filterValue.length !== 10
                           ? "border-yellow-300"
                           : "border-gray-200"
                       }`}
@@ -1019,7 +1018,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter budget"
-                  className="campaign-input"
+                  className="campaign-input w-full"
                 />
               ) : (
                 <input
@@ -1027,7 +1026,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter value"
-                  className="campaign-input"
+                  className="campaign-input w-full"
                 />
               )}
             </div>
