@@ -13,10 +13,9 @@ export const useAccounts = () => {
       const data = await accountsService.getAccounts();
       return Array.isArray(data) ? data : [];
     },
+    // Always refetch on mount to ensure fresh data after login
+    refetchOnMount: true,
+    // Retry failed requests
+    retry: 2,
   });
 };
-
-
-
-
-

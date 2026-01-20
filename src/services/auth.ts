@@ -7,6 +7,7 @@ export interface User {
   last_name: string;
   company_name: string;
   created_at: string;
+  has_unusable_password?: boolean;
 }
 
 export interface AuthResponse {
@@ -96,6 +97,14 @@ export const authService = {
 
   getAuth0LogoutUrl: async (): Promise<{ logout_url: string }> => {
     const response = await api.get<{ logout_url: string }>('/users/auth0/logout/');
+    return response.data;
+  },
+
+  updatePassword: async (newPassword: string, newPassword2: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/users/update-password/', {
+      new_password: newPassword,
+      new_password2: newPassword2,
+    });
     return response.data;
   },
 };
