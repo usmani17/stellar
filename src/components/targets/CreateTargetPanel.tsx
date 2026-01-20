@@ -161,10 +161,17 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
       state: "ENABLED",
     });
     setErrors({});
+    // Clear all previous target errors when adding a new target
+    setTargetErrors([]);
   };
 
   const handleRemoveTarget = (index: number) => {
+    // Remove the target from the list
     setAddedTargets((prev) => prev.filter((_, i) => i !== index));
+    
+    // Clear all previous target errors when removing a target
+    // This ensures a clean slate since the user is actively fixing issues
+    setTargetErrors([]);
   };
 
   const handleSubmit = () => {
@@ -326,9 +333,9 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         </h2>
 
         {/* Single line inputs */}
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex items-end gap-3">
           {/* Ad Group Dropdown */}
-          <div className="flex-1 min-w-[180px]">
+          <div className="flex-1 min-w-[180px] w-full">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Ad Group *
             </label>
@@ -340,7 +347,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               value={currentTarget.adGroupId}
               onChange={(value) => handleChange("adGroupId", value)}
               placeholder="Select ad group"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
             {errors.adGroupId && (
               <p className="text-[10px] text-red-500 mt-1">
@@ -359,7 +366,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               value={currentTarget.expressionType}
               onChange={(value) => handleChange("expressionType", value)}
               placeholder="Select expression type"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
           </div>
 
@@ -373,7 +380,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               value={currentTarget.expressionValue}
               onChange={(e) => handleChange("expressionValue", e.target.value)}
               placeholder="Enter ASIN or value"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.expressionValue ? "border-red-500" : "border-gray-200"
               }`}
             />
@@ -398,7 +405,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               placeholder="0.10"
               min="0"
               step="0.01"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.bid ? "border-red-500" : "border-gray-200"
               }`}
             />
@@ -421,7 +428,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   handleChange("state", value as TargetInput["state"])
                 }
                 placeholder="Select state"
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
               />
             </div>
           )}

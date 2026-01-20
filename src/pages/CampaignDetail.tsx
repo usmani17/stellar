@@ -7212,6 +7212,45 @@ export const CampaignDetail: React.FC = () => {
                       Negative Targets
                     </h2>
                     <div className="flex items-center gap-2">
+                      {/* Create Negative Target Button */}
+                      <button
+                        onClick={() =>
+                          setIsCreateNegativeTargetPanelOpen(
+                            !isCreateNegativeTargetPanelOpen
+                          )
+                        }
+                        className="create-entity-button text-[11.2px] font-normal"
+                      >
+                        <svg
+                          className="w-4 h-4 !text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                        Create Negative Targets
+                        <svg
+                          className={`w-4 h-4 !text-white transition-transform ${
+                            isCreateNegativeTargetPanelOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
                       {/* Bulk Actions Button */}
                       <div
                         className="relative inline-flex justify-end"
@@ -7286,45 +7325,6 @@ export const CampaignDetail: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      {/* Create Negative Target Button */}
-                      <button
-                        onClick={() =>
-                          setIsCreateNegativeTargetPanelOpen(
-                            !isCreateNegativeTargetPanelOpen
-                          )
-                        }
-                        className="create-entity-button text-[11.2px] font-normal"
-                      >
-                        <svg
-                          className="w-4 h-4 !text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 4v16m8-8H4"
-                          />
-                        </svg>
-                        Create Negative Targets
-                        <svg
-                          className={`w-4 h-4 !text-white transition-transform ${
-                            isCreateNegativeTargetPanelOpen ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
                       {/* Add Filter Button */}
                       <button
                         onClick={() =>

@@ -819,3 +819,52 @@ body input[type="submit"]:disabled {
   outline: none;
 }
 
+/* Loading overlay - used for datatables and graphs when reloading */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  z-index: 10;
+}
+
+.loading-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+  color: #136d6d;
+}
+
+.loading-spinner circle {
+  opacity: 0.25;
+}
+
+.loading-spinner path {
+  opacity: 0.75;
+}
+
+.loading-message {
+  font-size: 14px;
+  color: #556179;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+

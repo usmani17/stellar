@@ -94,6 +94,7 @@ export interface CampaignDetail {
     targetingType?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (camelCase)
     targeting_type?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (snake_case)
     profile_id?: string; // Profile ID for the campaign
+    profile_name?: string; // Profile name for the campaign
     type?: string; // Campaign type (SP, SB, SD)
   };
   kpi_cards: Array<{
@@ -3179,8 +3180,7 @@ export const campaignsService = {
     const params = new URLSearchParams();
     if (campaignId) params.append("campaign_id", String(campaignId));
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${
-      queryString ? `?${queryString}` : ""
+    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${queryString ? `?${queryString}` : ""
       }`;
     const response = await api.get(url);
     return response.data;

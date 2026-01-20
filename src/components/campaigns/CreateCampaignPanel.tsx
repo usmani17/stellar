@@ -372,14 +372,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
   // Prevent formData from being reset when in edit mode - preserve all data
   useEffect(() => {
-    // If we're in edit mode and formData.type is empty but we have initialized campaign,
-    // restore formData from snapshot to prevent fields from disappearing
+    // If we're in edit mode and we have snapshot data but formData.type is missing,
+    // restore formData from snapshot to prevent fields from disappearing when reopening
+    // This handles the case when the panel is closed and reopened with the same campaign
     if (
       isOpen &&
       mode === "edit" &&
-      initializedCampaignId === campaignId &&
       snapshotInitialData &&
-      !formData.type
+      campaignId &&
+      (!formData.type || (formData.type as string) === "")
     ) {
       console.warn(
         "Form data type is empty in edit mode, restoring from snapshot"
@@ -404,11 +405,20 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         tags: snapshotInitialData.tags || formData.tags,
         siteRestrictions:
           snapshotInitialData.siteRestrictions || formData.siteRestrictions,
+        // Preserve tactic for SD campaigns
+        tactic: snapshotInitialData.tactic || formData.tactic,
+        // Preserve SB-specific fields
+        brandEntityId: snapshotInitialData.brandEntityId || formData.brandEntityId,
+        goal: snapshotInitialData.goal || formData.goal,
+        productLocation: snapshotInitialData.productLocation || formData.productLocation,
+        costType: snapshotInitialData.costType || formData.costType,
+        targetedPGDealId: snapshotInitialData.targetedPGDealId || formData.targetedPGDealId,
+        smartDefault: snapshotInitialData.smartDefault || formData.smartDefault,
       };
       setFormData(restoredFormData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, mode, campaignId, initializedCampaignId, formData.type]);
+  }, [isOpen, mode, campaignId, formData.type]);
 
   // When opening in edit mode, pre-populate form with initial data
   useEffect(() => {
@@ -471,11 +481,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
         })(),
         // Populate siteRestrictions from initialData
         siteRestrictions: initialData.siteRestrictions || undefined,
+        // Populate tactic from initialData for SD campaigns
+        tactic: initialData.tactic || undefined,
       };
       console.log("Setting form data with initialData:", {
         initialData,
         newFormData,
         bidding: newFormData.bidding,
+        tactic: newFormData.tactic,
       });
 
       setFormData((prev) => {
@@ -551,8 +564,15 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
     // IMPORTANT: Never reset form data when in edit mode, even if panel closes
     // This ensures form data persists even when modals open/close
-    // Only reset initialization flags when panel closes AND we're switching away from edit mode
-    if (!isOpen && mode !== "edit") {
+    // However, we need to allow re-initialization when reopening the same campaign
+    // So we reset the initialization flag when panel closes, but keep the snapshot
+    // This way, when reopening, the restoration logic will kick in
+    if (!isOpen && mode === "edit") {
+      // Reset initializedCampaignId so form can be re-initialized on reopen
+      // But keep snapshotInitialData for restoration
+      setInitializedCampaignId(undefined);
+    } else if (!isOpen && mode !== "edit") {
+      // When switching away from edit mode, clear everything
       setInitializedCampaignId(undefined);
       setSnapshotInitialData(null);
     }
@@ -825,12 +845,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       }
 
       // Validate end date is after start date (if both are provided)
-      // Note: SB campaigns don't have endDate, so skip validation for SB
-      if (
-        formData.type !== "SB" &&
-        formData.endDate &&
-        formData.endDate.trim()
-      ) {
+      // All campaign types now support endDate
+      if (formData.endDate && formData.endDate.trim()) {
         const endDate = new Date(formData.endDate);
         endDate.setHours(0, 0, 0, 0);
 
@@ -889,8 +905,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       status: data.status,
       profileId: data.profileId,
       startDate: data.startDate,
-      // Only include endDate for SP and SD campaigns (SB campaigns don't support endDate)
-      ...(data.type !== "SB" && { endDate: data.endDate }),
+      // Include endDate for all campaign types (SB campaigns now support endDate)
+      endDate: data.endDate,
     };
 
     // Campaign type specific fields
@@ -1018,8 +1034,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           basePayload.siteRestrictions = data.siteRestrictions;
         }
       }
-      // SB campaigns don't support endDate - don't include it in payload
-      // (already excluded in basePayload above)
+      // All campaign types now support endDate (included in basePayload above)
 
       return basePayload;
     } else if (data.type === "SD") {
@@ -1746,6 +1761,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onChange={(e) =>
                             handleChange("endDate", e.target.value)
                           }
+                          disabled={mode === "edit"}
                           min={
                             formData.startDate ||
                             new Date().toISOString().split("T")[0]
@@ -1754,10 +1770,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             errors.endDate
                               ? "border-red-500"
                               : "border-gray-200"
+                          } ${
+                            mode === "edit"
+                              ? "bg-gray-50 cursor-not-allowed"
+                              : ""
                           }`}
                         />
                         {/* Clear button to remove end date */}
-                        {formData.endDate && (
+                        {formData.endDate && mode !== "edit" && (
                           <button
                             type="button"
                             onClick={() => handleChange("endDate", "")}
@@ -1768,9 +1788,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           </button>
                         )}
                       </div>
-                      <p className="text-[10px] text-[#556179] mt-1">
-                        Optional - Leave empty for no end date
-                      </p>
+                      {mode === "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1 italic">
+                          Read-only in edit mode
+                        </p>
+                      )}
+                      {mode !== "edit" && (
+                        <p className="text-[10px] text-[#556179] mt-1">
+                          Optional - Leave empty for no end date
+                        </p>
+                      )}
                       {errors.endDate && (
                         <p className="text-[10px] text-red-500 mt-1">
                           {errors.endDate}

@@ -1216,13 +1216,41 @@ export const Keywords: React.FC = () => {
             />
 
             {/* Chart Section */}
-            <PerformanceChart
-              data={chartData}
-              toggles={chartToggles}
-              onToggle={toggleChartMetric}
-              metrics={keywordMetrics}
-              title="Performance Trends"
-            />
+            <div className="relative">
+              <PerformanceChart
+                data={chartData}
+                toggles={chartToggles}
+                onToggle={toggleChartMetric}
+                metrics={keywordMetrics}
+                title="Performance Trends"
+              />
+              {/* Loading overlay for chart */}
+              {loading && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <svg
+                      className="loading-spinner"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <p className="loading-message">Loading chart data...</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Keywords Table Card */}
             {/* Table Header */}
@@ -1717,13 +1745,9 @@ export const Keywords: React.FC = () => {
             )}
 
             {/* Table */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
               <div className="overflow-x-auto w-full">
-                {loading ? (
-                  <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                    Loading keywords...
-                  </div>
-                ) : keywords.length === 0 ? (
+                {keywords.length === 0 && !loading ? (
                   <div className="text-center py-8">
                     <p className="text-[13.3px] text-[#556179] mb-4">
                       No keywords found
@@ -1784,14 +1808,10 @@ export const Keywords: React.FC = () => {
                         </th>
 
                         {/* Profile */}
-                        <th className="table-header">
-                          Profile
-                        </th>
+                        <th className="table-header">Profile</th>
 
                         {/* Country */}
-                        <th className="table-header min-w-[100px]">
-                          Country
-                        </th>
+                        <th className="table-header min-w-[100px]">Country</th>
 
                         {/* Type */}
                         <th
@@ -1883,348 +1903,402 @@ export const Keywords: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {/* Summary Row */}
-                      {summary && (
-                        <tr className="table-summary-row">
-                          <td className="table-cell"></td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            Total ({summary.total_keywords})
-                          </td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {formatCurrency(summary.total_spends)}
-                          </td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {formatCurrency(summary.total_sales)}
-                          </td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {summary.total_impressions.toLocaleString()}
-                          </td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {summary.total_clicks.toLocaleString()}
-                          </td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {summary.avg_acos.toFixed(2)}%
-                          </td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {summary.avg_roas.toFixed(2)}x
-                          </td>
-                        </tr>
-                      )}
-                      {keywords.map((keyword, index) => {
-                        const isLastRow = index === keywords.length - 1;
-                        const isArchived =
-                          keyword.status?.toLowerCase() === "archived";
-                        return (
-                          <tr
-                            key={keyword.id}
-                            className={`${
-                              !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                            } ${
-                              isArchived
-                                ? "bg-gray-100 opacity-60"
-                                : "hover:bg-gray-50"
-                            } transition-colors`}
-                          >
-                            {/* Checkbox */}
-                            <td className="table-cell">
-                              <div className="flex items-center justify-center">
-                                <Checkbox
-                                  checked={selectedKeywords.has(
-                                    keyword.keywordId || keyword.id
-                                  )}
-                                  onChange={(checked) => {
-                                    const keywordId =
-                                      keyword.keywordId || keyword.id;
-                                    if (checked) {
-                                      setSelectedKeywords((prev) => {
-                                        const newSet = new Set(prev);
-                                        newSet.add(keywordId);
-                                        return newSet;
-                                      });
-                                    } else {
-                                      setSelectedKeywords((prev) => {
-                                        const newSet = new Set(prev);
-                                        newSet.delete(keywordId);
-                                        return newSet;
-                                      });
-                                    }
-                                  }}
-                                  size="small"
-                                />
-                              </div>
-                            </td>
-
-                            {/* Keyword Name */}
-                            <td className="table-cell min-w-[150px] max-w-[200px]">
-                              <span className="table-text leading-[1.26] text-left truncate block w-full">
-                                {keyword.name || "Unnamed Keyword"}
-                              </span>
-                            </td>
-
-                            {/* State */}
-                            <td className="table-cell min-w-[115px]">
-                              {editingCell?.keywordId === keyword.keywordId &&
-                              editingCell?.field === "status" ? (
-                                <Dropdown
-                                  options={[
-                                    { value: "Enabled", label: "Enabled" },
-                                    { value: "Paused", label: "Paused" },
-                                    { value: "Archived", label: "Archived" },
-                                  ]}
-                                  value={
-                                    editedValue ||
-                                    (() => {
-                                      const statusLower = (
-                                        keyword.status || "Enabled"
-                                      ).toLowerCase();
-                                      return statusLower === "enable" ||
-                                        statusLower === "enabled"
-                                        ? "Enabled"
-                                        : statusLower === "paused"
-                                        ? "Paused"
-                                        : statusLower === "archived"
-                                        ? "Archived"
-                                        : "Enabled";
-                                    })()
-                                  }
-                                  onChange={(val) => {
-                                    const newValue = val as string;
-                                    handleInlineEditChange(newValue);
-                                    setTimeout(() => {
-                                      confirmInlineEdit(newValue);
-                                    }, 100);
-                                  }}
-                                  onClose={() => {
-                                    cancelInlineEdit();
-                                  }}
-                                  defaultOpen={true}
-                                  closeOnSelect={true}
-                                  buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                  width="w-full"
-                                  align="center"
-                                />
-                              ) : (
-                                <div
-                                  onClick={() => {
-                                    // Prevent editing if keyword is archived
-                                    const currentStatus = (
-                                      keyword.status || "Enabled"
-                                    ).toLowerCase();
-                                    if (currentStatus === "archived") {
-                                      return; // Archived keywords are read-only
-                                    }
-                                    startInlineEdit(keyword, "status");
-                                  }}
-                                  className={`${
-                                    (
-                                      keyword.status || "Enabled"
-                                    ).toLowerCase() === "archived"
-                                      ? "cursor-not-allowed opacity-60"
-                                      : "cursor-pointer hover:bg-gray-50"
-                                  } rounded px-2 py-1`}
-                                  title={
-                                    (
-                                      keyword.status || "Enabled"
-                                    ).toLowerCase() === "archived"
-                                      ? "Archived keywords cannot be modified"
-                                      : undefined
-                                  }
-                                >
-                                  <StatusBadge
-                                    status={keyword.status || "Enabled"}
-                                  />
-                                </div>
-                              )}
-                            </td>
-
-                            {/* Keyword Bid */}
-                            <td className="table-cell">
-                              {editingCell?.keywordId === keyword.keywordId &&
-                              editingCell?.field === "bid" ? (
-                                <div className="flex items-center justify-center">
-                                  <input
-                                    type="number"
-                                    value={editedValue}
-                                    onChange={(e) =>
-                                      handleInlineEditChange(e.target.value)
-                                    }
-                                    onBlur={(e) => {
-                                      const inputValue = e.target.value;
-                                      confirmInlineEdit(inputValue);
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.currentTarget.blur();
-                                      } else if (e.key === "Escape") {
-                                        cancelInlineEdit();
-                                      }
-                                    }}
-                                    autoFocus
-                                    className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                                  />
-                                </div>
-                              ) : (
-                                <p
-                                  onClick={() =>
-                                    startInlineEdit(keyword, "bid")
-                                  }
-                                  className="table-text leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                >
-                                  {keyword.bid || "$0.00"}
-                                </p>
-                              )}
-                            </td>
-
-                            {/* Campaign Name */}
-                            <td className="table-cell min-w-[150px] max-w-[200px]">
-                              <button
-                                onClick={() => {
-                                  if (accountId && keyword.campaignId) {
-                                    navigate(
-                                      buildMarketplaceRoute(
-                                        parseInt(accountId),
-                                        "amazon",
-                                        "campaigns",
-                                        `${
-                                          keyword.type?.toLowerCase() || "sp"
-                                        }_${keyword.campaignId}`
-                                      )
-                                    );
-                                  }
-                                }}
-                                className="table-edit-link block w-full"
-                              >
-                                {keyword.campaign_name || "—"}
-                              </button>
-                            </td>
-
-                            {/* Profile */}
-                            <td className="table-cell min-w-[150px]">
-                              <span className="table-text leading-[1.26] whitespace-nowrap">
-                                {keyword.profile_name &&
-                                keyword.profile_name.trim() !== ""
-                                  ? keyword.profile_name
-                                  : "—"}
-                              </span>
-                            </td>
-
-                            {/* Country */}
-                            <td className="table-cell min-w-[100px]">
-                              <span className="table-text leading-[1.26] whitespace-nowrap">
-                                {keyword.profile_country_code &&
-                                keyword.profile_country_code.trim() !== ""
-                                  ? keyword.profile_country_code
-                                  : "—"}
-                              </span>
-                            </td>
-
-                            {/* Type */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {keyword.type || "SP"}
-                              </span>
-                            </td>
-
-                            {/* Spends */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {keyword.spends || "$0.00"}
-                              </span>
-                            </td>
-
-                            {/* Sales */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {keyword.sales || "$0.00"}
-                              </span>
-                            </td>
-
-                            {/* Impressions */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {(keyword.impressions || 0).toLocaleString()}
-                              </span>
-                            </td>
-
-                            {/* Clicks */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {(keyword.clicks || 0).toLocaleString()}
-                              </span>
-                            </td>
-
-                            {/* CTR */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {keyword.ctr || "0.00%"}
-                              </span>
-                            </td>
-
-                            {/* ACOS */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {keyword.acos
-                                  ? `${parseFloat(keyword.acos).toFixed(2)}%`
-                                  : "0.00%"}
-                              </span>
-                            </td>
-
-                            {/* ROAS */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {keyword.roas
-                                  ? `${parseFloat(keyword.roas).toFixed(2)} x`
-                                  : "0.00 x"}
-                              </span>
-                            </td>
-
-                            {/* Delete Icon - Show on hover */}
-                            <td className="table-cell w-[40px] relative group">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const keywordId =
-                                    keyword.keywordId || keyword.id;
-                                  const keywordName =
-                                    keyword.name || "Unnamed Keyword";
-                                  if (keywordId) {
-                                    handleInlineDelete(keywordId, keywordName);
-                                  }
-                                }}
-                                disabled={deleteLoading}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded cursor-pointer disabled:opacity-50"
-                                title="Delete keyword"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-red-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
+                      {/* Show skeleton rows when loading and no data */}
+                      {loading && keywords.length === 0 ? (
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <tr key={`skeleton-${index}`} className="table-row">
+                            <td className="table-cell" colSpan={15}>
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                             </td>
                           </tr>
-                        );
-                      })}
+                        ))
+                      ) : (
+                        <>
+                          {/* Summary Row */}
+                          {summary && (
+                            <tr className="table-summary-row">
+                              <td className="table-cell"></td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                Total ({summary.total_keywords})
+                              </td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {formatCurrency(summary.total_spends)}
+                              </td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {formatCurrency(summary.total_sales)}
+                              </td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {summary.total_impressions.toLocaleString()}
+                              </td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {summary.total_clicks.toLocaleString()}
+                              </td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {summary.avg_acos.toFixed(2)}%
+                              </td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {summary.avg_roas.toFixed(2)}x
+                              </td>
+                            </tr>
+                          )}
+                          {keywords.map((keyword, index) => {
+                            const isLastRow = index === keywords.length - 1;
+                            const isArchived =
+                              keyword.status?.toLowerCase() === "archived";
+                            return (
+                              <tr
+                                key={keyword.id}
+                                className={`${
+                                  !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                                } ${
+                                  isArchived
+                                    ? "bg-gray-100 opacity-60"
+                                    : "hover:bg-gray-50"
+                                } transition-colors`}
+                              >
+                                {/* Checkbox */}
+                                <td className="table-cell">
+                                  <div className="flex items-center justify-center">
+                                    <Checkbox
+                                      checked={selectedKeywords.has(
+                                        keyword.keywordId || keyword.id
+                                      )}
+                                      onChange={(checked) => {
+                                        const keywordId =
+                                          keyword.keywordId || keyword.id;
+                                        if (checked) {
+                                          setSelectedKeywords((prev) => {
+                                            const newSet = new Set(prev);
+                                            newSet.add(keywordId);
+                                            return newSet;
+                                          });
+                                        } else {
+                                          setSelectedKeywords((prev) => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(keywordId);
+                                            return newSet;
+                                          });
+                                        }
+                                      }}
+                                      size="small"
+                                    />
+                                  </div>
+                                </td>
+
+                                {/* Keyword Name */}
+                                <td className="table-cell min-w-[150px] max-w-[200px]">
+                                  <span className="table-text leading-[1.26] text-left truncate block w-full">
+                                    {keyword.name || "Unnamed Keyword"}
+                                  </span>
+                                </td>
+
+                                {/* State */}
+                                <td className="table-cell min-w-[115px]">
+                                  {editingCell?.keywordId ===
+                                    keyword.keywordId &&
+                                  editingCell?.field === "status" ? (
+                                    <Dropdown
+                                      options={[
+                                        { value: "Enabled", label: "Enabled" },
+                                        { value: "Paused", label: "Paused" },
+                                        {
+                                          value: "Archived",
+                                          label: "Archived",
+                                        },
+                                      ]}
+                                      value={
+                                        editedValue ||
+                                        (() => {
+                                          const statusLower = (
+                                            keyword.status || "Enabled"
+                                          ).toLowerCase();
+                                          return statusLower === "enable" ||
+                                            statusLower === "enabled"
+                                            ? "Enabled"
+                                            : statusLower === "paused"
+                                            ? "Paused"
+                                            : statusLower === "archived"
+                                            ? "Archived"
+                                            : "Enabled";
+                                        })()
+                                      }
+                                      onChange={(val) => {
+                                        const newValue = val as string;
+                                        handleInlineEditChange(newValue);
+                                        setTimeout(() => {
+                                          confirmInlineEdit(newValue);
+                                        }, 100);
+                                      }}
+                                      onClose={() => {
+                                        cancelInlineEdit();
+                                      }}
+                                      defaultOpen={true}
+                                      closeOnSelect={true}
+                                      buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                      width="w-full"
+                                      align="center"
+                                    />
+                                  ) : (
+                                    <div
+                                      onClick={() => {
+                                        // Prevent editing if keyword is archived
+                                        const currentStatus = (
+                                          keyword.status || "Enabled"
+                                        ).toLowerCase();
+                                        if (currentStatus === "archived") {
+                                          return; // Archived keywords are read-only
+                                        }
+                                        startInlineEdit(keyword, "status");
+                                      }}
+                                      className={`${
+                                        (
+                                          keyword.status || "Enabled"
+                                        ).toLowerCase() === "archived"
+                                          ? "cursor-not-allowed opacity-60"
+                                          : "cursor-pointer hover:bg-gray-50"
+                                      } rounded px-2 py-1`}
+                                      title={
+                                        (
+                                          keyword.status || "Enabled"
+                                        ).toLowerCase() === "archived"
+                                          ? "Archived keywords cannot be modified"
+                                          : undefined
+                                      }
+                                    >
+                                      <StatusBadge
+                                        status={keyword.status || "Enabled"}
+                                      />
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* Keyword Bid */}
+                                <td className="table-cell">
+                                  {editingCell?.keywordId ===
+                                    keyword.keywordId &&
+                                  editingCell?.field === "bid" ? (
+                                    <div className="flex items-center justify-center">
+                                      <input
+                                        type="number"
+                                        value={editedValue}
+                                        onChange={(e) =>
+                                          handleInlineEditChange(e.target.value)
+                                        }
+                                        onBlur={(e) => {
+                                          const inputValue = e.target.value;
+                                          confirmInlineEdit(inputValue);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.currentTarget.blur();
+                                          } else if (e.key === "Escape") {
+                                            cancelInlineEdit();
+                                          }
+                                        }}
+                                        autoFocus
+                                        className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <p
+                                      onClick={() =>
+                                        startInlineEdit(keyword, "bid")
+                                      }
+                                      className="table-text leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
+                                    >
+                                      {keyword.bid || "$0.00"}
+                                    </p>
+                                  )}
+                                </td>
+
+                                {/* Campaign Name */}
+                                <td className="table-cell min-w-[150px] max-w-[200px]">
+                                  <button
+                                    onClick={() => {
+                                      if (accountId && keyword.campaignId) {
+                                        navigate(
+                                          buildMarketplaceRoute(
+                                            parseInt(accountId),
+                                            "amazon",
+                                            "campaigns",
+                                            `${
+                                              keyword.type?.toLowerCase() ||
+                                              "sp"
+                                            }_${keyword.campaignId}`
+                                          )
+                                        );
+                                      }
+                                    }}
+                                    className="table-edit-link block w-full"
+                                  >
+                                    {keyword.campaign_name || "—"}
+                                  </button>
+                                </td>
+
+                                {/* Profile */}
+                                <td className="table-cell min-w-[150px]">
+                                  <span className="table-text leading-[1.26] whitespace-nowrap">
+                                    {keyword.profile_name &&
+                                    keyword.profile_name.trim() !== ""
+                                      ? keyword.profile_name
+                                      : "—"}
+                                  </span>
+                                </td>
+
+                                {/* Country */}
+                                <td className="table-cell min-w-[100px]">
+                                  <span className="table-text leading-[1.26] whitespace-nowrap">
+                                    {keyword.profile_country_code &&
+                                    keyword.profile_country_code.trim() !== ""
+                                      ? keyword.profile_country_code
+                                      : "—"}
+                                  </span>
+                                </td>
+
+                                {/* Type */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {keyword.type || "SP"}
+                                  </span>
+                                </td>
+
+                                {/* Spends */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {keyword.spends || "$0.00"}
+                                  </span>
+                                </td>
+
+                                {/* Sales */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {keyword.sales || "$0.00"}
+                                  </span>
+                                </td>
+
+                                {/* Impressions */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {(
+                                      keyword.impressions || 0
+                                    ).toLocaleString()}
+                                  </span>
+                                </td>
+
+                                {/* Clicks */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {(keyword.clicks || 0).toLocaleString()}
+                                  </span>
+                                </td>
+
+                                {/* CTR */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {keyword.ctr || "0.00%"}
+                                  </span>
+                                </td>
+
+                                {/* ACOS */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {keyword.acos
+                                      ? `${parseFloat(keyword.acos).toFixed(
+                                          2
+                                        )}%`
+                                      : "0.00%"}
+                                  </span>
+                                </td>
+
+                                {/* ROAS */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {keyword.roas
+                                      ? `${parseFloat(keyword.roas).toFixed(
+                                          2
+                                        )} x`
+                                      : "0.00 x"}
+                                  </span>
+                                </td>
+
+                                {/* Delete Icon - Show on hover */}
+                                <td className="table-cell w-[40px] relative group">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const keywordId =
+                                        keyword.keywordId || keyword.id;
+                                      const keywordName =
+                                        keyword.name || "Unnamed Keyword";
+                                      if (keywordId) {
+                                        handleInlineDelete(
+                                          keywordId,
+                                          keywordName
+                                        );
+                                      }
+                                    }}
+                                    disabled={deleteLoading}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded cursor-pointer disabled:opacity-50"
+                                    title="Delete keyword"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 text-red-600"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </>
+                      )}
                     </tbody>
                   </table>
                 )}
               </div>
+              {/* Loading overlay for table */}
+              {loading && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <svg
+                      className="loading-spinner"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <p className="loading-message">Loading keywords...</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Pagination */}

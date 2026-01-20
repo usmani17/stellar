@@ -189,6 +189,18 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
     setAddedAdGroups((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleEditAdGroup = (index: number) => {
+    const adGroupToEdit = addedAdGroups[index];
+    if (adGroupToEdit) {
+      // Populate form with the ad group data
+      setCurrentAdGroup(adGroupToEdit);
+      // Remove from added list
+      setAddedAdGroups((prev) => prev.filter((_, i) => i !== index));
+      // Clear any errors
+      setErrors({});
+    }
+  };
+
   const handleSubmit = () => {
     if (addedAdGroups.length === 0) {
       alert("Please add at least one ad group before submitting.");
@@ -367,7 +379,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               value={currentAdGroup.name}
               onChange={(e) => handleChange("name", e.target.value)}
               placeholder="Enter ad group name"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`campaign-input bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.name ? "border-red-500" : "border-gray-200"
               }`}
             />
@@ -391,7 +403,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                 placeholder="0.10"
                 min="0"
                 step="0.01"
-                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                className={`campaign-input bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                   errors.defaultBid ? "border-red-500" : "border-gray-200"
                 }`}
               />
@@ -417,13 +429,13 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                 handleChange("state", value as AdGroupInput["state"])
               }
               placeholder="Select state"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
           </div>
 
           {/* Bid Optimization - Only for SD campaigns */}
           {campaignType === "SD" && (
-            <div className="w-[160px]">
+            <div className="w-[160px] w-full">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Bid Optimization *
               </label>
@@ -453,19 +465,20 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Creative Type
               </label>
-              <Dropdown<string | null>
+              <Dropdown<string>
                 options={[
                   { value: "IMAGE", label: "IMAGE" },
                   { value: "VIDEO", label: "VIDEO" },
-                  { value: null, label: "None (defaults to IMAGE)" },
+                  { value: "", label: "None (defaults to IMAGE)" },
                 ]}
-                value={currentAdGroup.creativeType || null}
-                onChange={(value) =>
-                  handleChange(
-                    "creativeType",
-                    value === null ? null : (value as "IMAGE" | "VIDEO")
-                  )
-                }
+                value={currentAdGroup.creativeType || ""}
+                onChange={(value) => {
+                  if (value === "") {
+                    setCurrentAdGroup((prev) => ({ ...prev, creativeType: null }));
+                  } else {
+                    handleChange("creativeType", value as "IMAGE" | "VIDEO");
+                  }
+                }}
                 placeholder="Select creative type"
                 buttonClassName="w-full"
               />
@@ -611,13 +624,35 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                           </>
                         )}
                         <td className="table-cell">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAdGroup(index)}
-                            className="text-red-500 hover:text-red-700 text-[13.3px]"
-                          >
-                            Remove
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEditAdGroup(index)}
+                              className="edit-button"
+                              title="Edit"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAdGroup(index)}
+                              className="text-red-500 hover:text-red-700 text-[13.3px]"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

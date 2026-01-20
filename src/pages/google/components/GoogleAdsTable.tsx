@@ -3,94 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
 import { formatDateString, parseDateToYYYYMMDD } from "../../../utils/dateHelpers";
+import type { IColumnDefinition, IGoogleAdsTableProps } from "../../../types/google";
 
-export type FieldType = "status" | "budget" | "bid" | "start_date" | "end_date" | "text" | "currency" | "number" | "percentage" | "roas";
-
-export interface ColumnDefinition {
-  key: string;
-  label: string;
-  sortable?: boolean;
-  type: FieldType;
-  sticky?: boolean;
-  minWidth?: string;
-  maxWidth?: string;
-  width?: string;
-  // For editable fields
-  editable?: boolean;
-  // For status fields - options
-  statusOptions?: Array<{ value: string; label: string }>;
-  // For navigation
-  navigateTo?: (row: any, accountId: string) => string | null;
-  // Custom render function
-  render?: (value: any, row: any) => React.ReactNode;
-  // Get value from row
-  getValue: (row: any) => any;
-}
-
-export interface GoogleAdsTableProps<T = any> {
-  data: T[];
-  loading: boolean;
-  sorting: boolean;
-  accountId: string;
-  selectedItems: Set<string | number>;
-  allSelected: boolean;
-  someSelected: boolean;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
-  editingCell: {
-    itemId: string | number;
-    field: string;
-  } | null;
-  editedValue: string;
-  isCancelling: boolean;
-  updatingField: {
-    itemId: string | number;
-    field: string;
-  } | null;
-  pendingChanges: {
-    [field: string]: {
-      itemId: string | number;
-      newValue: any;
-      oldValue: any;
-    } | null;
-  };
-  summary: {
-    total_count: number;
-    total_spends: number;
-    total_sales: number;
-    total_impressions: number;
-    total_clicks: number;
-    total_conversions?: number;
-    total_interactions?: number;
-    total_budget?: number;
-    avg_acos: number;
-    avg_roas: number;
-    avg_conversion_rate?: number;
-    avg_cost_per_conversion?: number;
-    avg_interaction_rate?: number;
-    avg_cost?: number;
-    avg_cpc?: number;
-  } | null;
-  columns: ColumnDefinition[];
-  getId: (row: T) => string | number;
-  getItemName: (row: T) => string;
-  emptyMessage: string;
-  loadingMessage: string;
-  onSelectAll: (checked: boolean) => void;
-  onSelectItem: (itemId: string | number, checked: boolean) => void;
-  onSort: (column: string) => void;
-  onStartInlineEdit: (item: T, field: string) => void;
-  onCancelInlineEdit: () => void;
-  onInlineEditChange: (value: string) => void;
-  onConfirmInlineEdit: (value: string, field: string) => void;
-  onConfirmChange: (itemId: string | number, field: string, newValue: any) => void;
-  onCancelChange: (field: string) => void;
-  formatCurrency: (value: number) => string;
-  formatPercentage: (value: number) => string;
-  getStatusBadge: (status: string) => React.ReactElement;
-  getSortIcon: (column: string) => React.ReactElement;
-  isPanelOpen?: boolean; // When true, editable fields become read-only
-}
 
 export function GoogleAdsTable<T = any>({
   data,
@@ -127,10 +41,10 @@ export function GoogleAdsTable<T = any>({
   getStatusBadge,
   getSortIcon,
   isPanelOpen = false,
-}: GoogleAdsTableProps<T>) {
+}: IGoogleAdsTableProps<T>) {
   const navigate = useNavigate();
 
-  const renderCell = (column: ColumnDefinition, row: T, index: number) => {
+  const renderCell = (column: IColumnDefinition, row: T, index: number) => {
     const itemId = getId(row);
     const isEditing = editingCell?.itemId === itemId && editingCell?.field === column.key;
     const isUpdating = updatingField?.itemId === itemId && updatingField?.field === column.key;
@@ -226,7 +140,7 @@ export function GoogleAdsTable<T = any>({
     return <div>{cellContent}</div>;
   };
 
-  const renderValue = (column: ColumnDefinition, value: any): React.ReactNode => {
+  const renderValue = (column: IColumnDefinition, value: any): React.ReactNode => {
     switch (column.type) {
       case "status":
         // Special handling for match_type to show as purple text instead of badge
@@ -271,7 +185,7 @@ export function GoogleAdsTable<T = any>({
     }
   };
 
-  const renderEditableCell = (column: ColumnDefinition, value: any, row: T, itemId: string | number): React.ReactNode => {
+  const renderEditableCell = (column: IColumnDefinition, value: any, row: T, itemId: string | number): React.ReactNode => {
     // If column has statusOptions, show dropdown (for status, bidding_strategy_type, etc.)
     if (column.statusOptions && column.statusOptions.length > 0) {
       // Use wider width for bidding strategy (longer labels)
@@ -447,7 +361,7 @@ export function GoogleAdsTable<T = any>({
     }
   };
 
-  const getStickyClasses = (column: ColumnDefinition, index: number): string => {
+  const getStickyClasses = (column: IColumnDefinition, index: number): string => {
     if (!column.sticky) return "";
     
     // Calculate left offset based on previous sticky columns
@@ -532,7 +446,7 @@ export function GoogleAdsTable<T = any>({
                       let summaryValue: React.ReactNode = "";
                       // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id
                       if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id")) {
-                        summaryValue = `Total (${summary?.total_count || 0})`;
+                        summaryValue = `Total (${summary?.total_campaigns || 0})`;
                       } else if (column.key === "spends") {
                         summaryValue = formatCurrency(summary?.total_spends || 0);
                       } else if (column.key === "sales") {
@@ -620,7 +534,6 @@ export function GoogleAdsTable<T = any>({
 
                 {/* Data Rows */}
                 {data.map((row, index) => {
-                  const isLastRow = index === data.length - 1;
                   const itemId = getId(row);
                   // Use combination of itemId and index to ensure unique keys
                   const uniqueKey = `${itemId}-${index}`;
