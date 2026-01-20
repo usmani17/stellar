@@ -3,11 +3,15 @@ import { Dropdown } from "../ui/Dropdown";
 
 export interface ProductAdInput {
   adGroupId: string;
-  asin: string;
+  asin?: string;
   sku?: string;
   customText?: string;
   catalogSourceCountryCode?: string;
-  state: "ENABLED" | "PAUSED";
+  state: "ENABLED" | "PAUSED" | "enabled" | "paused" | "archived";
+  // SD-specific fields
+  landingPageURL?: string;
+  landingPageType?: "STORE" | "MOMENT" | "OFF_AMAZON_LINK";
+  adName?: string;
 }
 
 interface CreateProductAdPanelProps {
@@ -17,11 +21,18 @@ interface CreateProductAdPanelProps {
   adgroups: Array<{ adGroupId: string; name: string }>;
   campaignId: string;
   loading?: boolean;
+  campaignType?: string; // SP, SB, or SD
 }
 
 const STATE_OPTIONS = [
   { value: "ENABLED", label: "ENABLED" },
   { value: "PAUSED", label: "PAUSED" },
+];
+
+const SD_STATE_OPTIONS = [
+  { value: "enabled", label: "Enabled" },
+  { value: "paused", label: "Paused" },
+  { value: "archived", label: "Archived" },
 ];
 
 export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
@@ -31,14 +42,22 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
   adgroups,
   campaignId,
   loading = false,
+  campaignType = "SP",
 }) => {
+  // For SD campaigns, track which type is selected (sku, asin, or off-amazon)
+  const [sdProductType, setSdProductType] = useState<
+    "sku" | "asin" | "off-amazon"
+  >("sku");
   const [currentProductAd, setCurrentProductAd] = useState<ProductAdInput>({
     adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
     asin: "",
     sku: "",
     customText: "",
     catalogSourceCountryCode: "",
-    state: "ENABLED",
+    state: campaignType === "SD" ? "enabled" : "ENABLED",
+    landingPageURL: "",
+    landingPageType: "OFF_AMAZON_LINK",
+    adName: "",
   });
   const [addedProductAds, setAddedProductAds] = useState<ProductAdInput[]>([]);
   const [errors, setErrors] = useState<
@@ -60,8 +79,42 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
       newErrors.adGroupId = "Ad Group is required";
     }
 
-    if (!currentProductAd.asin.trim()) {
-      newErrors.asin = "ASIN is required";
+    if (campaignType === "SD") {
+      // For SD, validate that exactly one type is provided
+      const hasSku = !!(currentProductAd.sku && currentProductAd.sku.trim());
+      const hasAsin = !!(currentProductAd.asin && currentProductAd.asin.trim());
+      const hasLandingPage = !!(
+        currentProductAd.landingPageURL &&
+        currentProductAd.landingPageURL.trim()
+      );
+
+      const typeCount = [hasSku, hasAsin, hasLandingPage].filter(
+        Boolean
+      ).length;
+
+      if (typeCount === 0) {
+        newErrors.sku = "Must provide either SKU, ASIN, or Landing Page URL";
+        newErrors.asin = "Must provide either SKU, ASIN, or Landing Page URL";
+        newErrors.landingPageURL =
+          "Must provide either SKU, ASIN, or Landing Page URL";
+      } else if (typeCount > 1) {
+        newErrors.sku =
+          "Can only provide one of SKU, ASIN, or Landing Page URL";
+        newErrors.asin =
+          "Can only provide one of SKU, ASIN, or Landing Page URL";
+        newErrors.landingPageURL =
+          "Can only provide one of SKU, ASIN, or Landing Page URL";
+      } else {
+        // Validate specific type requirements
+        if (hasLandingPage && !currentProductAd.adName?.trim()) {
+          newErrors.adName = "Ad Name is required when using Landing Page URL";
+        }
+      }
+    } else {
+      // For SP/SB, ASIN is required
+      if (!currentProductAd.asin?.trim()) {
+        newErrors.asin = "ASIN is required";
+      }
     }
 
     if (
@@ -90,7 +143,10 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
       sku: "",
       customText: "",
       catalogSourceCountryCode: "",
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      landingPageURL: "",
+      landingPageType: "OFF_AMAZON_LINK",
+      adName: "",
     });
     setErrors({});
   };
@@ -126,7 +182,10 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
       sku: "",
       customText: "",
       catalogSourceCountryCode: "",
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      landingPageURL: "",
+      landingPageType: "OFF_AMAZON_LINK",
+      adName: "",
     });
     setErrors({});
   };
@@ -140,7 +199,10 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
       sku: "",
       customText: "",
       catalogSourceCountryCode: "",
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      landingPageURL: "",
+      landingPageType: "OFF_AMAZON_LINK",
+      adName: "",
     });
     setErrors({});
     onClose();
@@ -157,6 +219,82 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
         </h2>
 
         <div className="space-y-4">
+          {/* For SD campaigns, show type selector on its own row */}
+          {campaignType === "SD" && (
+            <div>
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                Product Type *
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="sdProductType"
+                    value="sku"
+                    checked={sdProductType === "sku"}
+                    onChange={(e) => {
+                      setSdProductType("sku");
+                      // Clear other fields when switching
+                      setCurrentProductAd((prev) => ({
+                        ...prev,
+                        asin: "",
+                        landingPageURL: "",
+                        landingPageType: "OFF_AMAZON_LINK",
+                        adName: "",
+                      }));
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-[11.2px] text-[#556179]">
+                    Seller (SKU)
+                  </span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="sdProductType"
+                    value="asin"
+                    checked={sdProductType === "asin"}
+                    onChange={(e) => {
+                      setSdProductType("asin");
+                      setCurrentProductAd((prev) => ({
+                        ...prev,
+                        sku: "",
+                        landingPageURL: "",
+                        landingPageType: "OFF_AMAZON_LINK",
+                        adName: "",
+                      }));
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-[11.2px] text-[#556179]">
+                    Vendor (ASIN)
+                  </span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="sdProductType"
+                    value="off-amazon"
+                    checked={sdProductType === "off-amazon"}
+                    onChange={(e) => {
+                      setSdProductType("off-amazon");
+                      setCurrentProductAd((prev) => ({
+                        ...prev,
+                        sku: "",
+                        asin: "",
+                      }));
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-[11.2px] text-[#556179]">
+                    Off-Amazon
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Single line inputs */}
           <div className="flex items-end gap-3">
             {/* Ad Group Dropdown */}
@@ -181,73 +319,146 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
               )}
             </div>
 
-            {/* ASIN Input */}
-            <div className="flex-1 min-w-[150px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                ASIN *
-              </label>
-              <input
-                type="text"
-                value={currentProductAd.asin}
-                onChange={(e) => handleChange("asin", e.target.value)}
-                className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
-                placeholder="Enter ASIN"
-              />
-              {errors.asin && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.asin}</p>
-              )}
-            </div>
+            {/* SKU Input - Show for SP or SD (when SKU type selected) */}
+            {(campaignType !== "SD" || sdProductType === "sku") && (
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  {campaignType === "SD" ? "SKU *" : "SKU"}
+                </label>
+                <input
+                  type="text"
+                  value={currentProductAd.sku || ""}
+                  onChange={(e) => handleChange("sku", e.target.value)}
+                  className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                  placeholder={
+                    campaignType === "SD" ? "Enter SKU" : "Enter SKU (optional)"
+                  }
+                />
+                {errors.sku && (
+                  <p className="text-[10px] text-red-500 mt-1">{errors.sku}</p>
+                )}
+              </div>
+            )}
 
-            {/* SKU Input */}
-            <div className="flex-1 min-w-[150px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                SKU
-              </label>
-              <input
-                type="text"
-                value={currentProductAd.sku || ""}
-                onChange={(e) => handleChange("sku", e.target.value)}
-                className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
-                placeholder="Enter SKU (optional)"
-              />
-            </div>
+            {/* ASIN Input - Show for SP/SB or SD (when ASIN type selected) */}
+            {(campaignType !== "SD" || sdProductType === "asin") && (
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  ASIN {campaignType !== "SD" ? "*" : "*"}
+                </label>
+                <input
+                  type="text"
+                  value={currentProductAd.asin || ""}
+                  onChange={(e) => handleChange("asin", e.target.value)}
+                  className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                  placeholder="Enter ASIN"
+                />
+                {errors.asin && (
+                  <p className="text-[10px] text-red-500 mt-1">{errors.asin}</p>
+                )}
+              </div>
+            )}
 
-            {/* Custom Text Input */}
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                Custom Text
-              </label>
-              <input
-                type="text"
-                value={currentProductAd.customText || ""}
-                onChange={(e) => handleChange("customText", e.target.value)}
-                maxLength={150}
-                className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
-                placeholder="Enter custom text (optional, max 150 chars)"
-              />
-              {errors.customText && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.customText}
-                </p>
-              )}
-            </div>
+            {/* Off-Amazon fields - Show only for SD when off-amazon type selected */}
+            {campaignType === "SD" && sdProductType === "off-amazon" && (
+              <>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Landing Page URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={currentProductAd.landingPageURL || ""}
+                    onChange={(e) =>
+                      handleChange("landingPageURL", e.target.value)
+                    }
+                    className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                    placeholder="https://example.com"
+                  />
+                  {errors.landingPageURL && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.landingPageURL}
+                    </p>
+                  )}
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Landing Page Type
+                  </label>
+                  <Dropdown<string>
+                    options={[
+                      { value: "STORE", label: "STORE" },
+                      { value: "MOMENT", label: "MOMENT" },
+                      { value: "OFF_AMAZON_LINK", label: "OFF_AMAZON_LINK" },
+                    ]}
+                    value={
+                      currentProductAd.landingPageType || "OFF_AMAZON_LINK"
+                    }
+                    onChange={(value) => handleChange("landingPageType", value)}
+                    placeholder="Select type"
+                    buttonClassName="w-full"
+                  />
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Ad Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={currentProductAd.adName || ""}
+                    onChange={(e) => handleChange("adName", e.target.value)}
+                    className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                    placeholder="Enter ad name"
+                  />
+                  {errors.adName && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.adName}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
 
-            {/* Catalog Source Country Code */}
-            <div className="flex-1 min-w-[150px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                Country Code
-              </label>
-              <input
-                type="text"
-                value={currentProductAd.catalogSourceCountryCode || ""}
-                onChange={(e) =>
-                  handleChange("catalogSourceCountryCode", e.target.value)
-                }
-                className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
-                placeholder="e.g., US (optional)"
-                maxLength={2}
-              />
-            </div>
+            {/* Custom Text Input - Only for SP/SB */}
+            {campaignType !== "SD" && (
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Custom Text
+                </label>
+                <input
+                  type="text"
+                  value={currentProductAd.customText || ""}
+                  onChange={(e) => handleChange("customText", e.target.value)}
+                  maxLength={150}
+                  className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                  placeholder="Enter custom text (optional, max 150 chars)"
+                />
+                {errors.customText && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.customText}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Catalog Source Country Code - Only for SP/SB */}
+            {campaignType !== "SD" && (
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Country Code
+                </label>
+                <input
+                  type="text"
+                  value={currentProductAd.catalogSourceCountryCode || ""}
+                  onChange={(e) =>
+                    handleChange("catalogSourceCountryCode", e.target.value)
+                  }
+                  className="w-full campaign-input px-3 py-2 border border-[#e8e8e3] rounded-lg table-text focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-transparent"
+                  placeholder="e.g., US (optional)"
+                  maxLength={2}
+                />
+              </div>
+            )}
 
             {/* State Dropdown */}
             <div className="flex-1 min-w-[120px] w-full">
@@ -255,11 +466,11 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                 State *
               </label>
               <Dropdown<string>
-                options={STATE_OPTIONS}
-                value={currentProductAd.state}
-                onChange={(value) =>
-                  handleChange("state", value as "ENABLED" | "PAUSED")
+                options={
+                  campaignType === "SD" ? SD_STATE_OPTIONS : STATE_OPTIONS
                 }
+                value={currentProductAd.state}
+                onChange={(value) => handleChange("state", value as any)}
                 placeholder="Select state"
                 buttonClassName="edit-button w-full"
               />
@@ -287,27 +498,24 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                   <table className="w-full min-w-max">
                     <thead className="sticky top-0 bg-[#fefefb] z-10">
                       <tr className="border-b border-[#e8e8e3]">
-                        <th className="table-header">
-                          Ad Group
-                        </th>
-                        <th className="table-header">
-                          ASIN
-                        </th>
-                        <th className="table-header">
-                          SKU
-                        </th>
-                        <th className="table-header">
-                          Custom Text
-                        </th>
-                        <th className="table-header">
-                          Country Code
-                        </th>
-                        <th className="table-header">
-                          State
-                        </th>
-                        <th className="table-header">
-                          Action
-                        </th>
+                        <th className="table-header">Ad Group</th>
+                        {campaignType === "SD" ? (
+                          <>
+                            <th className="table-header">SKU</th>
+                            <th className="table-header">ASIN</th>
+                            <th className="table-header">Landing Page URL</th>
+                            <th className="table-header">Ad Name</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="table-header">ASIN</th>
+                            <th className="table-header">SKU</th>
+                            <th className="table-header">Custom Text</th>
+                            <th className="table-header">Country Code</th>
+                          </>
+                        )}
+                        <th className="table-header">State</th>
+                        <th className="table-header">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -317,35 +525,59 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                             (ag) => ag.adGroupId === productAd.adGroupId
                           )?.name || productAd.adGroupId;
                         return (
-                          <tr
-                            key={index}
-                            className="table-row group"
-                          >
+                          <tr key={index} className="table-row group">
                             <td className="table-cell">
                               <span className="table-text leading-[1.26]">
                                 {adGroupName}
                               </span>
                             </td>
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {productAd.asin}
-                              </span>
-                            </td>
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {productAd.sku || "—"}
-                              </span>
-                            </td>
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {productAd.customText || "—"}
-                              </span>
-                            </td>
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {productAd.catalogSourceCountryCode || "—"}
-                              </span>
-                            </td>
+                            {campaignType === "SD" ? (
+                              <>
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {productAd.sku || "—"}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {productAd.asin || "—"}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {productAd.landingPageURL || "—"}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {productAd.adName || "—"}
+                                  </span>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {productAd.asin || "—"}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {productAd.sku || "—"}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {productAd.customText || "—"}
+                                  </span>
+                                </td>
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {productAd.catalogSourceCountryCode || "—"}
+                                  </span>
+                                </td>
+                              </>
+                            )}
                             <td className="table-cell">
                               <span className="table-text leading-[1.26]">
                                 {productAd.state}

@@ -57,12 +57,14 @@ export const GoogleCampaigns: React.FC = () => {
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(25);
+  const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
+  const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
   const isLoadingRef = useRef(false);
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
     useState(false);
@@ -277,6 +279,9 @@ export const GoogleCampaigns: React.FC = () => {
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
         filters: filters || [], // Pass filters array directly - ensure it's always an array
+        ...(apiSearchQuery && {
+          campaign_name__icontains: apiSearchQuery,
+        }),
       };
 
       console.log("🔍 [FILTERS DEBUG] Sending filters to service:", {
@@ -341,7 +346,22 @@ export const GoogleCampaigns: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters]);
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, apiSearchQuery]);
+
+  // Apply client-side filtering if searchQuery is different from apiSearchQuery
+  const filteredCampaigns = useMemo(() => {
+    // Apply client-side filtering if searchQuery is different from apiSearchQuery
+    if (searchQuery && searchQuery !== apiSearchQuery) {
+      const query = searchQuery.toLowerCase().trim();
+      return campaigns.filter((campaign) => {
+        const campaignName = (campaign.campaign_name || "").toLowerCase();
+        const accountIdStr = accountId ? accountId.toString() : "";
+        return campaignName.includes(query) || accountIdStr.includes(query);
+      });
+    }
+
+    return campaigns;
+  }, [campaigns, searchQuery, apiSearchQuery, accountId]);
 
   // Sync status hook (after loadCampaigns is defined)
   const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
@@ -366,7 +386,7 @@ export const GoogleCampaigns: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate, endDate, loadCampaigns, sorting]);
+  }, [accountId, currentPage, filters, startDate, endDate, loadCampaigns, sorting, apiSearchQuery]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     if (!accountId) return;
@@ -1234,7 +1254,7 @@ export const GoogleCampaigns: React.FC = () => {
   // Selection handlers
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedCampaigns(new Set(campaigns.map((c) => c.campaign_id)));
+      setSelectedCampaigns(new Set(filteredCampaigns.map((c) => c.campaign_id)));
     } else {
       setSelectedCampaigns(new Set());
     }
@@ -1961,9 +1981,9 @@ export const GoogleCampaigns: React.FC = () => {
   };
 
   const allSelected =
-    campaigns.length > 0 && selectedCampaigns.size === campaigns.length;
+    filteredCampaigns.length > 0 && selectedCampaigns.size === filteredCampaigns.length;
   const someSelected =
-    selectedCampaigns.size > 0 && selectedCampaigns.size < campaigns.length;
+    selectedCampaigns.size > 0 && selectedCampaigns.size < filteredCampaigns.length;
 
   const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
@@ -2251,8 +2271,53 @@ export const GoogleCampaigns: React.FC = () => {
               )}
             </div>
 
-            {/* Edit and Export Buttons - Above Table */}
-            <div className="flex items-center justify-end gap-2">
+            {/* Search, Edit and Export Buttons - Above Table */}
+            <div className="relative">
+              <div className="flex items-center justify-end gap-2">
+                {/* Search Box */}
+                <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
+                <div className="relative shrink-0 size-[12px]">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M5.5 9.5C7.70914 9.5 9.5 7.70914 9.5 5.5C9.5 3.29086 7.70914 1.5 5.5 1.5C3.29086 1.5 1.5 3.29086 1.5 5.5C1.5 7.70914 3.29086 9.5 5.5 9.5Z"
+                      stroke="#556179"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10.5 10.5L8.5 8.5"
+                      stroke="#556179"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    // Don't reset page or call API while typing - only filter client-side
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      // Call backend API when Enter is pressed
+                      setApiSearchQuery(searchQuery);
+                      setCurrentPage(1); // Reset to first page when searching
+                    }
+                  }}
+                  placeholder="Search by Name or Account ID"
+                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
+                />
+              </div>
               <div
                 className="relative inline-flex justify-end"
                 ref={dropdownRef}
@@ -2436,6 +2501,10 @@ export const GoogleCampaigns: React.FC = () => {
                   </div>
                 )}
               </div>
+              </div>
+              {isCreateCampaignPanelOpen && (
+                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[8px] cursor-not-allowed" />
+              )}
             </div>
 
             {/* Google Campaigns Table Card with overlay when panel is open */}
@@ -3130,7 +3199,7 @@ export const GoogleCampaigns: React.FC = () => {
               <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
                 <div className="overflow-x-auto w-full">
                   <GoogleCampaignsTable
-                    campaigns={campaigns}
+                    campaigns={filteredCampaigns}
                     loading={loading}
                     sorting={sorting}
                     accountId={accountId || ""}

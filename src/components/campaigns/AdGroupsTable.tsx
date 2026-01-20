@@ -10,6 +10,7 @@ interface AdGroupsTableProps {
   adgroups: AdGroup[];
   loading?: boolean;
   campaignId?: string | number; // Optional campaignId - when provided, hides Campaign Name column
+  campaignType?: string | null; // SP, SB, or SD - used to show SD-specific fields
   onSelectAll?: (checked: boolean) => void;
   onSelect?: (id: string | number, checked: boolean) => void;
   selectedIds?: Set<string | number>;
@@ -18,7 +19,7 @@ interface AdGroupsTableProps {
   onSort?: (column: string) => void;
   editingField?: {
     id: number;
-    field: "status" | "name";
+    field: "status" | "name" | "default_bid";
   } | null;
   editedValue?: string;
   onEditStart?: (
@@ -53,6 +54,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   adgroups,
   loading = false,
   campaignId, // Optional: when provided, hides Campaign Name column
+  campaignType = null, // SP, SB, or SD
   onSelectAll,
   onSelect,
   selectedIds = new Set(),

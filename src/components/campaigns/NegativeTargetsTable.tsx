@@ -48,6 +48,7 @@ interface NegativeTargetsTableProps {
     newValue: string;
     oldValue: string;
   } | null;
+  campaignType?: string; // SP, SB, or SD
 }
 
 export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
@@ -58,6 +59,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   selectedIds = new Set(),
   sortBy = "id",
   sortOrder = "asc",
+  campaignType,
   onSort,
   editingField = null,
   editedValue = "",
@@ -252,10 +254,18 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                           <div className="relative">
                             <Dropdown
                               options={[
-                                { value: "ENABLED", label: "ENABLED" },
-                                { value: "PAUSED", label: "PAUSED" },
+                                ...(campaignType === "SD"
+                                  ? [
+                                      { value: "enabled", label: "Enabled" },
+                                      { value: "paused", label: "Paused" },
+                                      { value: "archived", label: "Archived" },
+                                    ]
+                                  : [
+                                      { value: "ENABLED", label: "ENABLED" },
+                                      { value: "PAUSED", label: "PAUSED" },
+                                    ]),
                               ]}
-                              value={editedValue || target.state || "ENABLED"}
+                              value={editedValue || target.state || (campaignType === "SD" ? "enabled" : "ENABLED")}
                               onChange={(value) => {
                                 statusSelectionMadeRef.current = target.id;
                                 onEditChange?.(value);
@@ -289,7 +299,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                           >
                             <StatusBadge
                               status={statusValue}
-                              uppercase={true}
+                              uppercase={campaignType !== "SD"}
                             />
                             {inlineEditLoading.has(target.id) && (
                               <span className="ml-2 text-[11.2px] text-gray-500">
