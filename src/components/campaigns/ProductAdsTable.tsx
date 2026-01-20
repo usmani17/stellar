@@ -29,6 +29,7 @@ interface ProductAdsTableProps {
     newValue: string;
     oldValue: string;
   } | null;
+  campaignType?: string; // SP, SB, or SD
 }
 
 export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
@@ -48,6 +49,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
   onEditCancel,
   editLoading,
   pendingChange,
+  campaignType,
 }) => {
   const statusSelectionMadeRef = useRef<number | null>(null);
 

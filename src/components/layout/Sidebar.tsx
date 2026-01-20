@@ -173,6 +173,9 @@ export const Sidebar: React.FC = () => {
     if (path === "/tiktok/ads") {
       return location.pathname.includes("/tiktok/ads");
     }
+    if (path === "/tiktok/logs") {
+      return location.pathname.includes("/tiktok/logs");
+    }
 
     if (path === "/google/adgroups") {
       return location.pathname.includes("/google/adgroups");
@@ -211,8 +214,10 @@ export const Sidebar: React.FC = () => {
     }
     if (path === "/log-history" || path === "/logs") {
       return (
-        location.pathname.includes("/log-history") ||
-        location.pathname.includes("/logs")
+        (location.pathname.includes("/log-history") ||
+          location.pathname.includes("/logs")) &&
+        !location.pathname.includes("/google") &&
+        !location.pathname.includes("/tiktok")
       );
     }
     return location.pathname === path;
@@ -289,7 +294,7 @@ export const Sidebar: React.FC = () => {
                 isActive("/accounts")
                   ? "w-full bg-forest-f60 !text-white hover:!text-white"
                   : "text-black hover:bg-transparent"
-              }`}
+                }`}
               title={isCollapsed ? "Accounts" : undefined}
             >
               {isCollapsed ? (
@@ -310,7 +315,7 @@ export const Sidebar: React.FC = () => {
                 <span
                   className={`text-[12.32px] font-normal leading-[16px] ${
                     isActive("/accounts") ? "!text-white" : ""
-                  }`}
+                    }`}
                 >
                   Accounts
                 </span>
@@ -335,7 +340,7 @@ export const Sidebar: React.FC = () => {
                 isActive("/dashboards")
                   ? "w-full bg-forest-f60 !text-white hover:!text-white"
                   : "text-black hover:bg-transparent"
-              }`}
+                }`}
               title={isCollapsed ? "Overview" : undefined}
             >
               <img
@@ -343,13 +348,13 @@ export const Sidebar: React.FC = () => {
                 alt=""
                 className={`w-5 h-5 ${
                   isActive("/dashboards") ? "brightness-0 invert" : ""
-                }`}
+                  }`}
               />
               {!isCollapsed && (
                 <span
                   className={`text-[12.32px] font-normal leading-[16px] ${
                     isActive("/dashboards") ? "!text-white" : ""
-                  }`}
+                    }`}
                 >
                   Overview
                 </span>
@@ -377,7 +382,7 @@ export const Sidebar: React.FC = () => {
                 <svg
                   className={`w-4 h-4 text-gray-600 transition-transform ${
                     isAmazonSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                  }`}
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -413,7 +418,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/campaigns")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Campaigns" : undefined}
               >
                 <img
@@ -429,7 +434,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/campaigns") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Campaigns
                   </span>
@@ -454,7 +459,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/adgroups")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Ad Groups" : undefined}
               >
                 <img
@@ -462,13 +467,13 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/adgroups") ? "brightness-0 invert" : ""
-                  }`}
+                    }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/adgroups") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Ad Groups
                   </span>
@@ -493,7 +498,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/keywords")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Keywords" : undefined}
               >
                 <img
@@ -501,13 +506,13 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/keywords") ? "brightness-0 invert" : ""
-                  }`}
+                    }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/keywords") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Keywords
                   </span>
@@ -532,7 +537,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/targets")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Targets" : undefined}
               >
                 <img
@@ -540,13 +545,13 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/targets") ? "brightness-0 invert" : ""
-                  }`}
+                    }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/targets") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Targets
                   </span>
@@ -575,7 +580,7 @@ export const Sidebar: React.FC = () => {
                 <svg
                   className={`w-4 h-4 text-gray-600 transition-transform ${
                     isGoogleSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                  }`}
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -611,7 +616,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/google/campaigns")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Campaign" : undefined}
               >
                 <img
@@ -627,7 +632,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/campaigns") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Campaign
                   </span>
@@ -652,15 +657,21 @@ export const Sidebar: React.FC = () => {
                   isActive("/google/adgroups")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Ad Group" : undefined}
               >
-                <img src={AdGroupIcon} alt="" className="w-5 h-5" />
+                <img
+                  src={AdGroupIcon}
+                  alt=""
+                  className={`w-5 h-5 ${
+                    isActive("/google/adgroups") ? "brightness-0 invert" : ""
+                  }`}
+                />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/adgroups") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Ad Group
                   </span>
@@ -685,7 +696,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/google/keywords")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Keyword" : undefined}
               >
                 <svg
@@ -705,7 +716,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/keywords") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Keyword
                   </span>
@@ -730,7 +741,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/google/ads")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Ads" : undefined}
               >
                 <img src={ProductTargetIcon} alt="" className="w-5 h-5" />
@@ -738,7 +749,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/google/ads") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Ads
                   </span>
@@ -767,7 +778,7 @@ export const Sidebar: React.FC = () => {
                 <svg
                   className={`w-4 h-4 text-gray-600 transition-transform ${
                     isTikTokSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                  }`}
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -802,7 +813,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/tiktok/campaigns")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "TikTok Campaigns" : undefined}
               >
                 <img
@@ -818,7 +829,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/tiktok/campaigns") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Campaigns
                   </span>
@@ -841,7 +852,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/tiktok/adgroups")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "TikTok Ad Groups" : undefined}
               >
                 <img
@@ -849,13 +860,13 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/tiktok/adgroups") ? "brightness-0 invert" : ""
-                  }`}
+                    }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/tiktok/adgroups") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Ad Groups
                   </span>
@@ -876,7 +887,7 @@ export const Sidebar: React.FC = () => {
                   isActive("/tiktok/ads")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "TikTok Ads" : undefined}
               >
                 <img
@@ -884,15 +895,54 @@ export const Sidebar: React.FC = () => {
                   alt=""
                   className={`w-5 h-5 ${
                     isActive("/tiktok/ads") ? "brightness-0 invert" : ""
-                  }`}
+                    }`}
                 />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/tiktok/ads") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Ads
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId ? `/accounts/${accountId}/tiktok/logs` : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId ? `/accounts/${accountId}/tiktok/logs` : null
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${isActive("/tiktok/logs") ? "" : "transition-colors"
+                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/tiktok/logs")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                  }`}
+                title={isCollapsed ? "TikTok Logs" : undefined}
+              >
+                <svg
+                  className={`w-5 h-5 ${isActive("/tiktok/logs") ? "brightness-0 invert" : ""
+                    }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/tiktok/logs") ? "!text-white" : ""
+                      }`}
+                  >
+                    Logs
                   </span>
                 )}
               </Link>
@@ -919,9 +969,9 @@ export const Sidebar: React.FC = () => {
                 <svg
                   className={`w-4 h-4 text-gray-600 transition-transform ${
                     isMarketingChannelsSectionCollapsed
-                      ? "rotate-[-90deg]"
-                      : "rotate-0"
-                  }`}
+                    ? "rotate-[-90deg]"
+                    : "rotate-0"
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -942,7 +992,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Meta" : undefined}
               >
                 <img src={InstacartIcon} alt="" className="w-5 h-5" />
@@ -956,7 +1006,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Meta" : undefined}
               >
                 <img src={InstacartIcon} alt="" className="w-5 h-5" />
@@ -970,7 +1020,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Walmart" : undefined}
               >
                 <img src={InstacartIcon} alt="" className="w-5 h-5" />
@@ -984,7 +1034,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Instacart" : undefined}
               >
                 <img src={InstacartIcon} alt="" className="w-5 h-5" />
@@ -998,7 +1048,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Criteo" : undefined}
               >
                 <img src={InstacartIcon} alt="" className="w-5 h-5" />
@@ -1031,7 +1081,7 @@ export const Sidebar: React.FC = () => {
                 <svg
                   className={`w-4 h-4 text-gray-600 transition-transform ${
                     isOverviewSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                  }`}
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1052,7 +1102,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Trend Chart" : undefined}
               >
                 <img src={InstacartIcon} alt="" className="w-5 h-5" />
@@ -1066,7 +1116,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "KPI Cards" : undefined}
               >
                 <img src={InstacartIcon} alt="" className="w-5 h-5" />
@@ -1080,7 +1130,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Top Keywords" : undefined}
               >
                 <img src={InstacartIcon} alt="" className="w-5 h-5" />
@@ -1094,7 +1144,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Top Products" : undefined}
               >
                 <img src={TopKeywordsIcon} alt="" className="w-5 h-5" />
@@ -1108,7 +1158,7 @@ export const Sidebar: React.FC = () => {
                 to="/channels"
                 className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
                   isCollapsed ? "justify-center" : "gap-2"
-                }`}
+                  }`}
                 title={isCollapsed ? "Pixels-Like Box" : undefined}
               >
                 <img src={TopProductsIcon} alt="" className="w-5 h-5" />
@@ -1141,9 +1191,9 @@ export const Sidebar: React.FC = () => {
                 <svg
                   className={`w-4 h-4 text-gray-600 transition-transform ${
                     isLogHistorySectionCollapsed
-                      ? "rotate-[-90deg]"
-                      : "rotate-0"
-                  }`}
+                    ? "rotate-[-90deg]"
+                    : "rotate-0"
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1172,13 +1222,13 @@ export const Sidebar: React.FC = () => {
                   isActive("/log-history")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                }`}
+                  }`}
                 title={isCollapsed ? "Log / History" : undefined}
               >
                 <svg
                   className={`w-5 h-5 ${
                     isActive("/log-history") ? "brightness-0 invert" : ""
-                  }`}
+                    }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1194,7 +1244,7 @@ export const Sidebar: React.FC = () => {
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
                       isActive("/log-history") ? "!text-white" : ""
-                    }`}
+                      }`}
                   >
                     Log / History
                   </span>

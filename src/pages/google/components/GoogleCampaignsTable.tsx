@@ -69,16 +69,6 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         const navPath = `/accounts/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
           <div className="group relative flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(navPath);
-              }}
-              className="table-edit-link"
-            >
-              {value}
-            </button>
             {onEditCampaign && (
               <button
                 type="button"
@@ -91,10 +81,29 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 disabled={editLoadingCampaignId === row.campaign_id}
               >
                 {editLoadingCampaignId === row.campaign_id ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                  <svg
+                    className="w-4 h-4 text-[#136D6D] animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      d="M4 12a8 8 0 018-8"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 ) : (
                   <svg
-                    className="w-4 h-4 text-[#072929]"
+                    className="w-4 h-4 text-[#556179]"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -103,12 +112,22 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                     />
                   </svg>
                 )}
               </button>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(navPath);
+              }}
+              className="table-edit-link"
+            >
+              {value}
+            </button>
           </div>
         );
       },

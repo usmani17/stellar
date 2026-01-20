@@ -674,21 +674,33 @@ export const AdGroups: React.FC = () => {
       }
 
       if (pendingAdGroupChange.field === "status") {
-        // Map status values to uppercase
-        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-          enabled: "ENABLED",
-          paused: "PAUSED",
-          enable: "ENABLED",
-          pause: "PAUSED",
-        };
-        const statusValue =
-          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
+        // For SD adgroups, archive uses the archive endpoint
+        if (
+          (adgroup.type === "SD" || adgroup.campaignType === "SD" || adgroup.campaign_type === "SD") &&
+          (pendingAdGroupChange.newValue.toLowerCase() === "archived" ||
+            pendingAdGroupChange.newValue.toLowerCase() === "archive")
+        ) {
+          await campaignsService.archiveSdAdGroup(
+            accountIdNum,
+            adgroup.adGroupId
+          );
+        } else {
+          // Map status values to uppercase
+          const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+            enabled: "ENABLED",
+            paused: "PAUSED",
+            enable: "ENABLED",
+            pause: "PAUSED",
+          };
+          const statusValue =
+            statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [adgroup.adGroupId],
-          action: "status",
-          status: statusValue,
-        });
+          await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+            adgroupIds: [adgroup.adGroupId],
+            action: "status",
+            status: statusValue,
+          });
+        }
       } else if (pendingAdGroupChange.field === "default_bid") {
         // Extract numeric value
         const bidValue = parseFloat(pendingAdGroupChange.newValue);
@@ -783,20 +795,41 @@ export const AdGroups: React.FC = () => {
         .map((ag) => ag.adGroupId || ag.id)
         .filter(Boolean);
 
-      // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
-      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-        enable: "ENABLED",
-        pause: "PAUSED",
-        enabled: "ENABLED",
-        paused: "PAUSED",
-      };
-      const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
+      // For archive, check if any selected adgroups are SD type
+      // If archive is selected, use bulk delete endpoint (which handles SD archive correctly)
+      if (statusValue === "archive") {
+        // Check if any adgroup is SD type by checking campaign type or schema
+        const hasSdAdgroups = selectedAdgroupsData.some(
+          (ag) => ag.type === "SD" || ag.campaignType === "SD" || ag.campaign_type === "SD"
+        );
+        
+        // For SD adgroups, archive uses bulk delete endpoint
+        if (hasSdAdgroups) {
+          await campaignsService.bulkDeleteAdGroups(accountIdNum, {
+            adGroupIdFilter: {
+              include: adgroupIds,
+            },
+          });
+        } else {
+          // For non-SD adgroups, archive is not supported via status update
+          throw new Error("Archive is only supported for Sponsored Display (SD) ad groups");
+        }
+      } else {
+        // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          enable: "ENABLED",
+          pause: "PAUSED",
+          enabled: "ENABLED",
+          paused: "PAUSED",
+        };
+        const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
 
-      await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-        adgroupIds: adgroupIds,
-        action: "status",
-        status: apiStatus,
-      });
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: adgroupIds,
+          action: "status",
+          status: apiStatus,
+        });
+      }
       await loadAdGroups(accountIdNum);
       setSelectedAdgroups(new Set());
       setShowConfirmationModal(false);

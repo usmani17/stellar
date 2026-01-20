@@ -367,8 +367,8 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           Create Ad Groups
         </h2>
 
-        {/* Single line inputs */}
-        <div className="flex flex-wrap items-end gap-3">
+        {/* Single line inputs - all fields inline */}
+        <div className="flex items-end gap-3">
           {/* Ad Group Name */}
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
@@ -388,9 +388,9 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
             )}
           </div>
 
-          {/* Default Bid - Only show for SP campaigns */}
+          {/* Default Bid - Only show for SP and SD campaigns */}
           {campaignType !== "SB" && (
-            <div className="w-[140px]">
+            <div className="flex-1 min-w-[140px]">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Default Bid *
               </label>
@@ -416,7 +416,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           )}
 
           {/* State */}
-          <div className="w-[140px]">
+          <div className="flex-1 min-w-[140px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               State *
             </label>
@@ -435,7 +435,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
 
           {/* Bid Optimization - Only for SD campaigns */}
           {campaignType === "SD" && (
-            <div className="w-[160px] w-full">
+            <div className="flex-1 min-w-[160px]">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Bid Optimization *
               </label>
@@ -461,7 +461,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
 
           {/* Creative Type - Only for SD campaigns */}
           {campaignType === "SD" && (
-            <div className="w-[140px]">
+            <div className="flex-1 min-w-[140px]">
               <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
                 Creative Type
               </label>
@@ -484,17 +484,17 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
               />
             </div>
           )}
+        </div>
 
-          {/* Add Ad Group Button */}
-          <div className="w-[120px]">
-            <button
-              type="button"
-              onClick={handleAddAdGroup}
-              className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
-            >
-              Add Ad Group
-            </button>
-          </div>
+        {/* Add Ad Group Button - Separate row */}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={handleAddAdGroup}
+            className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+          >
+            Add Ad Group
+          </button>
         </div>
       </div>
 

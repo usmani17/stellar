@@ -717,7 +717,12 @@ export const TikTokCampaignDetail: React.FC = () => {
                         )}
 
 
-                        {activeTab === "Logs" && <TikTokCampaignDetailLogsTab />}
+                        {activeTab === "Logs" && (
+                            <TikTokCampaignDetailLogsTab
+                                accountId={accountId || ""}
+                                campaignId={campaignId}
+                            />
+                        )}
                     </div>
                 </div>
             </div>
