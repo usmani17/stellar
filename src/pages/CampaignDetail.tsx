@@ -1400,16 +1400,49 @@ export const CampaignDetail: React.FC = () => {
     assetsFilters,
   ]);
 
+  // Load creatives function
+  const loadCreatives = async () => {
+    if (!accountId || !campaignId || campaignType !== "SD") return;
+
+    setCreativesLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.getSdCreatives(
+        accountIdNum,
+        campaignId,
+        {
+          sort_by: creativesSortBy,
+          order: creativesSortOrder,
+          page: creativesCurrentPage,
+          page_size: 10,
+        }
+      );
+
+      setCreatives(response.creatives || []);
+      setCreativesTotalPages(response.total_pages || 0);
+    } catch (error: any) {
+      console.error("Failed to load creatives:", error);
+      setCreatives([]);
+      setCreativesTotalPages(0);
+    } finally {
+      setCreativesLoading(false);
+    }
+  };
+
   // Load creatives when Creatives tab is active (for SD campaigns)
   useEffect(() => {
     if (accountId && activeTab === "Creatives" && campaignType === "SD") {
-      // TODO: Implement loadCreatives when backend endpoint is available
-      // loadCreatives();
+      loadCreatives();
     }
   }, [
     accountId,
     activeTab,
     campaignType,
+    campaignId,
     creativesCurrentPage,
     creativesSortBy,
     creativesSortOrder,
@@ -3052,8 +3085,7 @@ export const CampaignDetail: React.FC = () => {
       if (response.success && response.success.length > 0) {
         // Close panel and reload creatives
         setIsCreateCreativePanelOpen(false);
-        // TODO: Reload creatives when backend endpoint is available
-        // await loadCreatives();
+        await loadCreatives();
       } else if (response.error && response.error.length > 0) {
         const errorMessages = response.error
           .map((e: any) => e.description || e.code)

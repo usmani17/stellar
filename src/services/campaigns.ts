@@ -2385,6 +2385,22 @@ export const campaignsService = {
     return response.data;
   },
 
+  getSdCreatives: async (
+    accountId: number,
+    campaignId: string,
+    filters: {
+      sort_by?: string;
+      order?: "asc" | "desc";
+      page?: number;
+      page_size?: number;
+      adGroupId?: number;
+    } = {}
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/sd/creatives/`;
+    const response = await api.post(url, { filters });
+    return response.data;
+  },
+
   // Google Campaigns
   syncGoogleCampaigns: async (
     accountId: number

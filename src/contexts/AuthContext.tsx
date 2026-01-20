@@ -69,6 +69,53 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               : { scope: "openid profile email offline_access" },
           });
 
+          // Extract refresh token from Auth0 SDK's localStorage cache
+          // Auth0 SDK stores tokens with keys starting with @@auth0spajs@@
+          let refreshToken: string | null = null;
+          try {
+            // Try to find refresh token in all Auth0 cache entries
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('@@auth0spajs@@')) {
+                try {
+                  const cacheData = localStorage.getItem(key);
+                  if (cacheData) {
+                    const parsed = JSON.parse(cacheData);
+                    // Auth0 SDK stores refresh token in different possible locations
+                    if (parsed.refresh_token) {
+                      refreshToken = parsed.refresh_token;
+                      console.log("Found refresh token in Auth0 cache key:", key);
+                      break;
+                    } else if (parsed.body?.refresh_token) {
+                      refreshToken = parsed.body.refresh_token;
+                      console.log("Found refresh token in Auth0 cache body:", key);
+                      break;
+                    } else if (parsed.cache?.refresh_token) {
+                      refreshToken = parsed.cache.refresh_token;
+                      console.log("Found refresh token in Auth0 cache.cache:", key);
+                      break;
+                    }
+                  }
+                } catch (parseError) {
+                  // Continue searching other keys
+                  continue;
+                }
+              }
+            }
+            
+            if (!refreshToken) {
+              console.warn("Refresh token not found in Auth0 cache - checking all localStorage keys");
+              // Debug: log all Auth0-related keys
+              const auth0Keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
+                .filter(key => key && (key.includes('auth0') || key.includes('@@auth0')));
+              console.log("Auth0-related localStorage keys:", auth0Keys);
+            } else {
+              console.log("Successfully extracted refresh token from Auth0 cache");
+            }
+          } catch (error) {
+            console.warn("Failed to extract refresh token from Auth0 cache:", error);
+          }
+
           // Decode JWT token to see what's inside (without verification)
           if (token) {
             try {
@@ -104,6 +151,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             console.log("Stored access token for backend authentication", {
               hasAudience: !!audience,
             });
+
+            // Save Auth0 tokens to backend database if refresh token is available
+            if (refreshToken) {
+              try {
+                console.log("Saving Auth0 tokens to backend database...");
+                await authService.saveAuth0Tokens(token, refreshToken);
+                console.log("Auth0 tokens saved to database successfully");
+              } catch (saveError: any) {
+                console.warn("Failed to save Auth0 tokens to database:", saveError);
+                // Don't block the flow if token saving fails
+              }
+            } else {
+              console.warn("No refresh token found in Auth0 cache - tokens will not be saved to database");
+            }
 
             // Fetch user profile from backend
             // The backend will automatically create the user if it doesn't exist

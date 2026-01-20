@@ -7,7 +7,8 @@ export interface Creative {
   creativeId: number;
   adGroupId: number;
   creativeType: "IMAGE" | "VIDEO";
-  properties: any;
+  properties: any; // Full JSON properties object
+  moderationStatus?: string;
   consentToTranslate?: boolean;
   state?: string;
   last_updated?: string;
@@ -92,14 +93,23 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
   const allSelected = creatives.length > 0 && creatives.every((c) => selectedIds.has(c.id));
   const someSelected = creatives.some((c) => selectedIds.has(c.id));
 
-  const getPropertySummary = (properties: any): string => {
-    const parts: string[] = [];
-    if (properties.headline) parts.push("Headline");
-    if (properties.logo) parts.push("Logo");
-    if (properties.customImage) parts.push("Custom Image");
-    if (properties.background) parts.push("Background");
-    if (properties.video) parts.push("Video");
-    return parts.join(", ") || "N/A";
+  const getPropertySummary = (creative: Creative): string => {
+    // Return formatted JSON string of properties
+    if (!creative.properties) {
+      return "N/A";
+    }
+    
+    try {
+      // If properties is already a string, parse it first
+      const props = typeof creative.properties === 'string' 
+        ? JSON.parse(creative.properties) 
+        : creative.properties;
+      
+      // Return pretty-printed JSON (single line, compact)
+      return JSON.stringify(props, null, 0).replace(/\n/g, ' ').substring(0, 100);
+    } catch (e) {
+      return String(creative.properties).substring(0, 100);
+    }
   };
 
   if (loading) {
@@ -155,7 +165,7 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                 Type
               </th>
               <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
-                Properties
+                Properties (JSON)
               </th>
               <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
                 Translate
@@ -197,8 +207,8 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                     uppercase={false}
                   />
                 </td>
-                <td className="px-4 py-3 text-[13.44px] text-[#222124]">
-                  {getPropertySummary(creative.properties)}
+                <td className="px-4 py-3 text-[13.44px] text-[#222124] font-mono text-xs break-all">
+                  {getPropertySummary(creative)}
                 </td>
                 <td className="px-4 py-3">
                   {creative.consentToTranslate ? (
