@@ -110,8 +110,21 @@ interface CreateCreativePanelProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (creatives: CreativeInput[], adGroupId: number) => void;
+  onUpdate?: (
+    creative: CreativeInput,
+    adGroupId: number,
+    creativeId: number | string
+  ) => void;
   adgroups: Array<{ adGroupId: string | number; name: string }>;
   loading?: boolean;
+  editCreative?: {
+    id: number;
+    creativeId: number | string; // Can be string to preserve precision
+    adGroupId: number | string; // Can be string to preserve precision
+    creativeType: "IMAGE" | "VIDEO";
+    properties: any;
+    consentToTranslate?: boolean;
+  } | null;
 }
 
 const CREATIVE_TYPE_OPTIONS = [
@@ -126,16 +139,16 @@ const PROPERTY_TYPE_OPTIONS_IMAGE = [
   { value: "background", label: "Background" },
 ];
 
-const PROPERTY_TYPE_OPTIONS_VIDEO = [
-  { value: "video", label: "Video" },
-];
+const PROPERTY_TYPE_OPTIONS_VIDEO = [{ value: "video", label: "Video" }];
 
 export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   isOpen,
   onClose,
   onSubmit,
+  onUpdate,
   adgroups,
   loading = false,
+  editCreative,
 }) => {
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>(
     adgroups.length > 0 ? String(adgroups[0].adGroupId) : ""
@@ -146,9 +159,137 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
     consentToTranslate: false,
   });
   const [selectedPropertyType, setSelectedPropertyType] = useState<string>("");
-  const [addedPropertyTypes, setAddedPropertyTypes] = useState<Set<string>>(new Set());
+  const [addedPropertyTypes, setAddedPropertyTypes] = useState<Set<string>>(
+    new Set()
+  );
   const [addedCreatives, setAddedCreatives] = useState<CreativeInput[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editCreative) {
+      // Set ad group
+      setSelectedAdGroupId(String(editCreative.adGroupId));
+
+      // Parse properties if it's a string
+      let properties = editCreative.properties;
+      if (typeof properties === "string") {
+        try {
+          properties = JSON.parse(properties);
+        } catch (e) {
+          console.error("Failed to parse properties:", e);
+          properties = {};
+        }
+      }
+
+      // Normalize properties structure to match form expectations
+      const normalizedProperties: any = {};
+      const propertyTypes = new Set<string>();
+
+      // Check for headline
+      if (properties.headline) {
+        normalizedProperties.headline = {
+          headline: properties.headline.headline || "",
+          hasTermsAndConditions:
+            properties.headline.hasTermsAndConditions || false,
+          originalHeadline: properties.headline.originalHeadline || "",
+        };
+        propertyTypes.add("headline");
+      }
+
+      // Check for brandLogo
+      if (properties.brandLogo) {
+        normalizedProperties.brandLogo = {
+          assetId: properties.brandLogo.assetId || "",
+          assetVersion: properties.brandLogo.assetVersion || "",
+          croppingCoordinates:
+            properties.brandLogo.croppingCoordinates || undefined,
+        };
+        propertyTypes.add("brandLogo");
+      }
+
+      // Check for customImage (rectCustomImage and/or squareCustomImage at root level)
+      // The database stores them at root level, but form expects them nested under customImage
+      if (
+        properties.rectCustomImage ||
+        properties.squareCustomImage ||
+        properties.customImage
+      ) {
+        // Handle both cases: root level or nested
+        const rectImage =
+          properties.rectCustomImage || properties.customImage?.rectCustomImage;
+        const squareImage =
+          properties.squareCustomImage ||
+          properties.customImage?.squareCustomImage;
+
+        normalizedProperties.customImage = {};
+
+        if (rectImage) {
+          normalizedProperties.customImage.rectCustomImage = {
+            assetId: rectImage.assetId || "",
+            assetVersion: rectImage.assetVersion || "",
+            croppingCoordinates: rectImage.croppingCoordinates || undefined,
+          };
+        }
+
+        if (squareImage) {
+          normalizedProperties.customImage.squareCustomImage = {
+            assetId: squareImage.assetId || "",
+            assetVersion: squareImage.assetVersion || "",
+            croppingCoordinates: squareImage.croppingCoordinates || undefined,
+          };
+        }
+
+        propertyTypes.add("customImage");
+      }
+
+      // Check for background
+      if (properties.background || properties.backgrounds) {
+        normalizedProperties.background = {
+          backgrounds:
+            properties.background?.backgrounds || properties.backgrounds || [],
+        };
+        propertyTypes.add("background");
+      }
+
+      // Check for video
+      if (properties.video) {
+        normalizedProperties.video = {
+          video: properties.video.video || undefined,
+          squareVideos: properties.video.squareVideos || [],
+          horizontalVideos: properties.video.horizontalVideos || [],
+          verticalVideos: properties.video.verticalVideos || [],
+        };
+        propertyTypes.add("video");
+      }
+
+      // Set current creative with normalized data
+      setCurrentCreative({
+        creativeType: editCreative.creativeType,
+        properties: normalizedProperties,
+        consentToTranslate: editCreative.consentToTranslate || false,
+      });
+
+      // Set added property types
+      setAddedPropertyTypes(propertyTypes);
+
+      // Clear added creatives (we're editing a single creative)
+      setAddedCreatives([]);
+    } else {
+      // Reset form for create mode
+      setCurrentCreative({
+        creativeType: "IMAGE",
+        properties: {},
+        consentToTranslate: false,
+      });
+      setSelectedPropertyType("");
+      setAddedPropertyTypes(new Set());
+      setAddedCreatives([]);
+      setSelectedAdGroupId(
+        adgroups.length > 0 ? String(adgroups[0].adGroupId) : ""
+      );
+    }
+  }, [editCreative, adgroups]);
 
   // Ensure main video object is always present when video property type is selected
   useEffect(() => {
@@ -164,10 +305,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 assetId: "",
                 assetVersion: "",
                 originalAssetId: "",
-                originalAssetVersion: ""
-              }
-            }
-          }
+                originalAssetVersion: "",
+              },
+            },
+          },
         }));
       }
     }
@@ -196,7 +337,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           current = current[keys[i]];
         }
         current[keys[keys.length - 1]] = value;
-        
+
         // Ensure main video object is always present when video property type is selected
         if (addedPropertyTypes.has("video") && newProperties.video) {
           if (!newProperties.video.video) {
@@ -206,12 +347,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 assetId: "",
                 assetVersion: "",
                 originalAssetId: "",
-                originalAssetVersion: ""
-              }
+                originalAssetVersion: "",
+              },
             };
           }
         }
-        
+
         return { ...prev, properties: newProperties };
       });
     } else {
@@ -229,34 +370,43 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
     // Initialize the property based on type
     if (typeToAdd === "headline" && !currentCreative.properties.headline) {
-      handleChange("properties.headline", { 
+      handleChange("properties.headline", {
         headline: "",
         hasTermsAndConditions: false,
-        originalHeadline: ""
+        originalHeadline: "",
       });
-    } else if (typeToAdd === "brandLogo" && !currentCreative.properties.brandLogo) {
-      handleChange("properties.brandLogo", { 
-        assetId: "", 
+    } else if (
+      typeToAdd === "brandLogo" &&
+      !currentCreative.properties.brandLogo
+    ) {
+      handleChange("properties.brandLogo", {
+        assetId: "",
         assetVersion: "",
-        croppingCoordinates: undefined
+        croppingCoordinates: undefined,
       });
-    } else if (typeToAdd === "customImage" && !currentCreative.properties.customImage) {
+    } else if (
+      typeToAdd === "customImage" &&
+      !currentCreative.properties.customImage
+    ) {
       // Initialize both required fields for customImage
       handleChange("properties.customImage", {
         rectCustomImage: { assetId: "", assetVersion: "" },
-        squareCustomImage: { assetId: "", assetVersion: "" }
+        squareCustomImage: { assetId: "", assetVersion: "" },
       });
-    } else if (typeToAdd === "background" && !currentCreative.properties.background) {
+    } else if (
+      typeToAdd === "background" &&
+      !currentCreative.properties.background
+    ) {
       handleChange("properties.background", { backgrounds: [] });
     } else if (typeToAdd === "video" && !currentCreative.properties.video) {
       // Main video object is mandatory - always initialize it
-      handleChange("properties.video", { 
-        video: { 
-          assetId: "", 
+      handleChange("properties.video", {
+        video: {
+          assetId: "",
           assetVersion: "",
           originalAssetId: "",
-          originalAssetVersion: ""
-        } 
+          originalAssetVersion: "",
+        },
       });
     }
 
@@ -296,30 +446,40 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
     if (currentCreative.creativeType === "IMAGE") {
       if (addedPropertyTypes.size === 0) {
-        newErrors.properties = "At least one property type must be added for IMAGE creatives";
+        newErrors.properties =
+          "At least one property type must be added for IMAGE creatives";
       }
 
       if (addedPropertyTypes.has("headline")) {
         const headline = currentCreative.properties.headline;
         // Headline is optional, but if provided, it must be <= 50 characters
         if (headline && headline.headline && headline.headline.length > 50) {
-          newErrors["properties.headline.headline"] = "Headline must be 50 characters or less";
+          newErrors["properties.headline.headline"] =
+            "Headline must be 50 characters or less";
         }
       }
 
       if (addedPropertyTypes.has("brandLogo")) {
         const brandLogo = currentCreative.properties.brandLogo;
         if (!brandLogo || !brandLogo.assetId || !brandLogo.assetVersion) {
-          newErrors["properties.brandLogo"] = "Brand Logo assetId and assetVersion are required";
+          newErrors["properties.brandLogo"] =
+            "Brand Logo assetId and assetVersion are required";
         }
         // Validate cropping coordinates if provided
         if (brandLogo?.croppingCoordinates) {
           const crop = brandLogo.croppingCoordinates;
-          const cropFields = ['top', 'left', 'width', 'height'];
+          const cropFields = ["top", "left", "width", "height"];
           for (const field of cropFields) {
             const value = crop[field as keyof typeof crop];
-            if (value !== undefined && (typeof value !== 'number' || value < 0 || !Number.isInteger(value))) {
-              newErrors[`properties.brandLogo.croppingCoordinates.${field}`] = `${field} must be an integer >= 0`;
+            if (
+              value !== undefined &&
+              (typeof value !== "number" ||
+                value < 0 ||
+                !Number.isInteger(value))
+            ) {
+              newErrors[
+                `properties.brandLogo.croppingCoordinates.${field}`
+              ] = `${field} must be an integer >= 0`;
             }
           }
         }
@@ -328,52 +488,80 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
       if (addedPropertyTypes.has("customImage")) {
         const customImage = currentCreative.properties.customImage;
         // Both rectCustomImage and squareCustomImage are REQUIRED
-        if (!customImage || !customImage.rectCustomImage || !customImage.squareCustomImage) {
-          newErrors["properties.customImage"] = "Both Rectangular Custom Image and Square Custom Image are required";
+        if (
+          !customImage ||
+          !customImage.rectCustomImage ||
+          !customImage.squareCustomImage
+        ) {
+          newErrors["properties.customImage"] =
+            "Both Rectangular Custom Image and Square Custom Image are required";
         } else {
           // Validate rectCustomImage
-          if (!customImage.rectCustomImage.assetId || !customImage.rectCustomImage.assetVersion) {
-            newErrors["properties.customImage.rectCustomImage"] = "Rectangular Custom Image assetId and assetVersion are required";
+          if (
+            !customImage.rectCustomImage.assetId ||
+            !customImage.rectCustomImage.assetVersion
+          ) {
+            newErrors["properties.customImage.rectCustomImage"] =
+              "Rectangular Custom Image assetId and assetVersion are required";
           }
           // Validate squareCustomImage
-          if (!customImage.squareCustomImage.assetId || !customImage.squareCustomImage.assetVersion) {
-            newErrors["properties.customImage.squareCustomImage"] = "Square Custom Image assetId and assetVersion are required";
+          if (
+            !customImage.squareCustomImage.assetId ||
+            !customImage.squareCustomImage.assetVersion
+          ) {
+            newErrors["properties.customImage.squareCustomImage"] =
+              "Square Custom Image assetId and assetVersion are required";
           }
         }
       }
 
       if (addedPropertyTypes.has("background")) {
         const background = currentCreative.properties.background;
-        if (!background || !background.backgrounds || background.backgrounds.length === 0) {
-          newErrors["properties.background"] = "At least one background color is required";
+        if (
+          !background ||
+          !background.backgrounds ||
+          background.backgrounds.length === 0
+        ) {
+          newErrors["properties.background"] =
+            "At least one background color is required";
         } else {
           background.backgrounds.forEach((bg, idx) => {
             if (!bg.color || !/^#[0-9A-Fa-f]{6}$/.test(bg.color)) {
-              newErrors[`properties.background.backgrounds[${idx}].color`] = "Valid hex color (#RRGGBB) is required";
+              newErrors[`properties.background.backgrounds[${idx}].color`] =
+                "Valid hex color (#RRGGBB) is required";
             }
           });
         }
       }
     } else if (currentCreative.creativeType === "VIDEO") {
       if (!addedPropertyTypes.has("video")) {
-        newErrors["properties.video"] = "Video property is required for VIDEO creatives";
+        newErrors["properties.video"] =
+          "Video property is required for VIDEO creatives";
       } else {
         const video = currentCreative.properties.video;
         if (!video || !video.video) {
-          newErrors["properties.video"] = "Main video object is required for VIDEO creatives";
+          newErrors["properties.video"] =
+            "Main video object is required for VIDEO creatives";
         } else {
           // Validate main video
           if (!video.video.assetId || !video.video.assetVersion) {
-            newErrors["properties.video.video"] = "Main video assetId and assetVersion are required";
+            newErrors["properties.video.video"] =
+              "Main video assetId and assetVersion are required";
           }
-          
+
           // Validate optional video variants if present (arrays)
-          const variants = ['squareVideos', 'horizontalVideos', 'verticalVideos'] as const;
+          const variants = [
+            "squareVideos",
+            "horizontalVideos",
+            "verticalVideos",
+          ] as const;
           for (const variant of variants) {
             if (video[variant] && Array.isArray(video[variant])) {
               video[variant].forEach((vid: any, idx: number) => {
                 if (!vid.assetId || !vid.assetVersion) {
-                  newErrors[`properties.video.${variant}[${idx}]`] = `${variant}[${idx}] assetId and assetVersion are required`;
+                  newErrors[
+                    `properties.video.${variant}[${idx}]`
+                  ] = `${variant}[${idx}] assetId and assetVersion are required`;
                 }
               });
             }
@@ -405,19 +593,50 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   };
 
   const handleSubmit = () => {
-    if (addedCreatives.length === 0) {
-      setErrors({ submit: "Please add at least one creative" });
-      return;
+    if (editCreative && onUpdate) {
+      // Edit mode: use onUpdate callback with creativeId from editCreative object
+      if (!selectedAdGroupId) {
+        setErrors({ adGroupId: "Please select an ad group" });
+        return;
+      }
+      // Validate that properties are not empty
+      if (
+        !currentCreative.properties ||
+        Object.keys(currentCreative.properties).length === 0
+      ) {
+        setErrors({ properties: "Please add at least one property" });
+        return;
+      }
+      console.log(editCreative);
+      // Use creativeId from the stored editCreative object
+      const creativeId = editCreative.creativeId;
+      console.log(
+        "[CreateCreativePanel] Updating creative with ID from stored object:",
+        {
+          creativeId: creativeId,
+          creativeIdType: typeof creativeId,
+          editCreative: editCreative,
+        }
+      );
+      onUpdate(currentCreative, parseInt(selectedAdGroupId, 10), creativeId);
+    } else {
+      // Create mode: submit added creatives
+      if (addedCreatives.length === 0) {
+        setErrors({ submit: "Please add at least one creative" });
+        return;
+      }
+      if (!selectedAdGroupId) {
+        setErrors({ adGroupId: "Please select an ad group" });
+        return;
+      }
+      onSubmit(addedCreatives, parseInt(selectedAdGroupId, 10));
     }
-    if (!selectedAdGroupId) {
-      setErrors({ adGroupId: "Please select an ad group" });
-      return;
-    }
-    onSubmit(addedCreatives, parseInt(selectedAdGroupId, 10));
   };
 
   const handleClose = () => {
-    setSelectedAdGroupId(adgroups.length > 0 ? String(adgroups[0].adGroupId) : "");
+    setSelectedAdGroupId(
+      adgroups.length > 0 ? String(adgroups[0].adGroupId) : ""
+    );
     setCurrentCreative({
       creativeType: "IMAGE",
       properties: {},
@@ -436,13 +655,25 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
         <div className="sticky top-0 bg-white border-b border-[#EBEBEB] px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-[18px] font-semibold text-[#072929]">Create Creatives</h2>
+          <h2 className="text-[18px] font-semibold text-[#072929]">
+            {editCreative ? "Edit Creative" : "Create Creatives"}
+          </h2>
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -458,7 +689,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               <Dropdown
                 options={adgroups.map((ag) => ({
                   value: String(ag.adGroupId),
-                  label: `${ag.name || 'Ad Group'} (${ag.adGroupId})`,
+                  label: `${ag.name || "Ad Group"} (${ag.adGroupId})`,
                 }))}
                 value={selectedAdGroupId}
                 onChange={(value) => {
@@ -467,7 +698,11 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     setErrors((prev) => ({ ...prev, adGroupId: undefined }));
                   }
                 }}
-                placeholder={adgroups.length === 0 ? "No ad groups available" : "Select ad group"}
+                placeholder={
+                  adgroups.length === 0
+                    ? "No ad groups available"
+                    : "Select ad group"
+                }
                 emptyMessage="No ad groups available"
               />
               {errors.adGroupId && (
@@ -486,14 +721,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 onChange={(value) => handleChange("creativeType", value)}
               />
               {errors.creativeType && (
-                <p className="text-red-500 text-xs mt-1">{errors.creativeType}</p>
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.creativeType}
+                </p>
               )}
             </div>
           </div>
 
           {/* Current Creative Form */}
           <div className="mb-6">
-            <h3 className="text-[16px] font-semibold text-[#072929] mb-4">Creative Details</h3>
+            <h3 className="text-[16px] font-semibold text-[#072929] mb-4">
+              Creative Details
+            </h3>
 
             {/* Property Type Selector - Checkboxes Inline */}
             <div className="mb-4">
@@ -523,7 +762,9 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                         }}
                         className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] focus:ring-2"
                       />
-                      <span className="text-[13.44px] text-[#222124]">{option.label}</span>
+                      <span className="text-[13.44px] text-[#222124]">
+                        {option.label}
+                      </span>
                     </label>
                   );
                 })}
@@ -543,7 +784,11 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg border border-[#EBEBEB]"
                     >
                       <span className="text-[13.44px] text-[#222124] capitalize">
-                        {propType === "customImage" ? "Custom Image" : propType === "brandLogo" ? "Brand Logo" : propType}
+                        {propType === "customImage"
+                          ? "Custom Image"
+                          : propType === "brandLogo"
+                          ? "Brand Logo"
+                          : propType}
                       </span>
                       <button
                         type="button"
@@ -577,7 +822,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 {/* Headline Field */}
                 <div className="mb-3">
                   <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                    Headline <span className="text-gray-400 font-normal">(Optional, max 50 characters)</span>
+                    Headline{" "}
+                    <span className="text-gray-400 font-normal">
+                      (Optional, max 50 characters)
+                    </span>
                   </label>
                   <input
                     type="text"
@@ -593,21 +841,30 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     placeholder="Enter marketing phrase (max 50 characters)"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    {currentCreative.properties.headline?.headline?.length || 0}/50 characters
+                    {currentCreative.properties.headline?.headline?.length || 0}
+                    /50 characters
                   </p>
                   {errors["properties.headline.headline"] && (
-                    <p className="text-red-500 text-xs mt-1">{errors["properties.headline.headline"]}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors["properties.headline.headline"]}
+                    </p>
                   )}
                 </div>
 
                 {/* Original Headline Field */}
                 <div className="mb-3">
                   <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                    Original Headline <span className="text-gray-400 font-normal">(Optional)</span>
+                    Original Headline{" "}
+                    <span className="text-gray-400 font-normal">
+                      (Optional)
+                    </span>
                   </label>
                   <input
                     type="text"
-                    value={currentCreative.properties.headline?.originalHeadline || ""}
+                    value={
+                      currentCreative.properties.headline?.originalHeadline ||
+                      ""
+                    }
                     onChange={(e) =>
                       handleChange("properties.headline", {
                         ...currentCreative.properties.headline,
@@ -618,8 +875,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     placeholder="Enter original headline (used when consentToTranslate is true)"
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    The original headline before translation. If consentToTranslate is true and translation succeeds, 
-                    headline will show the translated version and originalHeadline will show this value.
+                    The original headline before translation. If
+                    consentToTranslate is true and translation succeeds,
+                    headline will show the translated version and
+                    originalHeadline will show this value.
                   </p>
                 </div>
 
@@ -628,7 +887,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   <label className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={currentCreative.properties.headline?.hasTermsAndConditions || false}
+                      checked={
+                        currentCreative.properties.headline
+                          ?.hasTermsAndConditions || false
+                      }
                       onChange={(e) =>
                         handleChange("properties.headline", {
                           ...currentCreative.properties.headline,
@@ -642,8 +904,9 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     </span>
                   </label>
                   <p className="text-xs text-gray-400 mt-1 ml-6">
-                    Indicates the ad promotes a free product/service with qualifying terms. 
-                    Only supported for productAds with landingPageType of OFF_AMAZON_LINK.
+                    Indicates the ad promotes a free product/service with
+                    qualifying terms. Only supported for productAds with
+                    landingPageType of OFF_AMAZON_LINK.
                   </p>
                 </div>
               </div>
@@ -667,13 +930,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 {/* Asset ID and Version */}
                 <div className="mb-3">
                   <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                    Logo Asset <span className="text-gray-400 font-normal">(Required)</span>
+                    Logo Asset{" "}
+                    <span className="text-gray-400 font-normal">
+                      (Required)
+                    </span>
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <input
                         type="text"
-                        value={currentCreative.properties.brandLogo?.assetId || ""}
+                        value={
+                          currentCreative.properties.brandLogo?.assetId || ""
+                        }
                         onChange={(e) =>
                           handleChange("properties.brandLogo", {
                             ...currentCreative.properties.brandLogo,
@@ -687,7 +955,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     <div>
                       <input
                         type="text"
-                        value={currentCreative.properties.brandLogo?.assetVersion || ""}
+                        value={
+                          currentCreative.properties.brandLogo?.assetVersion ||
+                          ""
+                        }
                         onChange={(e) =>
                           handleChange("properties.brandLogo", {
                             ...currentCreative.properties.brandLogo,
@@ -703,26 +974,41 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     Logo asset ID and version from Creative Asset Library
                   </p>
                   {errors["properties.brandLogo"] && (
-                    <p className="text-red-500 text-xs mt-1">{errors["properties.brandLogo"]}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors["properties.brandLogo"]}
+                    </p>
                   )}
                 </div>
 
                 {/* Cropping Coordinates */}
                 <div className="mb-2">
                   <label className="block text-[11.2px] font-semibold text-[#556179] mb-1">
-                    Cropping Coordinates <span className="text-gray-400 font-normal">(Optional)</span>
+                    Cropping Coordinates{" "}
+                    <span className="text-gray-400 font-normal">
+                      (Optional)
+                    </span>
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Top</label>
+                      <label className="block text-[10px] text-gray-500 mb-1">
+                        Top
+                      </label>
                       <input
                         type="number"
                         min="0"
                         step="1"
-                        value={currentCreative.properties.brandLogo?.croppingCoordinates?.top ?? ""}
+                        value={
+                          currentCreative.properties.brandLogo
+                            ?.croppingCoordinates?.top ?? ""
+                        }
                         onChange={(e) => {
-                          const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                          const currentCrop = currentCreative.properties.brandLogo?.croppingCoordinates || {};
+                          const value =
+                            e.target.value === ""
+                              ? undefined
+                              : parseInt(e.target.value, 10);
+                          const currentCrop =
+                            currentCreative.properties.brandLogo
+                              ?.croppingCoordinates || {};
                           const newCrop = { ...currentCrop };
                           if (value !== undefined && !isNaN(value)) {
                             newCrop.top = value;
@@ -731,7 +1017,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           }
                           handleChange("properties.brandLogo", {
                             ...currentCreative.properties.brandLogo,
-                            croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                            croppingCoordinates:
+                              Object.keys(newCrop).length > 0
+                                ? newCrop
+                                : undefined,
                           });
                         }}
                         className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
@@ -739,15 +1028,25 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Left</label>
+                      <label className="block text-[10px] text-gray-500 mb-1">
+                        Left
+                      </label>
                       <input
                         type="number"
                         min="0"
                         step="1"
-                        value={currentCreative.properties.brandLogo?.croppingCoordinates?.left ?? ""}
+                        value={
+                          currentCreative.properties.brandLogo
+                            ?.croppingCoordinates?.left ?? ""
+                        }
                         onChange={(e) => {
-                          const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                          const currentCrop = currentCreative.properties.brandLogo?.croppingCoordinates || {};
+                          const value =
+                            e.target.value === ""
+                              ? undefined
+                              : parseInt(e.target.value, 10);
+                          const currentCrop =
+                            currentCreative.properties.brandLogo
+                              ?.croppingCoordinates || {};
                           const newCrop = { ...currentCrop };
                           if (value !== undefined && !isNaN(value)) {
                             newCrop.left = value;
@@ -756,7 +1055,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           }
                           handleChange("properties.brandLogo", {
                             ...currentCreative.properties.brandLogo,
-                            croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                            croppingCoordinates:
+                              Object.keys(newCrop).length > 0
+                                ? newCrop
+                                : undefined,
                           });
                         }}
                         className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
@@ -764,15 +1066,25 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Width</label>
+                      <label className="block text-[10px] text-gray-500 mb-1">
+                        Width
+                      </label>
                       <input
                         type="number"
                         min="0"
                         step="1"
-                        value={currentCreative.properties.brandLogo?.croppingCoordinates?.width ?? ""}
+                        value={
+                          currentCreative.properties.brandLogo
+                            ?.croppingCoordinates?.width ?? ""
+                        }
                         onChange={(e) => {
-                          const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                          const currentCrop = currentCreative.properties.brandLogo?.croppingCoordinates || {};
+                          const value =
+                            e.target.value === ""
+                              ? undefined
+                              : parseInt(e.target.value, 10);
+                          const currentCrop =
+                            currentCreative.properties.brandLogo
+                              ?.croppingCoordinates || {};
                           const newCrop = { ...currentCrop };
                           if (value !== undefined && !isNaN(value)) {
                             newCrop.width = value;
@@ -781,7 +1093,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           }
                           handleChange("properties.brandLogo", {
                             ...currentCreative.properties.brandLogo,
-                            croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                            croppingCoordinates:
+                              Object.keys(newCrop).length > 0
+                                ? newCrop
+                                : undefined,
                           });
                         }}
                         className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
@@ -789,15 +1104,25 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Height</label>
+                      <label className="block text-[10px] text-gray-500 mb-1">
+                        Height
+                      </label>
                       <input
                         type="number"
                         min="0"
                         step="1"
-                        value={currentCreative.properties.brandLogo?.croppingCoordinates?.height ?? ""}
+                        value={
+                          currentCreative.properties.brandLogo
+                            ?.croppingCoordinates?.height ?? ""
+                        }
                         onChange={(e) => {
-                          const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                          const currentCrop = currentCreative.properties.brandLogo?.croppingCoordinates || {};
+                          const value =
+                            e.target.value === ""
+                              ? undefined
+                              : parseInt(e.target.value, 10);
+                          const currentCrop =
+                            currentCreative.properties.brandLogo
+                              ?.croppingCoordinates || {};
                           const newCrop = { ...currentCrop };
                           if (value !== undefined && !isNaN(value)) {
                             newCrop.height = value;
@@ -806,7 +1131,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           }
                           handleChange("properties.brandLogo", {
                             ...currentCreative.properties.brandLogo,
-                            croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                            croppingCoordinates:
+                              Object.keys(newCrop).length > 0
+                                ? newCrop
+                                : undefined,
                           });
                         }}
                         className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
@@ -815,19 +1143,34 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     </div>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    Optional cropping coordinates. All values must be integers &gt;= 0.
+                    Optional cropping coordinates. All values must be integers
+                    &gt;= 0.
                   </p>
                   {errors["properties.brandLogo.croppingCoordinates.top"] && (
-                    <p className="text-red-500 text-xs mt-1">{errors["properties.brandLogo.croppingCoordinates.top"]}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors["properties.brandLogo.croppingCoordinates.top"]}
+                    </p>
                   )}
                   {errors["properties.brandLogo.croppingCoordinates.left"] && (
-                    <p className="text-red-500 text-xs mt-1">{errors["properties.brandLogo.croppingCoordinates.left"]}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors["properties.brandLogo.croppingCoordinates.left"]}
+                    </p>
                   )}
                   {errors["properties.brandLogo.croppingCoordinates.width"] && (
-                    <p className="text-red-500 text-xs mt-1">{errors["properties.brandLogo.croppingCoordinates.width"]}</p>
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors["properties.brandLogo.croppingCoordinates.width"]}
+                    </p>
                   )}
-                  {errors["properties.brandLogo.croppingCoordinates.height"] && (
-                    <p className="text-red-500 text-xs mt-1">{errors["properties.brandLogo.croppingCoordinates.height"]}</p>
+                  {errors[
+                    "properties.brandLogo.croppingCoordinates.height"
+                  ] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {
+                        errors[
+                          "properties.brandLogo.croppingCoordinates.height"
+                        ]
+                      }
+                    </p>
                   )}
                 </div>
               </div>
@@ -852,17 +1195,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   {/* Rect Custom Image */}
                   <div>
                     <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
-                      Rectangular Custom Image <span className="text-red-500">*</span>
+                      Rectangular Custom Image{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <input
                         type="text"
-                        value={currentCreative.properties.customImage?.rectCustomImage?.assetId || ""}
+                        value={
+                          currentCreative.properties.customImage
+                            ?.rectCustomImage?.assetId || ""
+                        }
                         onChange={(e) =>
                           handleChange("properties.customImage", {
                             ...currentCreative.properties.customImage,
                             rectCustomImage: {
-                              ...currentCreative.properties.customImage?.rectCustomImage,
+                              ...currentCreative.properties.customImage
+                                ?.rectCustomImage,
                               assetId: e.target.value,
                             },
                           })
@@ -872,12 +1220,16 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       />
                       <input
                         type="text"
-                        value={currentCreative.properties.customImage?.rectCustomImage?.assetVersion || ""}
+                        value={
+                          currentCreative.properties.customImage
+                            ?.rectCustomImage?.assetVersion || ""
+                        }
                         onChange={(e) =>
                           handleChange("properties.customImage", {
                             ...currentCreative.properties.customImage,
                             rectCustomImage: {
-                              ...currentCreative.properties.customImage?.rectCustomImage,
+                              ...currentCreative.properties.customImage
+                                ?.rectCustomImage,
                               assetVersion: e.target.value,
                             },
                           })
@@ -889,15 +1241,25 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     {/* Cropping Coordinates for Rect */}
                     <div className="grid grid-cols-4 gap-2">
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Top</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Top
+                        </label>
                         <input
                           type="number"
                           min="0"
                           step="1"
-                          value={currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates?.top ?? ""}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.rectCustomImage?.croppingCoordinates?.top ?? ""
+                          }
                           onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                            const currentCrop = currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates || {};
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.customImage
+                                ?.rectCustomImage?.croppingCoordinates || {};
                             const newCrop = { ...currentCrop };
                             if (value !== undefined && !isNaN(value)) {
                               newCrop.top = value;
@@ -907,8 +1269,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleChange("properties.customImage", {
                               ...currentCreative.properties.customImage,
                               rectCustomImage: {
-                                ...currentCreative.properties.customImage?.rectCustomImage,
-                                croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                ...currentCreative.properties.customImage
+                                  ?.rectCustomImage,
+                                croppingCoordinates:
+                                  Object.keys(newCrop).length > 0
+                                    ? newCrop
+                                    : undefined,
                               },
                             });
                           }}
@@ -917,15 +1283,25 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Left</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Left
+                        </label>
                         <input
                           type="number"
                           min="0"
                           step="1"
-                          value={currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates?.left ?? ""}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.rectCustomImage?.croppingCoordinates?.left ?? ""
+                          }
                           onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                            const currentCrop = currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates || {};
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.customImage
+                                ?.rectCustomImage?.croppingCoordinates || {};
                             const newCrop = { ...currentCrop };
                             if (value !== undefined && !isNaN(value)) {
                               newCrop.left = value;
@@ -935,8 +1311,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleChange("properties.customImage", {
                               ...currentCreative.properties.customImage,
                               rectCustomImage: {
-                                ...currentCreative.properties.customImage?.rectCustomImage,
-                                croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                ...currentCreative.properties.customImage
+                                  ?.rectCustomImage,
+                                croppingCoordinates:
+                                  Object.keys(newCrop).length > 0
+                                    ? newCrop
+                                    : undefined,
                               },
                             });
                           }}
@@ -945,15 +1325,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Width</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Width
+                        </label>
                         <input
                           type="number"
                           min="0"
                           step="1"
-                          value={currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates?.width ?? ""}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.rectCustomImage?.croppingCoordinates?.width ??
+                            ""
+                          }
                           onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                            const currentCrop = currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates || {};
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.customImage
+                                ?.rectCustomImage?.croppingCoordinates || {};
                             const newCrop = { ...currentCrop };
                             if (value !== undefined && !isNaN(value)) {
                               newCrop.width = value;
@@ -963,8 +1354,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleChange("properties.customImage", {
                               ...currentCreative.properties.customImage,
                               rectCustomImage: {
-                                ...currentCreative.properties.customImage?.rectCustomImage,
-                                croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                ...currentCreative.properties.customImage
+                                  ?.rectCustomImage,
+                                croppingCoordinates:
+                                  Object.keys(newCrop).length > 0
+                                    ? newCrop
+                                    : undefined,
                               },
                             });
                           }}
@@ -973,15 +1368,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Height</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Height
+                        </label>
                         <input
                           type="number"
                           min="0"
                           step="1"
-                          value={currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates?.height ?? ""}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.rectCustomImage?.croppingCoordinates?.height ??
+                            ""
+                          }
                           onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                            const currentCrop = currentCreative.properties.customImage?.rectCustomImage?.croppingCoordinates || {};
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.customImage
+                                ?.rectCustomImage?.croppingCoordinates || {};
                             const newCrop = { ...currentCrop };
                             if (value !== undefined && !isNaN(value)) {
                               newCrop.height = value;
@@ -991,8 +1397,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleChange("properties.customImage", {
                               ...currentCreative.properties.customImage,
                               rectCustomImage: {
-                                ...currentCreative.properties.customImage?.rectCustomImage,
-                                croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                ...currentCreative.properties.customImage
+                                  ?.rectCustomImage,
+                                croppingCoordinates:
+                                  Object.keys(newCrop).length > 0
+                                    ? newCrop
+                                    : undefined,
                               },
                             });
                           }}
@@ -1002,24 +1412,31 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       </div>
                     </div>
                     {errors["properties.customImage.rectCustomImage"] && (
-                      <p className="text-red-500 text-xs mt-1">{errors["properties.customImage.rectCustomImage"]}</p>
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors["properties.customImage.rectCustomImage"]}
+                      </p>
                     )}
                   </div>
 
                   {/* Square Custom Image */}
                   <div>
                     <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
-                      Square Custom Image <span className="text-red-500">*</span>
+                      Square Custom Image{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <input
                         type="text"
-                        value={currentCreative.properties.customImage?.squareCustomImage?.assetId || ""}
+                        value={
+                          currentCreative.properties.customImage
+                            ?.squareCustomImage?.assetId || ""
+                        }
                         onChange={(e) =>
                           handleChange("properties.customImage", {
                             ...currentCreative.properties.customImage,
                             squareCustomImage: {
-                              ...currentCreative.properties.customImage?.squareCustomImage,
+                              ...currentCreative.properties.customImage
+                                ?.squareCustomImage,
                               assetId: e.target.value,
                             },
                           })
@@ -1029,12 +1446,16 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       />
                       <input
                         type="text"
-                        value={currentCreative.properties.customImage?.squareCustomImage?.assetVersion || ""}
+                        value={
+                          currentCreative.properties.customImage
+                            ?.squareCustomImage?.assetVersion || ""
+                        }
                         onChange={(e) =>
                           handleChange("properties.customImage", {
                             ...currentCreative.properties.customImage,
                             squareCustomImage: {
-                              ...currentCreative.properties.customImage?.squareCustomImage,
+                              ...currentCreative.properties.customImage
+                                ?.squareCustomImage,
                               assetVersion: e.target.value,
                             },
                           })
@@ -1046,15 +1467,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     {/* Cropping Coordinates for Square */}
                     <div className="grid grid-cols-4 gap-2">
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Top</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Top
+                        </label>
                         <input
                           type="number"
                           min="0"
                           step="1"
-                          value={currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates?.top ?? ""}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.squareCustomImage?.croppingCoordinates?.top ??
+                            ""
+                          }
                           onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                            const currentCrop = currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates || {};
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.customImage
+                                ?.squareCustomImage?.croppingCoordinates || {};
                             const newCrop = { ...currentCrop };
                             if (value !== undefined && !isNaN(value)) {
                               newCrop.top = value;
@@ -1064,8 +1496,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleChange("properties.customImage", {
                               ...currentCreative.properties.customImage,
                               squareCustomImage: {
-                                ...currentCreative.properties.customImage?.squareCustomImage,
-                                croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                ...currentCreative.properties.customImage
+                                  ?.squareCustomImage,
+                                croppingCoordinates:
+                                  Object.keys(newCrop).length > 0
+                                    ? newCrop
+                                    : undefined,
                               },
                             });
                           }}
@@ -1074,15 +1510,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Left</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Left
+                        </label>
                         <input
                           type="number"
                           min="0"
                           step="1"
-                          value={currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates?.left ?? ""}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.squareCustomImage?.croppingCoordinates?.left ??
+                            ""
+                          }
                           onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                            const currentCrop = currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates || {};
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.customImage
+                                ?.squareCustomImage?.croppingCoordinates || {};
                             const newCrop = { ...currentCrop };
                             if (value !== undefined && !isNaN(value)) {
                               newCrop.left = value;
@@ -1092,8 +1539,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleChange("properties.customImage", {
                               ...currentCreative.properties.customImage,
                               squareCustomImage: {
-                                ...currentCreative.properties.customImage?.squareCustomImage,
-                                croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                ...currentCreative.properties.customImage
+                                  ?.squareCustomImage,
+                                croppingCoordinates:
+                                  Object.keys(newCrop).length > 0
+                                    ? newCrop
+                                    : undefined,
                               },
                             });
                           }}
@@ -1102,15 +1553,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Width</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Width
+                        </label>
                         <input
                           type="number"
                           min="0"
                           step="1"
-                          value={currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates?.width ?? ""}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.squareCustomImage?.croppingCoordinates?.width ??
+                            ""
+                          }
                           onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                            const currentCrop = currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates || {};
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.customImage
+                                ?.squareCustomImage?.croppingCoordinates || {};
                             const newCrop = { ...currentCrop };
                             if (value !== undefined && !isNaN(value)) {
                               newCrop.width = value;
@@ -1120,8 +1582,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleChange("properties.customImage", {
                               ...currentCreative.properties.customImage,
                               squareCustomImage: {
-                                ...currentCreative.properties.customImage?.squareCustomImage,
-                                croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                ...currentCreative.properties.customImage
+                                  ?.squareCustomImage,
+                                croppingCoordinates:
+                                  Object.keys(newCrop).length > 0
+                                    ? newCrop
+                                    : undefined,
                               },
                             });
                           }}
@@ -1130,15 +1596,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Height</label>
+                        <label className="block text-[10px] text-gray-500 mb-1">
+                          Height
+                        </label>
                         <input
                           type="number"
                           min="0"
                           step="1"
-                          value={currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates?.height ?? ""}
+                          value={
+                            currentCreative.properties.customImage
+                              ?.squareCustomImage?.croppingCoordinates
+                              ?.height ?? ""
+                          }
                           onChange={(e) => {
-                            const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                            const currentCrop = currentCreative.properties.customImage?.squareCustomImage?.croppingCoordinates || {};
+                            const value =
+                              e.target.value === ""
+                                ? undefined
+                                : parseInt(e.target.value, 10);
+                            const currentCrop =
+                              currentCreative.properties.customImage
+                                ?.squareCustomImage?.croppingCoordinates || {};
                             const newCrop = { ...currentCrop };
                             if (value !== undefined && !isNaN(value)) {
                               newCrop.height = value;
@@ -1148,8 +1625,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             handleChange("properties.customImage", {
                               ...currentCreative.properties.customImage,
                               squareCustomImage: {
-                                ...currentCreative.properties.customImage?.squareCustomImage,
-                                croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                ...currentCreative.properties.customImage
+                                  ?.squareCustomImage,
+                                croppingCoordinates:
+                                  Object.keys(newCrop).length > 0
+                                    ? newCrop
+                                    : undefined,
                               },
                             });
                           }}
@@ -1159,31 +1640,46 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       </div>
                     </div>
                     {errors["properties.customImage.squareCustomImage"] && (
-                      <p className="text-red-500 text-xs mt-1">{errors["properties.customImage.squareCustomImage"]}</p>
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors["properties.customImage.squareCustomImage"]}
+                      </p>
                     )}
                   </div>
                   {errors["properties.customImage"] && (
-                    <p className="text-red-500 text-xs mt-1 mb-2">{errors["properties.customImage"]}</p>
+                    <p className="text-red-500 text-xs mt-1 mb-2">
+                      {errors["properties.customImage"]}
+                    </p>
                   )}
 
                   {/* Helper function to render image array */}
                   {(() => {
                     const renderImageArray = (
-                      arrayKey: 'squareImages' | 'horizontalImages' | 'verticalImages',
+                      arrayKey:
+                        | "squareImages"
+                        | "horizontalImages"
+                        | "verticalImages",
                       label: string,
                       description: string
                     ) => {
-                      const images = currentCreative.properties.customImage?.[arrayKey] || [];
+                      const images =
+                        currentCreative.properties.customImage?.[arrayKey] ||
+                        [];
                       return (
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <label className="block text-[11.2px] font-semibold text-[#556179]">
-                              {label} <span className="text-gray-400 font-normal">(Optional)</span>
+                              {label}{" "}
+                              <span className="text-gray-400 font-normal">
+                                (Optional)
+                              </span>
                             </label>
                             <button
                               type="button"
                               onClick={() => {
-                                const newImages = [...images, { assetId: "", assetVersion: "" }];
+                                const newImages = [
+                                  ...images,
+                                  { assetId: "", assetVersion: "" },
+                                ];
                                 handleChange("properties.customImage", {
                                   ...currentCreative.properties.customImage,
                                   [arrayKey]: newImages,
@@ -1194,9 +1690,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                               + Add {label.slice(0, -1)}
                             </button>
                           </div>
-                          <p className="text-xs text-gray-400 mb-2">{description}</p>
+                          <p className="text-xs text-gray-400 mb-2">
+                            {description}
+                          </p>
                           {images.map((img, idx) => (
-                            <div key={idx} className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white">
+                            <div
+                              key={idx}
+                              className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white"
+                            >
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-[12px] font-medium text-[#222124]">
                                   {label.slice(0, -1)} #{idx + 1}
@@ -1204,10 +1705,15 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const newImages = images.filter((_, i) => i !== idx);
+                                    const newImages = images.filter(
+                                      (_, i) => i !== idx
+                                    );
                                     handleChange("properties.customImage", {
                                       ...currentCreative.properties.customImage,
-                                      [arrayKey]: newImages.length > 0 ? newImages : undefined,
+                                      [arrayKey]:
+                                        newImages.length > 0
+                                          ? newImages
+                                          : undefined,
                                     });
                                   }}
                                   className="text-red-500 hover:text-red-700 text-sm"
@@ -1221,7 +1727,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   value={img.assetId || ""}
                                   onChange={(e) => {
                                     const newImages = [...images];
-                                    newImages[idx] = { ...img, assetId: e.target.value };
+                                    newImages[idx] = {
+                                      ...img,
+                                      assetId: e.target.value,
+                                    };
                                     handleChange("properties.customImage", {
                                       ...currentCreative.properties.customImage,
                                       [arrayKey]: newImages,
@@ -1235,7 +1744,10 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   value={img.assetVersion || ""}
                                   onChange={(e) => {
                                     const newImages = [...images];
-                                    newImages[idx] = { ...img, assetVersion: e.target.value };
+                                    newImages[idx] = {
+                                      ...img,
+                                      assetVersion: e.target.value,
+                                    };
                                     handleChange("properties.customImage", {
                                       ...currentCreative.properties.customImage,
                                       [arrayKey]: newImages,
@@ -1248,17 +1760,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                               {/* Cropping Coordinates */}
                               <div className="grid grid-cols-4 gap-2">
                                 <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">Top</label>
+                                  <label className="block text-[10px] text-gray-500 mb-1">
+                                    Top
+                                  </label>
                                   <input
                                     type="number"
                                     min="0"
                                     step="1"
                                     value={img.croppingCoordinates?.top ?? ""}
                                     onChange={(e) => {
-                                      const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                                      const currentCrop = img.croppingCoordinates || {};
+                                      const value =
+                                        e.target.value === ""
+                                          ? undefined
+                                          : parseInt(e.target.value, 10);
+                                      const currentCrop =
+                                        img.croppingCoordinates || {};
                                       const newCrop = { ...currentCrop };
-                                      if (value !== undefined && !isNaN(value)) {
+                                      if (
+                                        value !== undefined &&
+                                        !isNaN(value)
+                                      ) {
                                         newCrop.top = value;
                                       } else {
                                         delete newCrop.top;
@@ -1266,10 +1787,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                       const newImages = [...images];
                                       newImages[idx] = {
                                         ...img,
-                                        croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                        croppingCoordinates:
+                                          Object.keys(newCrop).length > 0
+                                            ? newCrop
+                                            : undefined,
                                       };
                                       handleChange("properties.customImage", {
-                                        ...currentCreative.properties.customImage,
+                                        ...currentCreative.properties
+                                          .customImage,
                                         [arrayKey]: newImages,
                                       });
                                     }}
@@ -1278,17 +1803,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">Left</label>
+                                  <label className="block text-[10px] text-gray-500 mb-1">
+                                    Left
+                                  </label>
                                   <input
                                     type="number"
                                     min="0"
                                     step="1"
                                     value={img.croppingCoordinates?.left ?? ""}
                                     onChange={(e) => {
-                                      const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                                      const currentCrop = img.croppingCoordinates || {};
+                                      const value =
+                                        e.target.value === ""
+                                          ? undefined
+                                          : parseInt(e.target.value, 10);
+                                      const currentCrop =
+                                        img.croppingCoordinates || {};
                                       const newCrop = { ...currentCrop };
-                                      if (value !== undefined && !isNaN(value)) {
+                                      if (
+                                        value !== undefined &&
+                                        !isNaN(value)
+                                      ) {
                                         newCrop.left = value;
                                       } else {
                                         delete newCrop.left;
@@ -1296,10 +1830,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                       const newImages = [...images];
                                       newImages[idx] = {
                                         ...img,
-                                        croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                        croppingCoordinates:
+                                          Object.keys(newCrop).length > 0
+                                            ? newCrop
+                                            : undefined,
                                       };
                                       handleChange("properties.customImage", {
-                                        ...currentCreative.properties.customImage,
+                                        ...currentCreative.properties
+                                          .customImage,
                                         [arrayKey]: newImages,
                                       });
                                     }}
@@ -1308,17 +1846,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">Width</label>
+                                  <label className="block text-[10px] text-gray-500 mb-1">
+                                    Width
+                                  </label>
                                   <input
                                     type="number"
                                     min="0"
                                     step="1"
                                     value={img.croppingCoordinates?.width ?? ""}
                                     onChange={(e) => {
-                                      const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                                      const currentCrop = img.croppingCoordinates || {};
+                                      const value =
+                                        e.target.value === ""
+                                          ? undefined
+                                          : parseInt(e.target.value, 10);
+                                      const currentCrop =
+                                        img.croppingCoordinates || {};
                                       const newCrop = { ...currentCrop };
-                                      if (value !== undefined && !isNaN(value)) {
+                                      if (
+                                        value !== undefined &&
+                                        !isNaN(value)
+                                      ) {
                                         newCrop.width = value;
                                       } else {
                                         delete newCrop.width;
@@ -1326,10 +1873,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                       const newImages = [...images];
                                       newImages[idx] = {
                                         ...img,
-                                        croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                        croppingCoordinates:
+                                          Object.keys(newCrop).length > 0
+                                            ? newCrop
+                                            : undefined,
                                       };
                                       handleChange("properties.customImage", {
-                                        ...currentCreative.properties.customImage,
+                                        ...currentCreative.properties
+                                          .customImage,
                                         [arrayKey]: newImages,
                                       });
                                     }}
@@ -1338,17 +1889,28 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">Height</label>
+                                  <label className="block text-[10px] text-gray-500 mb-1">
+                                    Height
+                                  </label>
                                   <input
                                     type="number"
                                     min="0"
                                     step="1"
-                                    value={img.croppingCoordinates?.height ?? ""}
+                                    value={
+                                      img.croppingCoordinates?.height ?? ""
+                                    }
                                     onChange={(e) => {
-                                      const value = e.target.value === "" ? undefined : parseInt(e.target.value, 10);
-                                      const currentCrop = img.croppingCoordinates || {};
+                                      const value =
+                                        e.target.value === ""
+                                          ? undefined
+                                          : parseInt(e.target.value, 10);
+                                      const currentCrop =
+                                        img.croppingCoordinates || {};
                                       const newCrop = { ...currentCrop };
-                                      if (value !== undefined && !isNaN(value)) {
+                                      if (
+                                        value !== undefined &&
+                                        !isNaN(value)
+                                      ) {
                                         newCrop.height = value;
                                       } else {
                                         delete newCrop.height;
@@ -1356,10 +1918,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                       const newImages = [...images];
                                       newImages[idx] = {
                                         ...img,
-                                        croppingCoordinates: Object.keys(newCrop).length > 0 ? newCrop : undefined,
+                                        croppingCoordinates:
+                                          Object.keys(newCrop).length > 0
+                                            ? newCrop
+                                            : undefined,
                                       };
                                       handleChange("properties.customImage", {
-                                        ...currentCreative.properties.customImage,
+                                        ...currentCreative.properties
+                                          .customImage,
                                         [arrayKey]: newImages,
                                       });
                                     }}
@@ -1376,9 +1942,21 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
                     return (
                       <>
-                        {renderImageArray('squareImages', 'Square Images', 'Multiple square images (1:1 ratio)')}
-                        {renderImageArray('horizontalImages', 'Horizontal Images', 'Multiple horizontal images (1.91:1 ratio)')}
-                        {renderImageArray('verticalImages', 'Vertical Images', 'Multiple vertical images (9:16 ratio)')}
+                        {renderImageArray(
+                          "squareImages",
+                          "Square Images",
+                          "Multiple square images (1:1 ratio)"
+                        )}
+                        {renderImageArray(
+                          "horizontalImages",
+                          "Horizontal Images",
+                          "Multiple horizontal images (1.91:1 ratio)"
+                        )}
+                        {renderImageArray(
+                          "verticalImages",
+                          "Vertical Images",
+                          "Multiple vertical images (9:16 ratio)"
+                        )}
                       </>
                     );
                   })()}
@@ -1401,15 +1979,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   </button>
                 </div>
                 <div className="space-y-2">
-                  {(currentCreative.properties.background?.backgrounds || []).map((bg, idx) => (
+                  {(
+                    currentCreative.properties.background?.backgrounds || []
+                  ).map((bg, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <input
                         type="color"
                         value={bg.color || "#000000"}
                         onChange={(e) => {
-                          const newBackgrounds = [...(currentCreative.properties.background?.backgrounds || [])];
+                          const newBackgrounds = [
+                            ...(currentCreative.properties.background
+                              ?.backgrounds || []),
+                          ];
                           newBackgrounds[idx] = { color: e.target.value };
-                          handleChange("properties.background", { backgrounds: newBackgrounds });
+                          handleChange("properties.background", {
+                            backgrounds: newBackgrounds,
+                          });
                         }}
                         className="w-12 h-10 border border-[#EBEBEB] rounded bg-white"
                       />
@@ -1417,9 +2002,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                         type="text"
                         value={bg.color || ""}
                         onChange={(e) => {
-                          const newBackgrounds = [...(currentCreative.properties.background?.backgrounds || [])];
+                          const newBackgrounds = [
+                            ...(currentCreative.properties.background
+                              ?.backgrounds || []),
+                          ];
                           newBackgrounds[idx] = { color: e.target.value };
-                          handleChange("properties.background", { backgrounds: newBackgrounds });
+                          handleChange("properties.background", {
+                            backgrounds: newBackgrounds,
+                          });
                         }}
                         className="flex-1 px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
                         placeholder="#RRGGBB"
@@ -1428,10 +2018,13 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          const newBackgrounds = (currentCreative.properties.background?.backgrounds || []).filter(
-                            (_, i) => i !== idx
-                          );
-                          handleChange("properties.background", { backgrounds: newBackgrounds });
+                          const newBackgrounds = (
+                            currentCreative.properties.background
+                              ?.backgrounds || []
+                          ).filter((_, i) => i !== idx);
+                          handleChange("properties.background", {
+                            backgrounds: newBackgrounds,
+                          });
                         }}
                         className="text-red-500 hover:text-red-700 text-sm"
                       >
@@ -1443,10 +2036,13 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     type="button"
                     onClick={() => {
                       const newBackgrounds = [
-                        ...(currentCreative.properties.background?.backgrounds || []),
+                        ...(currentCreative.properties.background
+                          ?.backgrounds || []),
                         { color: "#000000" },
                       ];
-                      handleChange("properties.background", { backgrounds: newBackgrounds });
+                      handleChange("properties.background", {
+                        backgrounds: newBackgrounds,
+                      });
                     }}
                     className="text-[#136D6D] hover:text-[#0f5555] text-[13.44px]"
                   >
@@ -1454,7 +2050,9 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   </button>
                 </div>
                 {errors["properties.background"] && (
-                  <p className="text-red-500 text-xs mt-1">{errors["properties.background"]}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors["properties.background"]}
+                  </p>
                 )}
               </div>
             )}
@@ -1480,19 +2078,28 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                     <label className="block text-[11.2px] font-semibold text-[#556179] mb-2">
                       Main Video <span className="text-red-500">*</span>
                     </label>
-                    <p className="text-xs text-gray-400 mb-2">Primary video asset (required - main video object is mandatory)</p>
+                    <p className="text-xs text-gray-400 mb-2">
+                      Primary video asset (required - main video object is
+                      mandatory)
+                    </p>
                     <div className="space-y-3 p-3 border border-[#EBEBEB] rounded-lg bg-white">
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] text-gray-500 mb-1">Asset ID *</label>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Asset ID *
+                          </label>
                           <input
                             type="text"
-                            value={currentCreative.properties.video?.video?.assetId || ""}
+                            value={
+                              currentCreative.properties.video?.video
+                                ?.assetId || ""
+                            }
                             onChange={(e) =>
                               handleChange("properties.video", {
                                 ...currentCreative.properties.video,
                                 video: {
-                                  ...(currentCreative.properties.video?.video || {}),
+                                  ...(currentCreative.properties.video?.video ||
+                                    {}),
                                   assetId: e.target.value,
                                 },
                               })
@@ -1502,15 +2109,21 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] text-gray-500 mb-1">Asset Version *</label>
+                          <label className="block text-[10px] text-gray-500 mb-1">
+                            Asset Version *
+                          </label>
                           <input
                             type="text"
-                            value={currentCreative.properties.video?.video?.assetVersion || ""}
+                            value={
+                              currentCreative.properties.video?.video
+                                ?.assetVersion || ""
+                            }
                             onChange={(e) =>
                               handleChange("properties.video", {
                                 ...currentCreative.properties.video,
                                 video: {
-                                  ...(currentCreative.properties.video?.video || {}),
+                                  ...(currentCreative.properties.video?.video ||
+                                    {}),
                                   assetVersion: e.target.value,
                                 },
                               })
@@ -1523,16 +2136,21 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-[10px] text-gray-500 mb-1">
-                            Original Asset ID <span className="text-gray-400">(Optional)</span>
+                            Original Asset ID{" "}
+                            <span className="text-gray-400">(Optional)</span>
                           </label>
                           <input
                             type="text"
-                            value={currentCreative.properties.video?.video?.originalAssetId || ""}
+                            value={
+                              currentCreative.properties.video?.video
+                                ?.originalAssetId || ""
+                            }
                             onChange={(e) =>
                               handleChange("properties.video", {
                                 ...currentCreative.properties.video,
                                 video: {
-                                  ...(currentCreative.properties.video?.video || {}),
+                                  ...(currentCreative.properties.video?.video ||
+                                    {}),
                                   originalAssetId: e.target.value || undefined,
                                 },
                               })
@@ -1540,28 +2158,38 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
                             placeholder="Original Asset ID"
                           />
-                          <p className="text-xs text-gray-400 mt-1">Original asset ID before translation</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Original asset ID before translation
+                          </p>
                         </div>
                         <div>
                           <label className="block text-[10px] text-gray-500 mb-1">
-                            Original Asset Version <span className="text-gray-400">(Optional)</span>
+                            Original Asset Version{" "}
+                            <span className="text-gray-400">(Optional)</span>
                           </label>
                           <input
                             type="text"
-                            value={currentCreative.properties.video?.video?.originalAssetVersion || ""}
+                            value={
+                              currentCreative.properties.video?.video
+                                ?.originalAssetVersion || ""
+                            }
                             onChange={(e) =>
                               handleChange("properties.video", {
                                 ...currentCreative.properties.video,
                                 video: {
-                                  ...(currentCreative.properties.video?.video || {}),
-                                  originalAssetVersion: e.target.value || undefined,
+                                  ...(currentCreative.properties.video?.video ||
+                                    {}),
+                                  originalAssetVersion:
+                                    e.target.value || undefined,
                                 },
                               })
                             }
                             className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
                             placeholder="Original Asset Version"
                           />
-                          <p className="text-xs text-gray-400 mt-1">Original asset version before translation</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Original asset version before translation
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1570,21 +2198,31 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   {/* Helper function to render video array */}
                   {(() => {
                     const renderVideoArray = (
-                      arrayKey: 'squareVideos' | 'horizontalVideos' | 'verticalVideos',
+                      arrayKey:
+                        | "squareVideos"
+                        | "horizontalVideos"
+                        | "verticalVideos",
                       label: string,
                       description: string
                     ) => {
-                      const videos = currentCreative.properties.video?.[arrayKey] || [];
+                      const videos =
+                        currentCreative.properties.video?.[arrayKey] || [];
                       return (
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <label className="block text-[11.2px] font-semibold text-[#556179]">
-                              {label} <span className="text-gray-400 font-normal">(Optional)</span>
+                              {label}{" "}
+                              <span className="text-gray-400 font-normal">
+                                (Optional)
+                              </span>
                             </label>
                             <button
                               type="button"
                               onClick={() => {
-                                const newVideos = [...videos, { assetId: "", assetVersion: "" }];
+                                const newVideos = [
+                                  ...videos,
+                                  { assetId: "", assetVersion: "" },
+                                ];
                                 handleChange("properties.video", {
                                   ...currentCreative.properties.video,
                                   [arrayKey]: newVideos,
@@ -1596,10 +2234,15 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                             </button>
                           </div>
                           {description && (
-                            <p className="text-xs text-gray-400 mb-2">{description}</p>
+                            <p className="text-xs text-gray-400 mb-2">
+                              {description}
+                            </p>
                           )}
                           {videos.map((vid, idx) => (
-                            <div key={idx} className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white">
+                            <div
+                              key={idx}
+                              className="mb-3 p-3 border border-[#EBEBEB] rounded-lg bg-white"
+                            >
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-[12px] font-medium text-[#222124]">
                                   {label.slice(0, -1)} #{idx + 1}
@@ -1607,10 +2250,15 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const newVideos = videos.filter((_, i) => i !== idx);
+                                    const newVideos = videos.filter(
+                                      (_, i) => i !== idx
+                                    );
                                     handleChange("properties.video", {
                                       ...currentCreative.properties.video,
-                                      [arrayKey]: newVideos.length > 0 ? newVideos : undefined,
+                                      [arrayKey]:
+                                        newVideos.length > 0
+                                          ? newVideos
+                                          : undefined,
                                     });
                                   }}
                                   className="text-red-500 hover:text-red-700 text-sm"
@@ -1620,13 +2268,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                               </div>
                               <div className="grid grid-cols-2 gap-2 mb-2">
                                 <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">Asset ID *</label>
+                                  <label className="block text-[10px] text-gray-500 mb-1">
+                                    Asset ID *
+                                  </label>
                                   <input
                                     type="text"
                                     value={vid.assetId || ""}
                                     onChange={(e) => {
                                       const newVideos = [...videos];
-                                      newVideos[idx] = { ...vid, assetId: e.target.value };
+                                      newVideos[idx] = {
+                                        ...vid,
+                                        assetId: e.target.value,
+                                      };
                                       handleChange("properties.video", {
                                         ...currentCreative.properties.video,
                                         [arrayKey]: newVideos,
@@ -1637,13 +2290,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">Asset Version *</label>
+                                  <label className="block text-[10px] text-gray-500 mb-1">
+                                    Asset Version *
+                                  </label>
                                   <input
                                     type="text"
                                     value={vid.assetVersion || ""}
                                     onChange={(e) => {
                                       const newVideos = [...videos];
-                                      newVideos[idx] = { ...vid, assetVersion: e.target.value };
+                                      newVideos[idx] = {
+                                        ...vid,
+                                        assetVersion: e.target.value,
+                                      };
                                       handleChange("properties.video", {
                                         ...currentCreative.properties.video,
                                         [arrayKey]: newVideos,
@@ -1657,14 +2315,21 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
                                   <label className="block text-[10px] text-gray-500 mb-1">
-                                    Original Asset ID <span className="text-gray-400">(Optional)</span>
+                                    Original Asset ID{" "}
+                                    <span className="text-gray-400">
+                                      (Optional)
+                                    </span>
                                   </label>
                                   <input
                                     type="text"
                                     value={vid.originalAssetId || ""}
                                     onChange={(e) => {
                                       const newVideos = [...videos];
-                                      newVideos[idx] = { ...vid, originalAssetId: e.target.value || undefined };
+                                      newVideos[idx] = {
+                                        ...vid,
+                                        originalAssetId:
+                                          e.target.value || undefined,
+                                      };
                                       handleChange("properties.video", {
                                         ...currentCreative.properties.video,
                                         [arrayKey]: newVideos,
@@ -1676,14 +2341,21 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                                 </div>
                                 <div>
                                   <label className="block text-[10px] text-gray-500 mb-1">
-                                    Original Asset Version <span className="text-gray-400">(Optional)</span>
+                                    Original Asset Version{" "}
+                                    <span className="text-gray-400">
+                                      (Optional)
+                                    </span>
                                   </label>
                                   <input
                                     type="text"
                                     value={vid.originalAssetVersion || ""}
                                     onChange={(e) => {
                                       const newVideos = [...videos];
-                                      newVideos[idx] = { ...vid, originalAssetVersion: e.target.value || undefined };
+                                      newVideos[idx] = {
+                                        ...vid,
+                                        originalAssetVersion:
+                                          e.target.value || undefined,
+                                      };
                                       handleChange("properties.video", {
                                         ...currentCreative.properties.video,
                                         [arrayKey]: newVideos,
@@ -1702,18 +2374,34 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
                     return (
                       <>
-                        {renderVideoArray('squareVideos', 'Square Videos', 'Multiple square video variants (1:1 ratio)')}
-                        {renderVideoArray('horizontalVideos', 'Horizontal Videos', 'Multiple horizontal video variants (1.91:1 ratio)')}
-                        {renderVideoArray('verticalVideos', 'Vertical Videos', 'Multiple vertical video variants (9:16 ratio)')}
+                        {renderVideoArray(
+                          "squareVideos",
+                          "Square Videos",
+                          "Multiple square video variants (1:1 ratio)"
+                        )}
+                        {renderVideoArray(
+                          "horizontalVideos",
+                          "Horizontal Videos",
+                          "Multiple horizontal video variants (1.91:1 ratio)"
+                        )}
+                        {renderVideoArray(
+                          "verticalVideos",
+                          "Vertical Videos",
+                          "Multiple vertical video variants (9:16 ratio)"
+                        )}
                       </>
                     );
                   })()}
                 </div>
                 {errors["properties.video"] && (
-                  <p className="text-red-500 text-xs mt-2">{errors["properties.video"]}</p>
+                  <p className="text-red-500 text-xs mt-2">
+                    {errors["properties.video"]}
+                  </p>
                 )}
                 {errors["properties.video.video"] && (
-                  <p className="text-red-500 text-xs mt-2">{errors["properties.video.video"]}</p>
+                  <p className="text-red-500 text-xs mt-2">
+                    {errors["properties.video.video"]}
+                  </p>
                 )}
               </div>
             )}
@@ -1724,10 +2412,14 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 <input
                   type="checkbox"
                   checked={currentCreative.consentToTranslate || false}
-                  onChange={(e) => handleChange("consentToTranslate", e.target.checked)}
+                  onChange={(e) =>
+                    handleChange("consentToTranslate", e.target.checked)
+                  }
                   className="mr-2"
                 />
-                <span className="text-[13.44px] text-[#222124]">Consent to Translate</span>
+                <span className="text-[13.44px] text-[#222124]">
+                  Consent to Translate
+                </span>
               </label>
             </div>
 
@@ -1735,17 +2427,19 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               <p className="text-red-500 text-xs mb-4">{errors.properties}</p>
             )}
 
-            <button
-              type="button"
-              onClick={handleAdd}
-              className="w-full py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] text-[13.44px] font-medium"
-            >
-              Add Creative
-            </button>
+            {!editCreative && (
+              <button
+                type="button"
+                onClick={handleAdd}
+                className="w-full py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] text-[13.44px] font-medium"
+              >
+                Add Creative
+              </button>
+            )}
           </div>
 
-          {/* Added Creatives List */}
-          {addedCreatives.length > 0 && (
+          {/* Added Creatives List - Only show in create mode */}
+          {!editCreative && addedCreatives.length > 0 && (
             <div className="mb-6">
               <h3 className="text-[16px] font-semibold text-[#072929] mb-4">
                 Added Creatives ({addedCreatives.length})
@@ -1758,7 +2452,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   >
                     <div>
                       <span className="text-[13.44px] font-medium text-[#222124]">
-                        {creative.creativeType} - {Object.keys(creative.properties).join(", ")}
+                        {creative.creativeType} -{" "}
+                        {Object.keys(creative.properties).join(", ")}
                       </span>
                     </div>
                     <button
@@ -1790,10 +2485,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={loading || addedCreatives.length === 0}
+              disabled={
+                loading || (editCreative ? false : addedCreatives.length === 0)
+              }
               className="flex-1 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] disabled:opacity-50 disabled:cursor-not-allowed text-[13.44px] font-medium"
             >
-              {loading ? "Creating..." : `Create ${addedCreatives.length} Creative(s)`}
+              {loading
+                ? editCreative
+                  ? "Updating..."
+                  : "Creating..."
+                : editCreative
+                ? "Update Creative"
+                : `Create ${addedCreatives.length} Creative(s)`}
             </button>
           </div>
         </div>
@@ -1801,4 +2504,3 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
     </div>
   );
 };
-

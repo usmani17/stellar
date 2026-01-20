@@ -952,8 +952,9 @@ export const campaignsService = {
       params.append("type", campaignType);
     }
 
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/${params.toString() ? `?${params.toString()}` : ""
-      }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
     const response = await api.get<CampaignDetail>(url);
     return response.data;
   },
@@ -990,8 +991,9 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${queryString ? `?${queryString}` : ""
-      }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.post<AdGroupsResponse>(url, { filters });
     return response.data;
   },
@@ -1028,8 +1030,9 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${queryString ? `?${queryString}` : ""
-      }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.post<KeywordsResponse>(url, { filters });
     return response.data;
   },
@@ -1066,8 +1069,9 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${queryString ? `?${queryString}` : ""
-      }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.post<ProductAdsResponse>(url, { filters });
     return response.data;
   },
@@ -1104,8 +1108,9 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${queryString ? `?${queryString}` : ""
-      }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.post<TargetsResponse>(url, { filters });
     return response.data;
   },
@@ -1152,8 +1157,9 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${queryString ? `?${queryString}` : ""
-      }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1201,8 +1207,9 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${queryString ? `?${queryString}` : ""
-      }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1212,13 +1219,13 @@ export const campaignsService = {
     payload: {
       campaignIds: Array<string | number>;
       action:
-      | "status"
-      | "budget"
-      | "budgetType"
-      | "name"
-      | "portfolioId"
-      | "endDate"
-      | "targetingType";
+        | "status"
+        | "budget"
+        | "budgetType"
+        | "name"
+        | "portfolioId"
+        | "endDate"
+        | "targetingType";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
       budgetType?: "DAILY" | "LIFETIME";
@@ -1644,10 +1651,7 @@ export const campaignsService = {
     return response.data;
   },
 
-  archiveSdAdGroup: async (
-    accountId: number,
-    adGroupId: string | number
-  ) => {
+  archiveSdAdGroup: async (accountId: number, adGroupId: string | number) => {
     const url = `/accounts/${accountId}/adgroups/${adGroupId}/archive/`;
     const response = await api.delete(url);
     return response.data;
@@ -1689,20 +1693,14 @@ export const campaignsService = {
   },
 
   // SD Product Ads - Archive
-  archiveSdProductAd: async (
-    accountId: number,
-    adId: string | number
-  ) => {
+  archiveSdProductAd: async (accountId: number, adId: string | number) => {
     const url = `/accounts/${accountId}/sd-productads/${adId}/archive/`;
     const response = await api.delete(url);
     return response.data;
   },
 
   // SD Targets - Archive
-  archiveSdTarget: async (
-    accountId: number,
-    targetId: string | number
-  ) => {
+  archiveSdTarget: async (accountId: number, targetId: string | number) => {
     const url = `/accounts/${accountId}/targets/${targetId}/archive/`;
     const response = await api.delete(url);
     return response.data;
@@ -1824,7 +1822,7 @@ export const campaignsService = {
     // Add adType parameter to indicate this is a video ad request
     const response = await api.post(
       `/accounts/${accountId}/campaigns/${campaignId}/sb-video-ads/create/`,
-      { ...data, adType: 'VIDEO' }
+      { ...data, adType: "VIDEO" }
     );
     return response.data;
   },
@@ -1900,7 +1898,11 @@ export const campaignsService = {
     accountId: number,
     assetId: string,
     profileId: string
-  ): Promise<{ previewUrl: string; contentType?: string | null; assetData: any }> => {
+  ): Promise<{
+    previewUrl: string;
+    contentType?: string | null;
+    assetData: any;
+  }> => {
     const response = await api.get(
       `/accounts/${accountId}/assets/${assetId}/preview/`,
       {
@@ -2398,6 +2400,20 @@ export const campaignsService = {
   ) => {
     const url = `/accounts/${accountId}/campaigns/${campaignId}/sd/creatives/`;
     const response = await api.post(url, { filters });
+    console.log("[getSdCreatives] Response:", response.data);
+    return response.data;
+  },
+
+  updateSdCreatives: async (
+    accountId: number,
+    creatives: Array<{
+      creativeId: number | string; // Can be string to preserve precision for large integers
+      creativeType?: "IMAGE" | "VIDEO" | null;
+      properties: any;
+    }>
+  ) => {
+    const url = `/accounts/${accountId}/sd/creatives/update/`;
+    const response = await api.put(url, creatives);
     return response.data;
   },
 
@@ -2593,10 +2609,9 @@ export const campaignsService = {
     if (params?.account_name__not_icontains)
       filters.account_name__not_icontains = params.account_name__not_icontains;
 
-    const response = await api.post(
-      `/google-adwords/${accountId}/campaigns/`,
-      { filters }
-    );
+    const response = await api.post(`/google-adwords/${accountId}/campaigns/`, {
+      filters,
+    });
     return response.data;
   },
 
@@ -2604,7 +2619,13 @@ export const campaignsService = {
     accountId: number,
     payload: {
       campaignIds: Array<string | number>;
-      action: "name" | "status" | "budget" | "start_date" | "end_date" | "bidding_strategy";
+      action:
+        | "name"
+        | "status"
+        | "budget"
+        | "start_date"
+        | "end_date"
+        | "bidding_strategy";
       name?: string;
       status?: "ENABLED" | "PAUSED" | "REMOVED";
       budget?: number;
@@ -3077,8 +3098,9 @@ export const campaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
-      }`;
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.get(url);
     return response.data;
   },
@@ -3285,8 +3307,9 @@ export const campaignsService = {
     const params = new URLSearchParams();
     if (campaignId) params.append("campaign_id", String(campaignId));
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${queryString ? `?${queryString}` : ""
-      }`;
+    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.get(url);
     return response.data;
   },
@@ -3502,8 +3525,8 @@ export const campaignsService = {
       adIds: Array<string | number>;
       action: "status";
       status?: "ENABLED" | "PAUSED" | "REMOVED";
-      campaignId?: string;  // Optional: filter by campaign (for product groups)
-      adGroupId?: string;  // Optional: filter by ad group (for product groups)
+      campaignId?: string; // Optional: filter by campaign (for product groups)
+      adGroupId?: string; // Optional: filter by ad group (for product groups)
     }
   ) => {
     const url = `/google-adwords/${accountId}/ads/bulk-update/`;
@@ -3557,12 +3580,20 @@ export const campaignsService = {
       end_date?: string;
       include_deleted?: boolean;
     }
-  ): Promise<{ campaigns: any[]; total: number; page: number; page_size: number }> => {
+  ): Promise<{
+    campaigns: any[];
+    total: number;
+    page: number;
+    page_size: number;
+  }> => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", String(params.page));
-    if (params?.page_size) queryParams.append("page_size", String(params.page_size));
-    if (params?.operation_status) queryParams.append("operation_status", params.operation_status);
-    if (params?.advertiser_id) queryParams.append("advertiser_id", params.advertiser_id);
+    if (params?.page_size)
+      queryParams.append("page_size", String(params.page_size));
+    if (params?.operation_status)
+      queryParams.append("operation_status", params.operation_status);
+    if (params?.advertiser_id)
+      queryParams.append("advertiser_id", params.advertiser_id);
     if (params?.start_date) queryParams.append("start_date", params.start_date);
     if (params?.end_date) queryParams.append("end_date", params.end_date);
     if (params?.include_deleted) queryParams.append("include_deleted", "true");
@@ -3671,7 +3702,9 @@ export const campaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/accounts/${accountId}/tiktok-campaigns/${campaignId}/${queryString ? `?${queryString}` : ""}`;
+    const url = `/accounts/${accountId}/tiktok-campaigns/${campaignId}/${
+      queryString ? `?${queryString}` : ""
+    }`;
     const response = await api.get(url);
     return response.data;
   },
@@ -3726,8 +3759,10 @@ export const campaignsService = {
     if (params?.end_date) filters.end_date = params.end_date;
     if (params?.campaign_id) filters.campaign_id = params.campaign_id;
     if (params?.advertiser_id) filters.advertiser_id = params.advertiser_id;
-    if (params?.operation_status) filters.operation_status = params.operation_status;
-    if (params?.optimization_goal) filters.optimization_goal = params.optimization_goal;
+    if (params?.operation_status)
+      filters.operation_status = params.operation_status;
+    if (params?.optimization_goal)
+      filters.optimization_goal = params.optimization_goal;
     if (params?.adgroup_name) filters.adgroup_name = params.adgroup_name;
     if (params?.adgroup_name__icontains)
       filters.adgroup_name__icontains = params.adgroup_name__icontains;
@@ -3792,7 +3827,10 @@ export const campaignsService = {
     accountId: number,
     data: {
       budget?: Array<{ adgroup_id: string | number; budget: number }>;
-      scheduled_budget?: Array<{ adgroup_id: string | number; scheduled_budget: number }>;
+      scheduled_budget?: Array<{
+        adgroup_id: string | number;
+        scheduled_budget: number;
+      }>;
       advertiser_id?: string;
     }
   ): Promise<any> => {
@@ -3858,7 +3896,8 @@ export const campaignsService = {
     if (params?.adgroup_id) filters.adgroup_id = params.adgroup_id;
     if (params?.campaign_id) filters.campaign_id = params.campaign_id;
     if (params?.advertiser_id) filters.advertiser_id = params.advertiser_id;
-    if (params?.operation_status) filters.operation_status = params.operation_status;
+    if (params?.operation_status)
+      filters.operation_status = params.operation_status;
     if (params?.ad_format) filters.ad_format = params.ad_format;
     if (params?.ad_name) filters.ad_name = params.ad_name;
     if (params?.ad_name__icontains)
@@ -3967,7 +4006,8 @@ export const campaignsService = {
     if (params?.adgroup_id) filters.adgroup_id = params.adgroup_id;
     if (params?.campaign_id) filters.campaign_id = params.campaign_id;
     if (params?.advertiser_id) filters.advertiser_id = params.advertiser_id;
-    if (params?.operation_status) filters.operation_status = params.operation_status;
+    if (params?.operation_status)
+      filters.operation_status = params.operation_status;
     if (params?.ad_format) filters.ad_format = params.ad_format;
     if (params?.ad_name) filters.ad_name = params.ad_name;
     if (params?.ad_name__icontains)
@@ -4004,5 +4044,4 @@ export const campaignsService = {
     link.click();
     link.remove();
   },
-
 };
