@@ -4,7 +4,7 @@ export const googleAdwordsCampaignsService = {
   createGoogleCampaign: async (
     accountId: number,
     payload: {
-      campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH";
+      campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN";
       customer_id?: string; // Optional - for selecting specific profile
       name: string;
       budget_amount: number; // In dollars, backend converts to micros

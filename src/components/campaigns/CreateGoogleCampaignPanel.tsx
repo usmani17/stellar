@@ -21,7 +21,7 @@ interface CreateGoogleCampaignPanelProps {
 }
 
 export interface CreateGoogleCampaignData {
-  campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH";
+  campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN";
   customer_id?: string;
   name: string;
   budget_amount: number;
@@ -54,12 +54,27 @@ export interface CreateGoogleCampaignData {
   adgroup_name?: string;
   keywords?: string[] | string; // Can be array or comma-separated string
   match_type?: "BROAD" | "PHRASE" | "EXACT";
+  // Demand Gen fields
+  video_url?: string;
+  video_id?: string;
+  ad_group_name?: string;
+  ad_name?: string;
+  ad_type?: string;
+  channel_controls?: {
+    gmail?: boolean;
+    discover?: boolean;
+    display?: boolean;
+    youtube_in_feed?: boolean;
+    youtube_in_stream?: boolean;
+    youtube_shorts?: boolean;
+  };
 }
 
 const CAMPAIGN_TYPES = [
   { value: "PERFORMANCE_MAX", label: "Performance Max" },
   { value: "SHOPPING", label: "Shopping" },
   { value: "SEARCH", label: "Search" },
+  { value: "DEMAND_GEN", label: "Demand Gen" },
 ];
 
 const STATUS_OPTIONS = [
@@ -217,6 +232,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       sales_country: "US",
       campaign_priority: 0,
       enable_local: false,
+      video_url: "",
+      video_id: "",
+      channel_controls: {
+        gmail: true,
+        discover: true,
+        display: true,
+        youtube_in_feed: true,
+        youtube_in_stream: true,
+        youtube_shorts: true,
+      },
     });
     setErrors({});
     setLogoPreview(null);
@@ -242,6 +267,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       return BIDDING_STRATEGY_OPTIONS.filter(
         (opt) => opt.value === "MANUAL_CPC"
       );
+    } else if (campaignType === "DEMAND_GEN") {
+      // Demand Gen campaigns support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE, TARGET_CPA, TARGET_ROAS
+      return BIDDING_STRATEGY_OPTIONS.filter(
+        (opt) =>
+          opt.value === "MAXIMIZE_CONVERSIONS" ||
+          opt.value === "MAXIMIZE_CONVERSION_VALUE" ||
+          opt.value === "TARGET_CPA" ||
+          opt.value === "TARGET_ROAS"
+      );
     } else {
       // SEARCH - TARGET_CPA and TARGET_ROAS are not supported
       // They require conversion tracking setup and historical conversion data
@@ -262,6 +296,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       return "MAXIMIZE_CONVERSIONS";
     } else if (campaignType === "SHOPPING") {
       return "MANUAL_CPC";
+    } else if (campaignType === "DEMAND_GEN") {
+      return "MAXIMIZE_CONVERSIONS";
     } else {
       // SEARCH
       return "MANUAL_CPC";
@@ -285,6 +321,28 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         );
         if (!prev.bidding_strategy_type || !currentStrategyValid) {
           updated.bidding_strategy_type = defaultStrategy;
+        }
+        
+        // Initialize headlines/descriptions for Performance Max and Demand Gen
+        if (value === "PERFORMANCE_MAX" || value === "DEMAND_GEN") {
+          if (!updated.headlines || updated.headlines.length < 3) {
+            updated.headlines = Array(3).fill("");
+          }
+          if (!updated.descriptions || updated.descriptions.length < 2) {
+            updated.descriptions = Array(2).fill("");
+          }
+        }
+        
+        // Initialize channel controls for Demand Gen
+        if (value === "DEMAND_GEN" && !updated.channel_controls) {
+          updated.channel_controls = {
+            gmail: true,
+            discover: true,
+            display: true,
+            youtube_in_feed: true,
+            youtube_in_stream: true,
+            youtube_shorts: true,
+          };
         }
       }
       
@@ -315,8 +373,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
     
-    // Update logo preview when logo_url changes
-    if (field === "logo_url") {
+    // Update logo preview when logo_url changes (for Performance Max and Demand Gen)
+    if (field === "logo_url" && (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN")) {
       const urlValue = typeof value === "string" ? value.trim() : "";
       // More lenient URL validation - accept any string that starts with http:// or https://
       if (urlValue && (urlValue.startsWith("http://") || urlValue.startsWith("https://"))) {
@@ -350,6 +408,19 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   };
 
   const addHeadline = () => {
+    // Ensure minimum headlines for Performance Max and Demand Gen
+    if (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN") {
+      if (!formData.headlines || formData.headlines.length < 3) {
+        // Initialize with 3 empty headlines if less than 3
+        const currentHeadlines = formData.headlines || [];
+        const needed = 3 - currentHeadlines.length;
+        setFormData((prev) => ({
+          ...prev,
+          headlines: [...currentHeadlines, ...Array(needed).fill("")],
+        }));
+        return;
+      }
+    }
     if (formData.headlines && formData.headlines.length < 15) {
       setFormData((prev) => ({
         ...prev,
@@ -359,7 +430,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   };
 
   const removeHeadline = (index: number) => {
-    if (formData.headlines && formData.headlines.length > 1) {
+    // For Performance Max and Demand Gen, minimum is 3 headlines
+    const minHeadlines = (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN") ? 3 : 1;
+    if (formData.headlines && formData.headlines.length > minHeadlines) {
       const newHeadlines = formData.headlines.filter((_, i) => i !== index);
       setFormData((prev) => ({ ...prev, headlines: newHeadlines }));
     }
@@ -374,6 +447,19 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   };
 
   const addDescription = () => {
+    // Ensure minimum descriptions for Performance Max and Demand Gen
+    if (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN") {
+      if (!formData.descriptions || formData.descriptions.length < 2) {
+        // Initialize with 2 empty descriptions if less than 2
+        const currentDescriptions = formData.descriptions || [];
+        const needed = 2 - currentDescriptions.length;
+        setFormData((prev) => ({
+          ...prev,
+          descriptions: [...currentDescriptions, ...Array(needed).fill("")],
+        }));
+        return;
+      }
+    }
     if (formData.descriptions && formData.descriptions.length < 4) {
       setFormData((prev) => ({
         ...prev,
@@ -383,7 +469,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   };
 
   const removeDescription = (index: number) => {
-    if (formData.descriptions && formData.descriptions.length > 1) {
+    // For Performance Max and Demand Gen, minimum is 2 descriptions
+    const minDescriptions = (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN") ? 2 : 1;
+    if (formData.descriptions && formData.descriptions.length > minDescriptions) {
       const newDescriptions = formData.descriptions.filter((_, i) => i !== index);
       setFormData((prev) => ({ ...prev, descriptions: newDescriptions }));
     }
@@ -442,6 +530,49 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       if (!formData.merchant_id?.trim()) {
         newErrors.merchant_id = "Merchant ID is required";
       }
+    } else if (formData.campaign_type === "DEMAND_GEN") {
+      // Demand Gen validation
+      if (!formData.final_url?.trim()) {
+        newErrors.final_url = "Final URL is required";
+      } else if (!/^https?:\/\/.+/.test(formData.final_url)) {
+        newErrors.final_url = "Final URL must be a valid URL (http:// or https://)";
+      } else if (formData.final_url === "https://example.com") {
+        newErrors.final_url = "Final URL cannot be https://example.com";
+      }
+
+      if (!formData.logo_url?.trim() || formData.logo_url === 'https://example.com') {
+        newErrors.logo_url = "Logo URL is required. Please provide a valid logo URL.";
+      } else if (!/^https?:\/\/.+/.test(formData.logo_url)) {
+        newErrors.logo_url = "Logo URL must be a valid URL (http:// or https://)";
+      }
+
+      // Video validation: either video_url or video_id is required
+      if (!formData.video_url?.trim() && !formData.video_id?.trim()) {
+        newErrors.video_url = "Either video URL or video ID is required";
+        newErrors.video_id = "Either video URL or video ID is required";
+      } else if (formData.video_url?.trim() && !/^https?:\/\/.+/.test(formData.video_url)) {
+        newErrors.video_url = "Video URL must be a valid URL (http:// or https://)";
+      } else if (formData.video_id?.trim() && !/^[a-zA-Z0-9_-]{11}$/.test(formData.video_id)) {
+        newErrors.video_id = "Video ID must be a valid YouTube video ID (11 characters)";
+      }
+
+      if (!formData.business_name?.trim()) {
+        newErrors.business_name = "Business name is required";
+      }
+
+      const validHeadlines = (formData.headlines || []).filter((h) => h.trim());
+      if (validHeadlines.length < 3) {
+        newErrors.headlines = "At least 3 headlines are required";
+      } else if (validHeadlines.length > 15) {
+        newErrors.headlines = "Maximum 15 headlines allowed";
+      }
+
+      const validDescriptions = (formData.descriptions || []).filter((d) => d.trim());
+      if (validDescriptions.length < 2) {
+        newErrors.descriptions = "At least 2 descriptions are required";
+      } else if (validDescriptions.length > 4) {
+        newErrors.descriptions = "Maximum 4 descriptions allowed";
+      }
     }
 
     // Validate bidding strategy specific fields
@@ -483,16 +614,19 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     // Filter out empty headlines and descriptions
     const payload: CreateGoogleCampaignData = {
       ...formData,
-      headlines: formData.campaign_type === "PERFORMANCE_MAX"
+      headlines: (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN")
         ? (formData.headlines || []).filter((h) => h.trim())
         : undefined,
-      descriptions: formData.campaign_type === "PERFORMANCE_MAX"
+      descriptions: (formData.campaign_type === "PERFORMANCE_MAX" || formData.campaign_type === "DEMAND_GEN")
         ? (formData.descriptions || []).filter((d) => d.trim())
         : undefined,
       // Remove Search-specific fields - ad groups and keywords will be created separately
       adgroup_name: undefined,
       keywords: undefined,
       match_type: undefined,
+      // For Demand Gen, ensure only one of video_url or video_id is sent
+      video_url: formData.campaign_type === "DEMAND_GEN" && formData.video_url?.trim() ? formData.video_url : undefined,
+      video_id: formData.campaign_type === "DEMAND_GEN" && formData.video_id?.trim() ? formData.video_id : undefined,
     };
 
     try {
@@ -626,6 +760,58 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       enable_local: false,
     });
     setErrors({});
+  };
+
+  const quickFillDemandGen = () => {
+    const today = new Date();
+    const dateStr = formatDateForName(today);
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + 14); // 14 days from now
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 1); // 1 day after start date
+    
+    setFormData({
+      campaign_type: "DEMAND_GEN",
+      name: `Demand Gen Campaign Stellar FE - ${dateStr} - 1`,
+      budget_amount: 50,
+      budget_name: "Test Demand Gen Budget",
+      status: "PAUSED",
+      bidding_strategy_type: "MAXIMIZE_CONVERSIONS",
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+      final_url: "https://techesthete.com",
+      business_name: "Techesthete",
+      logo_url: "https://placehold.co/128x128",
+      video_id: "dQw4w9WgXcQ", // Example YouTube video ID
+      video_url: "",
+      headlines: [
+        "Great Software Solutions",
+        "AI-Powered Development",
+        "Expert Software Services",
+        "Innovative Technology",
+        "Professional Development Team"
+      ],
+      descriptions: [
+        "We provide cutting-edge software solutions for your business needs",
+        "Transform your business with our AI-powered development services"
+      ],
+      long_headline: "",
+      ad_group_name: "",
+      ad_name: "",
+      channel_controls: {
+        gmail: true,
+        discover: true,
+        display: true,
+        youtube_in_feed: true,
+        youtube_in_stream: true,
+        youtube_shorts: true,
+      },
+      sales_country: "US",
+      campaign_priority: 0,
+      enable_local: false,
+    });
+    setErrors({});
+    setLogoPreview("https://placehold.co/128x128");
   };
 
   if (!isOpen) return null;
@@ -771,6 +957,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     title="Quick fill Search campaign with test data"
                   >
                     Quick Fill Search
+                  </button>
+                  <button
+                    type="button"
+                    onClick={quickFillDemandGen}
+                    className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-[10px] hover:bg-orange-200 transition-colors"
+                    title="Quick fill Demand Gen campaign with test data"
+                  >
+                    Quick Fill Demand Gen
                   </button>
                 </div>
                 )}
@@ -1556,6 +1750,356 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     Enable local inventory ads to show your products to nearby customers with local inventory available.
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Demand Gen Specific Fields */}
+          {formData.campaign_type === "DEMAND_GEN" && (
+            <div className="mt-6 space-y-4">
+              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
+                Demand Gen Settings
+              </h3>
+
+              {/* Final URL */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Final URL *
+                </label>
+                <input
+                  type="url"
+                  value={formData.final_url || ""}
+                  onChange={(e) => handleChange("final_url", e.target.value)}
+                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.final_url ? "border-red-500" : "border-gray-200"
+                  }`}
+                  placeholder="https://example.com"
+                />
+                {errors.final_url && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.final_url}
+                  </p>
+                )}
+              </div>
+
+              {/* Video Input - Radio to choose between video_url and video_id */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Video Asset *
+                </label>
+                <div className="space-y-3">
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="video_type"
+                        checked={!formData.video_url || !!formData.video_id}
+                        onChange={() => {
+                          handleChange("video_url", "");
+                          if (!formData.video_id) {
+                            handleChange("video_id", "");
+                          }
+                        }}
+                        className="w-4 h-4 accent-forest-f40"
+                      />
+                      <span className="text-[13px] text-[#072929]">YouTube Video ID</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="video_type"
+                        checked={!!formData.video_url && !formData.video_id}
+                        onChange={() => {
+                          handleChange("video_id", "");
+                          if (!formData.video_url) {
+                            handleChange("video_url", "");
+                          }
+                        }}
+                        className="w-4 h-4 accent-forest-f40"
+                      />
+                      <span className="text-[13px] text-[#072929]">Video URL</span>
+                    </label>
+                  </div>
+                  
+                  {(!formData.video_url || formData.video_id) && (
+                    <div>
+                      <input
+                        type="text"
+                        value={formData.video_id || ""}
+                        onChange={(e) => {
+                          handleChange("video_id", e.target.value);
+                          if (e.target.value) {
+                            handleChange("video_url", "");
+                          }
+                        }}
+                        className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          errors.video_id ? "border-red-500" : "border-gray-200"
+                        }`}
+                        placeholder="dQw4w9WgXcQ"
+                      />
+                      {errors.video_id && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.video_id}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-[#556179] mt-1">
+                        Enter a YouTube video ID (11 characters, e.g., dQw4w9WgXcQ)
+                      </p>
+                    </div>
+                  )}
+                  
+                  {(!formData.video_id || formData.video_url) && (
+                    <div>
+                      <input
+                        type="url"
+                        value={formData.video_url || ""}
+                        onChange={(e) => {
+                          handleChange("video_url", e.target.value);
+                          if (e.target.value) {
+                            handleChange("video_id", "");
+                          }
+                        }}
+                        className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          errors.video_url ? "border-red-500" : "border-gray-200"
+                        }`}
+                        placeholder="https://example.com/video.mp4"
+                      />
+                      {errors.video_url && (
+                        <p className="text-[10px] text-red-500 mt-1">
+                          {errors.video_url}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-[#556179] mt-1">
+                        Enter a valid video file URL
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Logo URL */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Logo URL *
+                </label>
+                <input
+                  type="url"
+                  value={formData.logo_url || ""}
+                  onChange={(e) => handleChange("logo_url", e.target.value)}
+                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.logo_url ? "border-red-500" : "border-gray-200"
+                  }`}
+                  placeholder="https://example.com/logo.png"
+                />
+                {errors.logo_url && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.logo_url}
+                  </p>
+                )}
+                {logoPreview && (
+                  <div className="mt-2">
+                    <p className="text-[10px] text-[#556179] mb-1 font-medium">Preview:</p>
+                    <div className="inline-block border border-gray-200 rounded p-1 bg-white">
+                      <img
+                        src={logoPreview}
+                        alt="Logo preview"
+                        className="w-32 h-32 object-contain rounded"
+                        onError={() => setLogoPreview(null)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Business Name */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Business Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.business_name || ""}
+                  onChange={(e) => handleChange("business_name", e.target.value)}
+                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.business_name ? "border-red-500" : "border-gray-200"
+                  }`}
+                  placeholder="My Business Name"
+                />
+                {errors.business_name && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.business_name}
+                  </p>
+                )}
+              </div>
+
+              {/* Headlines */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Headlines * (3-15 required)
+                  <span className="text-[10px] text-[#556179] font-normal ml-2">
+                    ({formData.headlines?.filter((h) => h.trim()).length || 0}/15)
+                  </span>
+                </label>
+                <div className="space-y-2">
+                  {formData.headlines?.map((headline, index) => (
+                    <div key={index} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={headline}
+                        onChange={(e) => updateHeadline(index, e.target.value)}
+                        className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        placeholder={`Headline ${index + 1}`}
+                      />
+                      {formData.headlines && formData.headlines.length > 3 && (
+                        <button
+                          type="button"
+                          onClick={() => removeHeadline(index)}
+                          className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-[12px]"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {formData.headlines && formData.headlines.length < 15 && (
+                    <button
+                      type="button"
+                      onClick={addHeadline}
+                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-[12px]"
+                    >
+                      + Add Headline
+                    </button>
+                  )}
+                </div>
+                {errors.headlines && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.headlines}
+                  </p>
+                )}
+              </div>
+
+              {/* Descriptions */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Descriptions * (2-4 required)
+                  <span className="text-[10px] text-[#556179] font-normal ml-2">
+                    ({formData.descriptions?.filter((d) => d.trim()).length || 0}/4)
+                  </span>
+                </label>
+                <div className="space-y-2">
+                  {formData.descriptions?.map((description, index) => (
+                    <div key={index} className="flex gap-2">
+                      <textarea
+                        value={description}
+                        onChange={(e) => updateDescription(index, e.target.value)}
+                        rows={2}
+                        className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        placeholder={`Description ${index + 1}`}
+                      />
+                      {formData.descriptions && formData.descriptions.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => removeDescription(index)}
+                          className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-[12px]"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {formData.descriptions && formData.descriptions.length < 4 && (
+                    <button
+                      type="button"
+                      onClick={addDescription}
+                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-[12px]"
+                    >
+                      + Add Description
+                    </button>
+                  )}
+                </div>
+                {errors.descriptions && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.descriptions}
+                  </p>
+                )}
+              </div>
+
+              {/* Optional Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Long Headline
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.long_headline || ""}
+                    onChange={(e) => handleChange("long_headline", e.target.value)}
+                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    placeholder="Optional long headline"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Ad Group Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.ad_group_name || ""}
+                    onChange={(e) => handleChange("ad_group_name", e.target.value)}
+                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    placeholder="Optional ad group name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Ad Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.ad_name || ""}
+                    onChange={(e) => handleChange("ad_name", e.target.value)}
+                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    placeholder="Optional ad name"
+                  />
+                </div>
+              </div>
+
+              {/* Channel Controls */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Channel Controls
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded">
+                  {[
+                    { key: "gmail", label: "Gmail" },
+                    { key: "discover", label: "Google Discover" },
+                    { key: "display", label: "Display Network" },
+                    { key: "youtube_in_feed", label: "YouTube Feed" },
+                    { key: "youtube_in_stream", label: "YouTube In-Stream" },
+                    { key: "youtube_shorts", label: "YouTube Shorts" },
+                  ].map((channel) => (
+                    <label key={channel.key} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.channel_controls?.[channel.key as keyof typeof formData.channel_controls] ?? true}
+                        onChange={(e) => {
+                          const current = formData.channel_controls || {};
+                          handleChange("channel_controls", {
+                            ...current,
+                            [channel.key]: e.target.checked,
+                          });
+                        }}
+                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
+                      />
+                      <span className="text-[13px] text-[#072929]">{channel.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#556179] mt-1">
+                  Control where your Demand Gen ads appear. All channels are enabled by default.
+                </p>
               </div>
             </div>
           )}
