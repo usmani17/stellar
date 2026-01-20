@@ -3731,9 +3731,11 @@ export const campaignsService = {
       budget_mode: string;
       budget: number;
       schedule_type: string;
-      schedule_start_time: string;
+      schedule_start_time?: string;
+      schedule_end_time?: string;
       optimization_goal: string;
       billing_event: string;
+      [key: string]: any; // Allow other optional fields
     }
   ): Promise<any> => {
     const url = `/accounts/${accountId}/tiktok-adgroups/create/`;

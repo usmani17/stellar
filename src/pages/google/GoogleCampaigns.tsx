@@ -59,7 +59,6 @@ export const GoogleCampaigns: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
   const [totalPages, setTotalPages] = useState(0);
-  const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -149,7 +148,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [updatingField, setUpdatingField] = useState<{
+  const [updatingField] = useState<{
     campaignId: string | number;
     field:
       | "budget"
@@ -311,7 +310,6 @@ export const GoogleCampaigns: React.FC = () => {
       console.log("Setting campaigns array, length:", campaignsArray.length);
       setCampaigns(campaignsArray);
       setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
       if (response.summary) {
         setSummary(response.summary);
       }
@@ -339,15 +337,14 @@ export const GoogleCampaigns: React.FC = () => {
       console.error("Failed to load Google campaigns:", error);
       setCampaigns([]);
       setTotalPages(0);
-      setTotal(0);
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters]);
 
   // Sync status hook (after loadCampaigns is defined)
-  const { syncStatus: campaignsSyncStatus, SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
     accountId,
     entityType: "campaigns",
     currentData: campaigns,
@@ -369,56 +366,7 @@ export const GoogleCampaigns: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadCampaigns, sorting]);
-
-  const loadCampaignsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        filters: filterList, // Pass filters array directly
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-      };
-
-      const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
-        accountId,
-        params
-      );
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedCampaigns(new Set());
-    } catch (error) {
-      console.error("Failed to load Google campaigns:", error);
-      setCampaigns([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [accountId, currentPage, filters, startDate, endDate, loadCampaigns, sorting]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     if (!accountId) return;
@@ -495,16 +443,10 @@ export const GoogleCampaigns: React.FC = () => {
       // Extract error message from backend response
       let errorMessage = "Failed to create campaign. Please try again.";
       let errorDetails = null;
-      let fieldErrors: Record<string, string> = {};
 
       if (error?.response?.data) {
         // Check for validation errors (400 status)
         if (error.response.status === 400) {
-          // Check for field-specific validation errors
-          if (error.response.data.field_errors) {
-            fieldErrors = error.response.data.field_errors;
-          }
-
           if (error.response.data.error) {
             errorMessage = error.response.data.error;
           } else if (error.response.data.message) {
@@ -1210,7 +1152,6 @@ export const GoogleCampaigns: React.FC = () => {
             Array.isArray(response.campaigns) ? response.campaigns : []
           );
           setTotalPages(response.total_pages || 0);
-          setTotal(response.total || 0);
           if (response.summary) {
             setSummary(response.summary);
           }
@@ -1553,7 +1494,7 @@ export const GoogleCampaigns: React.FC = () => {
           }
           const [year, month, day] = parts;
           return `${month}/${day}/${year}`;
-        } catch (e) {
+        } catch {
           return dateStr;
         }
       };
@@ -1572,8 +1513,8 @@ export const GoogleCampaigns: React.FC = () => {
     }
 
     // Fallback for any other fields (shouldn't happen, but keep modal for safety)
-    let oldValue = "";
-    let newValue = valueToCheck;
+    const oldValue = "";
+    const newValue = valueToCheck;
 
     setInlineEditCampaign(campaign);
     setInlineEditField(editingCell.field);
