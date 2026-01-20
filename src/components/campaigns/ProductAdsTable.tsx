@@ -18,11 +18,7 @@ interface ProductAdsTableProps {
     field: "status";
   } | null;
   editedValue?: string;
-  onEditStart?: (
-    id: number,
-    field: "status",
-    currentValue: string
-  ) => void;
+  onEditStart?: (id: number, field: "status", currentValue: string) => void;
   onEditChange?: (value: string) => void;
   onEditEnd?: (value?: string) => void;
   onEditCancel?: () => void;
@@ -118,13 +114,9 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
       <div className="overflow-x-auto w-full">
-        {loading ? (
-          <div className="text-center py-8 text-[#556179] text-[13.3px]">
-            Loading product ads...
-          </div>
-        ) : productads.length === 0 ? (
+        {productads.length === 0 && !loading ? (
           <div className="text-center py-8">
             <p className="text-[13.3px] text-[#556179] mb-4">
               No product ads found
@@ -191,139 +183,164 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
               </tr>
             </thead>
             <tbody>
-              {productads.map((productad) => (
-                <tr
-                  key={productad.id}
-                  className="table-row group"
-                >
-                  {onSelect && (
-                    <td className="table-cell">
-                      <Checkbox
-                        checked={selectedIds.has(productad.id)}
-                        onChange={(checked) =>
-                          handleSelect(productad.id, checked)
-                        }
-                      />
+              {/* Show skeleton rows when loading and no data */}
+              {loading && productads.length === 0 ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={`skeleton-${index}`} className="table-row">
+                    <td className="table-cell" colSpan={10}>
+                      <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                     </td>
-                  )}
-                  <td className="table-cell table-text leading-[1.26]">
-                    {productad.adId || "—"}
-                  </td>
-                  <td className="table-cell table-text leading-[1.26]">
-                    {productad.asin || "—"}
-                  </td>
-                  <td className="table-cell table-text leading-[1.26]">
-                    {productad.sku || "—"}
-                  </td>
-                  <td className="table-cell min-w-[115px]">
-                    {editLoading?.has(productad.id) ? (
-                      <div className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                        <span className="table-text leading-[1.26]">
-                          Updating...
-                        </span>
-                      </div>
-                    ) : pendingChange?.id === productad.id &&
-                      pendingChange?.field === "status" ? (
-                      <div className="flex items-center gap-2">
-                        <span className="table-text leading-[1.26]">
-                          {pendingChange.newValue === "enabled" ||
-                          pendingChange.newValue === "ENABLED"
-                            ? "Enabled"
-                            : "Paused"}
-                        </span>
-                      </div>
-                    ) : editingField?.id === productad.id &&
-                      editingField?.field === "status" ? (
-                      <div className="flex items-center gap-2">
-                        <Dropdown
-                          options={[
-                            { value: "enabled", label: "Enabled" },
-                            { value: "paused", label: "Paused" },
-                            ...(campaignType === "SD"
-                              ? [{ value: "archived", label: "Archived" }]
-                              : []),
-                          ]}
-                          value={(() => {
-                            if (editedValue) return editedValue;
-                            const statusLower =
-                              productad.status?.toLowerCase() || "enabled";
-                            if (
-                              statusLower === "archived" ||
-                              statusLower === "archive"
-                            ) {
-                              return "archived";
+                  </tr>
+                ))
+              ) : (
+                <>
+                  {productads.map((productad) => (
+                    <tr key={productad.id} className="table-row group">
+                      {onSelect && (
+                        <td className="table-cell">
+                          <Checkbox
+                            checked={selectedIds.has(productad.id)}
+                            onChange={(checked) =>
+                              handleSelect(productad.id, checked)
                             }
-                            return statusLower === "enable" ||
-                              statusLower === "enabled"
-                              ? "enabled"
-                              : "paused";
-                          })()}
-                          onChange={(val) => {
-                            // Mark that a selection was made for this product ad
-                            statusSelectionMadeRef.current = productad.id;
-                            const newValue = val as string;
-                            onEditChange?.(newValue);
-                            // Call onEditEnd with the new value immediately when a value is selected
-                            onEditEnd?.(newValue);
-                            // Clear the ref after a short delay to allow onClose to check it
-                            setTimeout(() => {
-                              if (
-                                statusSelectionMadeRef.current === productad.id
-                              ) {
+                          />
+                        </td>
+                      )}
+                      <td className="table-cell table-text leading-[1.26]">
+                        {productad.adId || "—"}
+                      </td>
+                      <td className="table-cell table-text leading-[1.26]">
+                        {productad.asin || "—"}
+                      </td>
+                      <td className="table-cell table-text leading-[1.26]">
+                        {productad.sku || "—"}
+                      </td>
+                      <td className="table-cell min-w-[115px]">
+                        {editLoading?.has(productad.id) ? (
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                            <span className="table-text leading-[1.26]">
+                              Updating...
+                            </span>
+                          </div>
+                        ) : pendingChange?.id === productad.id &&
+                          pendingChange?.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <span className="table-text leading-[1.26]">
+                              {pendingChange.newValue === "enabled" ||
+                              pendingChange.newValue === "ENABLED"
+                                ? "Enabled"
+                                : "Paused"}
+                            </span>
+                          </div>
+                        ) : editingField?.id === productad.id &&
+                          editingField?.field === "status" ? (
+                          <div className="flex items-center gap-2">
+                            <Dropdown
+                              options={[
+                                { value: "enabled", label: "Enabled" },
+                                { value: "paused", label: "Paused" },
+                              ]}
+                              value={(() => {
+                                if (editedValue) return editedValue;
+                                const statusLower =
+                                  productad.status?.toLowerCase() || "enabled";
+                                return statusLower === "enable" ||
+                                  statusLower === "enabled"
+                                  ? "enabled"
+                                  : "paused";
+                              })()}
+                              onChange={(val) => {
+                                // Mark that a selection was made for this product ad
+                                statusSelectionMadeRef.current = productad.id;
+                                const newValue = val as string;
+                                onEditChange?.(newValue);
+                                // Call onEditEnd with the new value immediately when a value is selected
+                                onEditEnd?.(newValue);
+                                // Clear the ref after a short delay to allow onClose to check it
+                                setTimeout(() => {
+                                  if (
+                                    statusSelectionMadeRef.current ===
+                                    productad.id
+                                  ) {
+                                    statusSelectionMadeRef.current = null;
+                                  }
+                                }, 200);
+                              }}
+                              onClose={() => {
+                                // Only cancel if no selection was made (clicked outside)
+                                if (
+                                  statusSelectionMadeRef.current !==
+                                  productad.id
+                                ) {
+                                  onEditCancel?.();
+                                }
                                 statusSelectionMadeRef.current = null;
-                              }
-                            }, 200);
-                          }}
-                          onClose={() => {
-                            // Only cancel if no selection was made (clicked outside)
-                            if (
-                              statusSelectionMadeRef.current !== productad.id
-                            ) {
-                              onEditCancel?.();
-                            }
-                            statusSelectionMadeRef.current = null;
-                          }}
-                          defaultOpen={true}
-                          buttonClassName="w-full bg-[#FEFEFB] border border-gray-200"
-                          width="w-full"
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => {
-                          const statusLower =
-                            productad.status?.toLowerCase() || "enabled";
-                          let currentStatus: string;
-                          if (
-                            statusLower === "archived" ||
-                            statusLower === "archive"
-                          ) {
-                            currentStatus = "archived";
-                          } else {
-                            currentStatus =
-                              statusLower === "enable" ||
-                              statusLower === "enabled"
-                                ? "enabled"
-                                : "paused";
-                          }
-                          onEditStart?.(productad.id, "status", currentStatus);
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <StatusBadge status={productad.status} />
-                      </div>
-                    )}
-                  </td>
-                  <td className="table-cell table-text leading-[1.26]">
-                    {productad.adGroupId || "—"}
-                  </td>
-                </tr>
-              ))}
+                              }}
+                              defaultOpen={true}
+                              buttonClassName="w-full bg-[#FEFEFB] border border-gray-200"
+                              width="w-full"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => {
+                              const statusLower =
+                                productad.status?.toLowerCase() || "enabled";
+                              const currentStatus =
+                                statusLower === "enable" ||
+                                statusLower === "enabled"
+                                  ? "enabled"
+                                  : "paused";
+                              onEditStart?.(
+                                productad.id,
+                                "status",
+                                currentStatus
+                              );
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <StatusBadge status={productad.status} />
+                          </div>
+                        )}
+                      </td>
+                      <td className="table-cell table-text leading-[1.26]">
+                        {productad.adGroupId || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </>
+              )}
             </tbody>
           </table>
         )}
       </div>
+      {/* Loading overlay for table */}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-overlay-content">
+            <svg
+              className="loading-spinner"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <p className="loading-message">Loading product ads...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

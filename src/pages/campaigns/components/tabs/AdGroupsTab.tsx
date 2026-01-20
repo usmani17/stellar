@@ -492,6 +492,7 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
           loading={adgroupsLoading}
           campaignDetail={campaignDetail}
           campaignId={campaignId}
+          campaignType={campaignType}
           onSelectAll={onSelectAll}
           onSelect={onSelect}
           selectedIds={selectedAdGroupIds}

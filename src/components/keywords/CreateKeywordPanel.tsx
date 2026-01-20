@@ -342,9 +342,9 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
         </h2>
 
         {/* Single line inputs */}
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex items-end gap-3">
           {/* Ad Group Dropdown */}
-          <div className="flex-1 min-w-[180px]">
+          <div className="flex-1 min-w-[180px] w-full">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Ad Group *
             </label>
@@ -356,7 +356,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
               value={currentKeyword.adGroupId}
               onChange={(value) => handleChange("adGroupId", value)}
               placeholder="Select ad group"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
             {errors.adGroupId && (
               <p className="text-[10px] text-red-500 mt-1">
@@ -375,7 +375,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
               value={currentKeyword.keywordText}
               onChange={(e) => handleChange("keywordText", e.target.value)}
               placeholder="Enter keyword"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.keywordText ? "border-red-500" : "border-gray-200"
               }`}
             />
@@ -398,7 +398,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                 handleChange("matchType", value as KeywordInput["matchType"])
               }
               placeholder="Select match type"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
           </div>
 
@@ -416,7 +416,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
               placeholder="0.10"
               min="0"
               step="0.01"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.bid ? "border-red-500" : "border-gray-200"
               }`}
             />
@@ -437,7 +437,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
                 handleChange("state", value as KeywordInput["state"])
               }
               placeholder="Select state"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
           </div>
 
