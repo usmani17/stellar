@@ -377,15 +377,29 @@ export function GoogleAdsTable<T = any>({
     
     // Use Tailwind classes directly - first sticky column is at 35px (after checkbox)
     if (index === 0) {
-      return "sticky left-[35px] bg-white z-10";
+      return "table-sticky-first-column";
     }
     // For more sticky columns, would need more specific handling
-    return "sticky bg-white z-10";
+    return "sticky z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
   };
 
+  // Check if this is ad groups table (first column is adgroup_name)
+  const isAdGroupsTable = columns.length > 0 && columns[0].key === "adgroup_name";
+  
+  // Checkbox column classes - match Amazon ad groups (no bg color, no sticky) vs campaigns (has bg color and sticky)
+  const checkboxHeaderClasses = isAdGroupsTable 
+    ? "table-header w-[35px]"
+    : "table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
+  const checkboxCellClasses = isAdGroupsTable
+    ? "table-cell"
+    : "table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]";
+  const checkboxSummaryCellClasses = isAdGroupsTable
+    ? "table-cell"
+    : "table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
+
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
-      <div className="overflow-x-auto overflow-y-visible w-full">
+    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
+      <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
             {loadingMessage}
@@ -400,7 +414,7 @@ export function GoogleAdsTable<T = any>({
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
-                  <th className="table-header w-[35px] sticky left-0 bg-white z-10">
+                  <th className={checkboxHeaderClasses}>
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={allSelected}
@@ -415,7 +429,8 @@ export function GoogleAdsTable<T = any>({
                   {columns.map((column, index) => {
                     const stickyClasses = getStickyClasses(column, index);
                     const widthClasses = column.width || column.minWidth || "";
-                    const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                    // Don't add border-r if using table-sticky-first-column (it's already in the class)
+                    const borderClass = column.sticky && !stickyClasses.includes("table-sticky-first-column") ? "border-r border-[#e8e8e3]" : "";
                     
                     return (
                       <th
@@ -438,15 +453,15 @@ export function GoogleAdsTable<T = any>({
                 {/* Summary Row */}
                 {summary && (
                   <tr className="table-summary-row">
-                    <td className="table-cell sticky left-0 bg-[#f5f5f0] z-10"></td>
+                    <td className={checkboxSummaryCellClasses}></td>
                     {columns.map((column, index) => {
-                      const stickyClasses = getStickyClasses(column, index).replace("bg-white", "bg-[#f5f5f0]");
+                      const stickyClasses = getStickyClasses(column, index).replace("bg-[#f5f5f0]", "bg-[#f5f5f0]");
                       const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
                       
                       let summaryValue: React.ReactNode = "";
                       // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id
                       if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id")) {
-                        summaryValue = `Total (${summary?.total_campaigns || 0})`;
+                        summaryValue = `Total (${summary?.total_count || summary?.total_campaigns || 0})`;
                       } else if (column.key === "spends") {
                         summaryValue = formatCurrency(summary?.total_spends || 0);
                       } else if (column.key === "sales") {
@@ -544,7 +559,7 @@ export function GoogleAdsTable<T = any>({
                       className="table-row group"
                     >
                       {/* Checkbox */}
-                      <td className="table-cell sticky left-0 bg-white z-10">
+                      <td className={checkboxCellClasses}>
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedItems.has(itemId)}
@@ -557,13 +572,15 @@ export function GoogleAdsTable<T = any>({
                       {/* Data Cells */}
                       {columns.map((column, colIndex) => {
                         const stickyClasses = getStickyClasses(column, colIndex);
-                        const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                        // Don't add border-r if using table-sticky-first-column (it's already in the class)
+                        const borderClass = column.sticky && !stickyClasses.includes("table-sticky-first-column") ? "border-r border-[#e8e8e3]" : "";
                         const widthClasses = column.width || column.minWidth || "";
+                        const hoverClass = column.sticky ? "group-hover:bg-gray-100" : "";
                         
                         return (
                           <td
                             key={column.key}
-                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses}`}
+                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
                           >
                             {renderCell(column, row, index)}
                           </td>

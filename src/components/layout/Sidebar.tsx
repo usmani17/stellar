@@ -655,7 +655,13 @@ export const Sidebar: React.FC = () => {
                 }`}
                 title={isCollapsed ? "Ad Group" : undefined}
               >
-                <img src={AdGroupIcon} alt="" className="w-5 h-5" />
+                <img
+                  src={AdGroupIcon}
+                  alt=""
+                  className={`w-5 h-5 ${
+                    isActive("/google/adgroups") ? "brightness-0 invert" : ""
+                  }`}
+                />
                 {!isCollapsed && (
                   <span
                     className={`text-[12.32px] font-normal leading-[16px] ${
