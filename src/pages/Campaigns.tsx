@@ -1902,8 +1902,8 @@ export const Campaigns: React.FC = () => {
         })(),
         status: normalizedStatus || "Enabled",
         startDate: campaign.startDate || row.startDate,
-        // Only include endDate for non-SB campaigns
-        ...(campaignTypeUpper !== "SB" && { endDate: campaign.endDate }),
+        // Include endDate for all campaign types (SB campaigns now support endDate)
+        endDate: campaign.endDate,
         // Only include targetingType for SP campaigns
         ...(campaignTypeUpper === "SP" && {
           targetingType:
@@ -1923,6 +1923,12 @@ export const Campaigns: React.FC = () => {
           brandEntityId: (campaign as any).brandEntityId || undefined,
           goal: (campaign as any).goal || "PAGE_VISIT",
           productLocation: (campaign as any).productLocation || "",
+        }),
+        // SD-specific fields
+        ...(campaignTypeUpper === "SD" && {
+          tactic: (campaign as any).tactic || (row as any).tactic || undefined,
+          costType:
+            (campaign as any).costType || (row as any).costType || undefined,
         }),
         // Map tags from object to array format
         tags: (() => {
@@ -2292,6 +2298,32 @@ export const Campaigns: React.FC = () => {
               />
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
+              )}
+              {/* Loading overlay for chart */}
+              {loading && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <svg
+                      className="loading-spinner"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <p className="loading-message">Loading chart data...</p>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -3021,13 +3053,9 @@ export const Campaigns: React.FC = () => {
               )}
 
               {/* Table */}
-              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
                 <div className="overflow-x-auto w-full">
-                  {loading ? (
-                    <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                      Loading campaigns...
-                    </div>
-                  ) : campaigns.length === 0 ? (
+                  {campaigns.length === 0 && !loading ? (
                     <div className="text-center py-8">
                       <p className="text-[13.3px] text-[#556179] mb-4">
                         No campaigns found
@@ -3035,6 +3063,7 @@ export const Campaigns: React.FC = () => {
                     </div>
                   ) : (
                     <table className="min-w-[1200px] w-full">
+                      {/* Always render table header to maintain height */}
                       <thead>
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
@@ -3216,448 +3245,504 @@ export const Campaigns: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {/* Summary Row */}
-                        {summary && (
-                          <tr className="table-summary-row">
-                            <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                            <td className="table-cell table-sticky-first-column">
-                              Total ({summary.total_campaigns})
-                            </td>
-                            <td className="table-cell"></td>
-                            <td className="table-cell"></td>
-                            <td className="table-cell"></td>
-                            <td className="table-cell"></td>
-                            <td className="table-cell"></td>
-                            <td className="table-cell"></td>
-                            <td className="table-cell"></td>
-                            <td className="table-cell table-text leading-[1.26]">
-                              {formatCurrency(summary.total_spends)}
-                            </td>
-                            <td className="table-cell table-text leading-[1.26]">
-                              {formatCurrency(summary.total_sales)}
-                            </td>
-                            <td className="table-cell table-text leading-[1.26]">
-                              {summary.total_impressions.toLocaleString()}
-                            </td>
-                            <td className="table-cell table-text leading-[1.26]">
-                              {summary.total_clicks.toLocaleString()}
-                            </td>
-                            <td className="table-cell table-text leading-[1.26]">
-                              {summary.avg_acos.toFixed(2)}%
-                            </td>
-                            <td className="table-cell table-text leading-[1.26]">
-                              {summary.avg_roas.toFixed(2)}x
-                            </td>
-                          </tr>
-                        )}
-                        {campaigns.map((campaign, index) => {
-                          const isLastRow = index === campaigns.length - 1;
-                          const isArchived =
-                            campaign.status?.toLowerCase() === "archived";
-                          return (
-                            <tr
-                              key={campaign.campaignId}
-                              className={`table-row group ${
-                                isArchived ? "bg-gray-100 opacity-60" : ""
-                              }`}
-                            >
-                              {/* Checkbox */}
-                              <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
-                                <div className="flex items-center justify-center">
-                                  <Checkbox
-                                    checked={selectedCampaigns.has(
-                                      campaign.campaignId
-                                    )}
-                                    onChange={(checked) => {
-                                      if (checked) {
-                                        setSelectedCampaigns((prev) => {
-                                          const newSet = new Set(prev);
-                                          newSet.add(campaign.campaignId);
-                                          return newSet;
-                                        });
-                                      } else {
-                                        setSelectedCampaigns((prev) => {
-                                          const newSet = new Set(prev);
-                                          newSet.delete(campaign.campaignId);
-                                          // Close budget panel when no campaigns are selected
-                                          if (newSet.size === 0) {
-                                            setShowBudgetPanel(false);
-                                          }
-                                          return newSet;
-                                        });
-                                      }
-                                    }}
-                                    size="small"
-                                  />
-                                </div>
-                              </td>
-
-                              {/* Campaign Name (with edit icon) */}
-                              <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-gray-100">
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenEditCampaign(campaign);
-                                    }}
-                                    className="table-edit-icon"
-                                    title="Edit campaign"
-                                    disabled={
-                                      editLoadingCampaignId ===
-                                      campaign.campaignId
-                                    }
-                                  >
-                                    {editLoadingCampaignId ===
-                                    campaign.campaignId ? (
-                                      // Small spinner while campaign details load
-                                      <svg
-                                        className="w-4 h-4 text-[#136D6D] animate-spin"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                      >
-                                        <circle
-                                          className="opacity-25"
-                                          cx="12"
-                                          cy="12"
-                                          r="10"
-                                          strokeWidth="4"
-                                        />
-                                        <path
-                                          className="opacity-75"
-                                          d="M4 12a8 8 0 018-8"
-                                          strokeWidth="4"
-                                          strokeLinecap="round"
-                                        />
-                                      </svg>
-                                    ) : (
-                                      <svg
-                                        className="w-4 h-4 text-[#556179]"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                        />
-                                      </svg>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (accountId) {
-                                        navigate(
-                                          buildMarketplaceRoute(
-                                            parseInt(accountId),
-                                            "amazon",
-                                            "campaigns",
-                                            `${campaign.type.toLowerCase()}_${
-                                              campaign.campaignId
-                                            }`
-                                          )
-                                        );
-                                      }
-                                    }}
-                                    className="table-edit-link"
-                                  >
-                                    {campaign.campaign_name ||
-                                      "Unnamed Campaign"}
-                                  </button>
-                                </div>
-                              </td>
-
-                              {/* Profile */}
-                              <td className="table-cell min-w-[200px]">
-                                <span className="table-text leading-[1.26] whitespace-nowrap">
-                                  {campaign.profile_name &&
-                                  campaign.profile_name.trim() !== ""
-                                    ? campaign.profile_name
-                                    : "—"}
-                                </span>
-                              </td>
-
-                              {/* Country */}
-                              <td className="table-cell min-w-[100px]">
-                                <span className="table-text leading-[1.26] whitespace-nowrap">
-                                  {campaign.profile_country_code &&
-                                  campaign.profile_country_code.trim() !== ""
-                                    ? campaign.profile_country_code
-                                    : "—"}
-                                </span>
-                              </td>
-
-                              {/* Type */}
-                              <td className="table-cell">
-                                <span className="table-text leading-[1.26]">
-                                  {campaign.type || "SP"}
-                                </span>
-                              </td>
-
-                              {/* Status */}
-                              <td className="table-cell min-w-[115px]">
-                                {editingCell?.campaignId ===
-                                  campaign.campaignId &&
-                                editingCell?.field === "status" ? (
-                                  <Dropdown
-                                    options={[
-                                      { value: "Enabled", label: "Enabled" },
-                                      { value: "Paused", label: "Paused" },
-                                      // Note: "Archived" is not included as it's read-only and cannot be set via API
-                                    ]}
-                                    value={
-                                      editedValue ||
-                                      (() => {
-                                        const statusLower = (
-                                          campaign.status || "Enabled"
-                                        ).toLowerCase();
-                                        return statusLower === "enable" ||
-                                          statusLower === "enabled"
-                                          ? "Enabled"
-                                          : statusLower === "paused"
-                                          ? "Paused"
-                                          : "Enabled";
-                                      })()
-                                    }
-                                    onChange={(val) => {
-                                      const newValue = val as string;
-                                      handleInlineEditChange(newValue);
-                                      setTimeout(() => {
-                                        confirmInlineEdit(newValue);
-                                      }, 100);
-                                    }}
-                                    onClose={() => {
-                                      cancelInlineEdit();
-                                    }}
-                                    defaultOpen={true}
-                                    closeOnSelect={true}
-                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                    width="w-full"
-                                    align="center"
-                                  />
-                                ) : (
-                                  <div
-                                    onClick={() => {
-                                      // Prevent editing if campaign is archived
-                                      const currentStatus = (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase();
-                                      if (currentStatus === "ARCHIVED") {
-                                        return; // Archived campaigns are read-only
-                                      }
-                                      startInlineEdit(campaign, "status");
-                                    }}
-                                    className={`${
-                                      (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase() === "ARCHIVED"
-                                        ? "cursor-not-allowed opacity-60"
-                                        : "cursor-pointer hover:bg-gray-50"
-                                    } rounded px-2 py-1`}
-                                    title={
-                                      (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase() === "ARCHIVED"
-                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                        : undefined
-                                    }
-                                  >
-                                    <StatusBadge
-                                      status={campaign.status || "Enabled"}
-                                    />
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* Daily Budget */}
-                              <td className="table-cell">
-                                {editingCell?.campaignId ===
-                                  campaign.campaignId &&
-                                editingCell?.field === "budget" ? (
-                                  <div className="flex items-center justify-center">
-                                    <input
-                                      type="number"
-                                      value={editedValue}
-                                      onChange={(e) =>
-                                        handleInlineEditChange(e.target.value)
-                                      }
-                                      onBlur={(e) => {
-                                        const inputValue = e.target.value;
-                                        confirmInlineEdit(inputValue);
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          e.currentTarget.blur();
-                                        } else if (e.key === "Escape") {
-                                          cancelInlineEdit();
-                                        }
-                                      }}
-                                      autoFocus
-                                      className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                                    />
-                                  </div>
-                                ) : (
-                                  <p
-                                    onClick={() => {
-                                      // Prevent editing if campaign is archived
-                                      const currentStatus = (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase();
-                                      if (currentStatus === "ARCHIVED") {
-                                        return; // Archived campaigns are read-only
-                                      }
-                                      startInlineEdit(campaign, "budget");
-                                    }}
-                                    className={`table-text leading-[1.26] rounded px-2 py-1 ${
-                                      (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase() === "ARCHIVED"
-                                        ? "cursor-not-allowed opacity-60"
-                                        : "cursor-pointer hover:bg-gray-50"
-                                    }`}
-                                    title={
-                                      (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase() === "ARCHIVED"
-                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                        : undefined
-                                    }
-                                  >
-                                    {formatCurrency(campaign.daily_budget || 0)}
-                                  </p>
-                                )}
-                              </td>
-
-                              {/* Budget Type */}
-                              <td className="table-cell">
-                                {editingCell?.campaignId ===
-                                  campaign.campaignId &&
-                                editingCell?.field === "budgetType" ? (
-                                  <Dropdown
-                                    options={[
-                                      { value: "DAILY", label: "DAILY" },
-                                      {
-                                        value: "LIFETIME",
-                                        label: "LIFETIME",
-                                      },
-                                    ]}
-                                    value={editedValue}
-                                    onChange={(val) => {
-                                      const newValue = val as string;
-                                      handleInlineEditChange(newValue);
-                                      setTimeout(() => {
-                                        confirmInlineEdit(newValue);
-                                      }, 100);
-                                    }}
-                                    onClose={() => {
-                                      cancelInlineEdit();
-                                    }}
-                                    defaultOpen={true}
-                                    closeOnSelect={true}
-                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                    width="w-full"
-                                    align="center"
-                                  />
-                                ) : (
-                                  <p
-                                    onClick={() => {
-                                      // Prevent editing if campaign is archived
-                                      const currentStatus = (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase();
-                                      if (currentStatus === "ARCHIVED") {
-                                        return; // Archived campaigns are read-only
-                                      }
-                                      startInlineEdit(campaign, "budgetType");
-                                    }}
-                                    className={`table-text leading-[1.26] rounded px-2 py-1 ${
-                                      (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase() === "ARCHIVED"
-                                        ? "cursor-not-allowed opacity-60"
-                                        : "cursor-pointer hover:bg-gray-50"
-                                    }`}
-                                    title={
-                                      (
-                                        campaign.status || "Enabled"
-                                      ).toUpperCase() === "ARCHIVED"
-                                        ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                        : undefined
-                                    }
-                                  >
-                                    {campaign.budgetType || "—"}
-                                  </p>
-                                )}
-                              </td>
-
-                              {/* Start Date */}
-                              <td className="table-cell">
-                                <span className="table-text leading-[1.26] whitespace-nowrap">
-                                  {campaign.startDate
-                                    ? new Date(
-                                        campaign.startDate
-                                      ).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                      })
-                                    : "—"}
-                                </span>
-                              </td>
-
-                              {/* Spends */}
-                              <td className="table-cell">
-                                <span className="table-text leading-[1.26]">
-                                  {formatCurrency(campaign.spends || 0)}
-                                </span>
-                              </td>
-
-                              {/* Sales */}
-                              <td className="table-cell">
-                                <span className="table-text leading-[1.26]">
-                                  {formatCurrency(campaign.sales || 0)}
-                                </span>
-                              </td>
-
-                              {/* Impressions */}
-                              <td className="table-cell">
-                                <span className="table-text leading-[1.26]">
-                                  {(campaign.impressions || 0).toLocaleString()}
-                                </span>
-                              </td>
-
-                              {/* Clicks */}
-                              <td className="table-cell">
-                                <span className="table-text leading-[1.26]">
-                                  {(campaign.clicks || 0).toLocaleString()}
-                                </span>
-                              </td>
-
-                              {/* ACOS */}
-                              <td className="table-cell">
-                                <span className="table-text leading-[1.26]">
-                                  {formatPercentage(campaign.acos || 0)}
-                                </span>
-                              </td>
-
-                              {/* ROAS */}
-                              <td className="table-cell">
-                                <span className="table-text leading-[1.26]">
-                                  {campaign.roas
-                                    ? `${campaign.roas.toFixed(2)} x`
-                                    : "0.00 x"}
-                                </span>
+                        {/* Show skeleton rows when loading and no data */}
+                        {loading && campaigns.length === 0 ? (
+                          Array.from({ length: 5 }).map((_, index) => (
+                            <tr key={`skeleton-${index}`} className="table-row">
+                              <td className="table-cell" colSpan={15}>
+                                <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                               </td>
                             </tr>
-                          );
-                        })}
+                          ))
+                        ) : (
+                          <>
+                            {/* Summary Row */}
+                            {summary && (
+                              <tr className="table-summary-row">
+                                <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                                <td className="table-cell table-sticky-first-column">
+                                  Total ({summary.total_campaigns})
+                                </td>
+                                <td className="table-cell"></td>
+                                <td className="table-cell"></td>
+                                <td className="table-cell"></td>
+                                <td className="table-cell"></td>
+                                <td className="table-cell"></td>
+                                <td className="table-cell"></td>
+                                <td className="table-cell"></td>
+                                <td className="table-cell table-text leading-[1.26]">
+                                  {formatCurrency(summary.total_spends)}
+                                </td>
+                                <td className="table-cell table-text leading-[1.26]">
+                                  {formatCurrency(summary.total_sales)}
+                                </td>
+                                <td className="table-cell table-text leading-[1.26]">
+                                  {summary.total_impressions.toLocaleString()}
+                                </td>
+                                <td className="table-cell table-text leading-[1.26]">
+                                  {summary.total_clicks.toLocaleString()}
+                                </td>
+                                <td className="table-cell table-text leading-[1.26]">
+                                  {summary.avg_acos.toFixed(2)}%
+                                </td>
+                                <td className="table-cell table-text leading-[1.26]">
+                                  {summary.avg_roas.toFixed(2)}x
+                                </td>
+                              </tr>
+                            )}
+                            {campaigns.map((campaign, index) => {
+                              const isLastRow = index === campaigns.length - 1;
+                              const isArchived =
+                                campaign.status?.toLowerCase() === "archived";
+                              return (
+                                <tr
+                                  key={campaign.campaignId}
+                                  className={`table-row group ${
+                                    isArchived ? "bg-gray-100 opacity-60" : ""
+                                  }`}
+                                >
+                                  {/* Checkbox */}
+                                  <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                                    <div className="flex items-center justify-center">
+                                      <Checkbox
+                                        checked={selectedCampaigns.has(
+                                          campaign.campaignId
+                                        )}
+                                        onChange={(checked) => {
+                                          if (checked) {
+                                            setSelectedCampaigns((prev) => {
+                                              const newSet = new Set(prev);
+                                              newSet.add(campaign.campaignId);
+                                              return newSet;
+                                            });
+                                          } else {
+                                            setSelectedCampaigns((prev) => {
+                                              const newSet = new Set(prev);
+                                              newSet.delete(
+                                                campaign.campaignId
+                                              );
+                                              // Close budget panel when no campaigns are selected
+                                              if (newSet.size === 0) {
+                                                setShowBudgetPanel(false);
+                                              }
+                                              return newSet;
+                                            });
+                                          }
+                                        }}
+                                        size="small"
+                                      />
+                                    </div>
+                                  </td>
+
+                                  {/* Campaign Name (with edit icon) */}
+                                  <td className="table-cell table-sticky-first-column min-w-[300px] max-w-[400px] group-hover:bg-gray-100">
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenEditCampaign(campaign);
+                                        }}
+                                        className="table-edit-icon"
+                                        title="Edit campaign"
+                                        disabled={
+                                          editLoadingCampaignId ===
+                                          campaign.campaignId
+                                        }
+                                      >
+                                        {editLoadingCampaignId ===
+                                        campaign.campaignId ? (
+                                          // Small spinner while campaign details load
+                                          <svg
+                                            className="w-4 h-4 text-[#136D6D] animate-spin"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                          >
+                                            <circle
+                                              className="opacity-25"
+                                              cx="12"
+                                              cy="12"
+                                              r="10"
+                                              strokeWidth="4"
+                                            />
+                                            <path
+                                              className="opacity-75"
+                                              d="M4 12a8 8 0 018-8"
+                                              strokeWidth="4"
+                                              strokeLinecap="round"
+                                            />
+                                          </svg>
+                                        ) : (
+                                          <svg
+                                            className="w-4 h-4 text-[#556179]"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                            />
+                                          </svg>
+                                        )}
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (accountId) {
+                                            navigate(
+                                              buildMarketplaceRoute(
+                                                parseInt(accountId),
+                                                "amazon",
+                                                "campaigns",
+                                                `${campaign.type.toLowerCase()}_${
+                                                  campaign.campaignId
+                                                }`
+                                              )
+                                            );
+                                          }
+                                        }}
+                                        className="table-edit-link"
+                                      >
+                                        {campaign.campaign_name ||
+                                          "Unnamed Campaign"}
+                                      </button>
+                                    </div>
+                                  </td>
+
+                                  {/* Profile */}
+                                  <td className="table-cell min-w-[200px]">
+                                    <span className="table-text leading-[1.26] whitespace-nowrap">
+                                      {campaign.profile_name &&
+                                      campaign.profile_name.trim() !== ""
+                                        ? campaign.profile_name
+                                        : "—"}
+                                    </span>
+                                  </td>
+
+                                  {/* Country */}
+                                  <td className="table-cell min-w-[100px]">
+                                    <span className="table-text leading-[1.26] whitespace-nowrap">
+                                      {campaign.profile_country_code &&
+                                      campaign.profile_country_code.trim() !==
+                                        ""
+                                        ? campaign.profile_country_code
+                                        : "—"}
+                                    </span>
+                                  </td>
+
+                                  {/* Type */}
+                                  <td className="table-cell">
+                                    <span className="table-text leading-[1.26]">
+                                      {campaign.type || "SP"}
+                                    </span>
+                                  </td>
+
+                                  {/* Status */}
+                                  <td className="table-cell min-w-[115px]">
+                                    {editingCell?.campaignId ===
+                                      campaign.campaignId &&
+                                    editingCell?.field === "status" ? (
+                                      <Dropdown
+                                        options={[
+                                          {
+                                            value: "Enabled",
+                                            label: "Enabled",
+                                          },
+                                          { value: "Paused", label: "Paused" },
+                                          // Note: "Archived" is not included as it's read-only and cannot be set via API
+                                        ]}
+                                        value={
+                                          editedValue ||
+                                          (() => {
+                                            const statusLower = (
+                                              campaign.status || "Enabled"
+                                            ).toLowerCase();
+                                            return statusLower === "enable" ||
+                                              statusLower === "enabled"
+                                              ? "Enabled"
+                                              : statusLower === "paused"
+                                              ? "Paused"
+                                              : "Enabled";
+                                          })()
+                                        }
+                                        onChange={(val) => {
+                                          const newValue = val as string;
+                                          handleInlineEditChange(newValue);
+                                          setTimeout(() => {
+                                            confirmInlineEdit(newValue);
+                                          }, 100);
+                                        }}
+                                        onClose={() => {
+                                          cancelInlineEdit();
+                                        }}
+                                        defaultOpen={true}
+                                        closeOnSelect={true}
+                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                        width="w-full"
+                                        align="center"
+                                      />
+                                    ) : (
+                                      <div
+                                        onClick={() => {
+                                          // Prevent editing if campaign is archived
+                                          const currentStatus = (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase();
+                                          if (currentStatus === "ARCHIVED") {
+                                            return; // Archived campaigns are read-only
+                                          }
+                                          startInlineEdit(campaign, "status");
+                                        }}
+                                        className={`${
+                                          (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase() === "ARCHIVED"
+                                            ? "cursor-not-allowed opacity-60"
+                                            : "cursor-pointer hover:bg-gray-50"
+                                        } rounded px-2 py-1`}
+                                        title={
+                                          (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase() === "ARCHIVED"
+                                            ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                            : undefined
+                                        }
+                                      >
+                                        <StatusBadge
+                                          status={campaign.status || "Enabled"}
+                                        />
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* Daily Budget */}
+                                  <td className="table-cell">
+                                    {editingCell?.campaignId ===
+                                      campaign.campaignId &&
+                                    editingCell?.field === "budget" ? (
+                                      <div className="flex items-center justify-center">
+                                        <input
+                                          type="number"
+                                          value={editedValue}
+                                          onChange={(e) =>
+                                            handleInlineEditChange(
+                                              e.target.value
+                                            )
+                                          }
+                                          onBlur={(e) => {
+                                            const inputValue = e.target.value;
+                                            confirmInlineEdit(inputValue);
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.currentTarget.blur();
+                                            } else if (e.key === "Escape") {
+                                              cancelInlineEdit();
+                                            }
+                                          }}
+                                          autoFocus
+                                          className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <p
+                                        onClick={() => {
+                                          // Prevent editing if campaign is archived
+                                          const currentStatus = (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase();
+                                          if (currentStatus === "ARCHIVED") {
+                                            return; // Archived campaigns are read-only
+                                          }
+                                          startInlineEdit(campaign, "budget");
+                                        }}
+                                        className={`table-text leading-[1.26] rounded px-2 py-1 ${
+                                          (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase() === "ARCHIVED"
+                                            ? "cursor-not-allowed opacity-60"
+                                            : "cursor-pointer hover:bg-gray-50"
+                                        }`}
+                                        title={
+                                          (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase() === "ARCHIVED"
+                                            ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                            : undefined
+                                        }
+                                      >
+                                        {formatCurrency(
+                                          campaign.daily_budget || 0
+                                        )}
+                                      </p>
+                                    )}
+                                  </td>
+
+                                  {/* Budget Type */}
+                                  <td className="table-cell">
+                                    {editingCell?.campaignId ===
+                                      campaign.campaignId &&
+                                    editingCell?.field === "budgetType" ? (
+                                      <Dropdown
+                                        options={[
+                                          { value: "DAILY", label: "DAILY" },
+                                          {
+                                            value: "LIFETIME",
+                                            label: "LIFETIME",
+                                          },
+                                        ]}
+                                        value={editedValue}
+                                        onChange={(val) => {
+                                          const newValue = val as string;
+                                          handleInlineEditChange(newValue);
+                                          setTimeout(() => {
+                                            confirmInlineEdit(newValue);
+                                          }, 100);
+                                        }}
+                                        onClose={() => {
+                                          cancelInlineEdit();
+                                        }}
+                                        defaultOpen={true}
+                                        closeOnSelect={true}
+                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                        width="w-full"
+                                        align="center"
+                                      />
+                                    ) : (
+                                      <p
+                                        onClick={() => {
+                                          // Prevent editing if campaign is archived
+                                          const currentStatus = (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase();
+                                          if (currentStatus === "ARCHIVED") {
+                                            return; // Archived campaigns are read-only
+                                          }
+                                          startInlineEdit(
+                                            campaign,
+                                            "budgetType"
+                                          );
+                                        }}
+                                        className={`table-text leading-[1.26] rounded px-2 py-1 ${
+                                          (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase() === "ARCHIVED"
+                                            ? "cursor-not-allowed opacity-60"
+                                            : "cursor-pointer hover:bg-gray-50"
+                                        }`}
+                                        title={
+                                          (
+                                            campaign.status || "Enabled"
+                                          ).toUpperCase() === "ARCHIVED"
+                                            ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                            : undefined
+                                        }
+                                      >
+                                        {campaign.budgetType || "—"}
+                                      </p>
+                                    )}
+                                  </td>
+
+                                  {/* Start Date */}
+                                  <td className="table-cell">
+                                    <span className="table-text leading-[1.26] whitespace-nowrap">
+                                      {campaign.startDate
+                                        ? new Date(
+                                            campaign.startDate
+                                          ).toLocaleDateString("en-US", {
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                          })
+                                        : "—"}
+                                    </span>
+                                  </td>
+
+                                  {/* Spends */}
+                                  <td className="table-cell">
+                                    <span className="table-text leading-[1.26]">
+                                      {formatCurrency(campaign.spends || 0)}
+                                    </span>
+                                  </td>
+
+                                  {/* Sales */}
+                                  <td className="table-cell">
+                                    <span className="table-text leading-[1.26]">
+                                      {formatCurrency(campaign.sales || 0)}
+                                    </span>
+                                  </td>
+
+                                  {/* Impressions */}
+                                  <td className="table-cell">
+                                    <span className="table-text leading-[1.26]">
+                                      {(
+                                        campaign.impressions || 0
+                                      ).toLocaleString()}
+                                    </span>
+                                  </td>
+
+                                  {/* Clicks */}
+                                  <td className="table-cell">
+                                    <span className="table-text leading-[1.26]">
+                                      {(campaign.clicks || 0).toLocaleString()}
+                                    </span>
+                                  </td>
+
+                                  {/* ACOS */}
+                                  <td className="table-cell">
+                                    <span className="table-text leading-[1.26]">
+                                      {formatPercentage(campaign.acos || 0)}
+                                    </span>
+                                  </td>
+
+                                  {/* ROAS */}
+                                  <td className="table-cell">
+                                    <span className="table-text leading-[1.26]">
+                                      {campaign.roas
+                                        ? `${campaign.roas.toFixed(2)} x`
+                                        : "0.00 x"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </>
+                        )}
                       </tbody>
                     </table>
                   )}
                 </div>
+                {/* Loading overlay for table */}
+                {loading && (
+                  <div className="loading-overlay">
+                    <div className="loading-overlay-content">
+                      <svg
+                        className="loading-spinner"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="loading-spinner-circle"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="loading-spinner-path"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <p className="loading-message">Loading campaigns...</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Pagination */}

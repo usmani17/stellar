@@ -19,7 +19,7 @@ export const googleAdwordsSyncStatusService = {
     // Add cache-busting timestamp to ensure fresh data (prevents React/browser caching)
     const timestamp = new Date().getTime();
     const response = await api.get<GoogleSyncStatusResponse>(
-      `/accounts/${accountId}/google-sync-status/?_t=${timestamp}`
+      `/google-adwords/${accountId}/google-sync-status/?_t=${timestamp}`
     );
     return response.data;
   },

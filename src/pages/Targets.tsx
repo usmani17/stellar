@@ -781,7 +781,7 @@ export const Targets: React.FC = () => {
       const targetIds = selectedTargetsData
         .map((t) => t.targetId || t.id)
         .filter(Boolean);
-      
+
       await campaignsService.bulkUpdateTargets(accountIdNum, {
         targetIds: targetIds,
         action: "status",
@@ -1009,13 +1009,41 @@ export const Targets: React.FC = () => {
             />
 
             {/* Chart Section */}
-            <PerformanceChart
-              data={chartData}
-              toggles={chartToggles}
-              onToggle={toggleChartMetric}
-              metrics={targetMetrics}
-              title="Performance Trends"
-            />
+            <div className="relative">
+              <PerformanceChart
+                data={chartData}
+                toggles={chartToggles}
+                onToggle={toggleChartMetric}
+                metrics={targetMetrics}
+                title="Performance Trends"
+              />
+              {/* Loading overlay for chart */}
+              {loading && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <svg
+                      className="loading-spinner"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <p className="loading-message">Loading chart data...</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Targets Table Card */}
             {/* Table Header */}
@@ -1452,13 +1480,9 @@ export const Targets: React.FC = () => {
             )}
 
             {/* Table */}
-            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
               <div className="overflow-x-auto w-full">
-                {loading ? (
-                  <div className="text-center py-8 text-[#556179] text-[13.3px]">
-                    Loading targets...
-                  </div>
-                ) : targets.length === 0 ? (
+                {targets.length === 0 && !loading ? (
                   <div className="text-center py-8">
                     <p className="text-[13.3px] text-[#556179] mb-4">
                       No targets found
@@ -1530,14 +1554,10 @@ export const Targets: React.FC = () => {
                         </th>
 
                         {/* Profile */}
-                        <th className="table-header">
-                          Profile
-                        </th>
+                        <th className="table-header">Profile</th>
 
                         {/* Country */}
-                        <th className="table-header min-w-[100px]">
-                          Country
-                        </th>
+                        <th className="table-header min-w-[100px]">Country</th>
 
                         {/* Type */}
                         <th
@@ -1629,321 +1649,367 @@ export const Targets: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {/* Summary Row */}
-                      {summary && (
-                        <tr className="table-summary-row">
-                          <td className="table-cell"></td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            Total ({summary.total_targets})
-                          </td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {formatCurrency(summary.total_spends)}
-                          </td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {formatCurrency(summary.total_sales)}
-                          </td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {summary.total_impressions.toLocaleString()}
-                          </td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {summary.total_clicks.toLocaleString()}
-                          </td>
-                          <td className="table-cell"></td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {summary.avg_acos.toFixed(2)}%
-                          </td>
-                          <td className="table-cell table-text leading-[1.26]">
-                            {summary.avg_roas.toFixed(2)}x
-                          </td>
-                        </tr>
-                      )}
-                      {targets.map((target, index) => {
-                        const isLastRow = index === targets.length - 1;
-                        const isArchived =
-                          target.status?.toLowerCase() === "archived";
-                        return (
-                          <tr
-                            key={target.id}
-                            className={`${
-                              !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                            } ${
-                              isArchived
-                                ? "bg-gray-100 opacity-60"
-                                : "hover:bg-gray-100"
-                            } transition-colors`}
-                          >
-                            {/* Checkbox */}
-                            <td className="table-cell">
-                              <div className="flex items-center justify-center">
-                                <Checkbox
-                                  checked={selectedTargets.has(
-                                    target.targetId || target.id
-                                  )}
-                                  onChange={(checked) => {
-                                    const targetId =
-                                      target.targetId || target.id;
-                                    if (checked) {
-                                      setSelectedTargets((prev) => {
-                                        const newSet = new Set(prev);
-                                        newSet.add(targetId);
-                                        return newSet;
-                                      });
-                                    } else {
-                                      setSelectedTargets((prev) => {
-                                        const newSet = new Set(prev);
-                                        newSet.delete(targetId);
-                                        return newSet;
-                                      });
-                                    }
-                                  }}
-                                  size="small"
-                                />
-                              </div>
-                            </td>
-
-                            {/* Target Name */}
-                            <td className="table-cell min-w-[150px] max-w-[200px]">
-                              <span className="table-text leading-[1.26] text-left truncate block w-full">
-                                {target.name || "Unnamed Target"}
-                              </span>
-                            </td>
-
-                            {/* State */}
-                            <td className="table-cell min-w-[115px]">
-                              {editingCell?.targetId === target.targetId &&
-                              editingCell?.field === "status" ? (
-                                <Dropdown
-                                  options={[
-                                    { value: "Enabled", label: "Enabled" },
-                                    { value: "Paused", label: "Paused" },
-                                    { value: "Archived", label: "Archived" },
-                                  ]}
-                                  value={
-                                    editedValue ||
-                                    (() => {
-                                      const statusLower = (
-                                        target.status || "Enabled"
-                                      ).toLowerCase();
-                                      return statusLower === "enable" ||
-                                        statusLower === "enabled"
-                                        ? "Enabled"
-                                        : statusLower === "paused"
-                                        ? "Paused"
-                                        : statusLower === "archived"
-                                        ? "Archived"
-                                        : "Enabled";
-                                    })()
-                                  }
-                                  onChange={(val) => {
-                                    const newValue = val as string;
-                                    handleInlineEditChange(newValue);
-                                    setTimeout(() => {
-                                      confirmInlineEdit(newValue);
-                                    }, 100);
-                                  }}
-                                  onClose={() => {
-                                    cancelInlineEdit();
-                                  }}
-                                  defaultOpen={true}
-                                  closeOnSelect={true}
-                                  buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                  width="w-full"
-                                  align="center"
-                                />
-                              ) : (
-                                <div
-                                  onClick={() => {
-                                    // Prevent editing if target is archived
-                                    const currentStatus = (
-                                      target.status || "Enabled"
-                                    ).toLowerCase();
-                                    if (currentStatus === "archived") {
-                                      return; // Archived targets are read-only
-                                    }
-                                    startInlineEdit(target, "status");
-                                  }}
-                                  className={`${
-                                    (
-                                      target.status || "Enabled"
-                                    ).toLowerCase() === "archived"
-                                      ? "cursor-not-allowed opacity-60"
-                                      : "cursor-pointer hover:bg-gray-100"
-                                  } rounded px-2 py-1`}
-                                  title={
-                                    (
-                                      target.status || "Enabled"
-                                    ).toLowerCase() === "archived"
-                                      ? "Archived targets cannot be modified"
-                                      : undefined
-                                  }
-                                >
-                                  <StatusBadge
-                                    status={target.status || "Enabled"}
-                                  />
-                                </div>
-                              )}
-                            </td>
-
-                            {/* Bid */}
-                            <td className="table-cell">
-                              {editingCell?.targetId ===
-                                (target.targetId || target.id) &&
-                              editingCell?.field === "bid" ? (
-                                <div className="flex items-center justify-center">
-                                  <input
-                                    type="number"
-                                    value={editedValue}
-                                    onChange={(e) =>
-                                      handleInlineEditChange(e.target.value)
-                                    }
-                                    onBlur={(e) => {
-                                      const inputValue = e.target.value;
-                                      confirmInlineEdit(inputValue);
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.currentTarget.blur();
-                                      } else if (e.key === "Escape") {
-                                        cancelInlineEdit();
-                                      }
-                                    }}
-                                    autoFocus
-                                    className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                                  />
-                                </div>
-                              ) : (
-                                <p
-                                  onClick={() => startInlineEdit(target, "bid")}
-                                  className="table-text leading-[1.26] cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
-                                >
-                                  {target.bid || "$0.00"}
-                                </p>
-                              )}
-                            </td>
-
-                            {/* Ad Group Name */}
-                            <td className="table-cell min-w-[150px] max-w-[200px]">
-                              <span className="table-text leading-[1.26] text-left truncate block w-full">
-                                {target.adgroup_name || "—"}
-                              </span>
-                            </td>
-
-                            {/* Campaign Name */}
-                            <td className="table-cell min-w-[150px] max-w-[200px]">
-                              <button
-                                onClick={() => {
-                                  if (accountId && target.campaignId) {
-                                    navigate(
-                                      buildMarketplaceRoute(
-                                        parseInt(accountId),
-                                        "amazon",
-                                        "campaigns",
-                                        `${
-                                          target.type?.toLowerCase() || "sp"
-                                        }_${target.campaignId}`
-                                      )
-                                    );
-                                  }
-                                }}
-                                className="table-edit-link block w-full"
-                              >
-                                {target.campaign_name || "—"}
-                              </button>
-                            </td>
-
-                            {/* Profile */}
-                            <td className="table-cell min-w-[150px]">
-                              <span className="table-text leading-[1.26] whitespace-nowrap">
-                                {target.profile_name &&
-                                target.profile_name.trim() !== ""
-                                  ? target.profile_name
-                                  : "—"}
-                              </span>
-                            </td>
-
-                            {/* Country */}
-                            <td className="table-cell min-w-[100px]">
-                              <span className="table-text leading-[1.26] whitespace-nowrap">
-                                {target.profile_country_code &&
-                                target.profile_country_code.trim() !== ""
-                                  ? target.profile_country_code
-                                  : "—"}
-                              </span>
-                            </td>
-
-                            {/* Type */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {target.type || "SP"}
-                              </span>
-                            </td>
-
-                            {/* Spends */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {target.spends || "$0.00"}
-                              </span>
-                            </td>
-
-                            {/* Sales */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {target.sales || "$0.00"}
-                              </span>
-                            </td>
-
-                            {/* Impressions */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {(target.impressions || 0).toLocaleString()}
-                              </span>
-                            </td>
-
-                            {/* Clicks */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {(target.clicks || 0).toLocaleString()}
-                              </span>
-                            </td>
-
-                            {/* CTR */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {target.ctr || "0.00%"}
-                              </span>
-                            </td>
-
-                            {/* ACOS */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {target.acos
-                                  ? `${parseFloat(target.acos).toFixed(2)}%`
-                                  : "0.00%"}
-                              </span>
-                            </td>
-
-                            {/* ROAS */}
-                            <td className="table-cell">
-                              <span className="table-text leading-[1.26]">
-                                {target.roas
-                                  ? `${parseFloat(target.roas).toFixed(2)} x`
-                                  : "0.00 x"}
-                              </span>
+                      {/* Show skeleton rows when loading and no data */}
+                      {loading && targets.length === 0 ? (
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <tr key={`skeleton-${index}`} className="table-row">
+                            <td className="table-cell" colSpan={15}>
+                              <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                             </td>
                           </tr>
-                        );
-                      })}
+                        ))
+                      ) : (
+                        <>
+                          {/* Summary Row */}
+                          {summary && (
+                            <tr className="table-summary-row">
+                              <td className="table-cell"></td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                Total ({summary.total_targets})
+                              </td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {formatCurrency(summary.total_spends)}
+                              </td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {formatCurrency(summary.total_sales)}
+                              </td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {summary.total_impressions.toLocaleString()}
+                              </td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {summary.total_clicks.toLocaleString()}
+                              </td>
+                              <td className="table-cell"></td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {summary.avg_acos.toFixed(2)}%
+                              </td>
+                              <td className="table-cell table-text leading-[1.26]">
+                                {summary.avg_roas.toFixed(2)}x
+                              </td>
+                            </tr>
+                          )}
+                          {targets.map((target, index) => {
+                            const isLastRow = index === targets.length - 1;
+                            const isArchived =
+                              target.status?.toLowerCase() === "archived";
+                            return (
+                              <tr
+                                key={target.id}
+                                className={`${
+                                  !isLastRow ? "border-b border-[#e8e8e3]" : ""
+                                } ${
+                                  isArchived
+                                    ? "bg-gray-100 opacity-60"
+                                    : "hover:bg-gray-100"
+                                } transition-colors`}
+                              >
+                                {/* Checkbox */}
+                                <td className="table-cell">
+                                  <div className="flex items-center justify-center">
+                                    <Checkbox
+                                      checked={selectedTargets.has(
+                                        target.targetId || target.id
+                                      )}
+                                      onChange={(checked) => {
+                                        const targetId =
+                                          target.targetId || target.id;
+                                        if (checked) {
+                                          setSelectedTargets((prev) => {
+                                            const newSet = new Set(prev);
+                                            newSet.add(targetId);
+                                            return newSet;
+                                          });
+                                        } else {
+                                          setSelectedTargets((prev) => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(targetId);
+                                            return newSet;
+                                          });
+                                        }
+                                      }}
+                                      size="small"
+                                    />
+                                  </div>
+                                </td>
+
+                                {/* Target Name */}
+                                <td className="table-cell min-w-[150px] max-w-[200px]">
+                                  <span className="table-text leading-[1.26] text-left truncate block w-full">
+                                    {target.name || "Unnamed Target"}
+                                  </span>
+                                </td>
+
+                                {/* State */}
+                                <td className="table-cell min-w-[115px]">
+                                  {editingCell?.targetId === target.targetId &&
+                                  editingCell?.field === "status" ? (
+                                    <Dropdown
+                                      options={[
+                                        { value: "Enabled", label: "Enabled" },
+                                        { value: "Paused", label: "Paused" },
+                                        {
+                                          value: "Archived",
+                                          label: "Archived",
+                                        },
+                                      ]}
+                                      value={
+                                        editedValue ||
+                                        (() => {
+                                          const statusLower = (
+                                            target.status || "Enabled"
+                                          ).toLowerCase();
+                                          return statusLower === "enable" ||
+                                            statusLower === "enabled"
+                                            ? "Enabled"
+                                            : statusLower === "paused"
+                                            ? "Paused"
+                                            : statusLower === "archived"
+                                            ? "Archived"
+                                            : "Enabled";
+                                        })()
+                                      }
+                                      onChange={(val) => {
+                                        const newValue = val as string;
+                                        handleInlineEditChange(newValue);
+                                        setTimeout(() => {
+                                          confirmInlineEdit(newValue);
+                                        }, 100);
+                                      }}
+                                      onClose={() => {
+                                        cancelInlineEdit();
+                                      }}
+                                      defaultOpen={true}
+                                      closeOnSelect={true}
+                                      buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                      width="w-full"
+                                      align="center"
+                                    />
+                                  ) : (
+                                    <div
+                                      onClick={() => {
+                                        // Prevent editing if target is archived
+                                        const currentStatus = (
+                                          target.status || "Enabled"
+                                        ).toLowerCase();
+                                        if (currentStatus === "archived") {
+                                          return; // Archived targets are read-only
+                                        }
+                                        startInlineEdit(target, "status");
+                                      }}
+                                      className={`${
+                                        (
+                                          target.status || "Enabled"
+                                        ).toLowerCase() === "archived"
+                                          ? "cursor-not-allowed opacity-60"
+                                          : "cursor-pointer hover:bg-gray-100"
+                                      } rounded px-2 py-1`}
+                                      title={
+                                        (
+                                          target.status || "Enabled"
+                                        ).toLowerCase() === "archived"
+                                          ? "Archived targets cannot be modified"
+                                          : undefined
+                                      }
+                                    >
+                                      <StatusBadge
+                                        status={target.status || "Enabled"}
+                                      />
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* Bid */}
+                                <td className="table-cell">
+                                  {editingCell?.targetId ===
+                                    (target.targetId || target.id) &&
+                                  editingCell?.field === "bid" ? (
+                                    <div className="flex items-center justify-center">
+                                      <input
+                                        type="number"
+                                        value={editedValue}
+                                        onChange={(e) =>
+                                          handleInlineEditChange(e.target.value)
+                                        }
+                                        onBlur={(e) => {
+                                          const inputValue = e.target.value;
+                                          confirmInlineEdit(inputValue);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.currentTarget.blur();
+                                          } else if (e.key === "Escape") {
+                                            cancelInlineEdit();
+                                          }
+                                        }}
+                                        autoFocus
+                                        className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <p
+                                      onClick={() =>
+                                        startInlineEdit(target, "bid")
+                                      }
+                                      className="table-text leading-[1.26] cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
+                                    >
+                                      {target.bid || "$0.00"}
+                                    </p>
+                                  )}
+                                </td>
+
+                                {/* Ad Group Name */}
+                                <td className="table-cell min-w-[150px] max-w-[200px]">
+                                  <span className="table-text leading-[1.26] text-left truncate block w-full">
+                                    {target.adgroup_name || "—"}
+                                  </span>
+                                </td>
+
+                                {/* Campaign Name */}
+                                <td className="table-cell min-w-[150px] max-w-[200px]">
+                                  <button
+                                    onClick={() => {
+                                      if (accountId && target.campaignId) {
+                                        navigate(
+                                          buildMarketplaceRoute(
+                                            parseInt(accountId),
+                                            "amazon",
+                                            "campaigns",
+                                            `${
+                                              target.type?.toLowerCase() || "sp"
+                                            }_${target.campaignId}`
+                                          )
+                                        );
+                                      }
+                                    }}
+                                    className="table-edit-link block w-full"
+                                  >
+                                    {target.campaign_name || "—"}
+                                  </button>
+                                </td>
+
+                                {/* Profile */}
+                                <td className="table-cell min-w-[150px]">
+                                  <span className="table-text leading-[1.26] whitespace-nowrap">
+                                    {target.profile_name &&
+                                    target.profile_name.trim() !== ""
+                                      ? target.profile_name
+                                      : "—"}
+                                  </span>
+                                </td>
+
+                                {/* Country */}
+                                <td className="table-cell min-w-[100px]">
+                                  <span className="table-text leading-[1.26] whitespace-nowrap">
+                                    {target.profile_country_code &&
+                                    target.profile_country_code.trim() !== ""
+                                      ? target.profile_country_code
+                                      : "—"}
+                                  </span>
+                                </td>
+
+                                {/* Type */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {target.type || "SP"}
+                                  </span>
+                                </td>
+
+                                {/* Spends */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {target.spends || "$0.00"}
+                                  </span>
+                                </td>
+
+                                {/* Sales */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {target.sales || "$0.00"}
+                                  </span>
+                                </td>
+
+                                {/* Impressions */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {(target.impressions || 0).toLocaleString()}
+                                  </span>
+                                </td>
+
+                                {/* Clicks */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {(target.clicks || 0).toLocaleString()}
+                                  </span>
+                                </td>
+
+                                {/* CTR */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {target.ctr || "0.00%"}
+                                  </span>
+                                </td>
+
+                                {/* ACOS */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {target.acos
+                                      ? `${parseFloat(target.acos).toFixed(2)}%`
+                                      : "0.00%"}
+                                  </span>
+                                </td>
+
+                                {/* ROAS */}
+                                <td className="table-cell">
+                                  <span className="table-text leading-[1.26]">
+                                    {target.roas
+                                      ? `${parseFloat(target.roas).toFixed(
+                                          2
+                                        )} x`
+                                      : "0.00 x"}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </>
+                      )}
                     </tbody>
                   </table>
                 )}
               </div>
+              {/* Loading overlay for table */}
+              {loading && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <svg
+                      className="loading-spinner"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <p className="loading-message">Loading targets...</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Pagination */}

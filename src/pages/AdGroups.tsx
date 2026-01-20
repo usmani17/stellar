@@ -674,21 +674,33 @@ export const AdGroups: React.FC = () => {
       }
 
       if (pendingAdGroupChange.field === "status") {
-        // Map status values to uppercase
-        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-          enabled: "ENABLED",
-          paused: "PAUSED",
-          enable: "ENABLED",
-          pause: "PAUSED",
-        };
-        const statusValue =
-          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
+        // For SD adgroups, archive uses the archive endpoint
+        if (
+          (adgroup.type === "SD" || adgroup.campaignType === "SD" || adgroup.campaign_type === "SD") &&
+          (pendingAdGroupChange.newValue.toLowerCase() === "archived" ||
+            pendingAdGroupChange.newValue.toLowerCase() === "archive")
+        ) {
+          await campaignsService.archiveSdAdGroup(
+            accountIdNum,
+            adgroup.adGroupId
+          );
+        } else {
+          // Map status values to uppercase
+          const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+            enabled: "ENABLED",
+            paused: "PAUSED",
+            enable: "ENABLED",
+            pause: "PAUSED",
+          };
+          const statusValue =
+            statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [adgroup.adGroupId],
-          action: "status",
-          status: statusValue,
-        });
+          await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+            adgroupIds: [adgroup.adGroupId],
+            action: "status",
+            status: statusValue,
+          });
+        }
       } else if (pendingAdGroupChange.field === "default_bid") {
         // Extract numeric value
         const bidValue = parseFloat(pendingAdGroupChange.newValue);
@@ -783,20 +795,41 @@ export const AdGroups: React.FC = () => {
         .map((ag) => ag.adGroupId || ag.id)
         .filter(Boolean);
 
-      // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
-      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-        enable: "ENABLED",
-        pause: "PAUSED",
-        enabled: "ENABLED",
-        paused: "PAUSED",
-      };
-      const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
+      // For archive, check if any selected adgroups are SD type
+      // If archive is selected, use bulk delete endpoint (which handles SD archive correctly)
+      if (statusValue === "archive") {
+        // Check if any adgroup is SD type by checking campaign type or schema
+        const hasSdAdgroups = selectedAdgroupsData.some(
+          (ag) => ag.type === "SD" || ag.campaignType === "SD" || ag.campaign_type === "SD"
+        );
+        
+        // For SD adgroups, archive uses bulk delete endpoint
+        if (hasSdAdgroups) {
+          await campaignsService.bulkDeleteAdGroups(accountIdNum, {
+            adGroupIdFilter: {
+              include: adgroupIds,
+            },
+          });
+        } else {
+          // For non-SD adgroups, archive is not supported via status update
+          throw new Error("Archive is only supported for Sponsored Display (SD) ad groups");
+        }
+      } else {
+        // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          enable: "ENABLED",
+          pause: "PAUSED",
+          enabled: "ENABLED",
+          paused: "PAUSED",
+        };
+        const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
 
-      await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-        adgroupIds: adgroupIds,
-        action: "status",
-        status: apiStatus,
-      });
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: adgroupIds,
+          action: "status",
+          status: apiStatus,
+        });
+      }
       await loadAdGroups(accountIdNum);
       setSelectedAdgroups(new Set());
       setShowConfirmationModal(false);
@@ -1225,13 +1258,41 @@ export const AdGroups: React.FC = () => {
             />
 
             {/* Chart Section */}
-            <PerformanceChart
-              data={chartData}
-              toggles={chartToggles}
-              onToggle={toggleChartMetric}
-              metrics={adgroupMetrics}
-              title="Performance Trends"
-            />
+            <div className="relative">
+              <PerformanceChart
+                data={chartData}
+                toggles={chartToggles}
+                onToggle={toggleChartMetric}
+                metrics={adgroupMetrics}
+                title="Performance Trends"
+              />
+              {/* Loading overlay for chart */}
+              {loading && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <svg
+                      className="loading-spinner"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <p className="loading-message">Loading chart data...</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Ad Groups Table Card */}
             {/* Table Header */}
@@ -1637,15 +1698,15 @@ export const AdGroups: React.FC = () => {
                                     : oldStatus;
 
                                   return (
-                                  <tr
-                                    key={ag.id}
+                                    <tr
+                                      key={ag.id}
                                       className="border-b border-gray-200 last:border-b-0"
-                                  >
-                                    <td className="px-4 py-2 text-[10.64px] text-[#072929]">
-                                      {ag.name || "Unnamed Ad Group"}
-                                    </td>
+                                    >
+                                      <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                        {ag.name || "Unnamed Ad Group"}
+                                      </td>
                                       <td className="px-4 py-2 text-[10.64px] text-[#556179]">
-                                      {isBidChange
+                                        {isBidChange
                                           ? `$${oldBid.toFixed(2)}`
                                           : oldStatus}
                                       </td>
@@ -1653,8 +1714,8 @@ export const AdGroups: React.FC = () => {
                                         {isBidChange
                                           ? `$${newBid.toFixed(2)}`
                                           : newStatus}
-                                    </td>
-                                  </tr>
+                                      </td>
+                                    </tr>
                                   );
                                 })}
                             </tbody>
@@ -1700,8 +1761,7 @@ export const AdGroups: React.FC = () => {
                             Value:
                           </span>
                           <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {bidValue}{" "}
-                            {bidUnit === "percent" ? "%" : "$"}
+                            {bidValue} {bidUnit === "percent" ? "%" : "$"}
                           </span>
                         </div>
 

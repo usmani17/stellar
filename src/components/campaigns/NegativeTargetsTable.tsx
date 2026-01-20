@@ -48,6 +48,7 @@ interface NegativeTargetsTableProps {
     newValue: string;
     oldValue: string;
   } | null;
+  campaignType?: string; // SP, SB, or SD
 }
 
 export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
@@ -58,6 +59,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
   selectedIds = new Set(),
   sortBy = "id",
   sortOrder = "asc",
+  campaignType,
   onSort,
   editingField = null,
   editedValue = "",
@@ -125,16 +127,6 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
     );
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "—";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
-    } catch {
-      return dateString;
-    }
-  };
-
   return (
     <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
       <div className="overflow-x-auto w-full">
@@ -163,27 +155,10 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       />
                     </th>
                   )}
-                  {/* ID Header */}
-                  <th
-                    className={`table-header ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                    onClick={() => onSort?.("id")}
-                  >
-                    <div className="flex items-center gap-1">
-                      ID
-                      {getSortIcon("id")}
-                    </div>
-                  </th>
 
                   {/* Profile ID Header */}
                   <th className="table-header">
                     Profile ID
-                  </th>
-
-                  {/* Target ID Header */}
-                  <th className="table-header">
-                    Target ID
                   </th>
 
                   {/* Expression Header */}
@@ -218,47 +193,6 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                   <th className="table-header">
                     Campaign ID
                   </th>
-
-                  {/* Creation Date Time Header */}
-                  <th
-                    className={`table-header ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                    onClick={() => onSort?.("creationDateTime")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Creation Date
-                      {getSortIcon("creationDateTime")}
-                    </div>
-                  </th>
-
-                  {/* Last Update Date Time Header */}
-                  <th
-                    className={`table-header ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                    onClick={() => onSort?.("lastUpdateDateTime")}
-                  >
-                    <div className="flex items-center gap-1">
-                      Last Updated
-                      {getSortIcon("lastUpdateDateTime")}
-                    </div>
-                  </th>
-
-                  {/* Serving Status Header */}
-                  <th className="table-header">
-                    Serving Status
-                  </th>
-
-                  {/* Serving Status Details Header */}
-                  <th className="table-header">
-                    Serving Status Details
-                  </th>
-
-                  {/* Last Updated Header */}
-                  <th className="table-header">
-                    Last Synced
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -291,24 +225,11 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                           />
                         </td>
                       )}
-                      {/* ID */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {target.id || "—"}
-                        </span>
-                      </td>
 
                       {/* Profile ID */}
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
                           {target.profileId || "—"}
-                        </span>
-                      </td>
-
-                      {/* Target ID */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {target.targetId || "—"}
                         </span>
                       </td>
 
@@ -333,10 +254,18 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                           <div className="relative">
                             <Dropdown
                               options={[
-                                { value: "ENABLED", label: "ENABLED" },
-                                { value: "PAUSED", label: "PAUSED" },
+                                ...(campaignType === "SD"
+                                  ? [
+                                      { value: "enabled", label: "Enabled" },
+                                      { value: "paused", label: "Paused" },
+                                      { value: "archived", label: "Archived" },
+                                    ]
+                                  : [
+                                      { value: "ENABLED", label: "ENABLED" },
+                                      { value: "PAUSED", label: "PAUSED" },
+                                    ]),
                               ]}
-                              value={editedValue || target.state || "ENABLED"}
+                              value={editedValue || target.state || (campaignType === "SD" ? "enabled" : "ENABLED")}
                               onChange={(value) => {
                                 statusSelectionMadeRef.current = target.id;
                                 onEditChange?.(value);
@@ -370,7 +299,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                           >
                             <StatusBadge
                               status={statusValue}
-                              uppercase={true}
+                              uppercase={campaignType !== "SD"}
                             />
                             {inlineEditLoading.has(target.id) && (
                               <span className="ml-2 text-[11.2px] text-gray-500">
@@ -392,41 +321,6 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       <td className="table-cell">
                         <span className="table-text leading-[1.26]">
                           {target.campaignId || "—"}
-                        </span>
-                      </td>
-
-                      {/* Creation Date Time */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatDate(target.creationDateTime)}
-                        </span>
-                      </td>
-
-                      {/* Last Update Date Time */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatDate(target.lastUpdateDateTime)}
-                        </span>
-                      </td>
-
-                      {/* Serving Status */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {target.servingStatus || "—"}
-                        </span>
-                      </td>
-
-                      {/* Serving Status Details */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {target.servingStatusDetails || "—"}
-                        </span>
-                      </td>
-
-                      {/* Last Updated */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {formatDate(target.last_updated)}
                         </span>
                       </td>
                     </tr>

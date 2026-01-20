@@ -18,6 +18,10 @@ import { ProductAdsTable } from "../components/campaigns/ProductAdsTable";
 import { SBAdsTable, type SBAd } from "../components/campaigns/SBAdsTable";
 import { AssetsTable, type Asset } from "../components/campaigns/AssetsTable";
 import { AssetPreviewModal } from "../components/campaigns/AssetPreviewModal";
+import {
+  CreativesTable,
+  type Creative,
+} from "../components/campaigns/CreativesTable";
 import { NegativeKeywordsTable } from "../components/campaigns/NegativeKeywordsTable";
 import { NegativeTargetsTable } from "../components/campaigns/NegativeTargetsTable";
 import { LogsTable } from "../components/campaigns/LogsTable";
@@ -48,6 +52,10 @@ import {
   CreateAssetPanel,
   type AssetInput,
 } from "../components/assets/CreateAssetPanel";
+import {
+  CreateCreativePanel,
+  type CreativeInput,
+} from "../components/creatives/CreateCreativePanel";
 import { ErrorModal } from "../components/ui/ErrorModal";
 import { Tooltip } from "../components/ui/Tooltip";
 import { Button } from "../components/ui";
@@ -191,7 +199,7 @@ export const CampaignDetail: React.FC = () => {
   ] = useState(false);
   const [productAdsDeleteLoading, setProductAdsDeleteLoading] = useState(false);
   const [pendingProductAdsStatusAction, setPendingProductAdsStatusAction] =
-    useState<"enable" | "pause" | null>(null);
+    useState<"enable" | "pause" | "archive" | null>(null);
   const [
     showProductAdsStatusConfirmation,
     setShowProductAdsStatusConfirmation,
@@ -203,8 +211,9 @@ export const CampaignDetail: React.FC = () => {
   const [showTargetsBulkActions, setShowTargetsBulkActions] = useState(false);
   const [showTargetsBidPanel, setShowTargetsBidPanel] = useState(false);
   const [pendingTargetsStatusAction, setPendingTargetsStatusAction] = useState<
-    "enable" | "pause" | null
+    "enable" | "pause" | "archive" | null
   >(null);
+  const [isTargetsBidChange, setIsTargetsBidChange] = useState(false);
   const [targetsBulkLoading, setTargetsBulkLoading] = useState(false);
   const [showTargetsDeleteConfirmation, setShowTargetsDeleteConfirmation] =
     useState(false);
@@ -325,8 +334,8 @@ export const CampaignDetail: React.FC = () => {
   );
   const [assetsCurrentPage, setAssetsCurrentPage] = useState(1);
   const [assetsTotalPages, setAssetsTotalPages] = useState(0);
-  const [assetsSortBy, setAssetsSortBy] = useState<string>("id");
-  const [assetsSortOrder, setAssetsSortOrder] = useState<"asc" | "desc">("asc");
+  const [assetsSortBy, setAssetsSortBy] = useState<string>("creationTime");
+  const [assetsSortOrder, setAssetsSortOrder] = useState<"asc" | "desc">("desc");
   const [isAssetsFilterPanelOpen, setIsAssetsFilterPanelOpen] = useState(false);
   const [assetsFilters, setAssetsFilters] = useState<FilterValues>([]);
   const [isCreateAssetPanelOpen, setIsCreateAssetPanelOpen] = useState(false);
@@ -334,6 +343,25 @@ export const CampaignDetail: React.FC = () => {
   const [createAssetFieldErrors, setCreateAssetFieldErrors] = useState<
     Record<string, string>
   >({});
+
+  // Creatives state
+  const [creatives, setCreatives] = useState<Creative[]>([]);
+  const [creativesLoading, setCreativesLoading] = useState(false);
+  const [createCreativeLoading, setCreateCreativeLoading] = useState(false);
+  const [selectedCreativeIds, setSelectedCreativeIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [creativesCurrentPage, setCreativesCurrentPage] = useState(1);
+  const [creativesTotalPages, setCreativesTotalPages] = useState(0);
+  const [creativesSortBy, setCreativesSortBy] = useState<string>("id");
+  const [creativesSortOrder, setCreativesSortOrder] = useState<"asc" | "desc">(
+    "asc"
+  );
+  const [isCreateCreativePanelOpen, setIsCreateCreativePanelOpen] =
+    useState(false);
+  const [createCreativeError, setCreateCreativeError] = useState<string | null>(
+    null
+  );
 
   // Asset preview modal state
   const [isAssetPreviewModalOpen, setIsAssetPreviewModalOpen] = useState(false);
@@ -407,7 +435,7 @@ export const CampaignDetail: React.FC = () => {
   const [
     pendingNegativeTargetsStatusAction,
     setPendingNegativeTargetsStatusAction,
-  ] = useState<"enable" | "pause" | null>(null);
+  ] = useState<"enable" | "pause" | "archive" | null>(null);
   const [negativeTargetsBulkLoading, setNegativeTargetsBulkLoading] =
     useState(false);
   const [
@@ -608,6 +636,7 @@ export const CampaignDetail: React.FC = () => {
     "Negative Keywords",
     "Negative Targets",
     "Assets",
+    "Creatives",
     "Logs",
   ];
 
@@ -644,7 +673,7 @@ export const CampaignDetail: React.FC = () => {
     }
 
     // Show Ads Collection only for SB campaigns, Product Ads only for SP campaigns
-    // Show Assets only for SB campaigns
+    // Show Assets for SB and SD campaigns
     if (campaignType === "SB") {
       filteredTabs = filteredTabs.filter((tab) => tab !== "Product Ads");
     } else if (campaignType === "SP") {
@@ -652,18 +681,15 @@ export const CampaignDetail: React.FC = () => {
         (tab) => tab !== "Ads Collection" && tab !== "Assets"
       );
     } else {
-      // SD campaigns - hide Ads Collection, Product Ads, and Assets
-      filteredTabs = filteredTabs.filter(
-        (tab) =>
-          tab !== "Product Ads" && tab !== "Ads Collection" && tab !== "Assets"
-      );
+      // SD campaigns - hide Ads Collection, but show Product Ads and Assets
+      filteredTabs = filteredTabs.filter((tab) => tab !== "Ads Collection");
     }
 
     // For AUTO campaigns, hide Keywords and Targets tabs completely (as per user requirement)
     // But show Negative Keywords and Negative Targets before Logs
     if (campaignType === "SP" && isAutoCampaign) {
       filteredTabs = filteredTabs.filter(
-        (tab) => tab !== "Keywords" && tab !== "Targets"
+        (tab) => tab !== "Keywords" && tab !== "Targets" && tab !== "Creatives"
       );
       // Ensure Negative Keywords and Negative Targets appear before Logs
       // They should only show for auto campaigns
@@ -696,10 +722,26 @@ export const CampaignDetail: React.FC = () => {
       ) {
         filteredTabs.splice(negativeKeywordsIndex + 1, 0, "Negative Targets");
       }
+      // Hide Creatives tab for SB campaigns
+      filteredTabs = filteredTabs.filter((tab) => tab !== "Creatives");
+    } else if (campaignType === "SD") {
+      // For SD campaigns, show Negative Targets tab (but not Negative Keywords since SD doesn't have keywords)
+      // Insert Negative Targets right after Targets if not already present
+      const targetsIndex = filteredTabs.indexOf("Targets");
+      if (targetsIndex !== -1 && !filteredTabs.includes("Negative Targets")) {
+        filteredTabs.splice(targetsIndex + 1, 0, "Negative Targets");
+      }
+      // Insert Creatives tab right after Assets if not already present
+      const assetsIndex = filteredTabs.indexOf("Assets");
+      if (assetsIndex !== -1 && !filteredTabs.includes("Creatives")) {
+        filteredTabs.splice(assetsIndex + 1, 0, "Creatives");
+      }
+      // Hide Negative Keywords for SD campaigns
+      filteredTabs = filteredTabs.filter((tab) => tab !== "Negative Keywords");
     } else {
-      // For non-auto SP campaigns and other types, hide Negative Keywords and Negative Targets
+      // For non-auto SP campaigns and other types, hide Negative Keywords, Negative Targets, and Creatives
       filteredTabs = filteredTabs.filter(
-        (tab) => tab !== "Negative Keywords" && tab !== "Negative Targets"
+        (tab) => tab !== "Negative Keywords" && tab !== "Negative Targets" && tab !== "Creatives"
       );
     }
 
@@ -780,6 +822,8 @@ export const CampaignDetail: React.FC = () => {
   useEffect(() => {
     if (accountId && campaignId) {
       loadCampaignDetail();
+      // Load all adgroups when page first opens to ensure they're available for all tabs
+      loadAllAdGroups();
     }
   }, [accountId, campaignId, startDate, endDate]);
 
@@ -1337,9 +1381,13 @@ export const CampaignDetail: React.FC = () => {
     keywordsFilters,
   ]);
 
-  // Load assets when Assets tab is active (only for SB campaigns)
+  // Load assets when Assets tab is active (for SB and SD campaigns)
   useEffect(() => {
-    if (accountId && activeTab === "Assets" && campaignType === "SB") {
+    if (
+      accountId &&
+      activeTab === "Assets" &&
+      (campaignType === "SB" || campaignType === "SD")
+    ) {
       loadAssets();
     }
   }, [
@@ -1350,6 +1398,21 @@ export const CampaignDetail: React.FC = () => {
     assetsSortBy,
     assetsSortOrder,
     assetsFilters,
+  ]);
+
+  // Load creatives when Creatives tab is active (for SD campaigns)
+  useEffect(() => {
+    if (accountId && activeTab === "Creatives" && campaignType === "SD") {
+      // TODO: Implement loadCreatives when backend endpoint is available
+      // loadCreatives();
+    }
+  }, [
+    accountId,
+    activeTab,
+    campaignType,
+    creativesCurrentPage,
+    creativesSortBy,
+    creativesSortOrder,
   ]);
 
   useEffect(() => {
@@ -1423,14 +1486,16 @@ export const CampaignDetail: React.FC = () => {
     negativeKeywordsFilters,
   ]);
 
-  // Load negative targets for auto campaigns and SB campaigns
+  // Load negative targets for auto campaigns, SB campaigns, and SD campaigns
   useEffect(() => {
     if (
       accountId &&
       campaignId &&
       activeTab === "Negative Targets" &&
       campaignType &&
-      ((campaignType === "SP" && isAutoCampaign) || campaignType === "SB")
+      ((campaignType === "SP" && isAutoCampaign) ||
+        campaignType === "SB" ||
+        campaignType === "SD")
     ) {
       loadNegativeTargets();
     }
@@ -1445,14 +1510,16 @@ export const CampaignDetail: React.FC = () => {
     campaignType,
   ]);
 
-  // Load negative targets for auto campaigns and SB campaigns (with filters)
+  // Load negative targets for auto campaigns, SB campaigns, and SD campaigns (with filters)
   useEffect(() => {
     if (
       accountId &&
       campaignId &&
       activeTab === "Negative Targets" &&
       campaignType &&
-      ((campaignType === "SP" && isAutoCampaign) || campaignType === "SB")
+      ((campaignType === "SP" && isAutoCampaign) ||
+        campaignType === "SB" ||
+        campaignType === "SD")
     ) {
       loadNegativeTargets();
     }
@@ -1932,7 +1999,7 @@ export const CampaignDetail: React.FC = () => {
     if (
       !accountId ||
       !campaignId ||
-      (campaignType !== "SP" && campaignType !== "SB")
+      (campaignType !== "SP" && campaignType !== "SB" && campaignType !== "SD")
     )
       return;
 
@@ -1963,6 +2030,69 @@ export const CampaignDetail: React.FC = () => {
                 value: tgt.expressionValue,
               },
             ],
+          };
+        } else if (campaignType === "SD") {
+          // SD: Build expression based on structure type
+          let expression: any[] = [];
+
+          // Use the expression array if it's already built (from handleAddTarget)
+          if (
+            tgt.expression &&
+            Array.isArray(tgt.expression) &&
+            tgt.expression.length > 0
+          ) {
+            expression = tgt.expression;
+          } else if (tgt.sdExpressionStructureType === "TargetingPredicate") {
+            // TargetingPredicate: array of {type, value}
+            if (tgt.expression && tgt.expression.length > 0) {
+              expression = tgt.expression.map((expr: any) => ({
+                type: expr.type,
+                value: expr.value,
+              }));
+            }
+          } else if (
+            tgt.sdExpressionStructureType === "ContentTargetingPredicate"
+          ) {
+            // ContentTargetingPredicate: {type: "contentCategorySameAs", value: category}
+            if (tgt.sdContentCategory) {
+              expression = [
+                {
+                  type: "contentCategorySameAs",
+                  value: tgt.sdContentCategory,
+                },
+              ];
+            }
+          } else if (
+            tgt.sdExpressionStructureType === "TargetingPredicateNested"
+          ) {
+            // TargetingPredicateNested: {type: "views"/"audience"/"purchases", value: array of predicates}
+            if (
+              tgt.sdNestedType &&
+              tgt.sdNestedPredicates &&
+              tgt.sdNestedPredicates.length > 0
+            ) {
+              expression = [
+                {
+                  type: tgt.sdNestedType,
+                  value: tgt.sdNestedPredicates.map((pred: any) => ({
+                    type: pred.type,
+                    value: pred.value,
+                  })),
+                },
+              ];
+            }
+          }
+
+          if (expression.length === 0) {
+            throw new Error("Expression is required for SD targets");
+          }
+
+          return {
+            adGroupId: parseInt(tgt.adGroupId, 10),
+            bid: tgt.bid,
+            expression: expression,
+            expressionType: (tgt.expressionType || "manual").toLowerCase(),
+            state: (tgt.state || "enabled").toLowerCase(),
           };
         } else {
           // SP: use expression (singular), include expressionType and state
@@ -2252,7 +2382,7 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const handleCreateProductAds = async (productAds: ProductAdInput[]) => {
-    if (!accountId || !campaignId || campaignType !== "SP") return;
+    if (!accountId || !campaignId) return;
 
     setCreateProductAdLoading(true);
 
@@ -2262,24 +2392,48 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      const response = await campaignsService.createProductAds(
-        accountIdNum,
-        campaignId,
-        {
-          productAds: productAds.map((pa) => ({
-            adGroupId: pa.adGroupId,
-            asin: pa.asin,
-            sku: pa.sku || undefined,
-            customText: pa.customText || undefined,
-            globalStoreSetting: pa.catalogSourceCountryCode
-              ? {
-                  catalogSourceCountryCode: pa.catalogSourceCountryCode,
-                }
-              : undefined,
-            state: pa.state,
-          })),
-        }
-      );
+      let response;
+      if (campaignType === "SD") {
+        // Use SD-specific endpoint
+        response = await campaignsService.createSdProductAds(
+          accountIdNum,
+          campaignId,
+          {
+            productAds: productAds.map((pa) => ({
+              state: pa.state as "enabled" | "paused" | "archived",
+              adGroupId: parseInt(pa.adGroupId),
+              campaignId: parseInt(campaignId),
+              ...(pa.sku && { sku: pa.sku }),
+              ...(pa.asin && { asin: pa.asin }),
+              ...(pa.landingPageURL && { landingPageURL: pa.landingPageURL }),
+              ...(pa.landingPageType && {
+                landingPageType: pa.landingPageType,
+              }),
+              ...(pa.adName && { adName: pa.adName }),
+            })),
+          }
+        );
+      } else {
+        // Use SP/SB endpoint
+        response = await campaignsService.createProductAds(
+          accountIdNum,
+          campaignId,
+          {
+            productAds: productAds.map((pa) => ({
+              adGroupId: pa.adGroupId,
+              asin: pa.asin || "",
+              sku: pa.sku || undefined,
+              customText: pa.customText || undefined,
+              globalStoreSetting: pa.catalogSourceCountryCode
+                ? {
+                    catalogSourceCountryCode: pa.catalogSourceCountryCode,
+                  }
+                : undefined,
+              state: pa.state as "ENABLED" | "PAUSED",
+            })),
+          }
+        );
+      }
 
       // Check for partial success
       const created = response.created || 0;
@@ -2831,6 +2985,93 @@ export const CampaignDetail: React.FC = () => {
     setAssetsCurrentPage(page);
   };
 
+  // Creatives handlers
+  const handleSelectAllCreatives = (checked: boolean) => {
+    if (checked) {
+      setSelectedCreativeIds(new Set(creatives.map((c) => c.id)));
+    } else {
+      setSelectedCreativeIds(new Set());
+    }
+  };
+
+  const handleSelectCreative = (id: number, checked: boolean) => {
+    setSelectedCreativeIds((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleCreativesSort = (column: string) => {
+    if (creativesSortBy === column) {
+      setCreativesSortOrder(creativesSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setCreativesSortBy(column);
+      setCreativesSortOrder("asc");
+    }
+    setCreativesCurrentPage(1);
+  };
+
+  const handleCreativesPageChange = (page: number) => {
+    setCreativesCurrentPage(page);
+  };
+
+  const handleCreateCreative = async (
+    creatives: CreativeInput[],
+    adGroupId?: number
+  ) => {
+    if (!accountId || !campaignId) return;
+
+    setCreateCreativeLoading(true);
+    setCreateCreativeError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // adGroupId is passed as second parameter from CreateCreativePanel
+      if (!adGroupId || adGroupId === 0) {
+        throw new Error("Ad Group ID is required. Please select an ad group.");
+      }
+
+      const response = await campaignsService.createSdCreatives(accountIdNum, {
+        adGroupId: adGroupId,
+        creatives: creatives.map((c) => ({
+          creativeType: c.creativeType,
+          properties: c.properties,
+          consentToTranslate: c.consentToTranslate,
+        })),
+      });
+
+      if (response.success && response.success.length > 0) {
+        // Close panel and reload creatives
+        setIsCreateCreativePanelOpen(false);
+        // TODO: Reload creatives when backend endpoint is available
+        // await loadCreatives();
+      } else if (response.error && response.error.length > 0) {
+        const errorMessages = response.error
+          .map((e: any) => e.description || e.code)
+          .join(", ");
+        setCreateCreativeError(errorMessages);
+      }
+    } catch (error: any) {
+      console.error("Failed to create creatives:", error);
+      setCreateCreativeError(
+        error?.response?.data?.error ||
+          error?.message ||
+          "Failed to create creatives. Please try again."
+      );
+    } finally {
+      setCreateCreativeLoading(false);
+    }
+  };
+
   const handleCreateAsset = async (asset: AssetInput) => {
     if (!accountId) return;
 
@@ -2969,7 +3210,9 @@ export const CampaignDetail: React.FC = () => {
     const params: any = {};
     filterList.forEach((filter) => {
       const field = filter.field as string;
-      if (field === "mediaType") {
+      if (field === "name") {
+        params.name = filter.value;
+      } else if (field === "mediaType") {
         params.mediaType = filter.value;
       } else if (field === "brandEntityId") {
         params.brandEntityId = filter.value;
@@ -3548,7 +3791,7 @@ export const CampaignDetail: React.FC = () => {
 
   // Negative target bulk action handlers
   const handleBulkNegativeTargetsStatus = async (
-    statusValue: "enable" | "pause"
+    statusValue: "enable" | "pause" | "archive"
   ) => {
     if (!accountId || selectedNegativeTargetIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -3565,11 +3808,26 @@ export const CampaignDetail: React.FC = () => {
           : String(id);
       });
 
-      await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
-        targetIds: selectedNegativeTargetIdsArray,
-        action: "status",
-        status: statusValue,
-      });
+      if (statusValue === "archive" && campaignType === "SD") {
+        // For SD negative targets, archive uses the dedicated DELETE endpoint
+        for (const id of selectedNegativeTargetIdsArray) {
+          await campaignsService.archiveSdNegativeTarget(accountIdNum, id);
+        }
+      } else {
+        // For non-SD or enable/pause actions, use bulk update
+        const statusMap: Record<string, "enable" | "pause"> = {
+          enable: "enable",
+          pause: "pause",
+          enabled: "enable",
+          paused: "pause",
+        };
+        const apiStatus = statusMap[statusValue.toLowerCase()] || "enable";
+        await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
+          targetIds: selectedNegativeTargetIdsArray,
+          action: "status",
+          status: apiStatus,
+        });
+      }
 
       await loadNegativeTargets();
       setSelectedNegativeTargetIds(new Set());
@@ -3863,21 +4121,33 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingAdGroupChange.field === "status") {
-        // Map status values to uppercase
-        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-          enabled: "ENABLED",
-          paused: "PAUSED",
-          enable: "ENABLED",
-          pause: "PAUSED",
-        };
-        const statusValue =
-          statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
+        // For SD campaigns, archive uses the archive endpoint
+        if (
+          campaignType === "SD" &&
+          (pendingAdGroupChange.newValue.toLowerCase() === "archived" ||
+            pendingAdGroupChange.newValue.toLowerCase() === "archive")
+        ) {
+          await campaignsService.archiveSdAdGroup(
+            accountIdNum,
+            adgroup.adGroupId
+          );
+        } else {
+          // Map status values to uppercase
+          const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+            enabled: "ENABLED",
+            paused: "PAUSED",
+            enable: "ENABLED",
+            pause: "PAUSED",
+          };
+          const statusValue =
+            statusMap[pendingAdGroupChange.newValue.toLowerCase()] || "ENABLED";
 
-        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-          adgroupIds: [adgroup.adGroupId],
-          action: "status",
-          status: statusValue,
-        });
+          await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+            adgroupIds: [adgroup.adGroupId],
+            action: "status",
+            status: statusValue,
+          });
+        }
       } else if (pendingAdGroupChange.field === "default_bid") {
         // Extract numeric value
         const bidValue = parseFloat(pendingAdGroupChange.newValue);
@@ -4161,6 +4431,26 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
+      // For SD campaigns, handle archive separately
+      if (
+        campaignType === "SD" &&
+        (pendingProductAdChange.newValue.toLowerCase() === "archived" ||
+          pendingProductAdChange.newValue.toLowerCase() === "archive")
+      ) {
+        // Use archive endpoint for SD product ads
+        await campaignsService.archiveSdProductAd(
+          accountIdNum,
+          String(productad.adId)
+        );
+        await loadProductAds();
+        setPendingProductAdChange(null);
+        setEditingProductAdField(null);
+        setEditedProductAdValue("");
+        setShowProductAdsConfirmationModal(false);
+        return;
+      }
+
+      // For non-archive updates, use regular update endpoint
       // Map status values to uppercase for API
       const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
         enabled: "ENABLED",
@@ -4170,6 +4460,23 @@ export const CampaignDetail: React.FC = () => {
       };
       const statusValue =
         statusMap[pendingProductAdChange.newValue.toLowerCase()] || "ENABLED";
+
+      // For SD campaigns, use SD-specific bulk update endpoint
+      if (campaignType === "SD") {
+        await campaignsService.bulkUpdateSdProductAds(accountIdNum, {
+          adIds: [productad.adId || productad.id],
+          status:
+            pendingProductAdChange.newValue.toLowerCase() === "enabled"
+              ? "enable"
+              : "pause",
+        });
+        await loadProductAds();
+        setPendingProductAdChange(null);
+        setEditingProductAdField(null);
+        setEditedProductAdValue("");
+        setShowProductAdsConfirmationModal(false);
+        return;
+      }
 
       // Call API and check response for errors (partial success scenario)
       const response = await campaignsService.updateProductAds(
@@ -4339,6 +4646,7 @@ export const CampaignDetail: React.FC = () => {
     field: "status" | "bid",
     currentValue: string
   ) => {
+    console.log("handleTargetEditStart:", { id, field, currentValue });
     setEditingTargetField({ id, field });
     setEditedTargetValue(currentValue);
     setPendingTargetChange(null);
@@ -4349,9 +4657,18 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const handleTargetEditEnd = (newValue?: string) => {
-    if (!editingTargetField) return;
+    console.log("handleTargetEditEnd:", {
+      editingTargetField,
+      newValue,
+      editedTargetValue,
+    });
+    if (!editingTargetField) {
+      console.log("handleTargetEditEnd: No editingTargetField, returning");
+      return;
+    }
     const target = targets.find((tgt) => tgt.id === editingTargetField.id);
     if (!target) {
+      console.log("handleTargetEditEnd: Target not found");
       setEditingTargetField(null);
       setEditedTargetValue("");
       return;
@@ -4360,6 +4677,8 @@ export const CampaignDetail: React.FC = () => {
     // Use the passed value if provided, otherwise use the state value
     const valueToCompare =
       newValue !== undefined ? newValue : editedTargetValue;
+
+    console.log("handleTargetEditEnd: valueToCompare:", valueToCompare);
 
     let hasChanged = false;
     let oldValue = "";
@@ -4375,10 +4694,26 @@ export const CampaignDetail: React.FC = () => {
     } else if (editingTargetField.field === "bid") {
       const currentBid = target.bid ? target.bid.replace(/[^0-9.]/g, "") : "0";
       oldValue = target.bid || "$0.00";
-      hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
+      // Compare numeric values
+      const currentBidNum = parseFloat(currentBid) || 0;
+      const newBidNum = parseFloat(valueToCompare) || 0;
+      hasChanged =
+        Math.abs(newBidNum - currentBidNum) > 0.001 &&
+        valueToCompare !== "" &&
+        !isNaN(newBidNum);
+      console.log("handleTargetEditEnd: bid comparison:", {
+        currentBid,
+        currentBidNum,
+        valueToCompare,
+        newBidNum,
+        hasChanged,
+      });
     }
 
     if (hasChanged) {
+      console.log(
+        "handleTargetEditEnd: Value changed, showing confirmation modal"
+      );
       setPendingTargetChange({
         id: editingTargetField.id,
         field: editingTargetField.field,
@@ -4388,6 +4723,7 @@ export const CampaignDetail: React.FC = () => {
       setShowTargetsConfirmationModal(true);
       setEditingTargetField(null);
     } else {
+      console.log("handleTargetEditEnd: No change, clearing edit state");
       setEditingTargetField(null);
       setEditedTargetValue("");
     }
@@ -4434,24 +4770,40 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingTargetChange.field === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause"> = {
-          enabled: "enable",
-          paused: "pause",
-        };
-        const statusValue =
-          statusMap[pendingTargetChange.newValue.toLowerCase()] || "enable";
+        const newStatusLower = pendingTargetChange.newValue.toLowerCase();
 
-        console.log("confirmTargetChange: Updating status", {
-          targetId: target.targetId,
-          statusValue,
-        });
+        // For SD campaigns, handle archive separately
+        if (
+          campaignType === "SD" &&
+          (newStatusLower === "archived" || newStatusLower === "archive")
+        ) {
+          console.log("confirmTargetChange: Archiving SD target", {
+            targetId: target.targetId,
+          });
 
-        await campaignsService.bulkUpdateTargets(accountIdNum, {
-          targetIds: [String(target.targetId)],
-          action: "status",
-          status: statusValue,
-        });
+          await campaignsService.archiveSdTarget(
+            accountIdNum,
+            String(target.targetId)
+          );
+        } else {
+          // Map status values for enable/pause
+          const statusMap: Record<string, "enable" | "pause"> = {
+            enabled: "enable",
+            paused: "pause",
+          };
+          const statusValue = statusMap[newStatusLower] || "enable";
+
+          console.log("confirmTargetChange: Updating status", {
+            targetId: target.targetId,
+            statusValue,
+          });
+
+          await campaignsService.bulkUpdateTargets(accountIdNum, {
+            targetIds: [String(target.targetId)],
+            action: "status",
+            status: statusValue,
+          });
+        }
       } else if (pendingTargetChange.field === "bid") {
         // Extract numeric value - clean any formatting
         const cleanedValue = pendingTargetChange.newValue.replace(
@@ -4733,12 +5085,28 @@ export const CampaignDetail: React.FC = () => {
         negativeTarget.status?.toLowerCase() ||
         negativeTarget.state?.toLowerCase() ||
         "enabled";
-      const currentStatus =
-        statusLower === "enable" || statusLower === "enabled"
-          ? "enabled"
-          : "paused";
+      // For SD campaigns, handle lowercase states (enabled, paused, archived)
+      // For SP/SB campaigns, handle uppercase states (ENABLED, PAUSED)
+      let currentStatus: string;
+      if (campaignType === "SD") {
+        currentStatus =
+          statusLower === "enable" || statusLower === "enabled"
+            ? "enabled"
+            : statusLower === "pause" || statusLower === "paused"
+            ? "paused"
+            : statusLower === "archived" || statusLower === "archive"
+            ? "archived"
+            : "enabled";
+      } else {
+        currentStatus =
+          statusLower === "enable" || statusLower === "enabled"
+            ? "ENABLED"
+            : "PAUSED";
+      }
       oldValue = currentStatus;
-      hasChanged = valueToCompare.toUpperCase() !== currentStatus.toUpperCase();
+      const newValueLower = valueToCompare.toLowerCase();
+      const currentStatusLower = currentStatus.toLowerCase();
+      hasChanged = newValueLower !== currentStatusLower;
     }
 
     if (hasChanged) {
@@ -4778,20 +5146,31 @@ export const CampaignDetail: React.FC = () => {
       }
 
       if (pendingNegativeTargetChange.field === "status") {
-        // Map status values
-        const statusMap: Record<string, "enable" | "pause"> = {
-          enabled: "enable",
-          paused: "pause",
-        };
-        const statusValue =
-          statusMap[pendingNegativeTargetChange.newValue.toLowerCase()] ||
-          "enable";
+        if (
+          campaignType === "SD" &&
+          pendingNegativeTargetChange.newValue.toLowerCase() === "archived"
+        ) {
+          // For SD, archive uses the dedicated DELETE endpoint
+          await campaignsService.archiveSdNegativeTarget(
+            accountIdNum,
+            String(negativeTarget.targetId)
+          );
+        } else {
+          // Map status values
+          const statusMap: Record<string, "enable" | "pause"> = {
+            enabled: "enable",
+            paused: "pause",
+          };
+          const statusValue =
+            statusMap[pendingNegativeTargetChange.newValue.toLowerCase()] ||
+            "enable";
 
-        await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
-          targetIds: [String(negativeTarget.targetId)],
-          action: "status",
-          status: statusValue,
-        });
+          await campaignsService.bulkUpdateNegativeTargets(accountIdNum, {
+            targetIds: [String(negativeTarget.targetId)],
+            action: "status",
+            status: statusValue,
+          });
+        }
       }
 
       // Reload negative targets
@@ -4838,13 +5217,14 @@ export const CampaignDetail: React.FC = () => {
       adGroupId: string;
       expression?: Array<{ type: string; value: string }>;
       expressions?: Array<{ type: string; value: string }>;
-      state?: "ENABLED" | "PAUSED";
+      state?: "ENABLED" | "PAUSED" | "enabled" | "paused" | "archived";
+      expressionType?: "manual" | "auto";
     }>
   ) => {
     if (
       !accountId ||
       !campaignId ||
-      (campaignType !== "SP" && campaignType !== "SB")
+      (campaignType !== "SP" && campaignType !== "SB" && campaignType !== "SD")
     )
       return;
 
@@ -4869,8 +5249,16 @@ export const CampaignDetail: React.FC = () => {
             adGroupId: ntg.adGroupId,
             expressions: ntg.expressions || ntg.expression || [],
           };
+        } else if (campaignType === "SD") {
+          // SD: use expression (singular), include state (lowercase), include expressionType
+          return {
+            adGroupId: ntg.adGroupId,
+            expression: ntg.expression || [],
+            state: (ntg.state || "enabled").toLowerCase(),
+            expressionType: ntg.expressionType || "manual",
+          };
         } else {
-          // SP: use expression (singular), include state
+          // SP: use expression (singular), include state (uppercase)
           return {
             adGroupId: ntg.adGroupId,
             expression: ntg.expression || [],
@@ -4954,7 +5342,9 @@ export const CampaignDetail: React.FC = () => {
   };
 
   // Bulk action handlers for Targets
-  const handleBulkTargetsStatus = async (statusValue: "enable" | "pause") => {
+  const handleBulkTargetsStatus = async (
+    statusValue: "enable" | "pause" | "archive"
+  ) => {
     if (!accountId || selectedTargetIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
@@ -4966,11 +5356,20 @@ export const CampaignDetail: React.FC = () => {
         return target?.targetId ? String(target.targetId) : String(id);
       });
 
-      await campaignsService.bulkUpdateTargets(accountIdNum, {
-        targetIds: selectedTargetIdsArray,
-        action: "status",
-        status: statusValue,
-      });
+      // For SD campaigns, handle archive separately (one at a time)
+      if (campaignType === "SD" && statusValue === "archive") {
+        // Archive each target individually
+        for (const targetId of selectedTargetIdsArray) {
+          await campaignsService.archiveSdTarget(accountIdNum, targetId);
+        }
+      } else {
+        // Use bulk update for enable/pause
+        await campaignsService.bulkUpdateTargets(accountIdNum, {
+          targetIds: selectedTargetIdsArray,
+          action: "status",
+          status: statusValue,
+        });
+      }
 
       await loadTargets();
       setSelectedTargetIds(new Set());
@@ -5068,6 +5467,7 @@ export const CampaignDetail: React.FC = () => {
       setTargetsBidValue("");
       setTargetsBidUpperLimit("");
       setTargetsBidLowerLimit("");
+      setIsTargetsBidChange(false);
     } catch (error: any) {
       console.error("Failed to update targets", error);
       setShowTargetsConfirmationModal(false);
@@ -5317,7 +5717,7 @@ export const CampaignDetail: React.FC = () => {
   };
 
   const handleBulkProductAdsStatus = async (
-    statusValue: "enable" | "pause"
+    statusValue: "enable" | "pause" | "archive"
   ) => {
     if (!accountId || selectedProductAdIds.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -5332,23 +5732,45 @@ export const CampaignDetail: React.FC = () => {
         .map((pa) => pa.adId || pa.id)
         .filter(Boolean) as Array<string | number>;
 
-      // Map status values
-      const statusMap: Record<"enable" | "pause", "ENABLED" | "PAUSED"> = {
-        enable: "ENABLED",
-        pause: "PAUSED",
-      };
-      const stateValue = statusMap[statusValue];
-
-      await campaignsService.bulkUpdateProductAds(
-        accountIdNum,
-        campaignId || "",
-        {
-          productAds: adIds.map((adId) => ({
-            adId: String(adId),
-            state: stateValue,
-          })),
+      // For SD campaigns, handle archive separately
+      if (statusValue === "archive" && campaignType === "SD") {
+        // Archive each product ad individually (SD archive is per-ad)
+        for (const adId of adIds) {
+          try {
+            await campaignsService.archiveSdProductAd(
+              accountIdNum,
+              String(adId)
+            );
+          } catch (error: any) {
+            console.error(`Failed to archive product ad ${adId}:`, error);
+            // Continue with other ads even if one fails
+          }
         }
-      );
+      } else if (campaignType === "SD") {
+        // For SD campaigns, use SD-specific bulk update endpoint
+        await campaignsService.bulkUpdateSdProductAds(accountIdNum, {
+          adIds: adIds,
+          status: statusValue === "enable" ? "enable" : "pause",
+        });
+      } else {
+        // For SP/SB campaigns, use regular bulk update
+        const statusMap: Record<"enable" | "pause", "ENABLED" | "PAUSED"> = {
+          enable: "ENABLED",
+          pause: "PAUSED",
+        };
+        const stateValue = statusMap[statusValue];
+
+        await campaignsService.bulkUpdateProductAds(
+          accountIdNum,
+          campaignId || "",
+          {
+            productAds: adIds.map((adId) => ({
+              adId: String(adId),
+              state: stateValue,
+            })),
+          }
+        );
+      }
 
       await loadProductAds();
       setSelectedProductAdIds(new Set());
@@ -5773,20 +6195,29 @@ export const CampaignDetail: React.FC = () => {
         }
       );
 
-      // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
-      const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-        enable: "ENABLED",
-        pause: "PAUSED",
-        enabled: "ENABLED",
-        paused: "PAUSED",
-      };
-      const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
+      // For SD campaigns, archive uses bulk delete endpoint
+      if (statusValue === "archive" && campaignType === "SD") {
+        await campaignsService.bulkDeleteAdGroups(accountIdNum, {
+          adGroupIdFilter: {
+            include: selectedAdGroupIdsArray,
+          },
+        });
+      } else {
+        // Convert to uppercase for API: enable -> ENABLED, pause -> PAUSED
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          enable: "ENABLED",
+          pause: "PAUSED",
+          enabled: "ENABLED",
+          paused: "PAUSED",
+        };
+        const apiStatus = statusMap[statusValue.toLowerCase()] || "ENABLED";
 
-      await campaignsService.bulkUpdateAdGroups(accountIdNum, {
-        adgroupIds: selectedAdGroupIdsArray,
-        action: "status",
-        status: apiStatus,
-      });
+        await campaignsService.bulkUpdateAdGroups(accountIdNum, {
+          adgroupIds: selectedAdGroupIdsArray,
+          action: "status",
+          status: apiStatus,
+        });
+      }
 
       await loadAdGroups();
       setSelectedAdGroupIds(new Set());
@@ -6786,7 +7217,9 @@ export const CampaignDetail: React.FC = () => {
                             {[
                               { value: "enable", label: "Enabled" },
                               { value: "pause", label: "Paused" },
-                              { value: "delete", label: "Delete" },
+                              ...(campaignType === "SD"
+                                ? [{ value: "archive", label: "Archive" }]
+                                : [{ value: "delete", label: "Delete" }]),
                             ].map((opt) => (
                               <button
                                 key={opt.value}
@@ -6798,6 +7231,14 @@ export const CampaignDetail: React.FC = () => {
                                   if (selectedProductAdIds.size === 0) return;
                                   if (opt.value === "delete") {
                                     setShowProductAdsDeleteConfirmation(true);
+                                  } else if (opt.value === "archive") {
+                                    setPendingProductAdsStatusAction(
+                                      "archive" as
+                                        | "enable"
+                                        | "pause"
+                                        | "archive"
+                                    );
+                                    setShowProductAdsStatusConfirmation(true);
                                   } else if (
                                     opt.value === "enable" ||
                                     opt.value === "pause"
@@ -6876,6 +7317,7 @@ export const CampaignDetail: React.FC = () => {
                     }))}
                     campaignId={campaignId || ""}
                     loading={createProductAdLoading}
+                    campaignType={campaignType}
                   />
                 )}
 
@@ -6924,6 +7366,7 @@ export const CampaignDetail: React.FC = () => {
                     onEditCancel={handleProductAdEditCancel}
                     editLoading={productAdEditLoading}
                     pendingChange={pendingProductAdChange}
+                    campaignType={campaignType}
                   />
                 </div>
                 {/* Pagination */}
@@ -7079,6 +7522,7 @@ export const CampaignDetail: React.FC = () => {
                 onBulkStatusAction={(action) => {
                   setShowTargetsBidPanel(false);
                   setPendingTargetsStatusAction(action);
+                  setIsTargetsBidChange(false);
                   setShowTargetsConfirmationModal(true);
                 }}
                 onBulkDelete={() => {
@@ -7086,7 +7530,9 @@ export const CampaignDetail: React.FC = () => {
                   setShowTargetsDeleteConfirmation(true);
                 }}
                 onBulkEditBid={() => {
+                  console.log("onBulkEditBid");
                   setShowTargetsBidPanel(true);
+                  setShowTargetsBulkActions(false);
                 }}
                 showBidPanel={showTargetsBidPanel}
                 bidAction={targetsBidAction}
@@ -7111,6 +7557,8 @@ export const CampaignDetail: React.FC = () => {
                   setTargetsBidLowerLimit("");
                 }}
                 onBidPanelApply={() => {
+                  setIsTargetsBidChange(true);
+                  setPendingTargetsStatusAction(null);
                   setShowTargetsConfirmationModal(true);
                 }}
                 bulkLoading={targetsBulkLoading}
@@ -7212,80 +7660,6 @@ export const CampaignDetail: React.FC = () => {
                       Negative Targets
                     </h2>
                     <div className="flex items-center gap-2">
-                      {/* Bulk Actions Button */}
-                      <div
-                        className="relative inline-flex justify-end"
-                        ref={negativeTargetsBulkActionsRef}
-                      >
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="edit-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowNegativeTargetsBulkActions(
-                              !showNegativeTargetsBulkActions
-                            );
-                          }}
-                        >
-                          <svg
-                            className="w-4 h-4 text-[#072929]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                            />
-                          </svg>
-                          <span className="text-[10.64px] text-[#072929] font-normal">
-                            Edit
-                          </span>
-                        </Button>
-                        {showNegativeTargetsBulkActions && (
-                          <div className="absolute top-[42px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                            <div className="overflow-y-auto">
-                              {[
-                                { value: "enable", label: "Enabled" },
-                                { value: "pause", label: "Paused" },
-                                { value: "delete", label: "Delete" },
-                              ].map((opt) => (
-                                <button
-                                  key={opt.value}
-                                  type="button"
-                                  className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                  disabled={
-                                    selectedNegativeTargetIds.size === 0
-                                  }
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (selectedNegativeTargetIds.size === 0)
-                                      return;
-                                    if (opt.value === "delete") {
-                                      setShowNegativeTargetsDeleteConfirmation(
-                                        true
-                                      );
-                                    } else {
-                                      setPendingNegativeTargetsStatusAction(
-                                        opt.value as "enable" | "pause"
-                                      );
-                                      setShowNegativeTargetsConfirmationModal(
-                                        true
-                                      );
-                                    }
-                                    setShowNegativeTargetsBulkActions(false);
-                                  }}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
                       {/* Create Negative Target Button */}
                       <button
                         onClick={() =>
@@ -7325,6 +7699,86 @@ export const CampaignDetail: React.FC = () => {
                           />
                         </svg>
                       </button>
+                      {/* Bulk Actions Button */}
+                      <div
+                        className="relative inline-flex justify-end"
+                        ref={negativeTargetsBulkActionsRef}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="edit-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowNegativeTargetsBulkActions(
+                              !showNegativeTargetsBulkActions
+                            );
+                          }}
+                        >
+                          <svg
+                            className="w-4 h-4 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Edit
+                          </span>
+                        </Button>
+                        {showNegativeTargetsBulkActions && (
+                          <div className="absolute top-[42px] left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                            <div className="overflow-y-auto">
+                              {[
+                                { value: "enable", label: "Enabled" },
+                                { value: "pause", label: "Paused" },
+                                ...(campaignType === "SD"
+                                  ? [{ value: "archive", label: "Archive" }]
+                                  : []),
+                                { value: "delete", label: "Delete" },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  disabled={
+                                    selectedNegativeTargetIds.size === 0
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (selectedNegativeTargetIds.size === 0)
+                                      return;
+                                    if (opt.value === "delete") {
+                                      setShowNegativeTargetsDeleteConfirmation(
+                                        true
+                                      );
+                                    } else {
+                                      setPendingNegativeTargetsStatusAction(
+                                        opt.value as
+                                          | "enable"
+                                          | "pause"
+                                          | "archive"
+                                      );
+                                      setShowNegativeTargetsConfirmationModal(
+                                        true
+                                      );
+                                    }
+                                    setShowNegativeTargetsBulkActions(false);
+                                  }}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       {/* Add Filter Button */}
                       <button
                         onClick={() =>
@@ -7410,10 +7864,16 @@ export const CampaignDetail: React.FC = () => {
                       adgroups={(allAdgroups.length > 0
                         ? allAdgroups
                         : adgroups
-                      ).map((ag) => ({
-                        adGroupId: ag.adGroupId || String(ag.id),
-                        name: ag.name,
-                      }))}
+                      )
+                        .filter((ag) => {
+                          // Filter out archived ad groups
+                          const status = (ag as any).status || ag.state || "";
+                          return status.toLowerCase() !== "archived";
+                        })
+                        .map((ag) => ({
+                          adGroupId: ag.adGroupId || String(ag.id),
+                          name: ag.name,
+                        }))}
                       campaignId={campaignId || ""}
                       loading={createNegativeTargetLoading}
                       submitError={createNegativeTargetError}
@@ -7430,6 +7890,7 @@ export const CampaignDetail: React.FC = () => {
                     onSelectAll={handleSelectAllNegativeTargets}
                     onSelect={handleSelectNegativeTarget}
                     selectedIds={selectedNegativeTargetIds}
+                    campaignType={campaignType}
                     sortBy={negativeTargetsSortBy}
                     sortOrder={negativeTargetsSortOrder}
                     onSort={handleNegativeTargetsSort}
@@ -7646,6 +8107,7 @@ export const CampaignDetail: React.FC = () => {
                       }}
                       initialFilters={assetsFilters}
                       filterFields={[
+                        { value: "name", label: "Name" },
                         { value: "mediaType", label: "Media Type" },
                         { value: "brandEntityId", label: "Brand Entity ID" },
                         { value: "contentType", label: "Content Type" },
@@ -7769,6 +8231,172 @@ export const CampaignDetail: React.FC = () => {
               </>
             )}
 
+            {activeTab === "Creatives" && (
+              <>
+                {/* Header with Create Creative Button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
+                    Creatives
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {/* Create Creative Button */}
+                    <button
+                      onClick={() => {
+                        setIsCreateCreativePanelOpen(
+                          !isCreateCreativePanelOpen
+                        );
+                      }}
+                      className="create-entity-button text-[10.64px] font-semibold"
+                    >
+                      <svg
+                        className="w-4 h-4 !text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      Create Creative
+                    </button>
+                  </div>
+                </div>
+
+                {/* Create Creative Panel */}
+                {isCreateCreativePanelOpen && (
+                  <div className="mb-4">
+                    <CreateCreativePanel
+                      isOpen={isCreateCreativePanelOpen}
+                      onClose={() => {
+                        setIsCreateCreativePanelOpen(false);
+                        setCreateCreativeError(null);
+                      }}
+                      onSubmit={handleCreateCreative}
+                      adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups).map((ag) => ({
+                        adGroupId: ag.adGroupId,
+                        name: ag.name || `Ad Group ${ag.adGroupId}`,
+                      }))}
+                      loading={createCreativeLoading}
+                    />
+                    {createCreativeError && (
+                      <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-600 text-sm">
+                          {createCreativeError}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <CreativesTable
+                    creatives={creatives}
+                    loading={creativesLoading}
+                    onSelectAll={handleSelectAllCreatives}
+                    onSelect={handleSelectCreative}
+                    selectedIds={selectedCreativeIds}
+                    sortBy={creativesSortBy}
+                    sortOrder={creativesSortOrder}
+                    onSort={handleCreativesSort}
+                  />
+                </div>
+
+                {/* Pagination */}
+                {!creativesLoading &&
+                  creatives.length > 0 &&
+                  creativesTotalPages > 0 && (
+                    <div className="flex items-center justify-end mt-4">
+                      <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-white overflow-hidden">
+                        <button
+                          onClick={() =>
+                            handleCreativesPageChange(
+                              Math.max(1, creativesCurrentPage - 1)
+                            )
+                          }
+                          disabled={creativesCurrentPage === 1}
+                          className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Previous
+                        </button>
+                        {Array.from(
+                          { length: Math.min(5, creativesTotalPages) },
+                          (_, i) => {
+                            let pageNum;
+                            if (creativesTotalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (creativesCurrentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              creativesCurrentPage >=
+                              creativesTotalPages - 2
+                            ) {
+                              pageNum = creativesTotalPages - 4 + i;
+                            } else {
+                              pageNum = creativesCurrentPage - 2 + i;
+                            }
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() =>
+                                  handleCreativesPageChange(pageNum)
+                                }
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                                  creativesCurrentPage === pageNum
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          }
+                        )}
+                        {creativesTotalPages > 5 &&
+                          creativesCurrentPage < creativesTotalPages - 2 && (
+                            <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                              ...
+                            </span>
+                          )}
+                        {creativesTotalPages > 5 && (
+                          <button
+                            onClick={() =>
+                              handleCreativesPageChange(creativesTotalPages)
+                            }
+                            className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                              creativesCurrentPage === creativesTotalPages
+                                ? "bg-white text-[#136D6D] font-semibold"
+                                : "text-black hover:bg-gray-50"
+                            }`}
+                          >
+                            {creativesTotalPages}
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            handleCreativesPageChange(
+                              Math.min(
+                                creativesTotalPages,
+                                creativesCurrentPage + 1
+                              )
+                            )
+                          }
+                          disabled={
+                            creativesCurrentPage === creativesTotalPages
+                          }
+                          className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
+
             {activeTab === "Logs" && (
               <div className="mt-6">
                 <LogsTable
@@ -7789,6 +8417,7 @@ export const CampaignDetail: React.FC = () => {
               activeTab !== "Negative Keywords" &&
               activeTab !== "Negative Targets" &&
               activeTab !== "Assets" &&
+              activeTab !== "Creatives" &&
               activeTab !== "Logs" && (
                 <div className="p-8 text-center text-[#556179]">
                   {activeTab} tab content coming soon...
@@ -8353,62 +8982,270 @@ export const CampaignDetail: React.FC = () => {
       {/* Confirmation Modal for Targets Bulk Actions */}
       {showTargetsConfirmationModal &&
         !pendingTargetChange &&
-        (pendingTargetsStatusAction || selectedTargetIds.size > 0) && (
-          <div className="fixed inset-0 z-[400] flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black bg-opacity-30 transition-opacity"
-              onClick={() => {
-                if (!targetsBulkLoading) {
-                  setShowTargetsConfirmationModal(false);
-                  setPendingTargetsStatusAction(null);
-                }
-              }}
-            />
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-[#E8E8E3]">
-              <div className="p-6">
-                <div className="mb-4 text-center">
-                  <h3 className="text-[20px] font-semibold text-[#072929] mb-2">
-                    Confirm Action
-                  </h3>
-                  <p className="text-[14px] text-[#556179]">
-                    {pendingTargetsStatusAction
-                      ? `Are you sure you want to ${
-                          pendingTargetsStatusAction === "enable"
-                            ? "enable"
-                            : "pause"
-                        } ${selectedTargetIds.size} target(s)?`
-                      : `Are you sure you want to update the bid for ${selectedTargetIds.size} target(s)?`}
-                  </p>
+        (pendingTargetsStatusAction ||
+          isTargetsBidChange ||
+          selectedTargetIds.size > 0) && (
+          <div
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !targetsBulkLoading) {
+                setShowTargetsConfirmationModal(false);
+                setPendingTargetsStatusAction(null);
+                setIsTargetsBidChange(false);
+              }
+            }}
+          >
+            <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                {isTargetsBidChange
+                  ? "Confirm Bid Changes"
+                  : "Confirm Status Changes"}
+              </h3>
+
+              {/* Summary */}
+              <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12.16px] text-[#556179]">
+                    {selectedTargetIds.size} target
+                    {selectedTargetIds.size !== 1 ? "s" : ""} will be updated:
+                  </span>
+                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                    {isTargetsBidChange ? "Bid" : "Status"} change
+                  </span>
                 </div>
-                <div className="flex items-center justify-center gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowTargetsConfirmationModal(false);
-                      setPendingTargetsStatusAction(null);
-                    }}
-                    disabled={targetsBulkLoading}
-                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (pendingTargetsStatusAction) {
-                        await handleBulkTargetsStatus(
-                          pendingTargetsStatusAction
-                        );
-                      } else {
-                        await handleBulkTargetsBid();
-                      }
-                    }}
-                    disabled={targetsBulkLoading}
-                    className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {targetsBulkLoading ? "Processing..." : "Confirm"}
-                  </button>
-                </div>
+              </div>
+
+              {/* Target Preview Table */}
+              {(() => {
+                const selectedTargetsData = targets.filter((tgt) =>
+                  selectedTargetIds.has(tgt.id)
+                );
+                const previewCount = Math.min(10, selectedTargetsData.length);
+                const hasMore = selectedTargetsData.length > 10;
+
+                return (
+                  <div className="mb-6">
+                    <div className="mb-2">
+                      <span className="text-[10.64px] text-[#556179]">
+                        {hasMore
+                          ? `Showing ${previewCount} of ${selectedTargetsData.length} selected targets`
+                          : `${selectedTargetsData.length} target${
+                              selectedTargetsData.length !== 1 ? "s" : ""
+                            } selected`}
+                      </span>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-sandstorm-s20">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              Target Name
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              Old Value
+                            </th>
+                            <th className="text-left px-4 py-2 text-[10.64px] font-semibold text-[#556179] uppercase">
+                              New Value
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedTargetsData
+                            .slice(0, previewCount)
+                            .map((tgt) => {
+                              const oldBid = parseFloat(
+                                (tgt.bid || "$0.00").replace(/[^0-9.]/g, "")
+                              );
+                              const oldStatus = tgt.status || "Enabled";
+                              const calculateNewTargetBid = (
+                                currentBid: number
+                              ) => {
+                                const valueNum = parseFloat(targetsBidValue);
+                                if (isNaN(valueNum)) return currentBid;
+
+                                let newBid = currentBid;
+
+                                if (targetsBidAction === "set") {
+                                  newBid = valueNum;
+                                } else if (targetsBidAction === "increase") {
+                                  if (targetsBidUnit === "percent") {
+                                    newBid =
+                                      currentBid * (1 + valueNum / 100.0);
+                                  } else {
+                                    newBid = currentBid + valueNum;
+                                  }
+                                } else if (targetsBidAction === "decrease") {
+                                  if (targetsBidUnit === "percent") {
+                                    newBid =
+                                      currentBid * (1 - valueNum / 100.0);
+                                  } else {
+                                    newBid = currentBid - valueNum;
+                                  }
+                                }
+
+                                if (targetsBidUpperLimit) {
+                                  const upper =
+                                    parseFloat(targetsBidUpperLimit);
+                                  if (!isNaN(upper)) {
+                                    newBid = Math.min(newBid, upper);
+                                  }
+                                }
+                                if (targetsBidLowerLimit) {
+                                  const lower =
+                                    parseFloat(targetsBidLowerLimit);
+                                  if (!isNaN(lower)) {
+                                    newBid = Math.max(newBid, lower);
+                                  }
+                                }
+
+                                newBid = Math.max(newBid, 0);
+
+                                return Math.round(newBid * 100) / 100;
+                              };
+                              const newBid = isTargetsBidChange
+                                ? calculateNewTargetBid(oldBid)
+                                : oldBid;
+                              const newStatus = pendingTargetsStatusAction
+                                ? pendingTargetsStatusAction
+                                    .charAt(0)
+                                    .toUpperCase() +
+                                  pendingTargetsStatusAction.slice(1)
+                                : oldStatus;
+
+                              return (
+                                <tr
+                                  key={tgt.id}
+                                  className="border-b border-gray-200 last:border-b-0"
+                                >
+                                  <td className="px-4 py-2 text-[10.64px] text-[#072929]">
+                                    {tgt.name || "Unnamed Target"}
+                                  </td>
+                                  <td className="px-4 py-2 text-[10.64px] text-[#556179]">
+                                    {isTargetsBidChange
+                                      ? `$${oldBid.toFixed(2)}`
+                                      : oldStatus}
+                                  </td>
+                                  <td className="px-4 py-2 text-[10.64px] font-semibold text-[#072929]">
+                                    {isTargetsBidChange
+                                      ? `$${newBid.toFixed(2)}`
+                                      : newStatus}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Action Details */}
+              <div className="space-y-3 mb-6">
+                {isTargetsBidChange ? (
+                  <>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                      <span className="text-[12.16px] text-[#556179]">
+                        Action:
+                      </span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {targetsBidAction === "increase"
+                          ? "Increase By"
+                          : targetsBidAction === "decrease"
+                          ? "Decrease By"
+                          : "Set To"}
+                      </span>
+                    </div>
+
+                    {(targetsBidAction === "increase" ||
+                      targetsBidAction === "decrease") && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-[12.16px] text-[#556179]">
+                          Unit:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {targetsBidUnit === "percent"
+                            ? "Percentage (%)"
+                            : "Amount ($)"}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                      <span className="text-[12.16px] text-[#556179]">
+                        Value:
+                      </span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {targetsBidValue}{" "}
+                        {targetsBidUnit === "percent" ? "%" : "$"}
+                      </span>
+                    </div>
+
+                    {targetsBidAction === "increase" &&
+                      targetsBidUpperLimit && (
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            Upper Limit:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            ${targetsBidUpperLimit}
+                          </span>
+                        </div>
+                      )}
+
+                    {targetsBidAction === "decrease" &&
+                      targetsBidLowerLimit && (
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            Lower Limit:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            ${targetsBidLowerLimit}
+                          </span>
+                        </div>
+                      )}
+                  </>
+                ) : (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-[12.16px] text-[#556179]">
+                      New Status:
+                    </span>
+                    <span className="text-[12.16px] font-semibold text-[#072929]">
+                      {pendingTargetsStatusAction
+                        ? pendingTargetsStatusAction.charAt(0).toUpperCase() +
+                          pendingTargetsStatusAction.slice(1)
+                        : ""}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowTargetsConfirmationModal(false);
+                    setPendingTargetsStatusAction(null);
+                    setIsTargetsBidChange(false);
+                  }}
+                  disabled={targetsBulkLoading}
+                  className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (isTargetsBidChange) {
+                      await handleBulkTargetsBid();
+                    } else if (pendingTargetsStatusAction) {
+                      await handleBulkTargetsStatus(pendingTargetsStatusAction);
+                    }
+                  }}
+                  disabled={targetsBulkLoading}
+                  className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0e5a5a] disabled:opacity-50"
+                >
+                  {targetsBulkLoading ? "Updating..." : "Confirm"}
+                </button>
               </div>
             </div>
           </div>
@@ -8649,6 +9486,9 @@ export const CampaignDetail: React.FC = () => {
                               const newStatus =
                                 pendingNegativeTargetsStatusAction === "enable"
                                   ? "Enabled"
+                                  : pendingNegativeTargetsStatusAction ===
+                                    "archive"
+                                  ? "Archived"
                                   : "Paused";
 
                               return (
@@ -8684,6 +9524,8 @@ export const CampaignDetail: React.FC = () => {
                   <span className="text-[12.16px] font-semibold text-[#072929]">
                     {pendingNegativeTargetsStatusAction === "enable"
                       ? "Enabled"
+                      : pendingNegativeTargetsStatusAction === "archive"
+                      ? "Archived"
                       : "Paused"}
                   </span>
                 </div>
@@ -8707,7 +9549,10 @@ export const CampaignDetail: React.FC = () => {
                   onClick={async () => {
                     if (pendingNegativeTargetsStatusAction) {
                       await handleBulkNegativeTargetsStatus(
-                        pendingNegativeTargetsStatusAction
+                        pendingNegativeTargetsStatusAction as
+                          | "enable"
+                          | "pause"
+                          | "archive"
                       );
                     }
                   }}

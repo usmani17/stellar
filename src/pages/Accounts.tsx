@@ -294,12 +294,6 @@ export const Accounts: React.FC = () => {
                 Accounts
               </h1>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowCreateAccount(!showCreateAccount)}
-                  className="create-entity-button"
-                >
-                  Create Account
-                </button>
                 <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">
                   <svg
                     className="w-3 h-3 text-[#556179]"
@@ -356,6 +350,12 @@ export const Accounts: React.FC = () => {
                     </svg>
                   )}
                 </div>
+                <button
+                  onClick={() => setShowCreateAccount(!showCreateAccount)}
+                  className="create-entity-button"
+                >
+                  Create Account
+                </button>
               </div>
             </div>
 

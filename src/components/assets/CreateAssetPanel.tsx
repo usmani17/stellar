@@ -342,13 +342,13 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     if (allowedImageTypes.includes(file.type)) {
       const img = new Image();
       img.onload = () => {
-        if (img.width < 400 || img.height < 400) {
-          setErrors((prev) => ({
-            ...prev,
-            file: "Image must be at least 400x400 pixels",
-          }));
-          return;
-        }
+        // if (img.width < 400 || img.height < 400) {
+        //   setErrors((prev) => ({
+        //     ...prev,
+        //     file: "Image must be at least 400x400 pixels",
+        //   }));
+        //   return;
+        // }
 
         // File is valid
         handleChange("file", file);
@@ -537,7 +537,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               value={assetData.assetName}
               onChange={(e) => handleChange("assetName", e.target.value)}
               placeholder="Enter asset display name"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.assetName ? "border-red-500" : "border-gray-200"
               }`}
             />
@@ -565,7 +565,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                 handleChange("assetType", value as "IMAGE" | "VIDEO")
               }
               placeholder="Select asset type"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
             {errors.assetType && (
               <p className="text-[10px] text-red-500 mt-1">
@@ -655,7 +655,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                   value={assetData.brandEntityId}
                   onChange={(value) => handleChange("brandEntityId", value)}
                   placeholder="Select brand entity"
-                  buttonClassName="w-full"
+                  buttonClassName="edit-button w-full"
                 />
                 {errors.brandEntityId && (
                   <p className="text-[10px] text-red-500 mt-1">
@@ -689,7 +689,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                     }
                   }}
                   placeholder="Enter ASIN (uppercase alphanumeric)"
-                  className="bg-white flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                 />
                 <button
                   type="button"
@@ -747,7 +747,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                     }
                   }}
                   placeholder="Enter tag"
-                  className="bg-white flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                 />
                 <button
                   type="button"
@@ -793,7 +793,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                     : "video/mp4,video/quicktime,video/x-msvideo"
                 }
                 onChange={handleFileChange}
-                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                   errors.file ? "border-red-500" : "border-gray-200"
                 }`}
               />
@@ -924,7 +924,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                             )
                           }
                           placeholder="Enter linked asset ID"
-                          className={`bg-white w-full px-3 py-2 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`w-full campaign-input px-3 py-2 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors["versionInfo.linkedAssetId"]
                               ? "border-red-500"
                               : "border-gray-200"
@@ -951,7 +951,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                           placeholder="Enter version notes"
                           maxLength={1000}
                           rows={3}
-                          className={`bg-white w-full px-3 py-2 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                          className={`w-full campaign-input px-3 py-2 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                             errors["versionInfo.versionNotes"]
                               ? "border-red-500"
                               : "border-gray-200"
@@ -1014,7 +1014,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                           }
                           onChange={(value) => handleProgramChange(value)}
                           placeholder="Select program"
-                          buttonClassName="w-full"
+                          buttonClassName="edit-button w-full"
                         />
                       </div>
                       <div>
@@ -1032,7 +1032,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                             handleDspAdvertiserIdChange(e.target.value)
                           }
                           placeholder="Enter DSP advertiser ID"
-                          className="bg-white w-full px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                          className="w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
                         />
                       </div>
                     </div>

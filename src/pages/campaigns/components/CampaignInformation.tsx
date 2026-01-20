@@ -51,6 +51,18 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
           </div>
         )}
 
+        {/* Profile Name */}
+        {campaignDetail.campaign.profile_name && (
+          <div className="flex flex-col gap-1">
+            <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+              Profile
+            </label>
+            <div className="table-text leading-[1.26]">
+              {campaignDetail.campaign.profile_name}
+            </div>
+          </div>
+        )}
+
         {/* Status - Editable */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -240,4 +252,5 @@ export const CampaignInformation: React.FC<CampaignInformationProps> = ({
     </div>
   );
 };
+
 

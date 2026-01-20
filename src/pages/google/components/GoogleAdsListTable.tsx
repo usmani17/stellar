@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import type { ColumnDefinition } from "./GoogleAdsTable";
+import type { IColumnDefinition } from "./GoogleAdsTable";
 import type { GoogleAd } from "./tabs/GoogleTypes";
 
 export interface GoogleAdsListTableProps {
@@ -114,7 +114,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
   } : null;
 
   // Define columns for ads
-  const columns: ColumnDefinition[] = useMemo(() => [
+  const columns: IColumnDefinition[] = useMemo(() => [
     {
       key: "ad_id",
       label: "Ad ID",

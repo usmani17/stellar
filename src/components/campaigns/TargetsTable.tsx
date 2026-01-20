@@ -33,6 +33,7 @@ interface TargetsTableProps {
     newValue: string;
     oldValue: string;
   } | null;
+  campaignType?: string; // SP, SB, or SD
 }
 
 export const TargetsTable: React.FC<TargetsTableProps> = ({
@@ -52,6 +53,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
   onEditCancel,
   inlineEditLoading = new Set(),
   pendingChange = null,
+  campaignType,
 }) => {
   const statusSelectionMadeRef = useRef<number | null>(null);
   const getSortIcon = (column: string) => {
@@ -314,11 +316,20 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                             options={[
                               { value: "enabled", label: "Enabled" },
                               { value: "paused", label: "Paused" },
+                              ...(campaignType === "SD"
+                                ? [{ value: "archived", label: "Archived" }]
+                                : []),
                             ]}
                             value={(() => {
                               if (editedValue) return editedValue;
                               const statusLower =
                                 target.status?.toLowerCase() || "enabled";
+                              if (
+                                statusLower === "archived" ||
+                                statusLower === "archive"
+                              ) {
+                                return "archived";
+                              }
                               return statusLower === "enable" ||
                                 statusLower === "enabled"
                                 ? "enabled"
@@ -369,11 +380,20 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                             if (!isArchived) {
                               const statusLower =
                                 target.status?.toLowerCase() || "enabled";
-                              const statusValue =
+                              let statusValue = "enabled";
+                              if (
+                                statusLower === "archived" ||
+                                statusLower === "archive"
+                              ) {
+                                statusValue = "archived";
+                              } else if (
                                 statusLower === "enable" ||
                                 statusLower === "enabled"
-                                  ? "enabled"
-                                  : "paused";
+                              ) {
+                                statusValue = "enabled";
+                              } else {
+                                statusValue = "paused";
+                              }
                               onEditStart?.(target.id, "status", statusValue);
                             }
                           }}
@@ -414,23 +434,36 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                       ) : editingField?.id === target.id &&
                         editingField?.field === "bid" ? (
                         <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editedValue}
-                            onChange={(e) => onEditChange?.(e.target.value)}
-                            className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
-                            autoFocus
-                            onBlur={(e) => onEditEnd?.(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === "Escape") {
-                                onEditEnd?.(
-                                  (e.target as HTMLInputElement).value
-                                );
-                              }
-                            }}
-                          />
+                          <div className="flex items-center gap-1">
+                            <span className="text-[13.3px] text-[#0b0f16]">$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.02"
+                              value={editedValue || ""}
+                              onChange={(e) => onEditChange?.(e.target.value)}
+                              className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-20"
+                              autoFocus
+                              onBlur={(e) => {
+                                // Small delay to allow click events to process
+                                setTimeout(() => {
+                                  onEditEnd?.(e.target.value);
+                                }, 200);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  onEditEnd?.(
+                                    (e.target as HTMLInputElement).value
+                                  );
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  onEditCancel?.();
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
                         </div>
                       ) : (
                         <div

@@ -94,6 +94,7 @@ export interface CampaignDetail {
     targetingType?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (camelCase)
     targeting_type?: string; // Only for SP campaigns: "AUTO" or "MANUAL" (snake_case)
     profile_id?: string; // Profile ID for the campaign
+    profile_name?: string; // Profile name for the campaign
     type?: string; // Campaign type (SP, SB, SD)
   };
   kpi_cards: Array<{
@@ -1643,6 +1644,70 @@ export const campaignsService = {
     return response.data;
   },
 
+  archiveSdAdGroup: async (
+    accountId: number,
+    adGroupId: string | number
+  ) => {
+    const url = `/accounts/${accountId}/adgroups/${adGroupId}/archive/`;
+    const response = await api.delete(url);
+    return response.data;
+  },
+
+  // SD Product Ads - Create
+  createSdProductAds: async (
+    accountId: number,
+    campaignId: string,
+    data: {
+      productAds: Array<{
+        state: "enabled" | "paused" | "archived";
+        adGroupId: number;
+        campaignId: number;
+        sku?: string;
+        asin?: string;
+        landingPageURL?: string;
+        landingPageType?: "STORE" | "MOMENT" | "OFF_AMAZON_LINK";
+        adName?: string;
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/sd-productads/create/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  // SD Product Ads - Bulk Update (state only)
+  bulkUpdateSdProductAds: async (
+    accountId: number,
+    data: {
+      adIds: Array<string | number>;
+      status: "enable" | "pause";
+    }
+  ) => {
+    const url = `/accounts/${accountId}/sd-productads/bulk-update/`;
+    const response = await api.post(url, data);
+    return response.data;
+  },
+
+  // SD Product Ads - Archive
+  archiveSdProductAd: async (
+    accountId: number,
+    adId: string | number
+  ) => {
+    const url = `/accounts/${accountId}/sd-productads/${adId}/archive/`;
+    const response = await api.delete(url);
+    return response.data;
+  },
+
+  // SD Targets - Archive
+  archiveSdTarget: async (
+    accountId: number,
+    targetId: string | number
+  ) => {
+    const url = `/accounts/${accountId}/targets/${targetId}/archive/`;
+    const response = await api.delete(url);
+    return response.data;
+  },
+
   bulkDeleteNegativeTargets: async (
     accountId: number,
     payload: {
@@ -2292,6 +2357,31 @@ export const campaignsService = {
   ) => {
     const url = `/accounts/${accountId}/negative-targets/bulk-update/`;
     const response = await api.post(url, payload);
+    return response.data;
+  },
+
+  archiveSdNegativeTarget: async (
+    accountId: number,
+    negativeTargetId: string | number
+  ) => {
+    const url = `/accounts/${accountId}/negative-targets/${negativeTargetId}/archive/`;
+    const response = await api.delete(url);
+    return response.data;
+  },
+
+  createSdCreatives: async (
+    accountId: number,
+    data: {
+      adGroupId: number;
+      creatives: Array<{
+        creativeType: "IMAGE" | "VIDEO";
+        properties: any;
+        consentToTranslate?: boolean;
+      }>;
+    }
+  ) => {
+    const url = `/accounts/${accountId}/sd/creatives/create/`;
+    const response = await api.post(url, data);
     return response.data;
   },
 
@@ -3179,9 +3269,8 @@ export const campaignsService = {
     const params = new URLSearchParams();
     if (campaignId) params.append("campaign_id", String(campaignId));
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.get(url);
     return response.data;
   },

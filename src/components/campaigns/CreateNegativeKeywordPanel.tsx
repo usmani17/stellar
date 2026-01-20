@@ -103,8 +103,9 @@ export const CreateNegativeKeywordPanel: React.FC<
 
   const handleChange = (
     field: keyof NegativeKeywordInput,
-    value: string
+    value: string | undefined
   ) => {
+    if (value === undefined) return;
     setCurrentNegativeKeyword((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field
     if (errors[field]) {
@@ -307,7 +308,7 @@ export const CreateNegativeKeywordPanel: React.FC<
         </h2>
 
         {/* Single line inputs */}
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex items-end gap-3">
           {/* Ad Group Dropdown */}
           <div className="flex-1 min-w-[180px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
@@ -321,7 +322,7 @@ export const CreateNegativeKeywordPanel: React.FC<
               value={currentNegativeKeyword.adGroupId}
               onChange={(value) => handleChange("adGroupId", value)}
               placeholder="Select ad group"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
             {errors.adGroupId && (
               <p className="text-[10px] text-red-500 mt-1">
@@ -340,7 +341,7 @@ export const CreateNegativeKeywordPanel: React.FC<
               value={currentNegativeKeyword.keywordText}
               onChange={(e) => handleChange("keywordText", e.target.value)}
               placeholder="Enter keyword"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`campaign-input bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.keywordText ? "border-red-500" : "border-gray-200"
               }`}
             />
@@ -366,7 +367,7 @@ export const CreateNegativeKeywordPanel: React.FC<
                 )
               }
               placeholder="Select match type"
-              buttonClassName="w-full"
+              buttonClassName="edit-button w-full"
             />
           </div>
 
@@ -378,12 +379,12 @@ export const CreateNegativeKeywordPanel: React.FC<
               </label>
               <Dropdown<string>
                 options={STATE_OPTIONS}
-                value={currentNegativeKeyword.state}
-                onChange={(value) =>
-                  handleChange("state", value as NegativeKeywordInput["state"])
-                }
+                value={currentNegativeKeyword.state || "ENABLED"}
+                onChange={(value: string) => {
+                  handleChange("state", value as NegativeKeywordInput["state"]);
+                }}
                 placeholder="Select state"
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
               />
             </div>
           )}

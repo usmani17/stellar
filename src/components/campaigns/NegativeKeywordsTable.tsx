@@ -129,16 +129,6 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
     );
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "—";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
-    } catch {
-      return dateString;
-    }
-  };
-
   return (
     <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
       <div className="overflow-x-auto w-full">
@@ -167,18 +157,6 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       />
                     </th>
                   )}
-                  {/* ID Header */}
-                  <th
-                    className={`table-header ${
-                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                    }`}
-                    onClick={() => onSort?.("id")}
-                  >
-                    <div className="flex items-center gap-1">
-                      ID
-                      {getSortIcon("id")}
-                    </div>
-                  </th>
 
                   {/* Profile ID Header */}
                   <th className="table-header">
@@ -264,12 +242,6 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                           />
                         </td>
                       )}
-                      {/* ID */}
-                      <td className="table-cell">
-                        <span className="table-text leading-[1.26]">
-                          {keyword.id || "—"}
-                        </span>
-                      </td>
 
                       {/* Profile ID */}
                       <td className="table-cell">
