@@ -1,67 +1,98 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 
 export const Auth0Callback: React.FC = () => {
-  const { isAuthenticated, isLoading: auth0Loading } = useAuth0();
-  const { user, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { user, loading: authLoading, updateUser } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const [hasWaited, setHasWaited] = useState(false);
+  const [processing, setProcessing] = useState(true);
 
   useEffect(() => {
-    // Wait for Auth0 to finish loading
-    if (auth0Loading) {
-      return;
-    }
+    const processCallback = async () => {
+      // Get tokens from URL parameters (backend redirects here with tokens)
+      const accessToken = searchParams.get('access_token');
+      const refreshToken = searchParams.get('refresh_token');
+      const errorParam = searchParams.get('error');
+      const errorDescription = searchParams.get('error_description');
 
-    // If not authenticated with Auth0, redirect to login
-    if (!isAuthenticated) {
-      navigate('/login', { replace: true });
-      return;
-    }
+      // Check for errors
+      if (errorParam) {
+        setError(errorDescription || errorParam);
+        setTimeout(() => navigate('/login', { replace: true }), 5000);
+        return;
+      }
 
-    // Wait for AuthContext to finish syncing user with backend
-    // The AuthContext will call getProfile() which creates the user if needed
-    if (authLoading) {
-      // Still loading, wait
-      return;
-    }
+      // If no tokens, this might be a direct visit - redirect to login
+      if (!accessToken) {
+        navigate('/login', { replace: true });
+        return;
+      }
 
-    // If we have a user, redirect to accounts
-    if (user && user.id) {
-      navigate('/accounts', { replace: true });
-      return;
-    }
+      try {
+        // Store tokens
+        localStorage.setItem('accessToken', accessToken);
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
 
-    // If no user after loading completes, wait a bit more for the sync
-    // This handles the case where getProfile() is still in progress
-    if (!hasWaited) {
-      setHasWaited(true);
-      const timeout = setTimeout(() => {
-        // Check again after waiting
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          try {
-            const userData = JSON.parse(storedUser);
-            if (userData && userData.id) {
-              navigate('/accounts', { replace: true });
+        // Fetch user profile from backend
+        // The backend will automatically create the user if it doesn't exist
+        try {
+          const backendUser = await api.get('/users/profile/');
+          const userData = backendUser.data;
+          
+          localStorage.setItem('user', JSON.stringify(userData));
+          updateUser(userData);
+          
+          // Redirect to accounts
+          navigate('/accounts', { replace: true });
+        } catch (profileError: any) {
+          console.error('Error fetching user profile:', profileError);
+          
+          // Retry with exponential backoff
+          const maxRetries = 3;
+          const retry = async (retryCount: number) => {
+            if (retryCount >= maxRetries) {
+              setError('Failed to fetch user profile. Please try logging in again.');
+              setTimeout(() => navigate('/login', { replace: true }), 5000);
               return;
             }
-          } catch (e) {
-            console.error('Error parsing stored user:', e);
+
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+            setTimeout(async () => {
+              try {
+                const backendUser = await api.get('/users/profile/');
+                const userData = backendUser.data;
+                localStorage.setItem('user', JSON.stringify(userData));
+                updateUser(userData);
+                navigate('/accounts', { replace: true });
+              } catch (retryError) {
+                retry(retryCount + 1);
+              }
+            }, delay);
+          };
+
+          if (profileError?.response?.status === 403 || profileError?.response?.status === 401) {
+            retry(0);
+          } else {
+            setError('Failed to fetch user profile. Please try logging in again.');
+            setTimeout(() => navigate('/login', { replace: true }), 5000);
           }
         }
-        
-        // If still no user, show error
-        setError('Failed to sync user with backend. Please check the console for errors.');
+      } catch (error) {
+        console.error('Error processing Auth0 callback:', error);
+        setError('Failed to process authentication. Please try again.');
         setTimeout(() => navigate('/login', { replace: true }), 5000);
-      }, 3000); // Wait 3 seconds for backend sync
+      } finally {
+        setProcessing(false);
+      }
+    };
 
-      return () => clearTimeout(timeout);
-    }
-  }, [isAuthenticated, auth0Loading, authLoading, user, navigate, hasWaited]);
+    processCallback();
+  }, [searchParams, navigate, updateUser]);
 
   // Show loading state while processing
   if (error) {
@@ -80,7 +111,7 @@ export const Auth0Callback: React.FC = () => {
       <div className="text-forest-f60 text-h900">
         <div>Completing sign in...</div>
         <div className="text-sm mt-2 text-forest-f40">
-          {authLoading ? 'Syncing with backend...' : 'Almost there...'}
+          {processing ? 'Processing authentication...' : 'Almost there...'}
         </div>
       </div>
     </div>

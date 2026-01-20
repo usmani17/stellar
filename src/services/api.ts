@@ -16,6 +16,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // Include cookies in requests (needed for session-based state storage)
 });
 
 // Request interceptor to add auth token
@@ -105,25 +106,30 @@ api.interceptors.response.use(
           return Promise.reject(refreshError);
         }
       } else {
-        // Auth0 login - use Auth0 SDK to get fresh token
-        // The Auth0 SDK automatically handles refresh tokens
+        // Auth0 login - token is stored in localStorage by backend callback
+        // Try to refresh using backend endpoint
         try {
-          if (auth0GetToken) {
-            const token = await auth0GetToken();
-            if (token) {
-              localStorage.setItem("accessToken", token);
-              originalRequest.headers.Authorization = `Bearer ${token}`;
+          const refreshToken = localStorage.getItem("refreshToken");
+          if (refreshToken) {
+            // Try to refresh via backend
+            const refreshResponse = await api.post('/users/refresh-auth0/', {
+              refresh_token: refreshToken,
+            });
+            const newAccessToken = refreshResponse.data.access_token;
+            if (newAccessToken) {
+              localStorage.setItem("accessToken", newAccessToken);
+              originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
               return api(originalRequest);
             }
           }
-
-          // If no token getter is available, try to get from Auth0 context
-          // This is a fallback - the AuthContext should set the getter
-          throw new Error("Auth0 token getter not available");
+          
+          // If refresh fails, clear everything and redirect to login
+          throw new Error("Token refresh failed");
         } catch (auth0Error) {
           // Auth0 refresh failed, clear everything and redirect to login
           console.error("Auth0 token refresh failed:", auth0Error);
           localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
           window.location.href = "/login";
           return Promise.reject(auth0Error);

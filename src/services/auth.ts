@@ -82,4 +82,20 @@ export const authService = {
     });
     return response.data;
   },
+
+  // Backend Auth0 OAuth endpoints
+  getAuth0LoginUrl: async (options?: { connection?: string; screen_hint?: string }): Promise<{ auth_url: string; state: string }> => {
+    const params = new URLSearchParams();
+    if (options?.connection) params.append('connection', options.connection);
+    if (options?.screen_hint) params.append('screen_hint', options.screen_hint);
+    // Don't pass redirect_uri - backend will use its own callback URL from settings
+    
+    const response = await api.get<{ auth_url: string; state: string }>(`/users/auth0/login/?${params.toString()}`);
+    return response.data;
+  },
+
+  getAuth0LogoutUrl: async (): Promise<{ logout_url: string }> => {
+    const response = await api.get<{ logout_url: string }>('/users/auth0/logout/');
+    return response.data;
+  },
 };
