@@ -33,6 +33,7 @@ interface ProductAdsTableProps {
     newValue: string;
     oldValue: string;
   } | null;
+  campaignType?: string; // SP, SB, or SD
 }
 
 export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
@@ -52,6 +53,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
   onEditCancel,
   editLoading,
   pendingChange,
+  campaignType,
 }) => {
   const statusSelectionMadeRef = useRef<number | null>(null);
 
@@ -238,11 +240,20 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                           options={[
                             { value: "enabled", label: "Enabled" },
                             { value: "paused", label: "Paused" },
+                            ...(campaignType === "SD"
+                              ? [{ value: "archived", label: "Archived" }]
+                              : []),
                           ]}
                           value={(() => {
                             if (editedValue) return editedValue;
                             const statusLower =
                               productad.status?.toLowerCase() || "enabled";
+                            if (
+                              statusLower === "archived" ||
+                              statusLower === "archive"
+                            ) {
+                              return "archived";
+                            }
                             return statusLower === "enable" ||
                               statusLower === "enabled"
                               ? "enabled"
@@ -283,10 +294,19 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                         onClick={() => {
                           const statusLower =
                             productad.status?.toLowerCase() || "enabled";
-                          const currentStatus =
-                            statusLower === "enable" || statusLower === "enabled"
-                              ? "enabled"
-                              : "paused";
+                          let currentStatus: string;
+                          if (
+                            statusLower === "archived" ||
+                            statusLower === "archive"
+                          ) {
+                            currentStatus = "archived";
+                          } else {
+                            currentStatus =
+                              statusLower === "enable" ||
+                              statusLower === "enabled"
+                                ? "enabled"
+                                : "paused";
+                          }
                           onEditStart?.(productad.id, "status", currentStatus);
                         }}
                         className="cursor-pointer"

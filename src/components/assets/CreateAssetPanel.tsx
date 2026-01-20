@@ -342,13 +342,13 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
     if (allowedImageTypes.includes(file.type)) {
       const img = new Image();
       img.onload = () => {
-        if (img.width < 400 || img.height < 400) {
-          setErrors((prev) => ({
-            ...prev,
-            file: "Image must be at least 400x400 pixels",
-          }));
-          return;
-        }
+        // if (img.width < 400 || img.height < 400) {
+        //   setErrors((prev) => ({
+        //     ...prev,
+        //     file: "Image must be at least 400x400 pixels",
+        //   }));
+        //   return;
+        // }
 
         // File is valid
         handleChange("file", file);

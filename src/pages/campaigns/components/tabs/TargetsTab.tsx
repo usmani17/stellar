@@ -62,7 +62,7 @@ interface TargetsTabProps {
   onToggleBulkActions: () => void;
   onCloseBulkActions: () => void;
   bulkActionsRef: React.RefObject<HTMLDivElement | null>;
-  onBulkStatusAction: (action: "enable" | "pause") => void;
+  onBulkStatusAction: (action: "enable" | "pause" | "archive") => void;
   onBulkDelete: () => void;
   onBulkEditBid: () => void;
 
@@ -208,7 +208,9 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
                       { value: "enable", label: "Enabled" },
                       { value: "pause", label: "Paused" },
                       { value: "edit_bid", label: "Edit Bid" },
-                      { value: "delete", label: "Delete" },
+                      ...(campaignType === "SD"
+                        ? [{ value: "archive", label: "Archive" }]
+                        : [{ value: "delete", label: "Delete" }]),
                     ].map((opt) => (
                       <button
                         key={opt.value}
@@ -220,12 +222,21 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
                           if (selectedTargetIds.size === 0) return;
                           if (opt.value === "edit_bid") {
                             onBulkEditBid();
-                          } else if (opt.value === "delete") {
-                            onBulkDelete();
+                            // Don't call onCloseBulkActions here - onBulkEditBid already handles closing the dropdown
                           } else {
-                            onBulkStatusAction(opt.value as "enable" | "pause");
+                            if (opt.value === "delete") {
+                              onBulkDelete();
+                            } else if (opt.value === "archive") {
+                              onBulkStatusAction(
+                                "archive" as "enable" | "pause" | "archive"
+                              );
+                            } else {
+                              onBulkStatusAction(
+                                opt.value as "enable" | "pause"
+                              );
+                            }
+                            onCloseBulkActions();
                           }
-                          onCloseBulkActions();
                         }}
                       >
                         {opt.label}
@@ -330,12 +341,16 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
           campaignType={campaignType}
           onClose={onCloseCreatePanel}
           onSubmit={onCreateTargets}
-          adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups).map(
-            (ag) => ({
+          adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)
+            .filter((ag) => {
+              // Filter out archived ad groups
+              const status = (ag as any).status || ag.state || "";
+              return status.toLowerCase() !== "archived";
+            })
+            .map((ag) => ({
               adGroupId: (ag as any).adGroupId || String(ag.id),
               name: ag.name,
-            })
-          )}
+            }))}
           campaignId={campaignId || ""}
           loading={createLoading}
           submitError={createError}
@@ -503,6 +518,7 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
           onEditCancel={onEditCancel}
           inlineEditLoading={editLoading}
           pendingChange={pendingChange}
+          campaignType={campaignType}
         />
       </div>
 
@@ -516,4 +532,3 @@ export const TargetsTab: React.FC<TargetsTabProps> = ({
     </>
   );
 };
-

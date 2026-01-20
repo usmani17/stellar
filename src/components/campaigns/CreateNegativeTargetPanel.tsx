@@ -4,7 +4,8 @@ import { Dropdown } from "../ui/Dropdown";
 export interface NegativeTargetInput {
   adGroupId: string;
   expression: Array<{ type: string; value: string }>;
-  state: "ENABLED" | "PAUSED";
+  state: "ENABLED" | "PAUSED" | "enabled" | "paused" | "archived";
+  expressionType?: "manual" | "auto"; // Required for SD
 }
 
 interface NegativeTargetError {
@@ -54,9 +55,28 @@ const EXPRESSION_TYPE_OPTIONS_SB = [
   { value: "asinSameAs", label: "ASIN Same As" },
 ];
 
+// Expression types for SD negative targets (same as SB)
+const EXPRESSION_TYPE_OPTIONS_SD = [
+  { value: "asinBrandSameAs", label: "ASIN Brand Same As" },
+  { value: "asinSameAs", label: "ASIN Same As" },
+];
+
+// ExpressionType options for SD (manual/auto)
+const EXPRESSION_TYPE_SD_OPTIONS = [
+  { value: "manual", label: "Manual" },
+  { value: "auto", label: "Auto" },
+];
+
 const STATE_OPTIONS = [
   { value: "ENABLED", label: "ENABLED" },
   { value: "PAUSED", label: "PAUSED" },
+];
+
+// State options for SD (lowercase)
+const STATE_OPTIONS_SD = [
+  { value: "enabled", label: "Enabled" },
+  { value: "paused", label: "Paused" },
+  { value: "archived", label: "Archived" },
 ];
 
 export const CreateNegativeTargetPanel: React.FC<
@@ -77,31 +97,35 @@ export const CreateNegativeTargetPanel: React.FC<
   // Get expression type options based on campaign type
   const EXPRESSION_TYPE_OPTIONS = campaignType === "SB" 
     ? EXPRESSION_TYPE_OPTIONS_SB 
+    : campaignType === "SD"
+    ? EXPRESSION_TYPE_OPTIONS_SD
     : EXPRESSION_TYPE_OPTIONS_SP;
   
   const [currentNegativeTarget, setCurrentNegativeTarget] = useState<{
     adGroupId: string;
     expressionType: string;
     expressionValue: string;
-    state: "ENABLED" | "PAUSED";
+    state: "ENABLED" | "PAUSED" | "enabled" | "paused" | "archived";
+    sdExpressionType?: "manual" | "auto"; // For SD campaigns
   }>({
     adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
-    expressionType: campaignType === "SB" ? "asinSameAs" : "ASIN_SAME_AS",
+    expressionType: campaignType === "SB" ? "asinSameAs" : campaignType === "SD" ? "asinSameAs" : "ASIN_SAME_AS",
     expressionValue: "",
-    state: "ENABLED",
+    state: campaignType === "SD" ? "enabled" : "ENABLED",
+    sdExpressionType: campaignType === "SD" ? "manual" : undefined,
   });
   const [addedNegativeTargets, setAddedNegativeTargets] = useState<
     NegativeTargetInput[]
   >([]);
   const [errors, setErrors] = useState<
-    Partial<Record<"adGroupId" | "expressionType" | "expressionValue", string>>
+    Partial<Record<"adGroupId" | "expressionType" | "expressionValue" | "sdExpressionType", string>>
   >({});
   const [negativeTargetErrors, setNegativeTargetErrors] = useState<
     NegativeTargetError[]
   >([]);
 
   const handleChange = (
-    field: "adGroupId" | "expressionType" | "expressionValue" | "state",
+    field: "adGroupId" | "expressionType" | "expressionValue" | "state" | "sdExpressionType",
     value: string
   ) => {
     setCurrentNegativeTarget((prev) => ({ ...prev, [field]: value }));
@@ -113,7 +137,7 @@ export const CreateNegativeTargetPanel: React.FC<
 
   const validate = (): boolean => {
     const newErrors: Partial<
-      Record<"adGroupId" | "expressionType" | "expressionValue", string>
+      Record<"adGroupId" | "expressionType" | "expressionValue" | "sdExpressionType", string>
     > = {};
 
     if (!currentNegativeTarget.adGroupId) {
@@ -128,11 +152,18 @@ export const CreateNegativeTargetPanel: React.FC<
       newErrors.expressionValue = "Expression value is required";
     }
 
+    // For SD campaigns, expressionType (manual/auto) is required
+    if (campaignType === "SD" && !currentNegativeTarget.sdExpressionType) {
+      newErrors.sdExpressionType = "Expression Type (manual/auto) is required for SD campaigns";
+    }
+
     // Validate ASIN format for ASIN-related types
-    // For negative targets, only ASIN_SAME_AS and ASIN_BRAND_SAME_AS are supported
+    // For negative targets, only ASIN_SAME_AS, ASIN_BRAND_SAME_AS, asinSameAs, asinBrandSameAs are supported
     const asinTypes = [
       "ASIN_SAME_AS",
       "ASIN_BRAND_SAME_AS",
+      "asinSameAs",
+      "asinBrandSameAs",
     ];
     if (
       asinTypes.includes(currentNegativeTarget.expressionType) &&
@@ -165,18 +196,25 @@ export const CreateNegativeTargetPanel: React.FC<
       adGroupId: currentNegativeTarget.adGroupId,
       ...(campaignType === "SB" 
         ? { expressions: expressionData }  // SB uses expressions (plural)
+        : campaignType === "SD"
+        ? {
+            expression: expressionData,  // SD uses expression (singular)
+            state: currentNegativeTarget.state as "enabled" | "paused" | "archived",
+            expressionType: currentNegativeTarget.sdExpressionType as "manual" | "auto"
+          }
         : { 
             expression: expressionData,  // SP uses expression (singular)
-            state: currentNegativeTarget.state 
+            state: currentNegativeTarget.state as "ENABLED" | "PAUSED"
           }),
     };
 
     setAddedNegativeTargets([...addedNegativeTargets, negativeTarget]);
     setCurrentNegativeTarget({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
-      expressionType: campaignType === "SB" ? "asinSameAs" : "ASIN_SAME_AS",
+      expressionType: campaignType === "SB" ? "asinSameAs" : campaignType === "SD" ? "asinSameAs" : "ASIN_SAME_AS",
       expressionValue: "",
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      sdExpressionType: campaignType === "SD" ? "manual" : undefined,
     });
     setErrors({});
   };
@@ -203,9 +241,10 @@ export const CreateNegativeTargetPanel: React.FC<
     setAddedNegativeTargets([]);
     setCurrentNegativeTarget({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
-      expressionType: campaignType === "SB" ? "asinSameAs" : "ASIN_SAME_AS",
+      expressionType: campaignType === "SB" ? "asinSameAs" : campaignType === "SD" ? "asinSameAs" : "ASIN_SAME_AS",
       expressionValue: "",
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      sdExpressionType: campaignType === "SD" ? "manual" : undefined,
     });
     setErrors({});
     setNegativeTargetErrors([]);
@@ -248,7 +287,7 @@ export const CreateNegativeTargetPanel: React.FC<
       )}
 
       {/* Form */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+      <div className={`grid grid-cols-1 ${campaignType === "SD" ? "md:grid-cols-5" : "md:grid-cols-4"} gap-4 mb-4`}>
         {/* Ad Group */}
         <div>
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
@@ -274,7 +313,7 @@ export const CreateNegativeTargetPanel: React.FC<
           )}
         </div>
 
-        {/* Expression Type */}
+        {/* Expression Type (Predicate Type) */}
         <div>
           <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
             Expression Type
@@ -297,6 +336,32 @@ export const CreateNegativeTargetPanel: React.FC<
             </p>
           )}
         </div>
+
+        {/* Expression Type (Manual/Auto) - Only for SD */}
+        {campaignType === "SD" && (
+          <div>
+            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              Expression Type (Manual/Auto) *
+            </label>
+            <Dropdown
+              options={EXPRESSION_TYPE_SD_OPTIONS}
+              value={currentNegativeTarget.sdExpressionType || ""}
+              onChange={(value) => handleChange("sdExpressionType", value)}
+              placeholder="Select Type"
+              buttonClassName="w-full bg-[#FEFEFB]"
+            />
+            {errors.sdExpressionType && (
+              <p className="mt-1 text-[11.2px] text-red-600">
+                {errors.sdExpressionType}
+              </p>
+            )}
+            {fieldErrors.expressionType && (
+              <p className="mt-1 text-[11.2px] text-red-600">
+                {fieldErrors.expressionType}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Expression Value */}
         <div>
@@ -333,10 +398,10 @@ export const CreateNegativeTargetPanel: React.FC<
               State
             </label>
             <Dropdown
-              options={STATE_OPTIONS}
+              options={campaignType === "SD" ? STATE_OPTIONS_SD : STATE_OPTIONS}
               value={currentNegativeTarget.state}
               onChange={(value) =>
-                handleChange("state", value as "ENABLED" | "PAUSED")
+                handleChange("state", value)
               }
               placeholder="Select State"
               buttonClassName="w-full bg-[#FEFEFB]"
@@ -406,7 +471,13 @@ export const CreateNegativeTargetPanel: React.FC<
                     <td className="px-4 py-2 table-text">
                       {firstExpression?.value || "—"}
                     </td>
-                    {/* State column - only show for SP campaigns */}
+                    {/* ExpressionType column - only show for SD campaigns */}
+                    {campaignType === "SD" && (
+                      <td className="px-4 py-2 table-text">
+                        {(ntg as any).expressionType || "—"}
+                      </td>
+                    )}
+                    {/* State column - only show for SP/SD campaigns */}
                     {campaignType !== "SB" && (
                       <td className="px-4 py-2 table-text">
                         {ntg.state || "—"}

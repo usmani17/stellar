@@ -228,11 +228,17 @@ export const AdGroupsTab: React.FC<AdGroupsTabProps> = ({
                     { value: "pause", label: "Paused" },
                     ...(campaignType !== "SB"
                       ? [
-                          { value: "archive", label: "Archived" },
                           { value: "edit_bid", label: "Edit Default Bid" },
                         ]
                       : []),
-                    { value: "delete", label: "Delete" },
+                    ...(campaignType === "SD"
+                      ? [{ value: "archive", label: "Archive" }]
+                      : campaignType !== "SB"
+                      ? [{ value: "archive", label: "Archived" }]
+                      : []),
+                    ...(campaignType !== "SD" && campaignType !== "SB"
+                      ? [{ value: "delete", label: "Delete" }]
+                      : []),
                   ].map((opt) => (
                     <button
                       key={opt.value}

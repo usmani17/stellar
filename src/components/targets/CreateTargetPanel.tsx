@@ -4,9 +4,21 @@ import { Dropdown } from "../ui/Dropdown";
 export interface TargetInput {
   adGroupId: string;
   bid: number;
-  expressionType: string;
-  expressionValue: string;
-  state: "ENABLED" | "PAUSED" | "PROPOSED";
+  expressionType: string; // For SP/SB: expression type (ASIN_SAME_AS, etc.), For SD: "manual" or "auto"
+  expressionValue: string; // For SP/SB: ASIN or value, For SD: expression structure type (views, purchases, etc.)
+  state: "ENABLED" | "PAUSED" | "PROPOSED" | "enabled" | "paused" | "archived";
+  // SD-specific: nested expression structure
+  expression?: Array<{
+    type: string;
+    value?: string | Array<{ type: string; value?: string }>;
+  }>;
+  // SD-specific: expression structure type
+  sdExpressionStructureType?: "TargetingPredicate" | "ContentTargetingPredicate" | "TargetingPredicateNested";
+  // SD-specific: for nested expressions
+  sdNestedType?: "views" | "audience" | "purchases";
+  sdNestedPredicates?: Array<{ type: string; value: string }>;
+  // SD-specific: for content targeting
+  sdContentCategory?: string;
 }
 
 interface TargetError {
@@ -79,10 +91,131 @@ const EXPRESSION_TYPE_OPTIONS_SB = [
   { value: "asinSameAs", label: "ASIN Same As" },
 ];
 
+// Expression structure types for SD campaigns
+const SD_EXPRESSION_STRUCTURE_TYPES = [
+  { value: "TargetingPredicate", label: "Targeting Predicate" },
+  { value: "ContentTargetingPredicate", label: "Content Targeting Predicate" },
+  { value: "TargetingPredicateNested", label: "Targeting Predicate Nested" },
+];
+
+// TargetingPredicate types for SD
+const SD_TARGETING_PREDICATE_TYPES = [
+  { value: "asinSameAs", label: "ASIN Same As" },
+  { value: "asinCategorySameAs", label: "ASIN Category Same As" },
+  { value: "asinBrandSameAs", label: "ASIN Brand Same As" },
+  { value: "asinPriceBetween", label: "ASIN Price Between" },
+  { value: "asinPriceGreaterThan", label: "ASIN Price Greater Than" },
+  { value: "asinPriceLessThan", label: "ASIN Price Less Than" },
+  { value: "asinReviewRatingLessThan", label: "ASIN Review Rating Less Than" },
+  { value: "asinReviewRatingGreaterThan", label: "ASIN Review Rating Greater Than" },
+  { value: "asinReviewRatingBetween", label: "ASIN Review Rating Between" },
+  { value: "asinIsPrimeShippingEligible", label: "ASIN Is Prime Shipping Eligible" },
+  { value: "asinAgeRangeSameAs", label: "ASIN Age Range Same As" },
+  { value: "asinGenreSameAs", label: "ASIN Genre Same As" },
+  { value: "similarProduct", label: "Similar Product" },
+];
+
+// TargetingPredicateNested types
+const SD_NESTED_TYPES = [
+  { value: "views", label: "Views" },
+  { value: "audience", label: "Audience" },
+  { value: "purchases", label: "Purchases" },
+];
+
+// Nested predicate types (TargetingPredicateBase)
+const SD_NESTED_PREDICATE_TYPES = [
+  { value: "asinCategorySameAs", label: "ASIN Category Same As" },
+  { value: "asinBrandSameAs", label: "ASIN Brand Same As" },
+  { value: "asinPriceBetween", label: "ASIN Price Between" },
+  { value: "asinPriceGreaterThan", label: "ASIN Price Greater Than" },
+  { value: "asinPriceLessThan", label: "ASIN Price Less Than" },
+  { value: "asinReviewRatingLessThan", label: "ASIN Review Rating Less Than" },
+  { value: "asinReviewRatingGreaterThan", label: "ASIN Review Rating Greater Than" },
+  { value: "asinReviewRatingBetween", label: "ASIN Review Rating Between" },
+  { value: "similarProduct", label: "Similar Product" },
+  { value: "exactProduct", label: "Exact Product" },
+  { value: "asinIsPrimeShippingEligible", label: "ASIN Is Prime Shipping Eligible" },
+  { value: "asinAgeRangeSameAs", label: "ASIN Age Range Same As" },
+  { value: "asinGenreSameAs", label: "ASIN Genre Same As" },
+  { value: "audienceSameAs", label: "Audience Same As" },
+  { value: "lookback", label: "Lookback" },
+  { value: "negative", label: "Negative" },
+  { value: "relatedProduct", label: "Related Product" },
+];
+
+// Content categories for ContentTargetingPredicate
+const SD_CONTENT_CATEGORIES = [
+  { category: "Movies and Television", subcategory: "All Movies and Television", value: "amzn1.iab-content.SPHQS" },
+  { category: "Movies and Television", subcategory: "Action or Adventure", value: "amzn1.iab-content.325" },
+  { category: "Movies and Television", subcategory: "Animation or Anime", value: "amzn1.iab-content.641" },
+  { category: "Movies and Television", subcategory: "Biographies", value: "amzn1.iab-content.44" },
+  { category: "Movies and Television", subcategory: "Comedy", value: "amzn1.iab-content.646" },
+  { category: "Movies and Television", subcategory: "Documentary", value: "amzn1.iab-content.332" },
+  { category: "Movies and Television", subcategory: "Drama", value: "amzn1.iab-content.647" },
+  { category: "Movies and Television", subcategory: "Factual", value: "amzn1.iab-content.648" },
+  { category: "Movies and Television", subcategory: "Family", value: "amzn1.iab-content.645" },
+  { category: "Movies and Television", subcategory: "Fantasy", value: "amzn1.iab-content.335" },
+  { category: "Movies and Television", subcategory: "History", value: "amzn1.iab-content.EZWB7V" },
+  { category: "Movies and Television", subcategory: "Holiday", value: "amzn1.iab-content.649" },
+  { category: "Movies and Television", subcategory: "Horror", value: "amzn1.iab-content.336" },
+  { category: "Movies and Television", subcategory: "Lifestyle", value: "amzn1.iab-content.TIFQA5" },
+  { category: "Movies and Television", subcategory: "Music Video", value: "amzn1.iab-content.650" },
+  { category: "Movies and Television", subcategory: "Musicals", value: "amzn1.iab-content.156" },
+  { category: "Movies and Television", subcategory: "Mystery", value: "amzn1.iab-content.331" },
+  { category: "Movies and Television", subcategory: "Reality TV", value: "amzn1.iab-content.651" },
+  { category: "Movies and Television", subcategory: "Romance", value: "amzn1.iab-content.326" },
+  { category: "Movies and Television", subcategory: "Science Fiction", value: "amzn1.iab-content.652" },
+  { category: "Movies and Television", subcategory: "Soap Opera", value: "amzn1.iab-content.642" },
+  { category: "Movies and Television", subcategory: "Special Interest (Indie or Art House)", value: "amzn1.iab-content.643" },
+  { category: "Movies and Television", subcategory: "Sports Radio", value: "amzn1.iab-content.370" },
+  { category: "Movies and Television", subcategory: "Talk Show", value: "amzn1.iab-content.A0AH3G" },
+  { category: "Movies and Television", subcategory: "True Crime", value: "amzn1.iab-content.KHPC5A" },
+  { category: "Movies and Television", subcategory: "Western", value: "amzn1.iab-content.KHPC6A" },
+  { category: "Music and Radio", subcategory: "All Music and Radio", value: "amzn1.iab-content.338" },
+  { category: "Music and Radio", subcategory: "Blues", value: "amzn1.iab-content.360" },
+  { category: "Music and Radio", subcategory: "Classical Music", value: "amzn1.iab-content.346" },
+  { category: "Music and Radio", subcategory: "Comedy (Music and Audio)", value: "amzn1.iab-content.348" },
+  { category: "Music and Radio", subcategory: "Pop, Contemporary Hits, or Top 40 Music", value: "amzn1.iab-content.349" },
+  { category: "Music and Radio", subcategory: "Country Music", value: "amzn1.iab-content.350" },
+  { category: "Music and Radio", subcategory: "Dance and Electronic Music", value: "amzn1.iab-content.351" },
+  { category: "Music and Radio", subcategory: "Hip Hop Music", value: "amzn1.iab-content.355" },
+  { category: "Music and Radio", subcategory: "Inspirational or New Age Music", value: "amzn1.iab-content.356" },
+  { category: "Music and Radio", subcategory: "Jazz", value: "amzn1.iab-content.357" },
+  { category: "Music and Radio", subcategory: "Oldies or Adult Standards", value: "amzn1.iab-content.358" },
+  { category: "Music and Radio", subcategory: "R&B, Soul or Funk Music", value: "amzn1.iab-content.362" },
+  { category: "Music and Radio", subcategory: "Songwriters or Folk", value: "amzn1.iab-content.353" },
+  { category: "Music and Radio", subcategory: "World or International Music", value: "amzn1.iab-content.352" },
+  { category: "Video Games", subcategory: "All Video Games", value: "amzn1.iab-content.680" },
+  { category: "Video Games", subcategory: "Action-Adventure Games", value: "amzn1.iab-content.691" },
+  { category: "Video Games", subcategory: "Casual Games", value: "amzn1.iab-content.693" },
+  { category: "Video Games", subcategory: "Puzzle Video Games", value: "amzn1.iab-content.698" },
+  { category: "Video Games", subcategory: "Racing Video Games", value: "amzn1.iab-content.VK7KD0" },
+  { category: "Video Games", subcategory: "Role-Playing Video Games", value: "amzn1.iab-content.687" },
+  { category: "Video Games", subcategory: "Simulation Video Games", value: "amzn1.iab-content.688" },
+  { category: "Video Games", subcategory: "Sports Video Games", value: "amzn1.iab-content.689" },
+  { category: "Video Games", subcategory: "Strategy Video Games", value: "amzn1.iab-content.690" },
+  { category: "Video Games", subcategory: "PC Games", value: "amzn1.iab-content.684" },
+  { category: "Video Games", subcategory: "Mobile Games", value: "amzn1.iab-content.683" },
+  { category: "Video Games", subcategory: "Console Games", value: "amzn1.iab-content.681" },
+  { category: "Video Games", subcategory: "eSports", value: "amzn1.iab-content.682" },
+];
+
+// ExpressionType options for SD campaigns (manual or auto)
+const EXPRESSION_TYPE_SD_OPTIONS = [
+  { value: "manual", label: "Manual" },
+  { value: "auto", label: "Auto" },
+];
+
 const STATE_OPTIONS = [
   { value: "ENABLED", label: "ENABLED" },
   { value: "PAUSED", label: "PAUSED" },
   { value: "PROPOSED", label: "PROPOSED" },
+];
+
+const STATE_OPTIONS_SD = [
+  { value: "enabled", label: "Enabled" },
+  { value: "paused", label: "Paused" },
+  { value: "archived", label: "Archived" },
 ];
 
 export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
@@ -100,16 +233,25 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   failedTargets = [],
 }) => {
   // Get expression type options based on campaign type
+  // Note: For SD campaigns, expression types are handled differently via sdExpressionStructureType
   const EXPRESSION_TYPE_OPTIONS = campaignType === "SB" 
     ? EXPRESSION_TYPE_OPTIONS_SB 
     : EXPRESSION_TYPE_OPTIONS_SP;
   
+  const STATE_OPTIONS_TO_USE = campaignType === "SD" 
+    ? STATE_OPTIONS_SD 
+    : STATE_OPTIONS;
+  
   const [currentTarget, setCurrentTarget] = useState<TargetInput>({
     adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
     bid: 0.1,
-    expressionType: campaignType === "SB" ? "asinSameAs" : "ASIN_SAME_AS",
+    expressionType: campaignType === "SB" ? "asinSameAs" : campaignType === "SD" ? "manual" : "ASIN_SAME_AS",
     expressionValue: "",
-    state: "ENABLED",
+    state: campaignType === "SD" ? "enabled" : "ENABLED",
+    sdExpressionStructureType: campaignType === "SD" ? "TargetingPredicate" : undefined,
+    sdNestedType: undefined,
+    sdNestedPredicates: [],
+    sdContentCategory: "",
   });
   const [addedTargets, setAddedTargets] = useState<TargetInput[]>([]);
   const [errors, setErrors] = useState<
@@ -117,12 +259,47 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   >({});
   const [targetErrors, setTargetErrors] = useState<TargetError[]>([]);
 
-  const handleChange = (field: keyof TargetInput, value: string | number) => {
-    setCurrentTarget((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (field: keyof TargetInput, value: string | number | any) => {
+    setCurrentTarget((prev) => {
+      const updated = { ...prev, [field]: value };
+      // Reset dependent fields when structure type changes
+      if (field === "sdExpressionStructureType" && campaignType === "SD") {
+        updated.expressionValue = "";
+        updated.sdContentCategory = "";
+        updated.sdNestedType = undefined;
+        updated.sdNestedPredicates = [];
+      }
+      return updated;
+    });
     // Clear error for this field
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
+  };
+
+  const handleAddNestedPredicate = () => {
+    setCurrentTarget((prev) => ({
+      ...prev,
+      sdNestedPredicates: [
+        ...(prev.sdNestedPredicates || []),
+        { type: "", value: "" },
+      ],
+    }));
+  };
+
+  const handleRemoveNestedPredicate = (index: number) => {
+    setCurrentTarget((prev) => ({
+      ...prev,
+      sdNestedPredicates: (prev.sdNestedPredicates || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleNestedPredicateChange = (index: number, field: "type" | "value", value: string) => {
+    setCurrentTarget((prev) => {
+      const predicates = [...(prev.sdNestedPredicates || [])];
+      predicates[index] = { ...predicates[index], [field]: value };
+      return { ...prev, sdNestedPredicates: predicates };
+    });
   };
 
   const validate = (): boolean => {
@@ -132,12 +309,52 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
       newErrors.adGroupId = "Ad Group is required";
     }
 
-    if (!currentTarget.expressionValue.trim()) {
-      newErrors.expressionValue = "Expression value is required";
-    }
-
     if (currentTarget.bid <= 0) {
       newErrors.bid = "Bid must be greater than 0";
+    }
+
+    // SD-specific validation
+    if (campaignType === "SD") {
+      if (!currentTarget.sdExpressionStructureType) {
+        newErrors.sdExpressionStructureType = "Expression structure type is required";
+      } else {
+        if (currentTarget.sdExpressionStructureType === "TargetingPredicate") {
+          const predicateType = currentTarget.expression?.[0]?.type || currentTarget.expressionValue;
+          const predicateValue = currentTarget.expression?.[0]?.value as string;
+          if (!predicateType) {
+            newErrors.expressionValue = "Predicate type is required";
+          }
+          if (!predicateValue?.trim()) {
+            newErrors.expressionValue = "Predicate value is required";
+          }
+        } else if (currentTarget.sdExpressionStructureType === "ContentTargetingPredicate") {
+          if (!currentTarget.sdContentCategory) {
+            newErrors.sdContentCategory = "Content category is required";
+          }
+        } else if (currentTarget.sdExpressionStructureType === "TargetingPredicateNested") {
+          if (!currentTarget.sdNestedType) {
+            newErrors.sdNestedType = "Nested type (views/audience/purchases) is required";
+          }
+          if (!currentTarget.sdNestedPredicates || currentTarget.sdNestedPredicates.length === 0) {
+            newErrors.sdNestedPredicates = "At least one nested predicate is required";
+          } else {
+            // Validate each nested predicate
+            currentTarget.sdNestedPredicates.forEach((pred, idx) => {
+              if (!pred.type) {
+                newErrors[`nestedPredicate_${idx}_type` as keyof TargetInput] = "Predicate type is required";
+              }
+              if (!pred.value?.trim()) {
+                newErrors[`nestedPredicate_${idx}_value` as keyof TargetInput] = "Predicate value is required";
+              }
+            });
+          }
+        }
+      }
+    } else {
+      // SP/SB validation
+      if (!currentTarget.expressionValue.trim()) {
+        newErrors.expressionValue = "Expression value is required";
+      }
     }
 
     setErrors(newErrors);
@@ -149,16 +366,56 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
       return;
     }
 
+    // For SD campaigns, ensure expression is properly formatted
+    let targetToAdd = { ...currentTarget };
+    if (campaignType === "SD" && targetToAdd.sdExpressionStructureType) {
+      // Build expression based on structure type
+      if (targetToAdd.sdExpressionStructureType === "TargetingPredicate") {
+        // Use expression array if available, otherwise build from expressionValue
+        if (!targetToAdd.expression || targetToAdd.expression.length === 0) {
+          const predicateType = targetToAdd.expression?.[0]?.type || targetToAdd.expressionValue;
+          const predicateValue = targetToAdd.expression?.[0]?.value as string || "";
+          if (predicateType) {
+            targetToAdd.expression = [{ type: predicateType, value: predicateValue }];
+          }
+        }
+      } else if (targetToAdd.sdExpressionStructureType === "ContentTargetingPredicate") {
+        // Set expression for content targeting
+        if (targetToAdd.sdContentCategory) {
+          targetToAdd.expression = [{
+            type: "contentCategorySameAs",
+            value: targetToAdd.sdContentCategory,
+          }];
+        }
+      } else if (targetToAdd.sdExpressionStructureType === "TargetingPredicateNested") {
+        // Set expression for nested
+        if (targetToAdd.sdNestedType && targetToAdd.sdNestedPredicates && targetToAdd.sdNestedPredicates.length > 0) {
+          targetToAdd.expression = [{
+            type: targetToAdd.sdNestedType,
+            value: targetToAdd.sdNestedPredicates.map(pred => ({
+              type: pred.type,
+              value: pred.value,
+            })),
+          }];
+        }
+      }
+    }
+
     // Add target to the list
-    setAddedTargets((prev) => [...prev, { ...currentTarget }]);
+    setAddedTargets((prev) => [...prev, targetToAdd]);
 
     // Reset form for next target
     setCurrentTarget({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       bid: 0.1,
-      expressionType: "ASIN_SAME_AS",
+      expressionType: campaignType === "SB" ? "asinSameAs" : campaignType === "SD" ? "manual" : "ASIN_SAME_AS",
       expressionValue: "",
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      sdExpressionStructureType: campaignType === "SD" ? "TargetingPredicate" : undefined,
+      sdNestedType: undefined,
+      sdNestedPredicates: [],
+      sdContentCategory: "",
+      expression: undefined,
     });
     setErrors({});
   };
@@ -301,9 +558,13 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     setCurrentTarget({
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       bid: 0.1,
-      expressionType: "ASIN_SAME_AS",
+      expressionType: campaignType === "SB" ? "asinSameAs" : campaignType === "SD" ? "manual" : "ASIN_SAME_AS",
       expressionValue: "",
-      state: "ENABLED",
+      state: campaignType === "SD" ? "enabled" : "ENABLED",
+      sdExpressionStructureType: campaignType === "SD" ? "TargetingPredicate" : undefined,
+      sdNestedType: undefined,
+      sdNestedPredicates: [],
+      sdContentCategory: "",
     });
     setErrors({});
     setTargetErrors([]);
@@ -349,7 +610,21 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
             )}
           </div>
 
-          {/* Expression Type */}
+          {/* Expression Type - For SD: manual/auto, For SP/SB: expression types */}
+          {campaignType === "SD" ? (
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                Expression Type *
+              </label>
+              <Dropdown<string>
+                options={EXPRESSION_TYPE_SD_OPTIONS}
+                value={currentTarget.expressionType}
+                onChange={(value) => handleChange("expressionType", value)}
+                placeholder="Select type"
+                buttonClassName="w-full"
+              />
+            </div>
+          ) : (
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
               Expression Type *
@@ -362,27 +637,220 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               buttonClassName="w-full"
             />
           </div>
+          )}
 
-          {/* Expression Value */}
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-              Expression Value *
-            </label>
-            <input
-              type="text"
-              value={currentTarget.expressionValue}
-              onChange={(e) => handleChange("expressionValue", e.target.value)}
-              placeholder="Enter ASIN or value"
-              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                errors.expressionValue ? "border-red-500" : "border-gray-200"
-              }`}
-            />
-            {errors.expressionValue && (
-              <p className="text-[10px] text-red-500 mt-1">
-                {errors.expressionValue}
-              </p>
-            )}
-          </div>
+          {/* Expression Value - For SD: dynamic based on structure type, For SP/SB: ASIN or value */}
+          {campaignType === "SD" ? (
+            <>
+              {/* Expression Structure Type */}
+              <div className="flex-1 min-w-[220px]">
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Expression Structure *
+                </label>
+                <Dropdown<string>
+                  options={SD_EXPRESSION_STRUCTURE_TYPES}
+                  value={currentTarget.sdExpressionStructureType || ""}
+                  onChange={(value) => handleChange("sdExpressionStructureType", value)}
+                  placeholder="Select structure type"
+                  buttonClassName="w-full"
+                />
+                {errors.sdExpressionStructureType && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.sdExpressionStructureType}
+                  </p>
+                )}
+              </div>
+
+              {/* Dynamic fields based on structure type */}
+              {currentTarget.sdExpressionStructureType === "TargetingPredicate" && (
+                <>
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      Predicate Type *
+                    </label>
+                    <Dropdown<string>
+                      options={SD_TARGETING_PREDICATE_TYPES}
+                      value={currentTarget.expression?.[0]?.type || currentTarget.expressionValue || ""}
+                      onChange={(value) => {
+                        const currentValue = currentTarget.expression?.[0]?.value || "";
+                        setCurrentTarget(prev => ({
+                          ...prev,
+                          expressionValue: value,
+                          expression: value ? [{ type: value, value: currentValue }] : [],
+                        }));
+                      }}
+                      placeholder="Select predicate type"
+                      buttonClassName="w-full"
+                    />
+                    {errors.expressionValue && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.expressionValue}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      Predicate Value *
+                    </label>
+                    <input
+                      type="text"
+                      value={currentTarget.expression?.[0]?.value as string || ""}
+                      onChange={(e) => {
+                        const exprType = currentTarget.expression?.[0]?.type || currentTarget.expressionValue;
+                        if (exprType) {
+                          setCurrentTarget(prev => ({
+                            ...prev,
+                            expression: [{ type: exprType, value: e.target.value }],
+                          }));
+                        }
+                      }}
+                      placeholder="Enter value (e.g., ASIN)"
+                      className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        errors.expressionValue ? "border-red-500" : "border-gray-200"
+                      }`}
+                    />
+                  </div>
+                </>
+              )}
+
+              {currentTarget.sdExpressionStructureType === "ContentTargetingPredicate" && (
+                <div className="flex-1 min-w-[300px]">
+                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    Content Category *
+                  </label>
+                  <Dropdown<string>
+                    options={SD_CONTENT_CATEGORIES.map(cat => ({
+                      value: cat.value,
+                      label: `${cat.category} - ${cat.subcategory}`,
+                    }))}
+                    value={currentTarget.sdContentCategory || ""}
+                    onChange={(value) => handleChange("sdContentCategory", value)}
+                    placeholder="Select content category"
+                    buttonClassName="w-full"
+                  />
+                  {errors.sdContentCategory && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.sdContentCategory}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {currentTarget.sdExpressionStructureType === "TargetingPredicateNested" && (
+                <>
+                  <div className="flex-1 min-w-[180px]">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      Nested Type *
+                    </label>
+                    <Dropdown<string>
+                      options={SD_NESTED_TYPES}
+                      value={currentTarget.sdNestedType || ""}
+                      onChange={(value) => handleChange("sdNestedType", value)}
+                      placeholder="Select type"
+                      buttonClassName="w-full"
+                    />
+                    {errors.sdNestedType && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.sdNestedType}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Nested Predicates Section for TargetingPredicateNested */}
+              {currentTarget.sdExpressionStructureType === "TargetingPredicateNested" && (
+                <div className="w-full mt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
+                      Nested Predicates *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAddNestedPredicate}
+                      className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a] font-semibold"
+                    >
+                      + Add Predicate
+                    </button>
+                  </div>
+                  {currentTarget.sdNestedPredicates && currentTarget.sdNestedPredicates.length > 0 ? (
+                    <div className="space-y-2">
+                      {currentTarget.sdNestedPredicates.map((pred, idx) => (
+                        <div key={idx} className="flex gap-2 items-end">
+                          <div className="flex-1 min-w-[200px]">
+                            <Dropdown<string>
+                              options={SD_NESTED_PREDICATE_TYPES}
+                              value={pred.type}
+                              onChange={(value) => handleNestedPredicateChange(idx, "type", value)}
+                              placeholder="Select predicate type"
+                              buttonClassName="w-full"
+                            />
+                            {errors[`nestedPredicate_${idx}_type` as keyof TargetInput] && (
+                              <p className="text-[10px] text-red-500 mt-1">
+                                {errors[`nestedPredicate_${idx}_type` as keyof TargetInput]}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-[200px]">
+                            <input
+                              type="text"
+                              value={pred.value}
+                              onChange={(e) => handleNestedPredicateChange(idx, "value", e.target.value)}
+                              placeholder="Enter value"
+                              className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                                errors[`nestedPredicate_${idx}_value` as keyof TargetInput] ? "border-red-500" : "border-gray-200"
+                              }`}
+                            />
+                            {errors[`nestedPredicate_${idx}_value` as keyof TargetInput] && (
+                              <p className="text-[10px] text-red-500 mt-1">
+                                {errors[`nestedPredicate_${idx}_value` as keyof TargetInput]}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNestedPredicate(idx)}
+                            className="px-3 py-2.5 text-red-500 hover:text-red-700 text-[11.2px]"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11.2px] text-gray-500 italic">
+                      No predicates added. Click "Add Predicate" to add one.
+                    </p>
+                  )}
+                  {errors.sdNestedPredicates && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.sdNestedPredicates}
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                Expression Value *
+              </label>
+              <input
+                type="text"
+                value={currentTarget.expressionValue}
+                onChange={(e) => handleChange("expressionValue", e.target.value)}
+                placeholder="Enter ASIN or value"
+                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  errors.expressionValue ? "border-red-500" : "border-gray-200"
+                }`}
+              />
+              {errors.expressionValue && (
+                <p className="text-[10px] text-red-500 mt-1">
+                  {errors.expressionValue}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Bid */}
           <div className="w-[120px]">
@@ -415,7 +883,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                 State *
               </label>
               <Dropdown<string>
-                options={STATE_OPTIONS}
+                options={STATE_OPTIONS_TO_USE}
                 value={currentTarget.state}
                 onChange={(value) =>
                   handleChange("state", value as TargetInput["state"])
@@ -476,10 +944,10 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                       Ad Group
                     </th>
                     <th className="table-header">
-                      Expression Type
+                      {campaignType === "SD" ? "Expression Structure" : "Expression Type"}
                     </th>
                     <th className="table-header">
-                      Expression Value
+                      {campaignType === "SD" ? "Expression Details" : "Expression Value"}
                     </th>
                     <th className="table-header">
                       Bid
@@ -543,9 +1011,12 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         <td className="table-cell">
                           <div className="flex flex-col">
                             <span className="table-text leading-[1.26]">
-                              {EXPRESSION_TYPE_OPTIONS.find(
-                                (opt) => opt.value === target.expressionType
-                              )?.label || target.expressionType}
+                              {campaignType === "SD" 
+                                ? (target.sdExpressionStructureType || "—")
+                                : (EXPRESSION_TYPE_OPTIONS.find(
+                                    (opt) => opt.value === target.expressionType
+                                  )?.label || target.expressionType)
+                              }
                             </span>
                             {targetRowErrors
                               .filter((e) => e.field === "expressionType")
@@ -562,7 +1033,17 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         <td className="table-cell">
                           <div className="flex flex-col">
                             <span className="table-text leading-[1.26]">
-                              {target.expressionValue}
+                              {campaignType === "SD" ? (
+                                target.sdExpressionStructureType === "TargetingPredicate" ? (
+                                  `${target.expression?.[0]?.type || target.expressionValue || "—"}: ${target.expression?.[0]?.value || "—"}`
+                                ) : target.sdExpressionStructureType === "ContentTargetingPredicate" ? (
+                                  SD_CONTENT_CATEGORIES.find(cat => cat.value === target.sdContentCategory)?.subcategory || target.sdContentCategory || "—"
+                                ) : target.sdExpressionStructureType === "TargetingPredicateNested" ? (
+                                  `${target.sdNestedType || "—"} (${target.sdNestedPredicates?.length || 0} predicates)`
+                                ) : "—"
+                              ) : (
+                                target.expressionValue
+                              )}
                             </span>
                             {targetRowErrors
                               .filter((e) => e.field === "expressionValue")
