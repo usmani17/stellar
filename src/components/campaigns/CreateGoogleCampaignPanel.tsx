@@ -21,7 +21,7 @@ interface CreateGoogleCampaignPanelProps {
 }
 
 export interface CreateGoogleCampaignData {
-  campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN";
+  campaign_type: "PERFORMANCE_MAX" | "SHOPPING" | "SEARCH" | "DEMAND_GEN" | "DISPLAY" | "VIDEO";
   customer_id?: string;
   name: string;
   budget_amount: number;
@@ -68,6 +68,13 @@ export interface CreateGoogleCampaignData {
     youtube_in_stream?: boolean;
     youtube_shorts?: boolean;
   };
+  // Display fields
+  network_settings?: {
+    target_content_network?: boolean;
+    target_google_search?: boolean;
+    target_search_network?: boolean;
+    target_partner_search_network?: boolean;
+  };
 }
 
 const CAMPAIGN_TYPES = [
@@ -75,6 +82,8 @@ const CAMPAIGN_TYPES = [
   { value: "SHOPPING", label: "Shopping" },
   { value: "SEARCH", label: "Search" },
   { value: "DEMAND_GEN", label: "Demand Gen" },
+  { value: "DISPLAY", label: "Display" },
+  { value: "VIDEO", label: "Video (Read-Only)", disabled: true },
 ];
 
 const STATUS_OPTIONS = [
@@ -242,6 +251,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         youtube_in_stream: true,
         youtube_shorts: true,
       },
+      network_settings: {
+        target_content_network: true,
+        target_google_search: false,
+        target_search_network: false,
+        target_partner_search_network: false,
+      },
     });
     setErrors({});
     setLogoPreview(null);
@@ -276,6 +291,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           opt.value === "TARGET_CPA" ||
           opt.value === "TARGET_ROAS"
       );
+    } else if (campaignType === "DISPLAY") {
+      // Display campaigns support all bidding strategies
+      return BIDDING_STRATEGY_OPTIONS;
     } else {
       // SEARCH - TARGET_CPA and TARGET_ROAS are not supported
       // They require conversion tracking setup and historical conversion data
@@ -298,6 +316,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       return "MANUAL_CPC";
     } else if (campaignType === "DEMAND_GEN") {
       return "MAXIMIZE_CONVERSIONS";
+    } else if (campaignType === "DISPLAY") {
+      return "MANUAL_CPC";
     } else {
       // SEARCH
       return "MANUAL_CPC";
@@ -313,6 +333,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       
       // When campaign type changes, update default bidding strategy
       if (field === "campaign_type") {
+        // Prevent switching to VIDEO (read-only)
+        if (value === "VIDEO") {
+          setErrors({
+            campaign_type: "VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.",
+          });
+          return prev; // Don't update if trying to select VIDEO
+        }
+        
         const defaultStrategy = getDefaultBiddingStrategy(value);
         // Only set default if bidding_strategy_type is not already set or if current value is not valid for new type
         const availableStrategies = getAvailableBiddingStrategies(value);
@@ -342,6 +370,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             youtube_in_feed: true,
             youtube_in_stream: true,
             youtube_shorts: true,
+          };
+        }
+        
+        // Initialize network settings for Display
+        if (value === "DISPLAY" && !updated.network_settings) {
+          updated.network_settings = {
+            target_content_network: true,
+            target_google_search: false,
+            target_search_network: false,
+            target_partner_search_network: false,
           };
         }
       }
@@ -530,6 +568,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       if (!formData.merchant_id?.trim()) {
         newErrors.merchant_id = "Merchant ID is required";
       }
+    } else if (formData.campaign_type === "VIDEO") {
+      // VIDEO campaigns cannot be created via API
+      newErrors.campaign_type = "VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.";
     } else if (formData.campaign_type === "DEMAND_GEN") {
       // Demand Gen validation
       if (!formData.final_url?.trim()) {
@@ -607,6 +648,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevent submission of VIDEO campaigns
+    if (formData.campaign_type === "VIDEO") {
+      setErrors({
+        campaign_type: "VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.",
+      });
+      return;
+    }
+
     if (!validate()) {
       return;
     }
@@ -621,7 +670,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         ? (formData.descriptions || []).filter((d) => d.trim())
         : undefined,
       // Remove Search-specific fields - ad groups and keywords will be created separately
-      adgroup_name: undefined,
+      adgroup_name: formData.campaign_type === "DISPLAY" ? formData.adgroup_name : undefined,
       keywords: undefined,
       match_type: undefined,
       // For Demand Gen, ensure only one of video_url or video_id is sent
@@ -814,6 +863,37 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     setLogoPreview("https://placehold.co/128x128");
   };
 
+  const quickFillDisplay = () => {
+    const today = new Date();
+    const dateStr = formatDateForName(today);
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + 14); // 14 days from now
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 1); // 1 day after start date
+    
+    setFormData({
+      campaign_type: "DISPLAY",
+      name: `Display Campaign Stellar FE - ${dateStr} - 1`,
+      budget_amount: 50,
+      budget_name: "Test Display Budget",
+      status: "PAUSED",
+      bidding_strategy_type: "MANUAL_CPC",
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+      adgroup_name: "Display Ad Group",
+      network_settings: {
+        target_content_network: true,
+        target_google_search: false,
+        target_search_network: false,
+        target_partner_search_network: false,
+      },
+      sales_country: "US",
+      campaign_priority: 0,
+      enable_local: false,
+    });
+    setErrors({});
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -965,6 +1045,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     title="Quick fill Demand Gen campaign with test data"
                   >
                     Quick Fill Demand Gen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={quickFillDisplay}
+                    className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-[10px] hover:bg-indigo-200 transition-colors"
+                    title="Quick fill Display campaign with test data"
+                  >
+                    Quick Fill Display
                   </button>
                 </div>
                 )}
@@ -2100,6 +2188,90 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 <p className="text-[10px] text-[#556179] mt-1">
                   Control where your Demand Gen ads appear. All channels are enabled by default.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* Display Specific Fields */}
+          {formData.campaign_type === "DISPLAY" && (
+            <div className="mt-6 space-y-4">
+              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
+                Display Settings
+              </h3>
+
+              {/* Ad Group Name */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Ad Group Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.adgroup_name || ""}
+                  onChange={(e) => handleChange("adgroup_name", e.target.value)}
+                  className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  placeholder="Optional ad group name"
+                />
+              </div>
+
+              {/* Network Settings */}
+              <div>
+                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  Network Settings
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white border border-gray-200 rounded">
+                  {[
+                    { key: "target_content_network", label: "Display Network", default: true },
+                    { key: "target_google_search", label: "Google Search", default: false },
+                    { key: "target_search_network", label: "Search Network", default: false },
+                    { key: "target_partner_search_network", label: "Partner Search Network", default: false },
+                  ].map((network) => (
+                    <label key={network.key} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.network_settings?.[network.key as keyof typeof formData.network_settings] ?? network.default}
+                        onChange={(e) => {
+                          const current = formData.network_settings || {};
+                          handleChange("network_settings", {
+                            ...current,
+                            [network.key]: e.target.checked,
+                          });
+                        }}
+                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
+                      />
+                      <span className="text-[13px] text-[#072929]">{network.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#556179] mt-1">
+                  Control where your Display ads appear. Display Network is enabled by default.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* VIDEO Campaign - Read Only Message */}
+          {formData.campaign_type === "VIDEO" && (
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <div>
+                  <h4 className="text-[13px] font-semibold text-yellow-800 mb-1">
+                    Video Campaigns Cannot Be Created via API
+                  </h4>
+                  <p className="text-[12px] text-yellow-700">
+                    VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.
+                  </p>
+                </div>
               </div>
             </div>
           )}
