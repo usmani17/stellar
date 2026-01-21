@@ -26,8 +26,3 @@ export const useAccounts = (options?: { enabled?: boolean }) => {
     },
   });
 };
-
-
-
-
-

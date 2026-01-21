@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { queryClient } from "../lib/queryClient";
+import { accountsService } from "../services/accounts";
+import { queryKeys } from "../hooks/queries/queryKeys";
 import {
   AuthPageLayout,
   AuthHeader,
@@ -26,10 +29,30 @@ export const Login: React.FC = () => {
 
     try {
       await login({ email, password });
+      
+      // Prefetch accounts data before navigating so they're ready when page loads
+      try {
+        await queryClient.prefetchQuery({
+          queryKey: queryKeys.accounts.lists(),
+          queryFn: async () => {
+            const data = await accountsService.getAccounts();
+            return Array.isArray(data) ? data : [];
+          },
+        });
+      } catch (prefetchError) {
+        // If prefetch fails, that's okay - the Accounts page will fetch on mount
+        console.warn("Failed to prefetch accounts:", prefetchError);
+      }
+      
       navigate("/accounts");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed. Please try again.");
-    } finally {
+      // Better error handling - check for axios error structure
+      const errorMessage = 
+        err?.response?.data?.error || 
+        err?.response?.data?.message ||
+        err?.message ||
+        "Login failed. Please check your email and password.";
+      setError(errorMessage);
       setLoading(false);
     }
   };
