@@ -5,6 +5,7 @@ import React, {
   useMemo,
   type ReactNode,
 } from "react";
+import { useAuth } from "./AuthContext";
 import { useAccounts as useAccountsQuery } from "../hooks/queries/useAccounts";
 import { accountsService, type Account } from "../services/accounts";
 import { getAccountIdFromUrl } from "../utils/urlHelpers";
@@ -26,13 +27,27 @@ const AccountsContext = createContext<AccountsContextType | undefined>(
 export const AccountsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const { user, loading: authLoading } = useAuth();
+
+  // Determine if user is authenticated
+  // Check both auth context (Auth0) and localStorage (traditional login)
+  const isAuthenticated = useMemo(() => {
+    // If auth is still loading, don't enable the query yet
+    if (authLoading) {
+      return false;
+    }
+    // Check if user is authenticated via Auth0 or has access token from traditional login
+    return !!(user || localStorage.getItem("accessToken"));
+  }, [user, authLoading]);
+
   // Use React Query hook for accounts data
+  // Only fetch accounts when user is authenticated
   const {
     data: accounts = [],
     isLoading: loading,
     error,
     refetch,
-  } = useAccountsQuery();
+  } = useAccountsQuery({ enabled: isAuthenticated });
 
   // loadAccounts is kept for backward compatibility but uses React Query's refetch
   const loadAccounts = useCallback(async () => {
