@@ -128,6 +128,9 @@ export const DashboardHeader: React.FC = () => {
 
   // Get current marketplace/channel from URL
   const currentMarketplace = getMarketplaceFromUrl(location.pathname);
+  
+  // Hide date picker and account dropdown on profile page
+  const isProfilePage = location.pathname === "/profile";
 
   // Use React Query hook for selected account's channels
   const { data: selectedAccountChannels = [] } = useChannels(
@@ -140,12 +143,13 @@ export const DashboardHeader: React.FC = () => {
     : null;
 
   return (
-    <div className="h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center justify-between px-7">
+    <div className="h-20 bg-white border-b border-[rgba(0,0,0,0.1)] flex items-center px-7">
       {/* ACCOUNT */}
-      <div
-        ref={accountDropdownRef}
-        className="relative flex items-center gap-3"
-      >
+      {!isProfilePage && (
+        <div
+          ref={accountDropdownRef}
+          className="relative flex items-center gap-3"
+        >
         <button
           onClick={() => {
             if (accounts.length === 0) {
@@ -285,11 +289,13 @@ export const DashboardHeader: React.FC = () => {
             </ul>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* RIGHT */}
-      <div className="flex items-center gap-5">
-        <div className="relative" ref={datePickerRef}>
+      <div className="flex items-center gap-5 ml-auto">
+        {!isProfilePage && (
+          <div className="relative" ref={datePickerRef}>
           <button
             onClick={() => setIsDatePickerOpen((p) => !p)}
             className="flex items-center gap-2 h-10 px-4 bg-[#FEFEFB] border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
@@ -351,7 +357,8 @@ export const DashboardHeader: React.FC = () => {
               />
             </div>
           )}
-        </div>
+          </div>
+        )}
 
         <div className="relative" ref={profileDropdownRef}>
           <button
@@ -372,6 +379,15 @@ export const DashboardHeader: React.FC = () => {
                     {user?.email}
                   </div>
                 </div>
+                <button
+                  onClick={() => {
+                    setIsProfileDropdownOpen(false);
+                    navigate("/profile");
+                  }}
+                  className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
+                >
+                  Profile
+                </button>
                 <button
                   onClick={() => {
                     logout();

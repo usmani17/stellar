@@ -19,6 +19,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [auth0Loading, setAuth0Loading] = useState(false);
   const { login, loginWithAuth0 } = useAuth();
   const navigate = useNavigate();
 
@@ -58,7 +59,20 @@ export const Login: React.FC = () => {
   };
 
   const handleAuth0Login = async () => {
-    await loginWithAuth0();
+    setAuth0Loading(true);
+    try {
+      await loginWithAuth0();
+      // Note: We don't set loading to false here because the page will redirect
+      // If there's an error, it will be caught and we'll reset the loading state
+    } catch (err: any) {
+      const errorMessage = 
+        err?.response?.data?.error || 
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to initiate Auth0 login. Please try again.";
+      setError(errorMessage);
+      setAuth0Loading(false);
+    }
   };
 
   return (
@@ -164,6 +178,8 @@ export const Login: React.FC = () => {
             className="self-stretch"
             variant="oauth"
             type="button"
+            loading={auth0Loading}
+            loadingText="Processing"
           >
             <div className="flex items-center gap-2">
               <img src={auth0Icon} alt="Auth0" className="w-5 h-5" />
