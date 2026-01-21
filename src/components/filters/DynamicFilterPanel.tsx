@@ -659,7 +659,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder={`Enter ${currentField?.label || ""}`}
-                  className="campaign-input"
+                  className="campaign-input w-full"
                 />
               ) : (
                 <input
@@ -667,7 +667,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder={`Enter ${currentField?.label || ""}`}
-                  className="campaign-input"
+                  className="campaign-input w-full"
                 />
               )}
             </div>
@@ -675,10 +675,36 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
           {/* Add Filter Button */}
           <div className="flex flex-col">
+            {/* Empty placeholder to match label height (text-[11.2px] + mb-2) */}
             <div className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase invisible">
               &nbsp;
             </div>
-            <div className="flex gap-2">
+            {editingFilterId ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddFilter}
+                  disabled={
+                    !selectedField ||
+                    (selectedOperator === "between"
+                      ? !filterValueMin || !filterValueMax
+                      : fieldIsMultiSelect
+                      ? selectedMultiValues.length === 0
+                      : !filterValue) ||
+                    (fieldNeedsOperator && !selectedOperator)
+                  }
+                  className="apply-button-add flex-1"
+                >
+                  Update Filter
+                </button>
+                <button
+                  onClick={resetForm}
+                  className="cancel-button flex-1"
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
               <button
                 onClick={handleAddFilter}
                 disabled={
@@ -692,18 +718,9 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                 }
                 className="apply-button-add"
               >
-                {editingFilterId ? "Update Filter" : "Add Filter"}
+                Add Filter
               </button>
-              {editingFilterId && (
-                <button
-                  onClick={resetForm}
-                  className="cancel-button"
-                  type="button"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>

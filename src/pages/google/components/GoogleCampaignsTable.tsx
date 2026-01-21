@@ -146,7 +146,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       type: "text",
       sortable: true,
       render: (_value: any, row: IGoogleCampaign) => (
-                        <span className="table-text leading-[1.26] font-semibold text-[#7a4dff]">
+        <span className="table-text leading-[1.26]">
           {getChannelTypeLabel(row.advertising_channel_type) || "—"}
         </span>
       ),

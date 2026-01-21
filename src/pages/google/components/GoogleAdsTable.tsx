@@ -425,7 +425,7 @@ export function GoogleAdsTable<T = any>({
                 }
               }}
               autoFocus
-              className="w-full px-3 py-2 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40 min-w-[100px]"
+              className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
             />
           </div>
         );

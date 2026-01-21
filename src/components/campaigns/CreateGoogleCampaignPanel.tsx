@@ -81,9 +81,9 @@ const CAMPAIGN_TYPES = [
   { value: "PERFORMANCE_MAX", label: "Performance Max" },
   { value: "SHOPPING", label: "Shopping" },
   { value: "SEARCH", label: "Search" },
-  { value: "DEMAND_GEN", label: "Demand Gen" },
-  { value: "DISPLAY", label: "Display" },
-  { value: "VIDEO", label: "Video (Read-Only)", disabled: true },
+  // { value: "DEMAND_GEN", label: "Demand Gen" },
+  // { value: "DISPLAY", label: "Display" },
+  // { value: "VIDEO", label: "Video (Read-Only)", disabled: true },
 ];
 
 const STATUS_OPTIONS = [
@@ -1038,22 +1038,22 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   >
                     Quick Fill Search
                   </button>
-                  <button
+                  {/* <button
                     type="button"
                     onClick={quickFillDemandGen}
                     className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-[10px] hover:bg-orange-200 transition-colors"
                     title="Quick fill Demand Gen campaign with test data"
                   >
                     Quick Fill Demand Gen
-                  </button>
-                  <button
+                  </button> */}
+                  {/* <button
                     type="button"
                     onClick={quickFillDisplay}
                     className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-[10px] hover:bg-indigo-200 transition-colors"
                     title="Quick fill Display campaign with test data"
                   >
                     Quick Fill Display
-                  </button>
+                  </button> */}
                 </div>
                 )}
               </div>
