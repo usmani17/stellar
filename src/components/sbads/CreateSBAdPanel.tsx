@@ -1559,7 +1559,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                           handleCustomImageChange(index, "assetId", e.target.value)
                         }
                         placeholder="amzn1.assetlibrary.asset1..."
-                        className="flex-1 w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
+                        className="flex-1 min-w-[200px] w-full campaign-input px-3 py-2 border border-gray-200 rounded-lg text-[11.2px]"
                       />
                       <Dropdown<string>
                         options={assets
@@ -1580,9 +1580,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                               : asset.assetId || `Asset ${asset.id}`,
                           }))}
                         value={image.assetId || ""}
-                        onChange={(value) =>
-                          handleCustomImageChange(index, "assetId", value)
-                        }
+                        onChange={(value) => {
+                          handleCustomImageChange(index, "assetId", value || "");
+                        }}
                         placeholder={assetsLoading ? "Loading..." : "Select Asset"}
                         buttonClassName="edit-button px-3 py-2 border border-gray-200 rounded-lg text-[11.2px] bg-white hover:bg-gray-50 max-w-[300px] truncate"
                         menuClassName="max-w-[300px]"

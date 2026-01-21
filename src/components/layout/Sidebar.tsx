@@ -209,10 +209,36 @@ export const Sidebar: React.FC = () => {
         !location.pathname.includes("/tiktok")
       );
     }
+    // Handle marketplace-specific logs routes FIRST to prevent global logs from matching
+    if (path === "/amazon/logs") {
+      return (
+        location.pathname.includes("/amazon/logs") ||
+        location.pathname.includes("/amazon/log-history")
+      );
+    }
+    if (path === "/google/logs") {
+      return (
+        location.pathname.includes("/google/logs") ||
+        location.pathname.includes("/google/log-history")
+      );
+    }
+    if (path === "/tiktok/logs") {
+      return (
+        location.pathname.includes("/tiktok/logs") ||
+        location.pathname.includes("/tiktok/log-history")
+      );
+    }
+    // Global logs route - only match if NOT a marketplace-specific route
     if (path === "/log-history" || path === "/logs") {
       return (
-        location.pathname.includes("/log-history") ||
-        location.pathname.includes("/logs")
+        (location.pathname.includes("/log-history") ||
+          location.pathname.includes("/logs")) &&
+        !location.pathname.includes("/amazon/logs") &&
+        !location.pathname.includes("/amazon/log-history") &&
+        !location.pathname.includes("/google/logs") &&
+        !location.pathname.includes("/google/log-history") &&
+        !location.pathname.includes("/tiktok/logs") &&
+        !location.pathname.includes("/tiktok/log-history")
       );
     }
     return location.pathname === path;
@@ -552,6 +578,53 @@ export const Sidebar: React.FC = () => {
                   </span>
                 )}
               </Link>
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/amazon/logs`
+                    : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId
+                      ? `/accounts/${accountId}/amazon/logs`
+                      : "/accounts/1/amazon/logs"
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/amazon/logs") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/amazon/logs")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Logs" : undefined}
+              >
+                <svg
+                  className={`w-5 h-5 ${
+                    isActive("/amazon/logs") ? "brightness-0 invert" : ""
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/amazon/logs") ? "!text-white" : ""
+                    }`}
+                  >
+                    Logs
+                  </span>
+                )}
+              </Link>
             </div>
           )}
         </div>
@@ -744,6 +817,53 @@ export const Sidebar: React.FC = () => {
                   </span>
                 )}
               </Link>
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/google/logs`
+                    : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId
+                      ? `/accounts/${accountId}/google/logs`
+                      : "/accounts/1/google/logs"
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/google/logs") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/google/logs")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Logs" : undefined}
+              >
+                <svg
+                  className={`w-5 h-5 ${
+                    isActive("/google/logs") ? "brightness-0 invert" : ""
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/google/logs") ? "!text-white" : ""
+                    }`}
+                  >
+                    Logs
+                  </span>
+                )}
+              </Link>
             </div>
           )}
         </div>
@@ -893,6 +1013,53 @@ export const Sidebar: React.FC = () => {
                     }`}
                   >
                     Ads
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/tiktok/logs`
+                    : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId
+                      ? `/accounts/${accountId}/tiktok/logs`
+                      : "/accounts/1/tiktok/logs"
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/tiktok/logs") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/tiktok/logs")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Logs" : undefined}
+              >
+                <svg
+                  className={`w-5 h-5 ${
+                    isActive("/tiktok/logs") ? "brightness-0 invert" : ""
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/tiktok/logs") ? "!text-white" : ""
+                    }`}
+                  >
+                    Logs
                   </span>
                 )}
               </Link>

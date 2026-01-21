@@ -854,6 +854,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
           newErrors.endDate = "End date must be greater than start date";
         }
       }
+      
+      // SB campaigns with LIFETIME budget type require endDate
+      if (formData.type === "SB" && 
+          (formData.budgetType?.toUpperCase() === "LIFETIME" || formData.budgetType === "lifetime")) {
+        if (!formData.endDate || !formData.endDate.trim()) {
+          newErrors.endDate = "End date is required for campaigns with LIFETIME budget type";
+        }
+      }
     }
 
     // SD specific validation
@@ -1456,8 +1464,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           const campaignType: string = formData.type;
                           if (campaignType === "SD") {
                             return [
-                              { value: "daily", label: "DAILY" },
-                              // Note: SD campaigns only support "daily" budget type per Amazon API
+                              { value: "DAILY", label: "DAILY" },
+                              // Note: SD campaigns only support "DAILY" budget type per Amazon API
                             ];
                           } else if (campaignType === "SP") {
                             return [
@@ -1807,9 +1815,10 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </div>
                 )}
 
-                {/* Start Date - For SB campaigns (editable in edit mode) */}
+                {/* Start Date and End Date - For SB campaigns */}
                 {formData.type === "SB" && (
                   <div className="grid grid-cols-4 gap-6">
+                    {/* Start Date */}
                     <div>
                       <label className="block text-[13px] font-semibold text-[#072929] mb-2">
                         Start Date
@@ -1834,6 +1843,42 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         </p>
                       )}
                     </div>
+
+                    {/* End Date - Required for LIFETIME budget type */}
+                    {(formData.budgetType?.toUpperCase() === "LIFETIME" || formData.budgetType === "lifetime") && (
+                      <div>
+                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                          End Date <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="date"
+                            value={formData.endDate || ""}
+                            onChange={(e) =>
+                              handleChange("endDate", e.target.value)
+                            }
+                            min={
+                              formData.startDate ||
+                              new Date().toISOString().split("T")[0]
+                            } // Must be after start date or today
+                            className={`campaign-input w-full ${
+                              errors.endDate
+                                ? "border-red-500"
+                                : "border-gray-200"
+                            }`}
+                          />
+                        </div>
+                        {errors.endDate ? (
+                          <p className="text-[10px] text-red-500 mt-1">
+                            {errors.endDate}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-[#556179] mt-1">
+                            Required for LIFETIME budget type
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -5660,23 +5660,58 @@ export const CampaignDetail: React.FC = () => {
         // Reload negative targets to show the new ones
         await loadNegativeTargets();
       } else {
-        // Partial success or all failed - show summary and keep panel open
-        const successMessage =
-          created > 0
-            ? `${created} negative target(s) created successfully. ${failed} negative target(s) failed.`
-            : `All ${failed} negative target(s) failed to create.`;
+        // Partial success or all failed - extract detailed error messages
+        const errorMessages: string[] = [];
 
-        setCreateNegativeTargetError(successMessage);
-
-        // Show summary popup for partial success
-        if (created > 0 && failed > 0) {
-          setErrorModal({
-            isOpen: true,
-            title: "Summary",
-            message: `${created} negative target(s) created successfully. ${failed} negative target(s) failed.`,
-            isSuccess: false,
+        // Extract error messages from failed_negative_targets
+        if (
+          failedNegativeTargetsData &&
+          Array.isArray(failedNegativeTargetsData)
+        ) {
+          failedNegativeTargetsData.forEach((failed: any) => {
+            if (failed.errors && Array.isArray(failed.errors)) {
+              failed.errors.forEach((err: any) => {
+                const errorMsg =
+                  err.message || err.details || JSON.stringify(err);
+                if (errorMsg && !errorMessages.includes(errorMsg)) {
+                  errorMessages.push(errorMsg);
+                }
+              });
+            }
           });
         }
+
+        // Also check errors array from response
+        if (response.errors && Array.isArray(response.errors)) {
+          response.errors.forEach((err: string) => {
+            if (err && !errorMessages.includes(err)) {
+              errorMessages.push(err);
+            }
+          });
+        }
+
+        // Build error message
+        let errorMessage = "";
+        if (created > 0) {
+          errorMessage = `${created} negative target(s) created successfully. ${failed} negative target(s) failed.`;
+        } else {
+          errorMessage = `All ${failed} negative target(s) failed to create.`;
+        }
+
+        // Append detailed error messages
+        if (errorMessages.length > 0) {
+          errorMessage += "\n\nErrors:\n" + errorMessages.join("\n");
+        }
+
+        setCreateNegativeTargetError(errorMessage);
+
+        // Show summary popup with detailed errors
+        setErrorModal({
+          isOpen: true,
+          title: created > 0 ? "Partial Success" : "Error",
+          message: errorMessage,
+          isSuccess: false,
+        });
       }
 
       // Handle field errors if available
@@ -5685,10 +5720,72 @@ export const CampaignDetail: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error creating negative targets:", error);
-      const errorMessage =
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to create negative targets. Please try again.";
+
+      // Extract detailed error messages from response
+      let errorMessage = "Failed to create negative targets. Please try again.";
+
+      if (error?.response?.data) {
+        const responseData = error.response.data;
+
+        // Check for failed_negative_targets array with detailed errors
+        if (
+          responseData.failed_negative_targets &&
+          Array.isArray(responseData.failed_negative_targets) &&
+          responseData.failed_negative_targets.length > 0
+        ) {
+          const errorMessages = responseData.failed_negative_targets
+            .map((failed: any) => {
+              if (
+                failed.errors &&
+                Array.isArray(failed.errors) &&
+                failed.errors.length > 0
+              ) {
+                return failed.errors
+                  .map(
+                    (err: any) =>
+                      err.message || err.details || JSON.stringify(err)
+                  )
+                  .join("; ");
+              }
+              return null;
+            })
+            .filter((msg: string | null) => msg !== null);
+
+          if (errorMessages.length > 0) {
+            errorMessage = errorMessages.join(" | ");
+          }
+        }
+
+        // Fallback to errors array
+        if (
+          errorMessage ===
+            "Failed to create negative targets. Please try again." &&
+          responseData.errors &&
+          Array.isArray(responseData.errors) &&
+          responseData.errors.length > 0
+        ) {
+          errorMessage = responseData.errors.join(" | ");
+        }
+
+        // Fallback to error field
+        if (
+          errorMessage ===
+            "Failed to create negative targets. Please try again." &&
+          responseData.error
+        ) {
+          errorMessage = responseData.error;
+        }
+      }
+
+      // Final fallback to error message
+      if (
+        errorMessage ===
+          "Failed to create negative targets. Please try again." &&
+        error?.message
+      ) {
+        errorMessage = error.message;
+      }
+
       setCreateNegativeTargetError(errorMessage);
       setErrorModal({
         isOpen: true,
@@ -8763,14 +8860,13 @@ export const CampaignDetail: React.FC = () => {
             )}
 
             {activeTab === "Logs" && (
-              <div className="mt-6">
-                <LogsTable
-                  accountId={accountId}
-                  campaignId={campaignId}
-                  showHeader={false}
-                  showExport={true}
-                />
-              </div>
+              <LogsTable
+                accountId={accountId}
+                campaignId={campaignId}
+                marketplace="amazon"
+                showHeader={false}
+                showExport={true}
+              />
             )}
 
             {activeTab !== "Overview" &&

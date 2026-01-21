@@ -163,7 +163,7 @@ const SD_CONTENT_CATEGORIES = [
   {
     category: "Movies and Television",
     subcategory: "All Movies and Television",
-    value: "amzn1.iab-content.SPHQS",
+    value: "amzn1.iab-content.SPSHQ5",
   },
   {
     category: "Movies and Television",
@@ -349,6 +349,16 @@ const SD_CONTENT_CATEGORIES = [
     category: "Music and Radio",
     subcategory: "R&B, Soul or Funk Music",
     value: "amzn1.iab-content.362",
+  },
+  {
+    category: "Music and Radio",
+    subcategory: "Reggae",
+    value: "amzn1.iab-content.359",
+  },
+  {
+    category: "Music and Radio",
+    subcategory: "Rock Music",
+    value: "amzn1.iab-content.363",
   },
   {
     category: "Music and Radio",
@@ -1077,16 +1087,18 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               </div>
             )}
 
-            {/* Add Target Button */}
-            <div className="w-[120px]">
-              <button
-                type="button"
-                onClick={handleAddTarget}
-                className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
-              >
-                Add Target
-              </button>
-            </div>
+            {/* Add Target Button - Only show inline for SP/SB, move to bottom for SD */}
+            {campaignType !== "SD" && (
+              <div className="w-[120px]">
+                <button
+                  type="button"
+                  onClick={handleAddTarget}
+                  className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                >
+                  Add Target
+                </button>
+              </div>
+            )}
           </div>
 
           {/* SD Dynamic Fields - Show on separate rows */}
@@ -1580,6 +1592,16 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
 
       {/* Footer Actions */}
       <div className="p-4 flex items-center justify-end gap-3">
+        {/* Add Target Button for SD campaigns - positioned at bottom right */}
+        {campaignType === "SD" && (
+          <button
+            type="button"
+            onClick={handleAddTarget}
+            className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+          >
+            Add Target
+          </button>
+        )}
         <button
           type="button"
           onClick={handleCancel}

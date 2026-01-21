@@ -576,6 +576,15 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
   const handleAdd = () => {
     if (validate()) {
+      // Check if a creative with the same adGroupId already exists
+      if (addedCreatives.length > 0) {
+        setErrors({
+          submit:
+            "Only one creative can be added per ad group. Please submit the current creative or remove the existing one before adding another.",
+        });
+        return;
+      }
+
       setAddedCreatives((prev) => [...prev, { ...currentCreative }]);
       setCurrentCreative({
         creativeType: "IMAGE",
@@ -2427,11 +2436,16 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               <p className="text-red-500 text-xs mb-4">{errors.properties}</p>
             )}
 
+            {errors.submit && (
+              <p className="text-red-500 text-xs mb-4">{errors.submit}</p>
+            )}
+
             {!editCreative && (
               <button
                 type="button"
                 onClick={handleAdd}
-                className="w-full py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] text-[13.44px] font-medium"
+                disabled={addedCreatives.length > 0}
+                className="w-full py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5555] disabled:opacity-50 disabled:cursor-not-allowed text-[13.44px] font-medium"
               >
                 Add Creative
               </button>

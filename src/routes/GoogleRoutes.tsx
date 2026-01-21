@@ -9,6 +9,7 @@ import { GoogleCampaignDetail } from "../pages/google/GoogleCampaignDetail";
 import { GoogleAdGroups } from "../pages/google/GoogleAdGroups";
 import { GoogleAds } from "../pages/google/GoogleAds";
 import { GoogleKeywords } from "../pages/google/GoogleKeywords";
+import { LogHistory } from "../pages/LogHistory";
 
 function GoogleRoutes() {
     return (
@@ -79,6 +80,30 @@ function GoogleRoutes() {
                                     <GoogleKeywords />
                                 </Layout>
                             </GoogleSyncStatusWrapper>
+                        </AccountRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/accounts/:accountId/google/logs"
+                element={
+                    <ProtectedRoute>
+                        <AccountRequiredRoute>
+                            <Layout>
+                                <LogHistory />
+                            </Layout>
+                        </AccountRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/accounts/:accountId/google/log-history"
+                element={
+                    <ProtectedRoute>
+                        <AccountRequiredRoute>
+                            <Layout>
+                                <LogHistory />
+                            </Layout>
                         </AccountRequiredRoute>
                     </ProtectedRoute>
                 }
