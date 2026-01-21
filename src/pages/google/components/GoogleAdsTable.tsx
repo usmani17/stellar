@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
@@ -43,6 +43,8 @@ export function GoogleAdsTable<T = any>({
   isPanelOpen = false,
 }: IGoogleAdsTableProps<T>) {
   const navigate = useNavigate();
+  // Ref to track if a status selection was made (matches Amazon pattern)
+  const statusSelectionMadeRef = useRef<string | number | null>(null);
 
   const renderCell = (column: IColumnDefinition, row: T, index: number) => {
     const itemId = getId(row);
@@ -114,6 +116,21 @@ export function GoogleAdsTable<T = any>({
           </button>
         );
       }
+    }
+
+    // If custom render is provided and column is editable, let the custom render handle the click
+    // This allows custom renders to match exact styling (like TikTok's hover:underline)
+    if (column.render && isClickable) {
+      // Wrap in a div that handles the click, but don't add hover:bg-gray-50 to preserve custom styling
+      return (
+        <div
+          onClick={() => onStartInlineEdit(row, column.key)}
+          className="w-full"
+          style={{ pointerEvents: 'auto' }}
+        >
+          {cellContent}
+        </div>
+      );
     }
 
     if (isClickable) {
@@ -226,8 +243,58 @@ export function GoogleAdsTable<T = any>({
         }
       }
       
+      // For status dropdown specifically, match Amazon's behavior exactly:
+      // 1. Use ref to track if selection was made
+      // 2. Call onEditChange then onConfirmInlineEdit on onChange
+      // 3. Only cancel on onClose if no selection was made
+      // 4. Use width="w-full" and align="center" like Amazon
+      if (column.key === "status") {
+        return (
+          <div className="flex items-center gap-2">
+            <Dropdown
+              options={options}
+              value={editedValue}
+              onChange={(val) => {
+                // Mark that a selection was made for this item (matches Amazon pattern)
+                statusSelectionMadeRef.current = itemId;
+                const newValue = val as string;
+                onInlineEditChange(newValue);
+                // Call onConfirmInlineEdit with the new value immediately when a value is selected
+                // This will trigger the pending change confirmation (matches Amazon's onEditEnd pattern)
+                onConfirmInlineEdit(newValue, column.key);
+                // Clear the ref after a short delay to allow onClose to check it
+                setTimeout(() => {
+                  if (statusSelectionMadeRef.current === itemId) {
+                    statusSelectionMadeRef.current = null;
+                  }
+                }, 200);
+              }}
+              onClose={() => {
+                // Only cancel if no selection was made (clicked outside)
+                // If a selection was made, statusSelectionMadeRef will be set
+                // This matches Amazon's pattern exactly
+                if (
+                  statusSelectionMadeRef.current !== itemId &&
+                  editingCell?.itemId === itemId
+                ) {
+                  onCancelInlineEdit();
+                }
+              }}
+              defaultOpen={true}
+              closeOnSelect={true}
+              buttonClassName="w-full text-[13.3px] px-2 py-1"
+              width="w-full"
+              align="center"
+              className="w-full"
+              menuClassName="z-[100000]"
+            />
+          </div>
+        );
+      }
+      
+      // For other dropdowns (bidding_strategy_type, etc.), use original behavior
       return (
-        <div className="relative w-full z-[100000]">
+        <div className="flex items-center gap-2">
           <Dropdown
             options={options}
             value={editedValue}
@@ -238,11 +305,16 @@ export function GoogleAdsTable<T = any>({
             }}
             defaultOpen={true}
             closeOnSelect={true}
-            buttonClassName="w-full text-[13.3px] px-2 py-1 min-w-0"
+            buttonClassName="w-full text-[13.3px] px-2 py-1"
             width={dropdownWidth}
             align="left"
             className="w-full"
             menuClassName="z-[100000]"
+            onClose={() => {
+              if (!editedValue || editedValue === value) {
+                onCancelInlineEdit();
+              }
+            }}
           />
         </div>
       );
@@ -250,8 +322,11 @@ export function GoogleAdsTable<T = any>({
 
     switch (column.type) {
       case "status":
+        // Status columns with statusOptions are handled in the statusOptions block above
+        // This case should only be reached for status columns without statusOptions (shouldn't happen)
+        // Use Amazon pattern here too for consistency
         return (
-          <div className="relative w-full z-[100000]">
+          <div className="flex items-center gap-2">
             <Dropdown
               options={column.statusOptions || [
                 { value: "ENABLED", label: "Enabled" },
@@ -259,21 +334,69 @@ export function GoogleAdsTable<T = any>({
               ]}
               value={editedValue}
               onChange={(val) => {
+                // Mark that a selection was made for this item (matches Amazon pattern)
+                statusSelectionMadeRef.current = itemId;
                 const newValue = val as string;
                 onInlineEditChange(newValue);
+                // Call onConfirmInlineEdit with the new value immediately when a value is selected
                 onConfirmInlineEdit(newValue, column.key);
+                // Clear the ref after a short delay to allow onClose to check it
+                setTimeout(() => {
+                  if (statusSelectionMadeRef.current === itemId) {
+                    statusSelectionMadeRef.current = null;
+                  }
+                }, 200);
+              }}
+              onClose={() => {
+                // Only cancel if no selection was made (clicked outside)
+                if (
+                  statusSelectionMadeRef.current !== itemId &&
+                  editingCell?.itemId === itemId
+                ) {
+                  onCancelInlineEdit();
+                }
               }}
               defaultOpen={true}
               closeOnSelect={true}
-              buttonClassName="w-full text-[13.3px] px-2 py-1 min-w-0"
-              width="w-[120px]"
-              align="left"
+              buttonClassName="w-full text-[13.3px] px-2 py-1"
+              width="w-full"
+              align="center"
               className="w-full"
               menuClassName="z-[100000]"
             />
           </div>
         );
 
+      case "text":
+        // For text fields like adgroup_name, match Amazon's input styling exactly
+        if (column.editable) {
+          return (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={editedValue}
+                onChange={(e) => onInlineEditChange(e.target.value)}
+                className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                autoFocus
+                onBlur={() => {
+                  if (!isCancelling) {
+                    onConfirmInlineEdit(editedValue, column.key);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === "Escape") {
+                    if (e.key === "Enter") {
+                      onConfirmInlineEdit(editedValue, column.key);
+                    } else {
+                      onCancelInlineEdit();
+                    }
+                  }
+                }}
+              />
+            </div>
+          );
+        }
+        return renderValue(column, value);
       case "budget":
       case "bid":
         return (
@@ -397,8 +520,11 @@ export function GoogleAdsTable<T = any>({
     ? "table-cell"
     : "table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
 
+  // Use Amazon's background color for ad groups table: bg-[#FEFEFB]
+  const containerBgClass = isAdGroupsTable ? "bg-[#FEFEFB]" : "bg-[#f9f9f6]";
+  
   return (
-    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
+    <div className={`${containerBgClass} border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative`}>
       <div className="overflow-x-auto w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -428,7 +554,16 @@ export function GoogleAdsTable<T = any>({
                   {/* Column Headers */}
                   {columns.map((column, index) => {
                     const stickyClasses = getStickyClasses(column, index);
-                    const widthClasses = column.width || column.minWidth || "";
+                    // For adgroup_name header: no width constraint (matches Amazon)
+                    // For campaign_name header: apply width constraints (matches Amazon)
+                    // For other columns: apply width classes normally
+                    let widthClasses = "";
+                    if (column.key === "adgroup_name") {
+                      // Ad Group Name header has no width constraint in Amazon
+                      widthClasses = "";
+                    } else {
+                      widthClasses = column.width || column.minWidth || "";
+                    }
                     // Don't add border-r if using table-sticky-first-column (it's already in the class)
                     const borderClass = column.sticky && !stickyClasses.includes("table-sticky-first-column") ? "border-r border-[#e8e8e3]" : "";
                     
@@ -574,13 +709,17 @@ export function GoogleAdsTable<T = any>({
                         const stickyClasses = getStickyClasses(column, colIndex);
                         // Don't add border-r if using table-sticky-first-column (it's already in the class)
                         const borderClass = column.sticky && !stickyClasses.includes("table-sticky-first-column") ? "border-r border-[#e8e8e3]" : "";
-                        const widthClasses = column.width || column.minWidth || "";
+                        // For adgroup_name, don't apply width to cell - it's handled in render function
+                        // For other columns, apply width classes
+                        const widthClasses = (column.key === "adgroup_name") ? "" : (column.width || column.minWidth || "");
                         const hoverClass = column.sticky ? "group-hover:bg-gray-100" : "";
+                        // For adgroup_name, apply cell width constraints directly on td like Amazon
+                        const cellWidthClasses = (column.key === "adgroup_name") ? "min-w-[150px] max-w-[200px]" : "";
                         
                         return (
                           <td
                             key={column.key}
-                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
+                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${cellWidthClasses} ${hoverClass}`}
                           >
                             {renderCell(column, row, index)}
                           </td>

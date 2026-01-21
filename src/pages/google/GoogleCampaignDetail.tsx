@@ -4394,7 +4394,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={nameEditLoading}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
@@ -4476,7 +4476,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={keywordTextEditLoading}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>

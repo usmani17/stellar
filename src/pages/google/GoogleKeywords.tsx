@@ -1861,7 +1861,7 @@ export const GoogleKeywords: React.FC = () => {
                             setShowBidPanel(false);
                             setShowBulkActions(false);
                           }}
-                          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
+                          className="cancel-button"
                         >
                           Cancel
                         </button>
@@ -2170,7 +2170,7 @@ export const GoogleKeywords: React.FC = () => {
                               setShowConfirmationModal(false);
                               setPendingStatusAction(null);
                             }}
-                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                            className="cancel-button"
                           >
                             Cancel
                           </button>
@@ -2339,7 +2339,7 @@ export const GoogleKeywords: React.FC = () => {
                           }
                         }}
                         disabled={keywordTextEditLoading}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>

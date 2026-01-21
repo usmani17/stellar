@@ -1117,7 +1117,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 type="text"
                 value={formData.budget_name || ""}
                 onChange={(e) => handleChange("budget_name", e.target.value)}
-                className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                className="campaign-input w-full"
                 placeholder="Optional budget name"
               />
             </div>
@@ -1143,7 +1143,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     value={formData.start_date || ""}
                     onChange={(e) => handleChange("start_date", e.target.value)}
                     disabled={isReadonly}
-                    className={`bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       isReadonly ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
                     }`}
                     title={isReadonly ? "Start date cannot be changed if it's today or in the past" : ""}
@@ -1161,7 +1161,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 type="date"
                 value={formData.end_date || ""}
                 onChange={(e) => handleChange("end_date", e.target.value)}
-                className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                className="campaign-input w-full"
               />
             </div>
 
@@ -1206,7 +1206,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     const value = parseFloat(e.target.value) || 0;
                     handleChange("target_cpa_micros", Math.round(value * 1000000));
                   }}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.target_cpa_micros ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="1.00"
@@ -1237,7 +1237,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     const value = parseFloat(e.target.value) || 0;
                     handleChange("target_roas", value);
                   }}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.target_roas ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="3.0"
@@ -1291,7 +1291,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       const value = parseFloat(e.target.value) || 0;
                       handleChange("target_impression_share_location_fraction_micros", Math.round(value * 10000));
                     }}
-                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       errors.target_impression_share_location_fraction_micros ? "border-red-500" : "border-gray-200"
                     }`}
                     placeholder="2.0"
@@ -1319,7 +1319,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       const value = parseFloat(e.target.value) || 0;
                       handleChange("target_impression_share_cpc_bid_ceiling_micros", Math.round(value * 1000000));
                     }}
-                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       errors.target_impression_share_cpc_bid_ceiling_micros ? "border-red-500" : "border-gray-200"
                     }`}
                     placeholder="3.00"
@@ -1350,7 +1350,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   type="url"
                   value={formData.final_url || ""}
                   onChange={(e) => handleChange("final_url", e.target.value)}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.final_url ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="https://example.com"
@@ -1373,7 +1373,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   onChange={(e) =>
                     handleChange("asset_group_name", e.target.value)
                   }
-                  className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="campaign-input w-full"
                   placeholder="Optional asset group name"
                 />
               </div>
@@ -1395,7 +1395,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                         onChange={(e) =>
                           updateHeadline(index, e.target.value)
                         }
-                        className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        className="campaign-input flex-1"
                         placeholder={`Headline ${index + 1}`}
                       />
                       {formData.headlines && formData.headlines.length > 1 && (
@@ -1443,7 +1443,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                           updateDescription(index, e.target.value)
                         }
                         rows={2}
-                        className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        className="campaign-input flex-1"
                         placeholder={`Description ${index + 1}`}
                       />
                       {formData.descriptions &&
@@ -1488,7 +1488,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("business_name", e.target.value)
                     }
-                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       errors.business_name ? "border-red-300" : "border-gray-200"
                     }`}
                     placeholder="Required business name"
@@ -1510,7 +1510,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("long_headline", e.target.value)
                     }
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className="campaign-input w-full"
                     placeholder="Optional long headline"
                   />
                 </div>
@@ -1524,7 +1524,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       type="url"
                       value={formData.logo_url || ""}
                       onChange={(e) => handleChange("logo_url", e.target.value)}
-                      className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                      className="campaign-input w-full"
                       placeholder="https://example.com/logo.png"
                     />
                     <div className="flex items-center gap-2">
@@ -1700,7 +1700,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("marketing_image_url", e.target.value)
                     }
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className="campaign-input w-full"
                     placeholder="https://example.com/image.png"
                   />
                   {/* Marketing Image Preview */}
@@ -1734,7 +1734,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("square_marketing_image_url", e.target.value)
                     }
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className="campaign-input w-full"
                     placeholder="https://example.com/square-image.png"
                   />
                   {/* Square Marketing Image Preview */}
@@ -1778,7 +1778,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     type="text"
                     value={formData.merchant_id || ""}
                     onChange={(e) => handleChange("merchant_id", e.target.value)}
-                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       errors.merchant_id ? "border-red-500" : "border-gray-200"
                     }`}
                     placeholder="Enter merchant ID"
@@ -1858,7 +1858,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   type="url"
                   value={formData.final_url || ""}
                   onChange={(e) => handleChange("final_url", e.target.value)}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.final_url ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="https://example.com"
@@ -1920,7 +1920,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                             handleChange("video_url", "");
                           }
                         }}
-                        className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        className={`campaign-input w-full ${
                           errors.video_id ? "border-red-500" : "border-gray-200"
                         }`}
                         placeholder="dQw4w9WgXcQ"
@@ -1947,7 +1947,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                             handleChange("video_id", "");
                           }
                         }}
-                        className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                        className={`campaign-input w-full ${
                           errors.video_url ? "border-red-500" : "border-gray-200"
                         }`}
                         placeholder="https://example.com/video.mp4"
@@ -1974,7 +1974,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   type="url"
                   value={formData.logo_url || ""}
                   onChange={(e) => handleChange("logo_url", e.target.value)}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.logo_url ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="https://example.com/logo.png"
@@ -2008,7 +2008,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   type="text"
                   value={formData.business_name || ""}
                   onChange={(e) => handleChange("business_name", e.target.value)}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.business_name ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="My Business Name"
@@ -2035,7 +2035,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                         type="text"
                         value={headline}
                         onChange={(e) => updateHeadline(index, e.target.value)}
-                        className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        className="campaign-input flex-1"
                         placeholder={`Headline ${index + 1}`}
                       />
                       {formData.headlines && formData.headlines.length > 3 && (
@@ -2081,7 +2081,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                         value={description}
                         onChange={(e) => updateDescription(index, e.target.value)}
                         rows={2}
-                        className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        className="campaign-input flex-1"
                         placeholder={`Description ${index + 1}`}
                       />
                       {formData.descriptions && formData.descriptions.length > 2 && (
@@ -2122,7 +2122,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     type="text"
                     value={formData.long_headline || ""}
                     onChange={(e) => handleChange("long_headline", e.target.value)}
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className="campaign-input w-full"
                     placeholder="Optional long headline"
                   />
                 </div>
@@ -2135,7 +2135,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     type="text"
                     value={formData.ad_group_name || ""}
                     onChange={(e) => handleChange("ad_group_name", e.target.value)}
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className="campaign-input w-full"
                     placeholder="Optional ad group name"
                   />
                 </div>
@@ -2148,7 +2148,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     type="text"
                     value={formData.ad_name || ""}
                     onChange={(e) => handleChange("ad_name", e.target.value)}
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className="campaign-input w-full"
                     placeholder="Optional ad name"
                   />
                 </div>
@@ -2208,7 +2208,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   type="text"
                   value={formData.adgroup_name || ""}
                   onChange={(e) => handleChange("adgroup_name", e.target.value)}
-                  className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="campaign-input w-full"
                   placeholder="Optional ad group name"
                 />
               </div>
@@ -2296,14 +2296,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           <button
             type="button"
             onClick={handleCancel}
-            className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg hover:bg-gray-50 transition-colors"
+            className="cancel-button"
             disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+            className="apply-button"
             disabled={loading}
           >
             {loading ? (mode === "edit" ? "Updating..." : "Creating...") : (mode === "edit" ? "Update Campaign" : "Create Campaign")}
