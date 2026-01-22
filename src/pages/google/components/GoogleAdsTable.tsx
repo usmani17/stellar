@@ -174,6 +174,10 @@ export function GoogleAdsTable<T = any>({
             </span>
           );
         }
+        // For status column, don't show default if value is empty (matches Amazon - no "—" in status)
+        if (column.key === "status" && (!value || value === "")) {
+          return <span className="table-text leading-[1.26]"></span>;
+        }
         return getStatusBadge(value || "ENABLED");
       case "currency":
       case "budget":
@@ -508,19 +512,23 @@ export function GoogleAdsTable<T = any>({
 
   // Check if this is ad groups table (first column is adgroup_name)
   const isAdGroupsTable = columns.length > 0 && columns[0].key === "adgroup_name";
+  // Check if this is keywords table (first column is keyword_text)
+  const isKeywordsTable = columns.length > 0 && columns[0].key === "keyword_text";
+  // Tables that should not have sticky checkbox/keyword name (like Amazon keywords table)
+  const isNonStickyTable = isAdGroupsTable || isKeywordsTable;
   
-  // Checkbox column classes - match Amazon ad groups (no bg color, no sticky) vs campaigns (has bg color and sticky)
-  const checkboxHeaderClasses = isAdGroupsTable 
+  // Checkbox column classes - match Amazon ad groups/keywords (no bg color, no sticky) vs campaigns (has bg color and sticky)
+  const checkboxHeaderClasses = isNonStickyTable 
     ? "table-header w-[35px]"
     : "table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
-  const checkboxCellClasses = isAdGroupsTable
+  const checkboxCellClasses = isNonStickyTable
     ? "table-cell"
     : "table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]";
-  const checkboxSummaryCellClasses = isAdGroupsTable
+  const checkboxSummaryCellClasses = isNonStickyTable
     ? "table-cell"
     : "table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
 
-  // Use Amazon's background color for ad groups table: bg-[#FEFEFB]
+  // Use Amazon's background color: bg-[#FEFEFB] for ad groups, bg-[#f9f9f6] for keywords and campaigns
   const containerBgClass = isAdGroupsTable ? "bg-[#FEFEFB]" : "bg-[#f9f9f6]";
   
   return (
@@ -594,8 +602,8 @@ export function GoogleAdsTable<T = any>({
                       const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
                       
                       let summaryValue: React.ReactNode = "";
-                      // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id
-                      if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id")) {
+                      // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
+                      if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
                         summaryValue = `Total (${summary?.total_count || summary?.total_campaigns || 0})`;
                       } else if (column.key === "spends") {
                         summaryValue = formatCurrency(summary?.total_spends || 0);

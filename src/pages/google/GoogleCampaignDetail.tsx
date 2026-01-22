@@ -3608,6 +3608,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }
                     }}
                     onStartNameEdit={handleStartAdGroupNameEdit}
+                    accountId={accountId}
+                    onBulkUpdateComplete={loadAdGroups}
                   />
                 </>
               )}

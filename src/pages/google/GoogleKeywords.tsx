@@ -56,7 +56,7 @@ export const GoogleKeywords: React.FC = () => {
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(25);
+  const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
@@ -471,6 +471,10 @@ export const GoogleKeywords: React.FC = () => {
     } finally {
       setSyncingAnalytics(false);
     }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
   };
 
   const handleSort = async (column: string) => {
@@ -2499,26 +2503,63 @@ export const GoogleKeywords: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
+              {!loading && keywords.length > 0 && (
                 <div className="flex items-center justify-end mt-4">
                   <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                     <button
                       onClick={() =>
-                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                        handlePageChange(Math.max(1, currentPage - 1))
                       }
                       disabled={currentPage === 1}
                       className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                     >
                       Previous
                     </button>
-                    <span className="px-4 py-2 text-[10.64px] text-[#556179] flex items-center">
-                      Page {currentPage} of {totalPages} • Showing{" "}
-                      {(currentPage - 1) * itemsPerPage + 1}–{" "}
-                      {Math.min(currentPage * itemsPerPage, total)} of {total}
-                    </span>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                            currentPage === pageNum
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                        ...
+                      </span>
+                    )}
+                    {totalPages > 5 && (
+                      <button
+                        onClick={() => handlePageChange(totalPages)}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                          currentPage === totalPages
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        {totalPages}
+                      </button>
+                    )}
                     <button
                       onClick={() =>
-                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                        handlePageChange(Math.min(totalPages, currentPage + 1))
                       }
                       disabled={currentPage === totalPages}
                       className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
