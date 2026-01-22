@@ -3442,208 +3442,168 @@ export const Campaigns: React.FC = () => {
 
                                   {/* Status */}
                                   <td className="table-cell min-w-[115px]">
-                                    {editingCell?.campaignId ===
-                                      campaign.campaignId &&
-                                    editingCell?.field === "status" ? (
-                                      <Dropdown
-                                        options={[
-                                          {
-                                            value: "Enabled",
-                                            label: "Enabled",
-                                          },
-                                          { value: "Paused", label: "Paused" },
-                                          // Note: "Archived" is not included as it's read-only and cannot be set via API
-                                        ]}
-                                        value={
-                                          editedValue ||
-                                          (() => {
-                                            const statusLower = (
-                                              campaign.status || "Enabled"
-                                            ).toLowerCase();
-                                            return statusLower === "enable" ||
-                                              statusLower === "enabled"
-                                              ? "Enabled"
-                                              : statusLower === "paused"
-                                              ? "Paused"
-                                              : "Enabled";
-                                          })()
-                                        }
-                                        onChange={(val) => {
-                                          const newValue = val as string;
-                                          handleInlineEditChange(newValue);
-                                          setTimeout(() => {
-                                            confirmInlineEdit(newValue);
-                                          }, 100);
-                                        }}
-                                        onClose={() => {
-                                          cancelInlineEdit();
-                                        }}
-                                        defaultOpen={true}
-                                        closeOnSelect={true}
-                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                        width="w-full"
-                                        align="center"
-                                      />
-                                    ) : (
-                                      <div
-                                        onClick={() => {
-                                          // Prevent editing if campaign is archived
-                                          const currentStatus = (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase();
-                                          if (currentStatus === "ARCHIVED") {
-                                            return; // Archived campaigns are read-only
-                                          }
-                                          startInlineEdit(campaign, "status");
-                                        }}
-                                        className={`${
-                                          (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase() === "ARCHIVED"
-                                            ? "cursor-not-allowed opacity-60"
-                                            : "cursor-pointer hover:bg-gray-50"
-                                        } rounded px-2 py-1`}
-                                        title={
-                                          (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase() === "ARCHIVED"
-                                            ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                            : undefined
-                                        }
-                                      >
-                                        <StatusBadge
-                                          status={campaign.status || "Enabled"}
+                                    {(() => {
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      const isArchived = currentStatus === "ARCHIVED";
+                                      
+                                      if (isArchived) {
+                                        return (
+                                          <div className="rounded px-2 py-1 opacity-60">
+                                            <StatusBadge
+                                              status={campaign.status || "Enabled"}
+                                            />
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      const statusLower = (
+                                        campaign.status || "Enabled"
+                                      ).toLowerCase();
+                                      const normalizedStatus =
+                                        statusLower === "enable" ||
+                                        statusLower === "enabled"
+                                          ? "Enabled"
+                                          : statusLower === "paused"
+                                          ? "Paused"
+                                          : "Enabled";
+                                      
+                                      return (
+                                        <Dropdown
+                                          options={[
+                                            {
+                                              value: "Enabled",
+                                              label: "Enabled",
+                                            },
+                                            { value: "Paused", label: "Paused" },
+                                            // Note: "Archived" is not included as it's read-only and cannot be set via API
+                                          ]}
+                                          value={normalizedStatus}
+                                          onChange={(val) => {
+                                            const newValue = val as string;
+                                            if (editingCell?.campaignId !== campaign.campaignId ||
+                                                editingCell?.field !== "status") {
+                                              startInlineEdit(campaign, "status");
+                                            }
+                                            handleInlineEditChange(newValue);
+                                            setTimeout(() => {
+                                              confirmInlineEdit(newValue);
+                                            }, 100);
+                                          }}
+                                          buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                          width="w-full"
+                                          align="center"
                                         />
-                                      </div>
-                                    )}
+                                      );
+                                    })()}
                                   </td>
 
                                   {/* Daily Budget */}
                                   <td className="table-cell">
-                                    {editingCell?.campaignId ===
-                                      campaign.campaignId &&
-                                    editingCell?.field === "budget" ? (
-                                      <div className="flex items-center justify-center">
+                                    {(() => {
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      const isArchived = currentStatus === "ARCHIVED";
+                                      const budgetValue = editingCell?.campaignId === campaign.campaignId &&
+                                        editingCell?.field === "budget"
+                                        ? editedValue
+                                        : (campaign.daily_budget || 0).toString();
+                                      
+                                      return (
                                         <input
                                           type="number"
-                                          value={editedValue}
-                                          onChange={(e) =>
-                                            handleInlineEditChange(
-                                              e.target.value
-                                            )
-                                          }
+                                          value={budgetValue}
+                                          onFocus={() => {
+                                            if (isArchived) return;
+                                            if (editingCell?.campaignId !== campaign.campaignId ||
+                                                editingCell?.field !== "budget") {
+                                              startInlineEdit(campaign, "budget");
+                                            }
+                                          }}
+                                          onChange={(e) => {
+                                            if (isArchived) return;
+                                            handleInlineEditChange(e.target.value);
+                                          }}
                                           onBlur={(e) => {
+                                            if (isArchived) return;
                                             const inputValue = e.target.value;
-                                            confirmInlineEdit(inputValue);
+                                            if (editingCell?.campaignId === campaign.campaignId &&
+                                                editingCell?.field === "budget") {
+                                              confirmInlineEdit(inputValue);
+                                            }
                                           }}
                                           onKeyDown={(e) => {
+                                            if (isArchived) return;
                                             if (e.key === "Enter") {
                                               e.currentTarget.blur();
                                             } else if (e.key === "Escape") {
                                               cancelInlineEdit();
                                             }
                                           }}
-                                          autoFocus
-                                          className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <p
-                                        onClick={() => {
-                                          // Prevent editing if campaign is archived
-                                          const currentStatus = (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase();
-                                          if (currentStatus === "ARCHIVED") {
-                                            return; // Archived campaigns are read-only
+                                          disabled={isArchived}
+                                          className={`w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40 ${
+                                            isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                          }`}
+                                          title={
+                                            isArchived
+                                              ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
+                                              : undefined
                                           }
-                                          startInlineEdit(campaign, "budget");
-                                        }}
-                                        className={`table-text leading-[1.26] rounded px-2 py-1 ${
-                                          (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase() === "ARCHIVED"
-                                            ? "cursor-not-allowed opacity-60"
-                                            : "cursor-pointer hover:bg-gray-50"
-                                        }`}
-                                        title={
-                                          (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase() === "ARCHIVED"
-                                            ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                            : undefined
-                                        }
-                                      >
-                                        {formatCurrency(
-                                          campaign.daily_budget || 0
-                                        )}
-                                      </p>
-                                    )}
+                                        />
+                                      );
+                                    })()}
                                   </td>
 
                                   {/* Budget Type */}
                                   <td className="table-cell">
-                                    {editingCell?.campaignId ===
-                                      campaign.campaignId &&
-                                    editingCell?.field === "budgetType" ? (
-                                      <Dropdown
-                                        options={[
-                                          { value: "DAILY", label: "DAILY" },
-                                          {
-                                            value: "LIFETIME",
-                                            label: "LIFETIME",
-                                          },
-                                        ]}
-                                        value={editedValue}
-                                        onChange={(val) => {
-                                          const newValue = val as string;
-                                          handleInlineEditChange(newValue);
-                                          setTimeout(() => {
-                                            confirmInlineEdit(newValue);
-                                          }, 100);
-                                        }}
-                                        onClose={() => {
-                                          cancelInlineEdit();
-                                        }}
-                                        defaultOpen={true}
-                                        closeOnSelect={true}
-                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                        width="w-full"
-                                        align="center"
-                                      />
-                                    ) : (
-                                      <p
-                                        onClick={() => {
-                                          // Prevent editing if campaign is archived
-                                          const currentStatus = (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase();
-                                          if (currentStatus === "ARCHIVED") {
-                                            return; // Archived campaigns are read-only
-                                          }
-                                          startInlineEdit(
-                                            campaign,
-                                            "budgetType"
-                                          );
-                                        }}
-                                        className={`table-text leading-[1.26] rounded px-2 py-1 ${
-                                          (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase() === "ARCHIVED"
-                                            ? "cursor-not-allowed opacity-60"
-                                            : "cursor-pointer hover:bg-gray-50"
-                                        }`}
-                                        title={
-                                          (
-                                            campaign.status || "Enabled"
-                                          ).toUpperCase() === "ARCHIVED"
-                                            ? "Archived campaigns cannot be modified. Please use the Amazon Advertising Console to manage archived campaigns."
-                                            : undefined
-                                        }
-                                      >
-                                        {campaign.budgetType || "—"}
-                                      </p>
-                                    )}
+                                    {(() => {
+                                      const currentStatus = (
+                                        campaign.status || "Enabled"
+                                      ).toUpperCase();
+                                      const isArchived = currentStatus === "ARCHIVED";
+                                      
+                                      if (isArchived) {
+                                        return (
+                                          <span className="table-text leading-[1.26] opacity-60">
+                                            {campaign.budgetType || "—"}
+                                          </span>
+                                        );
+                                      }
+                                      
+                                      const budgetTypeValue = editingCell?.campaignId === campaign.campaignId &&
+                                        editingCell?.field === "budgetType"
+                                        ? editedValue
+                                        : (campaign.budgetType || "DAILY");
+                                      
+                                      return (
+                                        <Dropdown
+                                          options={[
+                                            { value: "DAILY", label: "DAILY" },
+                                            {
+                                              value: "LIFETIME",
+                                              label: "LIFETIME",
+                                            },
+                                          ]}
+                                          value={budgetTypeValue}
+                                          onChange={(val) => {
+                                            const newValue = val as string;
+                                            if (editingCell?.campaignId !== campaign.campaignId ||
+                                                editingCell?.field !== "budgetType") {
+                                              startInlineEdit(campaign, "budgetType");
+                                            }
+                                            handleInlineEditChange(newValue);
+                                            setTimeout(() => {
+                                              confirmInlineEdit(newValue);
+                                            }, 100);
+                                          }}
+                                          buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                          width="w-full"
+                                          align="center"
+                                        />
+                                      );
+                                    })()}
                                   </td>
 
                                   {/* Start Date */}

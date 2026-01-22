@@ -2001,121 +2001,128 @@ export const Keywords: React.FC = () => {
 
                                 {/* State */}
                                 <td className="table-cell min-w-[115px]">
-                                  {editingCell?.keywordId ===
-                                    keyword.keywordId &&
-                                  editingCell?.field === "status" ? (
-                                    <Dropdown
-                                      options={[
-                                        { value: "Enabled", label: "Enabled" },
-                                        { value: "Paused", label: "Paused" },
-                                        {
-                                          value: "Archived",
-                                          label: "Archived",
-                                        },
-                                      ]}
-                                      value={
-                                        editedValue ||
-                                        (() => {
-                                          const statusLower = (
-                                            keyword.status || "Enabled"
-                                          ).toLowerCase();
-                                          return statusLower === "enable" ||
-                                            statusLower === "enabled"
-                                            ? "Enabled"
-                                            : statusLower === "paused"
-                                            ? "Paused"
-                                            : statusLower === "archived"
-                                            ? "Archived"
-                                            : "Enabled";
-                                        })()
-                                      }
-                                      onChange={(val) => {
-                                        const newValue = val as string;
-                                        handleInlineEditChange(newValue);
-                                        setTimeout(() => {
-                                          confirmInlineEdit(newValue);
-                                        }, 100);
-                                      }}
-                                      onClose={() => {
-                                        cancelInlineEdit();
-                                      }}
-                                      defaultOpen={true}
-                                      closeOnSelect={true}
-                                      buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                      width="w-full"
-                                      align="center"
-                                    />
-                                  ) : (
-                                    <div
-                                      onClick={() => {
-                                        // Prevent editing if keyword is archived
-                                        const currentStatus = (
-                                          keyword.status || "Enabled"
-                                        ).toLowerCase();
-                                        if (currentStatus === "archived") {
-                                          return; // Archived keywords are read-only
-                                        }
-                                        startInlineEdit(keyword, "status");
-                                      }}
-                                      className={`${
-                                        (
-                                          keyword.status || "Enabled"
-                                        ).toLowerCase() === "archived"
-                                          ? "cursor-not-allowed opacity-60"
-                                          : "cursor-pointer hover:bg-gray-50"
-                                      } rounded px-2 py-1`}
-                                      title={
-                                        (
-                                          keyword.status || "Enabled"
-                                        ).toLowerCase() === "archived"
-                                          ? "Archived keywords cannot be modified"
-                                          : undefined
-                                      }
-                                    >
-                                      <StatusBadge
-                                        status={keyword.status || "Enabled"}
+                                  {(() => {
+                                    const currentStatus = (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase();
+                                    const isArchived = currentStatus === "archived";
+                                    
+                                    if (isArchived) {
+                                      return (
+                                        <div className="opacity-60">
+                                          <StatusBadge
+                                            status={keyword.status || "Enabled"}
+                                          />
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    const statusLower = (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase();
+                                    const normalizedStatus =
+                                      statusLower === "enable" ||
+                                      statusLower === "enabled"
+                                        ? "Enabled"
+                                        : statusLower === "paused"
+                                        ? "Paused"
+                                        : "Enabled";
+                                    
+                                    const statusValue = editingCell?.keywordId === keyword.keywordId &&
+                                      editingCell?.field === "status"
+                                      ? editedValue
+                                      : normalizedStatus;
+                                    
+                                    return (
+                                      <Dropdown
+                                        options={[
+                                          { value: "Enabled", label: "Enabled" },
+                                          { value: "Paused", label: "Paused" },
+                                          {
+                                            value: "Archived",
+                                            label: "Archived",
+                                          },
+                                        ]}
+                                        value={statusValue}
+                                        onChange={(val) => {
+                                          const newValue = val as string;
+                                          if (editingCell?.keywordId !== keyword.keywordId ||
+                                              editingCell?.field !== "status") {
+                                            startInlineEdit(keyword, "status");
+                                          }
+                                          handleInlineEditChange(newValue);
+                                          setTimeout(() => {
+                                            confirmInlineEdit(newValue);
+                                          }, 100);
+                                        }}
+                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                        width="w-full"
+                                        align="center"
                                       />
-                                    </div>
-                                  )}
+                                    );
+                                  })()}
                                 </td>
 
                                 {/* Keyword Bid */}
                                 <td className="table-cell">
-                                  {editingCell?.keywordId ===
-                                    keyword.keywordId &&
-                                  editingCell?.field === "bid" ? (
-                                    <div className="flex items-center justify-center">
+                                  {(() => {
+                                    const currentStatus = (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase();
+                                    const isArchived = currentStatus === "archived";
+                                    
+                                    const bidValue = parseFloat(
+                                      (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+                                    );
+                                    
+                                    const inputValue = editingCell?.keywordId === keyword.keywordId &&
+                                      editingCell?.field === "bid"
+                                      ? editedValue
+                                      : bidValue.toString();
+                                    
+                                    return (
                                       <input
                                         type="number"
-                                        value={editedValue}
-                                        onChange={(e) =>
-                                          handleInlineEditChange(e.target.value)
-                                        }
+                                        value={inputValue}
+                                        onFocus={() => {
+                                          if (!isArchived &&
+                                              (editingCell?.keywordId !== keyword.keywordId ||
+                                               editingCell?.field !== "bid")) {
+                                            startInlineEdit(keyword, "bid");
+                                          }
+                                        }}
+                                        onChange={(e) => {
+                                          if (isArchived) return;
+                                          handleInlineEditChange(e.target.value);
+                                        }}
                                         onBlur={(e) => {
+                                          if (isArchived) return;
                                           const inputValue = e.target.value;
-                                          confirmInlineEdit(inputValue);
+                                          if (editingCell?.keywordId === keyword.keywordId &&
+                                              editingCell?.field === "bid") {
+                                            confirmInlineEdit(inputValue);
+                                          }
                                         }}
                                         onKeyDown={(e) => {
+                                          if (isArchived) return;
                                           if (e.key === "Enter") {
                                             e.currentTarget.blur();
                                           } else if (e.key === "Escape") {
                                             cancelInlineEdit();
                                           }
                                         }}
-                                        autoFocus
-                                        className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                        disabled={isArchived}
+                                        className={`w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40 ${
+                                          isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                        }`}
+                                        title={
+                                          isArchived
+                                            ? "Archived keywords cannot be modified"
+                                            : undefined
+                                        }
                                       />
-                                    </div>
-                                  ) : (
-                                    <p
-                                      onClick={() =>
-                                        startInlineEdit(keyword, "bid")
-                                      }
-                                      className="table-text leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                    >
-                                      {keyword.bid || "$0.00"}
-                                    </p>
-                                  )}
+                                    );
+                                  })()}
                                 </td>
 
                                 {/* Campaign Name */}
