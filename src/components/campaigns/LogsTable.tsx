@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { Button } from "../ui";
+import { Dropdown } from "../ui/Dropdown";
 import { logsService } from "../../services/logs";
 
 interface LogsTableProps {
@@ -35,6 +36,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   const [exportLoading, setExportLoading] = useState(false);
@@ -59,7 +61,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
         campaign_id: campaignId,
         marketplace: marketplace,
         page: currentPage,
-        page_size: 10,
+        page_size: pageSize,
         start_date: startDate
           ? startDate.toISOString().split("T")[0]
           : undefined,
@@ -116,7 +118,15 @@ export const LogsTable: React.FC<LogsTableProps> = ({
       setTotalPages(1);
       setLoading(false);
     }
-  }, [accountId, campaignId, marketplace, startDate, endDate, currentPage]);
+  }, [
+    accountId,
+    campaignId,
+    marketplace,
+    startDate,
+    endDate,
+    currentPage,
+    pageSize,
+  ]);
 
   // Initial load and reload when filters or page change
   useEffect(() => {
@@ -126,6 +136,18 @@ export const LogsTable: React.FC<LogsTableProps> = ({
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
+  };
+
+  const pageSizeOptions = [
+    { value: 10, label: "10" },
+    { value: 20, label: "20" },
+    { value: 50, label: "50" },
+    { value: 100, label: "100" },
+  ];
 
   // Handle export dropdown click outside
   useEffect(() => {
@@ -174,7 +196,7 @@ export const LogsTable: React.FC<LogsTableProps> = ({
       // Add pagination for current_view
       if (exportType === "current_view") {
         params.page = currentPage;
-        params.page_size = 10;
+        params.page_size = pageSize;
       }
 
       // Call export API
@@ -463,7 +485,20 @@ export const LogsTable: React.FC<LogsTableProps> = ({
 
           {/* Pagination */}
           {!loading && logs.length > 0 && (
-            <div className="flex items-center justify-end mt-4 w-full">
+            <div className="flex items-center justify-end gap-3 mt-4 w-full">
+              {/* Page Size Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10.64px] text-[#556179]">Show:</span>
+                <Dropdown<number>
+                  options={pageSizeOptions}
+                  value={pageSize}
+                  onChange={(value) => handlePageSizeChange(value)}
+                  buttonClassName="px-3 py-2 border border-[#EBEBEB] rounded-lg bg-[#fefefb] text-[10.64px] text-black hover:bg-gray-50 min-w-[60px]"
+                  menuClassName="border border-[#EBEBEB] rounded-lg bg-[#fefefb] shadow-lg"
+                  width="w-auto"
+                  align="right"
+                />
+              </div>
               <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                 <button
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
@@ -768,7 +803,20 @@ export const LogsTable: React.FC<LogsTableProps> = ({
           </div>
           {/* Pagination */}
           {!loading && logs.length > 0 && (
-            <div className="flex items-center justify-end mt-4 w-full">
+            <div className="flex items-center justify-end gap-3 mt-4 w-full">
+              {/* Page Size Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10.64px] text-[#556179]">Show:</span>
+                <Dropdown<number>
+                  options={pageSizeOptions}
+                  value={pageSize}
+                  onChange={(value) => handlePageSizeChange(value)}
+                  buttonClassName="px-3 py-2 border border-[#EBEBEB] rounded-lg bg-[#fefefb] text-[10.64px] text-black hover:bg-gray-50 min-w-[60px]"
+                  menuClassName="border border-[#EBEBEB] rounded-lg bg-[#fefefb] shadow-lg"
+                  width="w-auto"
+                  align="right"
+                />
+              </div>
               <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                 <button
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}

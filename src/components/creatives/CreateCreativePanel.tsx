@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
+import { Checkbox } from "../ui/Checkbox";
 
 export interface CreativeInput {
   creativeType: "IMAGE" | "VIDEO";
@@ -186,15 +187,39 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
       const normalizedProperties: any = {};
       const propertyTypes = new Set<string>();
 
-      // Check for headline
-      if (properties.headline) {
-        normalizedProperties.headline = {
-          headline: properties.headline.headline || "",
-          hasTermsAndConditions:
-            properties.headline.hasTermsAndConditions || false,
-          originalHeadline: properties.headline.originalHeadline || "",
-        };
-        propertyTypes.add("headline");
+      // Check for headline - handle both nested and flat structures
+      // Backend may return: { headline: {...} } (nested) OR { headline: 'text', originalHeadline: 'text', hasTermsAndConditions: false } (flat)
+      if (properties && typeof properties === "object") {
+        // Check for nested structure: properties.headline.headline
+        if (
+          properties.headline &&
+          typeof properties.headline === "object" &&
+          properties.headline.headline !== undefined
+        ) {
+          normalizedProperties.headline = {
+            headline: properties.headline.headline || "",
+            hasTermsAndConditions:
+              properties.headline.hasTermsAndConditions || false,
+            originalHeadline: properties.headline.originalHeadline || "",
+          };
+          propertyTypes.add("headline");
+        }
+        // Check for flat structure: properties.headline (string), properties.originalHeadline, properties.hasTermsAndConditions
+        else if (
+          properties.headline !== undefined ||
+          properties.originalHeadline !== undefined ||
+          properties.hasTermsAndConditions !== undefined
+        ) {
+          normalizedProperties.headline = {
+            headline:
+              typeof properties.headline === "string"
+                ? properties.headline
+                : properties.headline?.headline || "",
+            hasTermsAndConditions: properties.hasTermsAndConditions || false,
+            originalHeadline: properties.originalHeadline || "",
+          };
+          propertyTypes.add("headline");
+        }
       }
 
       // Check for brandLogo
@@ -575,7 +600,12 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   };
 
   const handleAdd = () => {
-    if (validate()) {
+    const isValid = validate();
+    console.log("[handleAdd] Validation result:", isValid);
+    console.log("[handleAdd] Current creative:", currentCreative);
+    console.log("[handleAdd] Errors:", errors);
+
+    if (isValid) {
       // Check if a creative with the same adGroupId already exists
       if (addedCreatives.length > 0) {
         setErrors({
@@ -594,6 +624,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
       setSelectedPropertyType("");
       setAddedPropertyTypes(new Set());
       setErrors({});
+    } else {
+      console.log("[handleAdd] Validation failed, errors:", errors);
     }
   };
 
@@ -755,26 +787,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 ).map((option) => {
                   const isChecked = addedPropertyTypes.has(option.value);
                   return (
-                    <label
-                      key={option.value}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
+                    <div key={option.value} className="flex items-center gap-2">
+                      <Checkbox
                         checked={isChecked}
-                        onChange={(e) => {
-                          if (e.target.checked) {
+                        onChange={(checked) => {
+                          if (checked) {
                             handleAddPropertyType(option.value);
                           } else {
                             handleRemovePropertyType(option.value);
                           }
                         }}
-                        className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] focus:ring-2"
+                        size="small"
                       />
                       <span className="text-[13.44px] text-[#222124]">
                         {option.label}
                       </span>
-                    </label>
+                    </div>
                   );
                 })}
               </div>
@@ -893,25 +921,24 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
                 {/* Has Terms and Conditions Checkbox */}
                 <div className="mb-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center">
+                    <Checkbox
                       checked={
                         currentCreative.properties.headline
                           ?.hasTermsAndConditions || false
                       }
-                      onChange={(e) =>
+                      onChange={(checked) =>
                         handleChange("properties.headline", {
                           ...currentCreative.properties.headline,
-                          hasTermsAndConditions: e.target.checked,
+                          hasTermsAndConditions: checked,
                         })
                       }
-                      className="mr-2"
+                      size="small"
                     />
-                    <span className="text-[13.44px] text-[#222124]">
+                    <span className="text-[13.44px] text-[#222124] ml-2">
                       Has Terms and Conditions
                     </span>
-                  </label>
+                  </div>
                   <p className="text-xs text-gray-400 mt-1 ml-6">
                     Indicates the ad promotes a free product/service with
                     qualifying terms. Only supported for productAds with
@@ -1214,16 +1241,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           currentCreative.properties.customImage
                             ?.rectCustomImage?.assetId || ""
                         }
-                        onChange={(e) =>
-                          handleChange("properties.customImage", {
-                            ...currentCreative.properties.customImage,
-                            rectCustomImage: {
-                              ...currentCreative.properties.customImage
-                                ?.rectCustomImage,
-                              assetId: e.target.value,
+                        onChange={(e) => {
+                          setCurrentCreative((prev) => ({
+                            ...prev,
+                            properties: {
+                              ...prev.properties,
+                              customImage: {
+                                ...prev.properties.customImage,
+                                rectCustomImage: {
+                                  ...prev.properties.customImage
+                                    ?.rectCustomImage,
+                                  assetId: e.target.value,
+                                },
+                              },
                             },
-                          })
-                        }
+                          }));
+                        }}
                         className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
                         placeholder="Asset ID *"
                       />
@@ -1233,16 +1266,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           currentCreative.properties.customImage
                             ?.rectCustomImage?.assetVersion || ""
                         }
-                        onChange={(e) =>
-                          handleChange("properties.customImage", {
-                            ...currentCreative.properties.customImage,
-                            rectCustomImage: {
-                              ...currentCreative.properties.customImage
-                                ?.rectCustomImage,
-                              assetVersion: e.target.value,
+                        onChange={(e) => {
+                          setCurrentCreative((prev) => ({
+                            ...prev,
+                            properties: {
+                              ...prev.properties,
+                              customImage: {
+                                ...prev.properties.customImage,
+                                rectCustomImage: {
+                                  ...prev.properties.customImage
+                                    ?.rectCustomImage,
+                                  assetVersion: e.target.value,
+                                },
+                              },
                             },
-                          })
-                        }
+                          }));
+                        }}
                         className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
                         placeholder="Asset Version *"
                       />
@@ -1440,16 +1479,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           currentCreative.properties.customImage
                             ?.squareCustomImage?.assetId || ""
                         }
-                        onChange={(e) =>
-                          handleChange("properties.customImage", {
-                            ...currentCreative.properties.customImage,
-                            squareCustomImage: {
-                              ...currentCreative.properties.customImage
-                                ?.squareCustomImage,
-                              assetId: e.target.value,
+                        onChange={(e) => {
+                          setCurrentCreative((prev) => ({
+                            ...prev,
+                            properties: {
+                              ...prev.properties,
+                              customImage: {
+                                ...prev.properties.customImage,
+                                squareCustomImage: {
+                                  ...prev.properties.customImage
+                                    ?.squareCustomImage,
+                                  assetId: e.target.value,
+                                },
+                              },
                             },
-                          })
-                        }
+                          }));
+                        }}
                         className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
                         placeholder="Asset ID *"
                       />
@@ -1459,16 +1504,22 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           currentCreative.properties.customImage
                             ?.squareCustomImage?.assetVersion || ""
                         }
-                        onChange={(e) =>
-                          handleChange("properties.customImage", {
-                            ...currentCreative.properties.customImage,
-                            squareCustomImage: {
-                              ...currentCreative.properties.customImage
-                                ?.squareCustomImage,
-                              assetVersion: e.target.value,
+                        onChange={(e) => {
+                          setCurrentCreative((prev) => ({
+                            ...prev,
+                            properties: {
+                              ...prev.properties,
+                              customImage: {
+                                ...prev.properties.customImage,
+                                squareCustomImage: {
+                                  ...prev.properties.customImage
+                                    ?.squareCustomImage,
+                                  assetVersion: e.target.value,
+                                },
+                              },
                             },
-                          })
-                        }
+                          }));
+                        }}
                         className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
                         placeholder="Asset Version *"
                       />
@@ -1990,67 +2041,137 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                 <div className="space-y-2">
                   {(
                     currentCreative.properties.background?.backgrounds || []
-                  ).map((bg, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={bg.color || "#000000"}
-                        onChange={(e) => {
-                          const newBackgrounds = [
-                            ...(currentCreative.properties.background
-                              ?.backgrounds || []),
-                          ];
-                          newBackgrounds[idx] = { color: e.target.value };
-                          handleChange("properties.background", {
-                            backgrounds: newBackgrounds,
-                          });
-                        }}
-                        className="w-12 h-10 border border-[#EBEBEB] rounded bg-white"
-                      />
-                      <input
-                        type="text"
-                        value={bg.color || ""}
-                        onChange={(e) => {
-                          const newBackgrounds = [
-                            ...(currentCreative.properties.background
-                              ?.backgrounds || []),
-                          ];
-                          newBackgrounds[idx] = { color: e.target.value };
-                          handleChange("properties.background", {
-                            backgrounds: newBackgrounds,
-                          });
-                        }}
-                        className="flex-1 px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="#RRGGBB"
-                        pattern="^#[0-9A-Fa-f]{6}$"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newBackgrounds = (
-                            currentCreative.properties.background
-                              ?.backgrounds || []
-                          ).filter((_, i) => i !== idx);
-                          handleChange("properties.background", {
-                            backgrounds: newBackgrounds,
-                          });
-                        }}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                  ).map((bg, idx) => {
+                    const errorKey = `properties.background.backgrounds[${idx}].color`;
+                    const hasError = !!errors[errorKey];
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={bg.color || "#000000"}
+                            onChange={(e) => {
+                              setCurrentCreative((prev) => {
+                                const currentBackgrounds =
+                                  prev.properties.background?.backgrounds || [];
+                                const newBackgrounds = [...currentBackgrounds];
+                                newBackgrounds[idx] = { color: e.target.value };
+                                return {
+                                  ...prev,
+                                  properties: {
+                                    ...prev.properties,
+                                    background: {
+                                      backgrounds: newBackgrounds,
+                                    },
+                                  },
+                                };
+                              });
+                              // Clear error when user types
+                              if (errors[errorKey]) {
+                                setErrors((prev) => {
+                                  const newErrors = { ...prev };
+                                  delete newErrors[errorKey];
+                                  return newErrors;
+                                });
+                              }
+                            }}
+                            className="w-12 h-10 border border-[#EBEBEB] rounded bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={bg.color || ""}
+                            onChange={(e) => {
+                              setCurrentCreative((prev) => {
+                                const currentBackgrounds =
+                                  prev.properties.background?.backgrounds || [];
+                                const newBackgrounds = [...currentBackgrounds];
+                                newBackgrounds[idx] = { color: e.target.value };
+                                return {
+                                  ...prev,
+                                  properties: {
+                                    ...prev.properties,
+                                    background: {
+                                      backgrounds: newBackgrounds,
+                                    },
+                                  },
+                                };
+                              });
+                              // Clear error when user types
+                              if (errors[errorKey]) {
+                                setErrors((prev) => {
+                                  const newErrors = { ...prev };
+                                  delete newErrors[errorKey];
+                                  return newErrors;
+                                });
+                              }
+                            }}
+                            className={`flex-1 px-3 py-2 border rounded-lg text-[13.44px] bg-white ${
+                              hasError ? "border-red-500" : "border-[#EBEBEB]"
+                            }`}
+                            placeholder="#RRGGBB"
+                            pattern="^#[0-9A-Fa-f]{6}$"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentCreative((prev) => {
+                                const currentBackgrounds =
+                                  prev.properties.background?.backgrounds || [];
+                                const newBackgrounds =
+                                  currentBackgrounds.filter(
+                                    (_, i) => i !== idx
+                                  );
+                                return {
+                                  ...prev,
+                                  properties: {
+                                    ...prev.properties,
+                                    background: {
+                                      backgrounds: newBackgrounds,
+                                    },
+                                  },
+                                };
+                              });
+                              // Clear error when removing
+                              if (errors[errorKey]) {
+                                setErrors((prev) => {
+                                  const newErrors = { ...prev };
+                                  delete newErrors[errorKey];
+                                  return newErrors;
+                                });
+                              }
+                            }}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        {hasError && (
+                          <p className="text-red-500 text-xs ml-14">
+                            {errors[errorKey]}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                   <button
                     type="button"
                     onClick={() => {
-                      const newBackgrounds = [
-                        ...(currentCreative.properties.background
-                          ?.backgrounds || []),
-                        { color: "#000000" },
-                      ];
-                      handleChange("properties.background", {
-                        backgrounds: newBackgrounds,
+                      setCurrentCreative((prev) => {
+                        const currentBackgrounds =
+                          prev.properties.background?.backgrounds || [];
+                        const newBackgrounds = [
+                          ...currentBackgrounds,
+                          { color: "#000000" },
+                        ];
+                        return {
+                          ...prev,
+                          properties: {
+                            ...prev.properties,
+                            background: {
+                              backgrounds: newBackgrounds,
+                            },
+                          },
+                        };
                       });
                     }}
                     className="text-[#136D6D] hover:text-[#0f5555] text-[13.44px]"
@@ -2417,19 +2538,18 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
             {/* Consent to Translate */}
             <div className="mb-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
+              <div className="flex items-center">
+                <Checkbox
                   checked={currentCreative.consentToTranslate || false}
-                  onChange={(e) =>
-                    handleChange("consentToTranslate", e.target.checked)
+                  onChange={(checked) =>
+                    handleChange("consentToTranslate", checked)
                   }
-                  className="mr-2"
+                  size="small"
                 />
-                <span className="text-[13.44px] text-[#222124]">
+                <span className="text-[13.44px] text-[#222124] ml-2">
                   Consent to Translate
                 </span>
-              </label>
+              </div>
             </div>
 
             {errors.properties && (

@@ -3177,9 +3177,28 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Ad Group ID is required. Please select an ad group.");
       }
 
-      // Transform properties to ensure backgrounds is directly under properties
+      // Transform properties to match backend expectations
       const transformProperties = (props: any) => {
         const transformed = { ...props };
+
+        // Flatten headline structure: properties.headline.headline -> properties.headline
+        // Backend expects: { headline: string, hasTermsAndConditions: boolean, originalHeadline: string }
+        if (transformed.headline && typeof transformed.headline === "object") {
+          // Store the headline object before we modify transformed.headline
+          const headlineObj = transformed.headline;
+
+          // Extract all headline-related fields from the object
+          if (headlineObj.headline !== undefined) {
+            transformed.headline = headlineObj.headline;
+          }
+          if (headlineObj.hasTermsAndConditions !== undefined) {
+            transformed.hasTermsAndConditions =
+              headlineObj.hasTermsAndConditions;
+          }
+          if (headlineObj.originalHeadline !== undefined) {
+            transformed.originalHeadline = headlineObj.originalHeadline;
+          }
+        }
 
         // Move background.backgrounds to backgrounds directly under properties
         if (transformed.background?.backgrounds) {
@@ -3332,9 +3351,28 @@ export const CampaignDetail: React.FC = () => {
         adGroupId: adGroupId,
       });
 
-      // Transform properties to ensure backgrounds is directly under properties
+      // Transform properties to match backend expectations
       const transformProperties = (props: any) => {
         const transformed = { ...props };
+
+        // Flatten headline structure: properties.headline.headline -> properties.headline
+        // Backend expects: { headline: string, hasTermsAndConditions: boolean, originalHeadline: string }
+        if (transformed.headline && typeof transformed.headline === "object") {
+          // Store the headline object before we modify transformed.headline
+          const headlineObj = transformed.headline;
+
+          // Extract all headline-related fields from the object
+          if (headlineObj.headline !== undefined) {
+            transformed.headline = headlineObj.headline;
+          }
+          if (headlineObj.hasTermsAndConditions !== undefined) {
+            transformed.hasTermsAndConditions =
+              headlineObj.hasTermsAndConditions;
+          }
+          if (headlineObj.originalHeadline !== undefined) {
+            transformed.originalHeadline = headlineObj.originalHeadline;
+          }
+        }
 
         // Move background.backgrounds to backgrounds directly under properties
         if (transformed.background?.backgrounds) {
