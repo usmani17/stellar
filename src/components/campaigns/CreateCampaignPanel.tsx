@@ -1190,7 +1190,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {/* Profile */}
                 <div>
                   <label className="form-label">
-                    Profile
+                    Profile <span>*</span>
                   </label>
                   <Dropdown<string>
                     options={profileOptions}
@@ -1220,7 +1220,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {/* Campaign Type */}
                 <div>
                   <label className="form-label">
-                    Campaign Type
+                    Campaign Type <span>*</span>
                   </label>
                   <Dropdown<string>
                     options={CAMPAIGN_TYPES}
@@ -1306,7 +1306,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {/* Profile */}
                 <div>
                   <label className="form-label">
-                    Profile
+                    Profile <span>*</span>
                   </label>
                   <Dropdown<string>
                     options={profileOptions}
@@ -1336,7 +1336,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {/* Campaign Type */}
                 <div>
                   <label className="form-label">
-                    Campaign Type
+                    Campaign Type <span>*</span>
                   </label>
                   <Dropdown<string>
                     options={CAMPAIGN_TYPES}
@@ -1365,7 +1365,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
               <div>
                 <div className="mb-4">
                   <label className="form-label">
-                    Goals
+                    Goals <span>*</span>
                   </label>
                   <p className="text-[12px] text-[#556179] mb-4">
                     Choose a campaign outcome that aligns with your business
@@ -1405,7 +1405,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Campaign Name */}
                     <div>
                       <label className="form-label">
-                        Campaign Name
+                        Campaign Name <span>*</span>
                       </label>
                       <input
                         type="text"
@@ -1428,7 +1428,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Budget */}
                     <div>
                       <label className="form-label">
-                        Budget
+                        Budget <span>*</span>
                       </label>
                       <input
                         type="number"
@@ -1457,7 +1457,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Budget Type */}
                     <div>
                       <label className="form-label">
-                        Budget Type
+                        Budget Type <span>*</span>
                       </label>
                       <Dropdown<string>
                         options={(() => {
@@ -1486,7 +1486,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* State */}
                     <div>
                       <label className="form-label">
-                        State
+                        State <span>*</span>
                       </label>
                       <Dropdown<string>
                         options={STATE_OPTIONS}
@@ -1519,7 +1519,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Campaign Name */}
                     <div>
                       <label className="form-label">
-                        Campaign Name
+                        Campaign Name <span>*</span>
                       </label>
                       <input
                         type="text"
@@ -1542,7 +1542,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Budget */}
                     <div>
                       <label className="form-label">
-                        Budget
+                        Budget <span>*</span>
                       </label>
                       <input
                         type="number"
@@ -1571,7 +1571,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Budget Type */}
                     <div>
                       <label className="form-label">
-                        Budget Type
+                        Budget Type <span>*</span>
                       </label>
                       <Dropdown<string>
                         options={[
@@ -1589,7 +1589,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* State */}
                     <div>
                       <label className="form-label">
-                        State
+                        State <span>*</span>
                       </label>
                       <Dropdown<string>
                         options={STATE_OPTIONS}
@@ -1622,7 +1622,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Campaign Name */}
                     <div>
                       <label className="form-label">
-                        Campaign Name
+                        Campaign Name <span>*</span>
                       </label>
                       <input
                         type="text"
@@ -1645,7 +1645,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Budget */}
                     <div>
                       <label className="form-label">
-                        Budget
+                        Budget <span>*</span>
                       </label>
                       <input
                         type="number"
@@ -1674,7 +1674,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* State */}
                     <div>
                       <label className="form-label">
-                        State
+                        State <span>*</span>
                       </label>
                       <Dropdown<string>
                         options={STATE_OPTIONS}
@@ -1698,7 +1698,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Targeting Type */}
                     <div>
                       <label className="form-label">
-                        Targeting Type
+                        Targeting Type <span>*</span>
                       </label>
                       <Dropdown<string>
                         options={TARGETING_TYPE_OPTIONS}
@@ -1723,7 +1723,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Start Date */}
                     <div>
                       <label className="form-label">
-                        Start Date
+                        Start Date <span>*</span>
                       </label>
                       <div className="relative">
                         <input
@@ -1821,7 +1821,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Start Date */}
                     <div>
                       <label className="form-label">
-                        Start Date
+                        Start Date <span>*</span>
                       </label>
                       <div className="relative">
                         <input
@@ -1848,7 +1848,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {(formData.budgetType?.toUpperCase() === "LIFETIME" || formData.budgetType === "lifetime") && (
                       <div>
                         <label className="form-label">
-                          End Date <span className="text-red-500">*</span>
+                          End Date <span>*</span>
                         </label>
                         <div className="relative">
                           <input
@@ -2650,7 +2650,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Tags */}
                     <div>
                       <label className="form-label">
-                        Tags (Key-Value Pairs) - Max 50
+                        Tags - Max 50
                       </label>
                       <div className="space-y-2">
                         {(formData.tags || []).map((tag, index) => (
@@ -2823,7 +2823,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Brand Entity ID */}
                     <div>
                       <label className="form-label">
-                        Brand Entity ID
+                        Brand Entity ID <span>*</span>
                       </label>
                       <Dropdown<string>
                         options={[
@@ -2935,7 +2935,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Cost Type */}
                     <div>
                       <label className="form-label">
-                        Cost Type
+                        Cost Type <span>*</span>
                       </label>
                       <Dropdown<string>
                         options={[
@@ -3561,7 +3561,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {formData.type === "SB" && (
                   <div className="mt-4">
                     <label className="form-label">
-                      Tags (Key-Value Pairs) - Max 50
+                      Tags  - Max 50
                     </label>
                     <div className="space-y-2">
                       {(formData.tags || []).map((tag, index) => (
