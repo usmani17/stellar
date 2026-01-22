@@ -4,6 +4,7 @@ import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
+import { Loader } from "../../../../components/ui/Loader";
 import {
   FilterPanel,
   type FilterValues,
@@ -304,7 +305,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
           >
             {syncing ? (
               <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                 Syncing...
               </span>
             ) : (
@@ -321,7 +322,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
             >
               {syncingAnalytics ? (
                 <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                  <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                   Syncing Analytics...
                 </span>
               ) : (
@@ -442,7 +443,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                           pendingChange?.field === "status" ? (
                             <div className="flex items-center gap-2">
                               <StatusBadge status={pendingChange.newValue} />
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                              <Loader size="sm" showMessage={false} />
                             </div>
                           ) : pendingChange?.id === adgroup.id &&
                             pendingChange?.field === "status" ? (
@@ -567,7 +568,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                 parseFloat(pendingChange.newValue)
                               )}
                             </span>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : pendingChange?.id === adgroup.id &&
                           pendingChange?.field === "bid" ? (
@@ -642,7 +643,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                 }
                               }}
                               autoFocus
-                              className="w-24 px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                              className="inline-edit-input w-24"
                             />
                           </div>
                         ) : (

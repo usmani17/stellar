@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 import type { AdGroup, CampaignDetail } from "../../services/campaigns";
 
 interface AdGroupsTableProps {
@@ -171,7 +172,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
+    <div className="table-container">
       <div className="overflow-x-auto w-full">
         {adgroups.length === 0 && !loading ? (
           <div className="text-center py-8">
@@ -208,12 +209,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                   </div>
                 </th>
 
-                {/* Ad Group ID Header */}
-                <th className="table-header">Ad Group ID</th>
-
                 {/* Campaign Name Header - Only show when not in campaign detail */}
                 {showCampaignColumn && (
-                  <th className="table-header min-w-[150px] max-w-[200px]">
+                  <th className="table-header min-w-[225px] max-w-[300px]">
                     Campaign Name
                   </th>
                 )}
@@ -373,7 +371,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
               {loading && adgroups.length === 0 ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={`skeleton-${index}`} className="table-row">
-                    <td className="table-cell" colSpan={15}>
+                    <td className="table-cell" colSpan={14}>
                       <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                     </td>
                   </tr>
@@ -387,7 +385,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       <td className="table-cell table-text leading-[1.26]">
                         Total ({summary.total_adgroups})
                       </td>
-                      <td className="table-cell"></td>
                       {showCampaignColumn && (
                         <>
                           <td className="table-cell"></td>
@@ -526,22 +523,21 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           )}
                         </td>
 
-                        {/* Ad Group ID */}
-                        <td className="table-cell">
-                          <span className="table-text leading-[1.26]">
-                            {adgroup.adGroupId || "—"}
-                          </span>
-                        </td>
-
                         {/* Campaign Name - Only show when not in campaign detail */}
                         {showCampaignColumn && (
-                          <td className="table-cell min-w-[150px] max-w-[200px]">
+                          <td className="table-cell min-w-[225px] max-w-[300px]">
                             {adgroup.campaignId ? (
                               <button
                                 onClick={(e) =>
                                   handleCampaignNameClick(adgroup, e)
                                 }
-                                className="text-[13.3px] text-[#136D6D] hover:text-[#0f5a5a] hover:underline leading-[1.26] text-left truncate block w-full cursor-pointer"
+                                className="table-edit-link text-left block w-full"
+                                style={{
+                                  whiteSpace: 'normal',
+                                  overflow: 'visible',
+                                  textOverflow: 'clip',
+                                  wordBreak: 'break-word',
+                                }}
                                 title={
                                   adgroup.campaign_name ||
                                   "View campaign details"
@@ -550,7 +546,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                 {adgroup.campaign_name || "—"}
                               </button>
                             ) : (
-                              <span className="table-text leading-[1.26] text-left truncate block w-full">
+                              <span className="table-text leading-[1.26] text-left whitespace-normal break-words block w-full">
                                 {adgroup.campaign_name || "—"}
                               </span>
                             )}
@@ -836,25 +832,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
       {loading && (
         <div className="loading-overlay">
           <div className="loading-overlay-content">
-            <svg
-              className="loading-spinner"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <p className="loading-message">Loading ad groups...</p>
+            <Loader size="lg" message="Loading ad groups..." />
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
+import { Loader } from "../../../../components/ui/Loader";
 import {
   FilterPanel,
   type FilterValues,
@@ -327,7 +328,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
           >
             {syncing ? (
               <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                 Syncing...
               </span>
             ) : (
@@ -344,7 +345,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
             >
               {syncingAnalytics ? (
                 <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                  <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                   Syncing Analytics...
                 </span>
               ) : (
@@ -491,7 +492,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : pendingChange?.id === keyword.id &&
                           pendingChange?.field === "match_type" ? (
@@ -584,7 +585,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                         pendingChange?.field === "status" ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : pendingChange?.id === keyword.id &&
                           pendingChange?.field === "status" ? (
@@ -674,7 +675,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                             <span className="table-text leading-[1.26]">
                               ${parseFloat(pendingChange.newValue).toFixed(2)}
                             </span>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : editingKeywordId === keyword.id &&
                           editingField === "bid" &&
@@ -700,7 +701,7 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                                 }
                               }}
                               autoFocus
-                              className="w-24 px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                              className="inline-edit-input w-24"
                             />
                           </div>
                         ) : (

@@ -345,6 +345,41 @@ body input[type="submit"]:disabled {
   background-color: var(--color-semantic-background-primary);
 }
 
+/* Table container - used for campaign tables and similar data tables */
+.table-container {
+  background-color: var(--color-semantic-background-primary);
+  border: 1px solid var(--color-semantic-border-default);
+  border-radius: 12px;
+  overflow: hidden;
+  width: 100%;
+  position: relative;
+}
+
+/* Graph container - used for performance charts and similar graph components */
+.graph-container {
+  background-color: var(--color-semantic-background-primary);
+  border: 1px solid #E5E7EB;
+  border-radius: 20px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Inline editable input field - used for inline editing in tables */
+.inline-edit-input {
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  font-size: 13.3px;
+  color: #000000;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.25rem;
+  outline: none;
+}
+
+.inline-edit-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-semantic-status-primary);
+}
+
 /* Example 10: Using in gradients */
 .gradient-background {
   background: linear-gradient(to right,

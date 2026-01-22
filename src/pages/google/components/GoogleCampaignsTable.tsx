@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
+import { Loader } from "../../../components/ui/Loader";
 import type { IGoogleCampaignsTableProps, IGoogleCampaign } from "../../../types/google/campaign";
 import type { IColumnDefinition } from "../../../types/google";
 
@@ -69,16 +70,6 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
         const navPath = `/accounts/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
           <div className="group relative flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(navPath);
-              }}
-              className="table-edit-link"
-            >
-              {value}
-            </button>
             {onEditCampaign && (
               <button
                 type="button"
@@ -91,10 +82,10 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 disabled={editLoadingCampaignId === row.campaign_id}
               >
                 {editLoadingCampaignId === row.campaign_id ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                  <Loader size="sm" showMessage={false} />
                 ) : (
                   <svg
-                    className="w-4 h-4 text-[#072929]"
+                    className="w-4 h-4 text-[#556179]"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -103,12 +94,22 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                     />
                   </svg>
                 )}
               </button>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(navPath);
+              }}
+              className="table-edit-link"
+            >
+              {value}
+            </button>
           </div>
         );
       },
@@ -127,7 +128,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       type: "text",
       sortable: true,
       render: (_value: any, row: IGoogleCampaign) => (
-                        <span className="table-text leading-[1.26] font-semibold text-[#7a4dff]">
+        <span className="table-text leading-[1.26] whitespace-nowrap">
           {getChannelTypeLabel(row.advertising_channel_type) || "—"}
         </span>
       ),
@@ -179,6 +180,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       type: "text",
       sortable: true,
       editable: true,
+      minWidth: "min-w-[180px]",
       statusOptions: [
         { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
         { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },

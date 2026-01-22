@@ -16,6 +16,7 @@ import { googleAdwordsAdsService } from "../../services/googleAdwords/googleAdwo
 import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleAdsListTable } from "./components/GoogleAdsListTable";
+import { Loader } from "../../components/ui/Loader";
 import type { GoogleAd } from "./components/tabs/GoogleTypes";
 
 export const GoogleAds: React.FC = () => {
@@ -919,7 +920,7 @@ export const GoogleAds: React.FC = () => {
                 >
                   {syncing ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                      <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                       Syncing...
                     </span>
                   ) : (
@@ -933,7 +934,7 @@ export const GoogleAds: React.FC = () => {
                 >
                   {syncingAnalytics ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                      <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                       Syncing Analytics...
                     </span>
                   ) : (
@@ -1103,7 +1104,7 @@ export const GoogleAds: React.FC = () => {
                   >
                     {exportLoading ? (
                       <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        <Loader size="sm" showMessage={false} />
                       </div>
                     ) : (
                       <>
@@ -1131,10 +1132,7 @@ export const GoogleAds: React.FC = () => {
                   <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
                     {exportLoading ? (
                       <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
-                        <p className="text-[13px] text-[#072929] font-medium">
-                          Exporting...
-                        </p>
+                        <Loader size="md" message="Exporting..." />
                         <p className="text-[11px] text-[#556179] text-center px-2">
                           Please wait while we prepare your file
                         </p>
@@ -1212,12 +1210,7 @@ export const GoogleAds: React.FC = () => {
                   <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
                     {bulkLoading && (
                       <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-xl">
-                        <div className="flex flex-col items-center gap-3">
-                          <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
-                          <span className="text-[12.8px] font-medium text-[#136D6D]">
-                            Updating ads...
-                          </span>
-                        </div>
+                        <Loader size="md" message="Updating ads..." />
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
@@ -1501,7 +1494,7 @@ export const GoogleAds: React.FC = () => {
               )}
 
               {/* Table */}
-              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+              <div className="table-container">
                 <div className="overflow-x-auto w-full">
                   <GoogleAdsListTable
                     ads={ads}

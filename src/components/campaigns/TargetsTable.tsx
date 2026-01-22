@@ -117,7 +117,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] w-full">
+    <div className="table-container">
       {loading ? (
         <div className="text-center py-8 text-[#556179] text-[13.3px]">
           Loading targets...

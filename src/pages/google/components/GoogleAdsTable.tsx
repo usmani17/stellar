@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
+import { Loader } from "../../../components/ui/Loader";
 import { formatDateString, parseDateToYYYYMMDD } from "../../../utils/dateHelpers";
 import type { IColumnDefinition, IGoogleAdsTableProps } from "../../../types/google";
 
@@ -62,7 +63,7 @@ export function GoogleAdsTable<T = any>({
       return (
         <div className="flex items-center gap-2">
           {column.render ? column.render(value, row) : renderValue(column, value)}
-          <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+          <Loader size="sm" showMessage={false} />
         </div>
       );
     }
@@ -117,10 +118,11 @@ export function GoogleAdsTable<T = any>({
     }
 
     if (isClickable) {
+      const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
       return (
         <div
           onClick={() => onStartInlineEdit(row, column.key)}
-          className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1 w-full"
+          className={`cursor-pointer hover:bg-gray-50 rounded px-2 py-1 w-full ${whitespaceClass}`}
           style={{ pointerEvents: 'auto' }}
         >
           {cellContent}
@@ -130,14 +132,16 @@ export function GoogleAdsTable<T = any>({
 
     // When panel is open and field is editable, show as read-only (no hover effect)
     if (column.editable && isPanelOpen && !isEditing) {
+      const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
       return (
-        <div className="cursor-not-allowed opacity-60 rounded px-2 py-1 w-full">
+        <div className={`cursor-not-allowed opacity-60 rounded px-2 py-1 w-full ${whitespaceClass}`}>
           {cellContent}
         </div>
       );
     }
 
-    return <div>{cellContent}</div>;
+    const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
+    return <div className={whitespaceClass}>{cellContent}</div>;
   };
 
   const renderValue = (column: IColumnDefinition, value: any): React.ReactNode => {
@@ -180,6 +184,11 @@ export function GoogleAdsTable<T = any>({
           </span>
         );
       case "text":
+        // For bidding_strategy_type, prevent wrapping
+        if (column.key === "bidding_strategy_type") {
+          return <span className="table-text leading-[1.26] whitespace-nowrap">{value || "—"}</span>;
+        }
+        return <span className="table-text leading-[1.26]">{value || "—"}</span>;
       default:
         return <span className="table-text leading-[1.26]">{value || "—"}</span>;
     }
@@ -302,7 +311,7 @@ export function GoogleAdsTable<T = any>({
                 }
               }}
               autoFocus
-              className="w-full px-3 py-2 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40 min-w-[100px]"
+              className="inline-edit-input px-3 py-2 min-w-[100px]"
             />
           </div>
         );
@@ -351,7 +360,7 @@ export function GoogleAdsTable<T = any>({
                 }
               }}
               autoFocus
-              className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+              className="inline-edit-input"
             />
           </div>
         );
@@ -375,16 +384,16 @@ export function GoogleAdsTable<T = any>({
       }
     }
     
-    // Use Tailwind classes directly - first sticky column is at 35px (after checkbox)
+    // Use table-sticky-first-column class for first sticky column (matches Amazon campaigns)
     if (index === 0) {
-      return "sticky left-[35px] bg-white z-10";
+      return "table-sticky-first-column";
     }
     // For more sticky columns, would need more specific handling
-    return "sticky bg-white z-10";
+    return "sticky bg-[#f5f5f0] z-30";
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div>
       <div className="overflow-x-auto overflow-y-visible w-full">
         {loading ? (
           <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -400,7 +409,7 @@ export function GoogleAdsTable<T = any>({
               <thead>
                 <tr className="border-b border-[#e8e8e3]">
                   {/* Checkbox Header */}
-                  <th className="table-header w-[35px] sticky left-0 bg-white z-10">
+                  <th className="table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={allSelected}
@@ -420,7 +429,7 @@ export function GoogleAdsTable<T = any>({
                     return (
                       <th
                         key={column.key}
-                        className={`table-header ${
+                        className={`table-header whitespace-nowrap ${
                           column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
                         } ${stickyClasses} ${widthClasses} ${borderClass}`}
                         onClick={() => column.sortable !== false && onSort(column.key)}
@@ -438,9 +447,9 @@ export function GoogleAdsTable<T = any>({
                 {/* Summary Row */}
                 {summary && (
                   <tr className="table-summary-row">
-                    <td className="table-cell sticky left-0 bg-[#f5f5f0] z-10"></td>
+                    <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
                     {columns.map((column, index) => {
-                      const stickyClasses = getStickyClasses(column, index).replace("bg-white", "bg-[#f5f5f0]");
+                      const stickyClasses = getStickyClasses(column, index);
                       const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
                       
                       let summaryValue: React.ReactNode = "";
@@ -522,10 +531,7 @@ export function GoogleAdsTable<T = any>({
                     <td colSpan={columns.length + 1} className="relative">
                       <div className="absolute inset-0 bg-white bg-opacity-85 flex items-center justify-center z-20 backdrop-blur-[2px]">
                         <div className="flex flex-col items-center gap-3 bg-white px-6 py-4 rounded-lg shadow-lg border border-[#E6E6E6]">
-                          <div className="relative">
-                            <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
-                          </div>
-                          <span className="text-[12.8px] font-medium text-[#136D6D]">{loadingMessage}</span>
+                          <Loader size="md" message={loadingMessage} />
                         </div>
                       </div>
                     </td>
@@ -544,7 +550,7 @@ export function GoogleAdsTable<T = any>({
                       className="table-row group"
                     >
                       {/* Checkbox */}
-                      <td className="table-cell sticky left-0 bg-white z-10">
+                      <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedItems.has(itemId)}
@@ -559,11 +565,12 @@ export function GoogleAdsTable<T = any>({
                         const stickyClasses = getStickyClasses(column, colIndex);
                         const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
                         const widthClasses = column.width || column.minWidth || "";
+                        const hoverClass = column.sticky && colIndex === 0 ? "group-hover:bg-gray-100" : "";
                         
                         return (
                           <td
                             key={column.key}
-                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses}`}
+                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
                           >
                             {renderCell(column, row, index)}
                           </td>

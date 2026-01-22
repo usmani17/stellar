@@ -19,3 +19,4 @@ export { ErrorModal } from "./ErrorModal";
 export { Chip } from "./Chip";
 export { Menu } from "./Menu";
 export type { MenuItem, MenuProps } from "./Menu";
+export { Loader } from "./Loader";

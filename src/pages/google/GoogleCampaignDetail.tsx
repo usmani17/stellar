@@ -62,6 +62,7 @@ import { CreateGoogleAdSection } from "../../components/google/CreateGoogleAdSec
 import { CreateGoogleKeywordSection } from "../../components/google/CreateGoogleKeywordSection";
 import { CreateGoogleNegativeKeywordSection } from "../../components/google/CreateGoogleNegativeKeywordSection";
 import { ErrorModal } from "../../components/ui/ErrorModal";
+import { Loader } from "../../components/ui/Loader";
 
 interface GoogleCampaignDetail {
   campaign: {
@@ -3197,7 +3198,9 @@ export const GoogleCampaignDetail: React.FC = () => {
             {/* KPI Cards */}
             {loading ? (
               <div className="flex flex-col gap-4 mb-4">
-                <div className="text-center py-8">Loading campaign data...</div>
+                <div className="flex items-center justify-center py-8">
+                  <Loader size="lg" message="Loading campaign data..." />
+                </div>
               </div>
             ) : campaignDetail ? (
               <div className="flex flex-col gap-4 mb-4">
@@ -4406,7 +4409,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               >
                 {nameEditLoading ? (
                   <>
-                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                    <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
                     Saving...
                   </>
                 ) : (
@@ -4488,7 +4491,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               >
                 {keywordTextEditLoading ? (
                   <>
-                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                    <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
                     Saving...
                   </>
                 ) : (

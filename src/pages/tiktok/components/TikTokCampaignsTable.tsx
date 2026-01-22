@@ -211,7 +211,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     if (loading) {
         return (
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+            <div className="table-container">
                 <div className="text-center py-8 text-[#556179] text-[13.3px]">
                     Loading campaigns...
                 </div>
@@ -221,7 +221,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     if (campaigns.length === 0) {
         return (
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] p-8 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="table-container p-8 flex flex-col items-center justify-center min-h-[400px]">
                 <p className="text-[13.3px] text-[#556179]">No campaigns found.</p>
             </div>
         );
@@ -230,7 +230,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
 
     return (
-        <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+        <div className="table-container">
             <div className="overflow-x-auto w-full">
                 <table className="min-w-[1200px] w-full">
                     <thead>
