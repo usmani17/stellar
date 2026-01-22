@@ -182,7 +182,7 @@ export const PasswordUpdateBanner: React.FC = () => {
                   <div className="space-y-4">
                     {/* Password Field */}
                     <div>
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      <label className="form-label-small">
                         Password *
                       </label>
                       <div className="relative">
@@ -251,7 +251,7 @@ export const PasswordUpdateBanner: React.FC = () => {
 
                     {/* Confirm Password Field */}
                     <div>
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      <label className="form-label-small">
                         Confirm Password *
                       </label>
                       <div className="relative">

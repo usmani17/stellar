@@ -1189,7 +1189,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
               <div className="grid grid-cols-4 gap-6">
                 {/* Profile */}
                 <div>
-                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                  <label className="form-label">
                     Profile
                   </label>
                   <Dropdown<string>
@@ -1219,7 +1219,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Campaign Type */}
                 <div>
-                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                  <label className="form-label">
                     Campaign Type
                   </label>
                   <Dropdown<string>
@@ -1247,7 +1247,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
               <div className="grid grid-cols-4 gap-6">
                 {/* Profile */}
                 <div>
-                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                  <label className="form-label">
                     Profile
                   </label>
                   <Dropdown<string>
@@ -1277,7 +1277,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Campaign Type */}
                 <div>
-                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                  <label className="form-label">
                     Campaign Type
                   </label>
                   <Dropdown<string>
@@ -1305,7 +1305,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
               <div className="grid grid-cols-4 gap-6">
                 {/* Profile */}
                 <div>
-                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                  <label className="form-label">
                     Profile
                   </label>
                   <Dropdown<string>
@@ -1335,7 +1335,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                 {/* Campaign Type */}
                 <div>
-                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                  <label className="form-label">
                     Campaign Type
                   </label>
                   <Dropdown<string>
@@ -1364,7 +1364,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
             {formData.type === "SB" && (
               <div>
                 <div className="mb-4">
-                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                  <label className="form-label">
                     Goals
                   </label>
                   <p className="text-[12px] text-[#556179] mb-4">
@@ -1404,7 +1404,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Campaign Name */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Campaign Name
                       </label>
                       <input
@@ -1427,7 +1427,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Budget */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Budget
                       </label>
                       <input
@@ -1456,7 +1456,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Budget Type */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Budget Type
                       </label>
                       <Dropdown<string>
@@ -1485,7 +1485,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* State */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         State
                       </label>
                       <Dropdown<string>
@@ -1518,7 +1518,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Campaign Name */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Campaign Name
                       </label>
                       <input
@@ -1541,7 +1541,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Budget */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Budget
                       </label>
                       <input
@@ -1570,7 +1570,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Budget Type */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Budget Type
                       </label>
                       <Dropdown<string>
@@ -1588,7 +1588,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* State */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         State
                       </label>
                       <Dropdown<string>
@@ -1621,7 +1621,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Campaign Name */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Campaign Name
                       </label>
                       <input
@@ -1644,7 +1644,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Budget */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Budget
                       </label>
                       <input
@@ -1673,7 +1673,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* State */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         State
                       </label>
                       <Dropdown<string>
@@ -1697,7 +1697,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Targeting Type */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Targeting Type
                       </label>
                       <Dropdown<string>
@@ -1722,7 +1722,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Start Date */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Start Date
                       </label>
                       <div className="relative">
@@ -1759,7 +1759,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* End Date */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         End Date
                       </label>
                       <div className="relative">
@@ -1820,7 +1820,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Start Date */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Start Date
                       </label>
                       <div className="relative">
@@ -1847,7 +1847,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* End Date - Required for LIFETIME budget type */}
                     {(formData.budgetType?.toUpperCase() === "LIFETIME" || formData.budgetType === "lifetime") && (
                       <div>
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                           End Date <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
@@ -1887,7 +1887,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Start Date */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Start Date
                       </label>
                       <div className="relative">
@@ -1923,7 +1923,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* End Date */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         End Date
                       </label>
                       <div className="relative">
@@ -1967,8 +1967,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {formData.type === "SP" && (
                   <div className="grid grid-cols-4 gap-6">
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                        Portfolio ID
+                      <label className="form-label">
+                        Portfolio
                       </label>
                       <Dropdown<string>
                         options={portfolioOptions}
@@ -2050,7 +2050,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
                           <div className="grid grid-cols-4 gap-6">
                             <div>
-                              <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                              <label className="form-label">
                                 Strategy
                               </label>
                               <Dropdown<string>
@@ -2140,7 +2140,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                             {/* Bid Optimization Field - Only for SP campaigns */}
                             {formData.type === "SP" && (
                               <div>
-                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                <label className="form-label-small">
                                   Bid Optimization
                                 </label>
                                 <div className="flex items-center gap-3">
@@ -2515,7 +2515,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               <div className="flex gap-4 items-end">
                                 {/* Audience Dropdown */}
                                 <div className="flex-1">
-                                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                  <label className="form-label">
                                     Audience
                                   </label>
                                   <div className="relative">
@@ -2612,7 +2612,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     {/* Site Restrictions */}
                     <div className="grid grid-cols-4 gap-6">
                       <div>
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                           Site Restrictions
                         </label>
                         {mode === "edit" && (
@@ -2649,7 +2649,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Tags */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Tags (Key-Value Pairs) - Max 50
                       </label>
                       <div className="space-y-2">
@@ -2725,7 +2725,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Tactic */}
                     <div>
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      <label className="form-label-small">
                         Tactic *
                       </label>
                       <Dropdown<string>
@@ -2761,7 +2761,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Cost Type */}
                     <div>
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      <label className="form-label-small">
                         Cost Type
                       </label>
                       <Dropdown<string>
@@ -2787,8 +2787,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Portfolio ID */}
                     <div>
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
-                        Portfolio ID
+                      <label className="form-label-small">
+                        Portfolio
                       </label>
                       <Dropdown<string>
                         options={portfolioOptions}
@@ -2822,7 +2822,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Brand Entity ID */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Brand Entity ID
                       </label>
                       <Dropdown<string>
@@ -2863,7 +2863,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Targeted PG Deal ID */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Targeted PG Deal ID
                       </label>
                       <input
@@ -2892,7 +2892,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Product Location */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Product Location
                       </label>
                       <Dropdown<string>
@@ -2934,7 +2934,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Cost Type */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Cost Type
                       </label>
                       <Dropdown<string>
@@ -2968,8 +2968,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Portfolio ID - Editable for SB campaigns in edit mode */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
-                        Portfolio ID
+                      <label className="form-label">
+                        Portfolio
                       </label>
                       <Dropdown<string>
                         options={portfolioOptions}
@@ -3003,7 +3003,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Smart Default */}
                     <div>
-                      <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                      <label className="form-label">
                         Smart Default
                       </label>
                       <Dropdown<string>
@@ -3042,7 +3042,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Bid Optimization Field */}
                     <div className="mb-6">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      <label className="form-label-small">
                         Bid Optimization
                       </label>
                       <div className="flex items-center gap-3">
@@ -3466,7 +3466,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                               <div className="flex gap-4 items-end">
                                 {/* Audience Dropdown */}
                                 <div className="flex-1">
-                                  <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                  <label className="form-label">
                                     Audience
                                   </label>
                                   <div className="relative">
@@ -3560,7 +3560,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                 {/* Tags Section - For SB campaigns (editable in edit mode) */}
                 {formData.type === "SB" && (
                   <div className="mt-4">
-                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                    <label className="form-label">
                       Tags (Key-Value Pairs) - Max 50
                     </label>
                     <div className="space-y-2">

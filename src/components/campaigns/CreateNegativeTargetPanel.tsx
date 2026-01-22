@@ -324,7 +324,7 @@ export const CreateNegativeTargetPanel: React.FC<
       <div className="flex items-end gap-3 mb-4">
         {/* Ad Group */}
         <div className="flex-1 min-w-[180px]">
-          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+          <label className="form-label-small">
             Ad Group *
           </label>
           <Dropdown
@@ -349,7 +349,7 @@ export const CreateNegativeTargetPanel: React.FC<
 
         {/* Expression Type */}
         <div className="w-[180px]">
-          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+          <label className="form-label-small">
             Expression Type *
           </label>
           <Dropdown
@@ -374,7 +374,7 @@ export const CreateNegativeTargetPanel: React.FC<
         {/* Expression Type (Manual/Auto) - Only for SD */}
         {campaignType === "SD" && (
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Expression Type (Manual/Auto) *
             </label>
             <Dropdown
@@ -399,7 +399,7 @@ export const CreateNegativeTargetPanel: React.FC<
 
         {/* Expression Value */}
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+          <label className="form-label-small">
             Expression Value *
           </label>
           <input
@@ -428,7 +428,7 @@ export const CreateNegativeTargetPanel: React.FC<
         {/* State - hidden for SB campaigns (state cannot be set at creation) */}
         {campaignType !== "SB" && (
           <div className="w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               State *
             </label>
             <Dropdown

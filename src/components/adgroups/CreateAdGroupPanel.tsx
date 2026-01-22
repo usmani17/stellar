@@ -371,7 +371,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
         <div className="flex items-end gap-3">
           {/* Ad Group Name */}
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Ad Group Name *
             </label>
             <input
@@ -391,7 +391,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           {/* Default Bid - Only show for SP and SD campaigns */}
           {campaignType !== "SB" && (
             <div className="flex-1 min-w-[140px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Default Bid *
               </label>
               <input
@@ -417,7 +417,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
 
           {/* State */}
           <div className="flex-1 min-w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               State *
             </label>
             <Dropdown<string>
@@ -436,7 +436,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           {/* Bid Optimization - Only for SD campaigns */}
           {campaignType === "SD" && (
             <div className="flex-1 min-w-[160px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Bid Optimization *
               </label>
               <Dropdown<string>
@@ -462,7 +462,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
           {/* Creative Type - Only for SD campaigns */}
           {campaignType === "SD" && (
             <div className="flex-1 min-w-[140px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Creative Type
               </label>
               <Dropdown<string>

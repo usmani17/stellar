@@ -668,7 +668,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         <div className="flex items-end gap-3 mb-4">
           {/* Ad Name */}
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Ad Name *
             </label>
             <input
@@ -688,7 +688,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
           {/* State */}
           <div className="w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               State *
             </label>
             <Dropdown<string>
@@ -705,7 +705,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
           {/* Ad Type */}
           <div className="w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Ad Type *
             </label>
             <Dropdown<string>
@@ -744,7 +744,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
           {/* Ad Group */}
           <div className="flex-1 min-w-[180px] w-full">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Ad Group *
             </label>
             <Dropdown<string>
@@ -769,7 +769,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         {/* Video Ad Type Toggle - Only show when Video is selected */}
         {currentAd.adType === "VIDEO" && (
           <div className="mb-4">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Video Type
             </label>
             <div className="flex items-center gap-4">
@@ -814,7 +814,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           </h3>
           <div className="flex items-end gap-3">
             <div className="w-[180px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Page Type
               </label>
               <Dropdown<string>
@@ -829,7 +829,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               />
             </div>
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 URL {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" ? "*" : ""}
               </label>
               <input
@@ -849,7 +849,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             </div>
           </div>
           <div className="mt-3">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               ASINs (Optional)
             </label>
             {(currentAd.landingPage?.asins || []).map((asin, index) => (
@@ -891,7 +891,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           {/* Brand Logo Crop - For IMAGE ads and BRAND video ads */}
           {(currentAd.adType === "IMAGE" || (currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND")) && (
             <div className="mb-4">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Brand Logo Crop
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -960,7 +960,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Brand Name
                   </label>
                   <input
@@ -972,7 +972,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Brand Logo Asset ID
                   </label>
                   <div className="flex gap-2">
@@ -1035,7 +1035,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   </div>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Headline
                   </label>
                   <input
@@ -1053,7 +1053,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               {/* Brand Video Ad Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Brand Name *
                   </label>
                   <input
@@ -1070,7 +1070,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   )}
                 </div>
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Brand Logo Asset ID *
                   </label>
                   <div className="flex gap-2">
@@ -1138,7 +1138,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   )}
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Headline *
                   </label>
                   <input
@@ -1158,7 +1158,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
               {/* Video Asset IDs for Brand Video */}
               <div className="mb-4">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Video Asset IDs *
                 </label>
                 <div className="space-y-2">
@@ -1293,7 +1293,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             <>
               {/* Product Video Ad Fields - Only Video Asset IDs */}
               <div className="mb-4">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Video Asset IDs *
                 </label>
                 <div className="space-y-2">
@@ -1425,7 +1425,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
           {/* Creative ASINs */}
           <div className="mb-4">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Creative ASINs (Optional)
             </label>
             {(currentAd.creative?.asins || []).map((asin, index) => (
@@ -1484,7 +1484,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           {/* Creative Properties to Optimize - Only for IMAGE ads */}
           {currentAd.adType === "IMAGE" && (
             <div className="mb-4">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Creative Properties to Optimize (Optional)
               </label>
               <div className="flex flex-wrap gap-2">
@@ -1526,7 +1526,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           {/* Custom Images - Only for IMAGE ads */}
           {currentAd.adType === "IMAGE" && (
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Custom Images (Optional)
               </label>
               {(currentAd.creative?.customImages || []).map((image, index) => (

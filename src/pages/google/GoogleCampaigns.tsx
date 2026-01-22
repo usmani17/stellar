@@ -3048,7 +3048,7 @@ export const GoogleCampaigns: React.FC = () => {
                           <div className="mb-4 space-y-4">
                             {isTargetCpa && (
                               <div>
-                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                <label className="form-label-small">
                                   Target CPA ($)
                                 </label>
                                 <input
@@ -3067,7 +3067,7 @@ export const GoogleCampaigns: React.FC = () => {
 
                             {isTargetRoas && (
                               <div>
-                                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                <label className="form-label-small">
                                   Target ROAS
                                 </label>
                                 <input
@@ -3087,7 +3087,7 @@ export const GoogleCampaigns: React.FC = () => {
                             {isTargetImpressionShare && (
                               <>
                                 <div>
-                                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                  <label className="form-label-small">
                                     Where do you want your ads to appear?
                                   </label>
                                   <select
@@ -3111,7 +3111,7 @@ export const GoogleCampaigns: React.FC = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                  <label className="form-label-small">
                                     Percent (%) impression share to target
                                   </label>
                                   <input
@@ -3130,7 +3130,7 @@ export const GoogleCampaigns: React.FC = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                                  <label className="form-label-small">
                                     Maximum CPC bid limit ($)
                                   </label>
                                   <input

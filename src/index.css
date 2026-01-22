@@ -769,6 +769,25 @@ body input[type="submit"]:disabled {
   cursor: not-allowed;
 }
 
+/* Form label styling - used for all form labels on campaign creation and other forms */
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #072929;
+  margin-bottom: 8px;
+}
+
+/* Form label small uppercase - used for section headers and smaller labels with uppercase text */
+.form-label-small {
+  display: block;
+  font-size: 11.2px;
+  font-weight: 600;
+  color: #556179;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
 /* Campaign input field styling - used for all input fields on campaign creation page */
 .campaign-input {
   background-color: #FEFEFB;

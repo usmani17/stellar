@@ -724,7 +724,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           <div className="mb-6 flex gap-4">
             {/* Ad Group Selection */}
             <div className="flex-1">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Ad Group *
               </label>
               <Dropdown
@@ -753,7 +753,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
             {/* Creative Type */}
             <div className="flex-1">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Creative Type *
               </label>
               <Dropdown
@@ -777,7 +777,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
 
             {/* Property Type Selector - Checkboxes Inline */}
             <div className="mb-4">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Property Types
               </label>
               <div className="flex flex-wrap gap-4">
@@ -811,7 +811,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
             {/* Added Properties List */}
             {addedPropertyTypes.size > 0 && (
               <div className="mb-4">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Added Properties
                 </label>
                 <div className="flex flex-wrap gap-2">

@@ -941,7 +941,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           {/* Expression Structure Type - For SD campaigns, show on its own row */}
           {campaignType === "SD" && (
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Expression Structure *
               </label>
               <div className="flex gap-3">
@@ -969,7 +969,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           <div className="flex items-end gap-3">
             {/* Ad Group Dropdown */}
             <div className="flex-1 min-w-[180px] w-full">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Ad Group *
               </label>
               <Dropdown<string>
@@ -992,7 +992,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
             {/* Expression Type - For SD: manual/auto, For SP/SB: expression types */}
             {campaignType === "SD" ? (
               <div className="flex-1 min-w-[140px]">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Expression Type *
                 </label>
                 <Dropdown<string>
@@ -1005,7 +1005,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               </div>
             ) : (
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Expression Type *
                 </label>
                 <Dropdown<string>
@@ -1021,7 +1021,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
             {/* Expression Value - For SP/SB: ASIN or value */}
             {campaignType !== "SD" && (
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Expression Value *
                 </label>
                 <input
@@ -1047,7 +1047,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
 
             {/* Bid */}
             <div className="w-[120px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Bid *
               </label>
               <input
@@ -1072,7 +1072,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
             {/* State field - hidden for SB campaigns (state cannot be set at creation) */}
             {campaignType !== "SB" && (
               <div className="w-[140px]">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   State *
                 </label>
                 <Dropdown<string>
@@ -1109,7 +1109,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                 "TargetingPredicate" && (
                 <div className="flex items-end gap-3">
                   <div className="flex-1 min-w-[200px]">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    <label className="form-label-small">
                       Predicate Type *
                     </label>
                     <Dropdown<string>
@@ -1140,7 +1140,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                     )}
                   </div>
                   <div className="flex-1 min-w-[200px]">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    <label className="form-label-small">
                       Predicate Value *
                     </label>
                     <input
@@ -1247,7 +1247,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                 <>
                   <div className="flex items-end gap-3">
                     <div className="flex-1 min-w-[180px]">
-                      <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                      <label className="form-label-small">
                         Nested Type *
                       </label>
                       <Dropdown<string>

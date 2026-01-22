@@ -494,7 +494,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
         <div className="flex items-start gap-2">
           {/* Field Dropdown */}
           <div className="w-[200px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Filter
             </label>
             {loadingFields ? (
@@ -528,7 +528,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
           {/* Operator Dropdown */}
           {selectedField && (fieldNeedsOperator || selectedOperator) && (
             <div className="w-[150px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Operator
               </label>
               <Dropdown<string>
@@ -554,7 +554,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
           {/* Value Input */}
           {selectedField && (
             <div className={selectedOperator === "between" && currentField?.type === "number" ? "w-[300px]" : "w-[150px]"}>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Value
               </label>
               {fieldIsMultiSelect ? (
@@ -675,7 +675,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
 
           {/* Add Filter Button */}
           <div className="flex flex-col">
-            <div className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase invisible">
+            <div className="form-label-small invisible">
               &nbsp;
             </div>
             <div className="flex gap-2">

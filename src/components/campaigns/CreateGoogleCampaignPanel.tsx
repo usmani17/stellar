@@ -733,7 +733,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Campaign Type */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Campaign Type *
               </label>
               <div className="space-y-2">
@@ -784,7 +784,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Campaign Name */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Campaign Name *
               </label>
               <input
@@ -803,7 +803,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Budget Amount */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Budget Amount ($) *
               </label>
               <input
@@ -828,7 +828,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Budget Name */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Budget Name
               </label>
               <input
@@ -842,7 +842,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Start Date */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Start Date
               </label>
               {(() => {
@@ -872,7 +872,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* End Date */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 End Date
               </label>
               <input
@@ -885,7 +885,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Status */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Status
               </label>
               <Dropdown<string>
@@ -898,7 +898,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Bidding Strategy Type */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Bidding Strategy
               </label>
               <Dropdown<string>
@@ -912,7 +912,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             {/* Target CPA (required when TARGET_CPA is selected) */}
             {formData.bidding_strategy_type === "TARGET_CPA" && (
               <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Target CPA ($) *
                 </label>
                 <input
@@ -943,7 +943,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             {/* Target ROAS (required when TARGET_ROAS is selected) */}
             {formData.bidding_strategy_type === "TARGET_ROAS" && (
               <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Target ROAS *
                 </label>
                 <input
@@ -975,7 +975,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             {formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
               <>
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Where do you want your ads to appear? *
                   </label>
                   <Dropdown<string>
@@ -996,7 +996,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Percent (%) impression share to target *
                   </label>
                   <input
@@ -1025,7 +1025,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Maximum CPC bid limit *
                   </label>
                   <input
@@ -1061,7 +1061,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
               {/* Final URL */}
               <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Final URL *
                 </label>
                 <input
@@ -1082,7 +1082,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
               {/* Asset Group Name */}
               <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Asset Group Name
                 </label>
                 <input
@@ -1098,7 +1098,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
               {/* Headlines */}
               <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Headlines * (3-15 required)
                   <span className="text-[10px] text-[#556179] font-normal ml-2">
                     ({formData.headlines?.filter((h) => h.trim()).length || 0}/15)
@@ -1146,7 +1146,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
               {/* Descriptions */}
               <div>
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Descriptions * (2-4 required)
                   <span className="text-[10px] text-[#556179] font-normal ml-2">
                     ({formData.descriptions?.filter((d) => d.trim()).length || 0}/4)
@@ -1197,7 +1197,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               {/* Optional Performance Max Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Business Name *
                   </label>
                   <input
@@ -1219,7 +1219,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Long Headline
                   </label>
                   <input
@@ -1234,7 +1234,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Logo (URL or Upload) *
                   </label>
                   <div className="space-y-2">
@@ -1409,7 +1409,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Marketing Image URL
                   </label>
                   <input
@@ -1443,7 +1443,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Square Marketing Image URL
                   </label>
                   <input
@@ -1489,7 +1489,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Merchant ID */}
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Merchant ID *
                   </label>
                   <input
@@ -1510,7 +1510,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
                 {/* Sales Country */}
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Sales Country
                   </label>
                   <Dropdown<string>
@@ -1523,7 +1523,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
                 {/* Campaign Priority */}
                 <div>
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Campaign Priority
                   </label>
                   <Dropdown<number>
