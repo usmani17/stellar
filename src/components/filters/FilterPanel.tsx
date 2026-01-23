@@ -7,30 +7,31 @@ import { accountsService } from "../../services/accounts";
 export interface FilterItem {
   id: string;
   field:
-    | "campaign_name"
-    | "state"
-    | "budget"
-    | "type"
-    | "targeting_type"
-    | "profile_name"
-    | "status"
-    | "advertising_channel_type"
-    | "account_name"
-    | "name"
-    | "default_bid"
-    | "spends"
-    | "sales"
-    | "ctr"
-    | "bid"
-    | "adgroup_name"
-    | "sku"
-    | "adId"
-    | "asin"
-    | "adGroupId"
-    | "keywordText"
-    | "keyword_text"
-    | "match_type"
-    | "expression";
+  | "campaign_name"
+  | "state"
+  | "budget"
+  | "type"
+  | "targeting_type"
+  | "profile_name"
+  | "status"
+  | "advertising_channel_type"
+  | "account_name"
+  | "name"
+  | "default_bid"
+  | "spends"
+  | "sales"
+  | "ctr"
+  | "bid"
+  | "adgroup_name"
+  | "ad_name"
+  | "sku"
+  | "adId"
+  | "asin"
+  | "adGroupId"
+  | "keywordText"
+  | "keyword_text"
+  | "match_type"
+  | "expression";
   operator?: string; // For campaign_name, budget, profile_name, account_name, name, default_bid, spends, sales, ctr, bid, adgroup_name, sku, adId, asin, adGroupId, keywordText, keyword_text, match_type, expression
   value: string | number | string[] | { min: number; max: number }; // Support arrays for multi-select fields (type, state, profile_name), and object for "between" operator
 }
@@ -434,8 +435,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         selectedField === "sales" ||
         selectedField === "ctr" ||
         selectedField === "bid"
-      ? parseFloat(filterValue) || 0
-      : filterValue;
+        ? parseFloat(filterValue) || 0
+        : filterValue;
 
     if (selectedField === "profile_name" && isProfileDropdown) {
       if (isMultiSelectField && Array.isArray(selectedMultiValues)) {
@@ -591,6 +592,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     "account_name",
     "name",
     "adgroup_name",
+    "ad_name",
     "sku",
     "adId",
     "asin",
@@ -732,25 +734,25 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Dropdown<string>
                 options={
                   selectedField === "campaign_name" ||
-                  selectedField === "profile_name" ||
-                  selectedField === "account_name" ||
-                  selectedField === "name" ||
-                  selectedField === "adgroup_name" ||
-                  selectedField === "sku" ||
-                  selectedField === "adId" ||
-                  selectedField === "asin" ||
-                  selectedField === "adGroupId" ||
-                  selectedField === "keywordText" ||
-                  selectedField === "keyword_text" ||
-                  selectedField === "expression"
+                    selectedField === "profile_name" ||
+                    selectedField === "account_name" ||
+                    selectedField === "name" ||
+                    selectedField === "adgroup_name" ||
+                    selectedField === "sku" ||
+                    selectedField === "adId" ||
+                    selectedField === "asin" ||
+                    selectedField === "adGroupId" ||
+                    selectedField === "keywordText" ||
+                    selectedField === "keyword_text" ||
+                    selectedField === "expression"
                     ? STRING_OPERATORS.map((op) => ({
-                        value: op.value,
-                        label: op.label,
-                      }))
+                      value: op.value,
+                      label: op.label,
+                    }))
                     : NUMERIC_OPERATORS.map((op) => ({
-                        value: op.value,
-                        label: op.label,
-                      }))
+                      value: op.value,
+                      label: op.label,
+                    }))
                 }
                 value={selectedOperator || undefined}
                 placeholder="Select Operator"
@@ -840,8 +842,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                       ? STATUS_OPTIONS
                       : STATE_OPTIONS
                     : channelType === "tiktok"
-                    ? TIKTOK_TYPE_OPTIONS
-                    : TYPE_OPTIONS
+                      ? TIKTOK_TYPE_OPTIONS
+                      : TYPE_OPTIONS
                   ).map((opt) => (
                     <div
                       key={opt}
@@ -941,20 +943,19 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   options={(selectedField === "status"
                     ? STATUS_OPTIONS
                     : selectedField === "match_type"
-                    ? MATCH_TYPE_OPTIONS
-                    : CHANNEL_TYPE_OPTIONS
+                      ? MATCH_TYPE_OPTIONS
+                      : CHANNEL_TYPE_OPTIONS
                   ).map((opt) => ({
                     value: opt,
                     label: opt,
                   }))}
                   value={filterValue || undefined}
-                  placeholder={`Select ${
-                    selectedField === "status"
+                  placeholder={`Select ${selectedField === "status"
                       ? "Status"
                       : selectedField === "match_type"
-                      ? "Match Type"
-                      : "Channel Type"
-                  }`}
+                        ? "Match Type"
+                        : "Channel Type"
+                    }`}
                   onChange={(value) => setFilterValue(value)}
                   buttonClassName="edit-button w-full"
                 />
@@ -999,11 +1000,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                         setFilterValue(e.target.value.toUpperCase())
                       }
                       placeholder="Enter ASIN (e.g., B08N5WRWNW)"
-                      className={`w-full px-3 py-2 border rounded-lg text-[13.3px] bg-[#FEFEFB] ${
-                        filterValue && filterValue.length !== 10
-                          ? "border-yellow-300"
-                          : "border-gray-200"
-                      }`}
+                      className={`w-full px-3 py-2 border rounded-lg text-[13.3px] bg-[#FEFEFB] ${filterValue && filterValue.length !== 10
+                        ? "border-yellow-300"
+                        : "border-gray-200"
+                        }`}
                       maxLength={10}
                     />
                     {filterValue && filterValue.length !== 10 && (
@@ -1019,7 +1019,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter budget"
-                  className="campaign-input"
+                  className="campaign-input w-full"
                 />
               ) : (
                 <input
@@ -1027,7 +1027,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   value={filterValue}
                   onChange={(e) => setFilterValue(e.target.value)}
                   placeholder="Enter value"
-                  className="campaign-input"
+                  className="campaign-input w-full"
                 />
               )}
             </div>
@@ -1044,11 +1044,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               disabled={
                 !selectedField ||
                 (selectedField === "type" ||
-                selectedField === "state" ||
-                selectedField === "targeting_type" ||
-                (selectedField === "profile_name" &&
-                  channelType === "amazon" &&
-                  profileOptions.length > 0)
+                  selectedField === "state" ||
+                  selectedField === "targeting_type" ||
+                  (selectedField === "profile_name" &&
+                    channelType === "amazon" &&
+                    profileOptions.length > 0)
                   ? selectedMultiValues.length === 0
                   : !filterValue) ||
                 (needsOperator &&

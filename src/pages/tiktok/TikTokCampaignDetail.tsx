@@ -2,20 +2,19 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
-import { StatusBadge } from "../../components/ui/StatusBadge";
 import { KPICard } from "../../components/ui/KPICard";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
 import type { FilterValues } from "../../components/filters/FilterPanel";
+import { StatusBadge } from "../../components/ui/StatusBadge";
 import {
     TikTokOverviewTab,
     TikTokCampaignDetailAdGroupsTab,
     TikTokCampaignDetailAdsTab,
     TikTokCampaignDetailLogsTab,
-    type TikTokAdGroup,
-    type TikTokAd,
 } from "./components/tabs";
+import type { TikTokAdGroup, TikTokAd } from "./components/tabs/types"; // Corrected import path for types
 import type { TikTokAdInput } from "../../components/tiktok/CreateTikTokAdPanel";
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 
@@ -47,21 +46,8 @@ interface TikTokCampaignDetailData {
         change?: string;
         isPositive?: boolean;
     }>;
-    top_ads?: Array<{
-        ad_name: string;
-        ad_id: string;
-        spends: string;
-        sales: string;
-        clicks: number;
-        impressions: number;
-        ctr: string;
-        status: string;
-    }>;
-    top_products?: Array<{
-        name: string;
-        asin?: string;
-        sales: string;
-    }>;
+    top_ads?: TikTokAd[];
+    top_adgroups?: TikTokAdGroup[];
 }
 
 export const TikTokCampaignDetail: React.FC = () => {
@@ -85,8 +71,6 @@ export const TikTokCampaignDetail: React.FC = () => {
     const [adgroupsSortOrder, setAdgroupsSortOrder] = useState<"asc" | "desc">("desc");
     const [isAdGroupsFilterPanelOpen, setIsAdGroupsFilterPanelOpen] = useState(false);
     const [adgroupsFilters, setAdgroupsFilters] = useState<FilterValues>([]);
-
-    const [isCreateAdGroupPanelOpen, setIsCreateAdGroupPanelOpen] = useState(false);
 
     // Chart State
     const [chartToggles, setChartToggles] = useState({
@@ -113,6 +97,87 @@ export const TikTokCampaignDetail: React.FC = () => {
     const [selectedAdGroupForAd, setSelectedAdGroupForAd] = useState<string>("");
     const [createAdLoading, setCreateAdLoading] = useState(false);
     const [createAdError, setCreateAdError] = useState<string | null>(null);
+
+    // Inline edit state
+    const [editingField, setEditingField] = useState<"budget" | "status" | null>(null);
+    const [editedValue, setEditedValue] = useState<string>("");
+
+    // Confirmation Modal State
+    const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+    const [inlineEditField, setInlineEditField] = useState<"budget" | "status" | null>(null);
+    const [inlineEditOldValue, setInlineEditOldValue] = useState("");
+    const [inlineEditNewValue, setInlineEditNewValue] = useState("");
+    const [inlineEditLoading, setInlineEditLoading] = useState(false);
+
+    const handleEditStart = (field: "budget" | "status", value: string) => {
+        setEditingField(field);
+        setEditedValue(value);
+    };
+
+    const handleEditEnd = () => {
+        if (!campaignDetail || !editingField) return;
+
+        const currentValue = editingField === "status"
+            ? campaignDetail.campaign.operation_status
+            : (campaignDetail.campaign.budget || 0).toString();
+
+        if (editedValue !== currentValue) {
+            setInlineEditField(editingField);
+            setInlineEditOldValue(editingField === "budget"
+                ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(parseFloat(currentValue))
+                : (currentValue === 'ENABLE' || currentValue === 'ENABLED' ? 'Enable' : 'Pause')
+            );
+            setInlineEditNewValue(editedValue);
+            setShowInlineEditModal(true);
+        } else {
+            setEditingField(null);
+            setEditedValue("");
+        }
+    };
+
+    const runInlineEdit = async () => {
+        if (!accountId || !campaignId || !inlineEditField) return;
+
+        try {
+            setInlineEditLoading(true);
+            const accountIdNum = parseInt(accountId, 10);
+
+            if (inlineEditField === "status") {
+                await campaignsService.updateTikTokCampaignStatus(accountIdNum, {
+                    campaign_ids: [campaignId],
+                    operation_status: inlineEditNewValue as "ENABLE" | "DISABLE" | "DELETE",
+                });
+            } else if (inlineEditField === "budget") {
+                await campaignsService.updateTikTokCampaign(accountIdNum, campaignId, {
+                    budget: parseFloat(inlineEditNewValue),
+                });
+            }
+
+            setShowInlineEditModal(false);
+            setEditingField(null);
+            setEditedValue("");
+            loadCampaignDetail(); // Refresh data
+        } catch (error: any) {
+            console.error(`Failed to update campaign ${inlineEditField}:`, error);
+            alert(`Failed to update campaign: ${error.message || "Unknown error"}`);
+        } finally {
+            setInlineEditLoading(false);
+        }
+    };
+
+    const cancelInlineEdit = () => {
+        setShowInlineEditModal(false);
+        setInlineEditField(null);
+        setInlineEditOldValue("");
+        setInlineEditNewValue("");
+        setEditingField(null);
+        setEditedValue("");
+    };
+
+    const handleEditCancel = () => {
+        setEditingField(null);
+        setEditedValue("");
+    };
 
     const tabs = ["Overview", "Ad Groups", "Ads", "Logs"];
 
@@ -291,7 +356,18 @@ export const TikTokCampaignDetail: React.FC = () => {
             loadAds();
         } catch (error: any) {
             console.error("Failed to create ad:", error);
-            setCreateAdError(error.message || "Failed to create ad");
+            // Extract user-friendly error message from response
+            const errorMessage =
+                error?.response?.data?.error ||
+                error?.response?.data?.message ||
+                error?.response?.data?.detail ||
+                (typeof error?.response?.data === 'object'
+                    ? Object.values(error?.response?.data).flat().join(', ')
+                    : null) ||
+                (error?.response?.status === 400 ? "Invalid form data. Please check all required fields." : null) ||
+                (error?.response?.status === 500 ? "Server error. Please try again later." : null) ||
+                "Failed to create ad. Please try again.";
+            setCreateAdError(errorMessage);
         } finally {
             setCreateAdLoading(false);
         }
@@ -327,113 +403,156 @@ export const TikTokCampaignDetail: React.FC = () => {
                     </div>
 
                     {/* Campaign Info Block - Amazon Style */}
-                    <div className="h-64 p-6 bg-[#F9F9F6] rounded-2xl border border-[#E3E3E3] flex flex-col justify-start items-start gap-4 mb-6">
+                    <div className="p-6 bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] mb-6">
                         {/* Title */}
-                        <div className="self-stretch text-teal-950 text-2xl font-medium">
+                        <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%] mb-4">
                             Campaign Information
-                        </div>
+                        </h2>
 
-                        {/* Three Column Layout */}
-                        <div className="self-stretch flex-1 flex justify-start items-start gap-32">
-                            {/* Column 1 */}
-                            <div className="flex flex-col justify-start items-start gap-4">
-                                {/* Campaign Name */}
-                                <div className="h-11 flex flex-col justify-start items-start gap-1">
-                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
-                                        Campaign Name
-                                    </div>
-                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
-                                        {campaignDetail.campaign.campaign_name}
-                                    </div>
-                                </div>
-
-                                {/* Budget */}
-                                <div className="h-11 flex flex-col justify-start items-start gap-1">
-                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
-                                        Budget
-                                    </div>
-                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
-                                        {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(campaignDetail.campaign.budget || 0)}
-                                    </div>
-                                </div>
-
-                                {/* Budget Type */}
-                                <div className="h-11 flex flex-col justify-start items-start gap-1">
-                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
-                                        Budget Type
-                                    </div>
-                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
-                                        {campaignDetail.campaign.budget_mode
-                                            ? campaignDetail.campaign.budget_mode.replace(/_/g, " ").replace("BUDGET MODE ", "").replace("DYNAMIC DAILY BUDGET", "Daily").replace("TOTAL", "Lifetime").replace("DAY", "Daily")
-                                            : "Daily"}
-                                    </div>
+                        {/* Grid Layout to match Amazon */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* Campaign Name */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Campaign Name
+                                </label>
+                                <div className="table-text leading-[1.26]">
+                                    {campaignDetail.campaign.campaign_name}
                                 </div>
                             </div>
 
-                            {/* Column 2 */}
-                            <div className="flex-1 flex flex-col justify-start items-start gap-4">
-                                {/* Campaign ID */}
-                                <div className="h-11 flex flex-col justify-start items-start gap-1">
-                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
-                                        Campaign ID
-                                    </div>
-                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
-                                        {campaignDetail.campaign.campaign_id}
-                                    </div>
-                                </div>
-
-                                {/* Start Date */}
-                                <div className="h-11 flex flex-col justify-start items-start gap-1">
-                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
-                                        Start Date
-                                    </div>
-                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
-                                        {campaignDetail.campaign.start_date
-                                            ? new Date(campaignDetail.campaign.start_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-                                            : (campaignDetail.campaign.create_time
-                                                ? new Date(campaignDetail.campaign.create_time).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-                                                : "-")}
-                                    </div>
+                            {/* Campaign ID */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Campaign ID
+                                </label>
+                                <div className="table-text leading-[1.26]">
+                                    {campaignDetail.campaign.campaign_id}
                                 </div>
                             </div>
 
-                            {/* Column 3 */}
-                            <div className="flex-1 flex flex-col justify-start items-start gap-4">
-                                {/* Status */}
-                                <div className="h-11 flex flex-col justify-start items-start gap-1">
-                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
+                            {/* Status */}
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                                         Status
-                                    </div>
-                                    <div
-                                        data-campaign-status={campaignDetail.campaign.operation_status}
-                                        className={`h-5 px-2 py-0.5 rounded-full inline-flex justify-center items-center gap-2.5 ${
-                                            campaignDetail.campaign.operation_status === 'ENABLE' || campaignDetail.campaign.operation_status === 'ENABLED'
-                                                ? 'bg-zinc-200 text-teal-900'
-                                                : campaignDetail.campaign.operation_status === 'DISABLE' || campaignDetail.campaign.operation_status === 'PAUSED'
-                                                    ? 'bg-gray-300 text-gray-700'
-                                                    : 'bg-zinc-200 text-teal-900'
-                                            }`}
+                                    </label>
+                                    <button
+                                        onClick={() => handleEditStart("status", campaignDetail.campaign.operation_status)}
+                                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                        title="Edit status"
                                     >
-                                        <div className="text-xs font-medium leading-4 tracking-tight">
-                                            {campaignDetail.campaign.operation_status === 'ENABLE' || campaignDetail.campaign.operation_status === 'ENABLED'
-                                                ? 'Enable'
-                                                : campaignDetail.campaign.operation_status === 'DISABLE' || campaignDetail.campaign.operation_status === 'PAUSED'
-                                                    ? 'Pause'
-                                                    : campaignDetail.campaign.operation_status}
+                                        <svg className="w-4 h-4 text-[#556179]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                {editingField === "status" ? (
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={editedValue}
+                                            onChange={(e) => setEditedValue(e.target.value)}
+                                            className="table-text border border-[#e8e8e3] rounded px-2 py-1 outline-none focus:border-[#136D6D] bg-white"
+                                            autoFocus
+                                            onBlur={handleEditEnd}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") handleEditEnd();
+                                                else if (e.key === "Escape") handleEditCancel();
+                                            }}
+                                            disabled={inlineEditLoading}
+                                        >
+                                            <option value="ENABLE">Enable</option>
+                                            <option value="DISABLE">Pause</option>
+                                            <option value="DELETE">Delete</option>
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <div className="table-text leading-[1.26]">
+                                        <StatusBadge
+                                            status={campaignDetail.campaign.operation_status === 'ENABLE' || campaignDetail.campaign.operation_status === 'ENABLED' ? 'Enable' : 'Paused'}
+                                            uppercase={true}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Budget */}
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                        Budget
+                                    </label>
+                                    <button
+                                        onClick={() => handleEditStart("budget", (campaignDetail.campaign.budget || 0).toString())}
+                                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                        title="Edit budget"
+                                    >
+                                        <svg className="w-4 h-4 text-[#556179]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                {editingField === "budget" ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="relative">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 table-text text-[#556179]">$</span>
+                                            <input
+                                                type="number"
+                                                value={editedValue}
+                                                onChange={(e) => setEditedValue(e.target.value)}
+                                                className="table-text border border-[#e8e8e3] rounded pl-5 pr-2 py-1 w-32 outline-none focus:border-[#136D6D]"
+                                                autoFocus
+                                                onBlur={handleEditEnd}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") handleEditEnd();
+                                                    else if (e.key === "Escape") handleEditCancel();
+                                                }}
+                                                disabled={inlineEditLoading}
+                                            />
                                         </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="table-text leading-[1.26]">
+                                        {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(campaignDetail.campaign.budget || 0)}
+                                    </div>
+                                )}
+                            </div>
 
-                                {/* Objective Type */}
-                                <div className="h-11 flex flex-col justify-start items-start gap-1">
-                                    <div className="self-stretch text-teal-950 text-sm font-medium leading-5 tracking-tight">
-                                        Objective Type
-                                    </div>
-                                    <div className="self-stretch text-teal-950 text-sm font-normal leading-5 tracking-tight">
-                                        {campaignDetail.campaign.objective_type
-                                            ? campaignDetail.campaign.objective_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
-                                            : "-"}
-                                    </div>
+                            {/* Budget Type */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Budget Type
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    {campaignDetail.campaign.budget_mode
+                                        ? campaignDetail.campaign.budget_mode.replace(/_/g, " ").replace("BUDGET MODE ", "").replace("DYNAMIC DAILY BUDGET", "Daily").replace("TOTAL", "Lifetime").replace("DAY", "Daily")
+                                        : "Daily"}
+                                </div>
+                            </div>
+
+                            {/* Objective Type */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Objective Type
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    {campaignDetail.campaign.objective_type
+                                        ? campaignDetail.campaign.objective_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
+                                        : "-"}
+                                </div>
+                            </div>
+
+                            {/* Start Date */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
+                                    Start Date
+                                </label>
+                                <div className="text-[13.3px] text-[#0b0f16] leading-[1.26]">
+                                    {campaignDetail.campaign.start_date
+                                        ? new Date(campaignDetail.campaign.start_date).toLocaleDateString()
+                                        : (campaignDetail.campaign.create_time
+                                            ? new Date(campaignDetail.campaign.create_time).toLocaleDateString()
+                                            : "-")}
                                 </div>
                             </div>
                         </div>
@@ -475,10 +594,9 @@ export const TikTokCampaignDetail: React.FC = () => {
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
-                                        activeTab === tab
-                                            ? "border-[#136D6D] text-[#136D6D]"
-                                            : "border-transparent text-[#556179] hover:text-[#072929]"
+                                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${activeTab === tab
+                                        ? "border-[#136D6D] text-[#136D6D]"
+                                        : "border-transparent text-[#556179] hover:text-[#072929]"
                                         }`}
                                 >
                                     {tab}
@@ -499,30 +617,32 @@ export const TikTokCampaignDetail: React.FC = () => {
                                         key: "sales",
                                         label: "Sales",
                                         color: "#136D6D",
-                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val)
+                                        tooltipFormatter: (val: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val)
                                     },
                                     {
                                         key: "spend",
                                         label: "Spend",
                                         color: "#506766",
-                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val)
+                                        tooltipFormatter: (val: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val)
                                     },
                                     {
                                         key: "impressions",
                                         label: "Impressions",
                                         color: "#7C3AED",
-                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
+                                        tooltipFormatter: (val: number) => new Intl.NumberFormat("en-US").format(val)
                                     },
                                     {
                                         key: "clicks",
                                         label: "Clicks",
                                         color: "#169aa3",
-                                        tooltipFormatter: (val) => new Intl.NumberFormat("en-US").format(val)
+                                        tooltipFormatter: (val: number) => new Intl.NumberFormat("en-US").format(val)
                                     },
                                 ]}
                                 topAds={campaignDetail.top_ads || []}
-                                topProducts={campaignDetail.top_products || []}
+                                topAdGroups={campaignDetail.top_adgroups || []}
                                 loading={loading}
+                                accountId={parseInt(accountId || "0")}
+                                onRefresh={loadCampaignDetail}
                             />
                         )}
 
@@ -597,10 +717,74 @@ export const TikTokCampaignDetail: React.FC = () => {
                         )}
 
 
-                        {activeTab === "Logs" && <TikTokCampaignDetailLogsTab />}
+                        {activeTab === "Logs" && (
+                            <TikTokCampaignDetailLogsTab
+                                accountId={accountId || ""}
+                                campaignId={campaignId}
+                            />
+                        )}
                     </div>
                 </div>
             </div>
-        </div>
+            {/* Campaign Inline Edit Confirmation Modal */}
+            {showInlineEditModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+                        <h3 className="text-lg font-semibold mb-4 text-[#072929]">Confirm Change</h3>
+                        <div className="mb-4">
+                            <p className="text-sm text-gray-600 mb-2 font-medium">
+                                {inlineEditField === "status" ? "Status" : "Budget"}
+                            </p>
+                            <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                <div className="flex-1">
+                                    <span className="text-xs text-gray-500 block mb-1">From:</span>
+                                    <span className="text-sm font-semibold text-[#556179]">
+                                        {inlineEditOldValue}
+                                    </span>
+                                </div>
+                                <div className="text-gray-400">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1 text-right">
+                                    <span className="text-xs text-gray-500 block mb-1">To:</span>
+                                    <span className="text-sm font-semibold text-[#136D6D]">
+                                        {inlineEditField === "status"
+                                            ? (inlineEditNewValue === 'ENABLE' ? 'Enable' : inlineEditNewValue === 'DISABLE' ? 'Pause' : 'Delete')
+                                            : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(parseFloat(inlineEditNewValue || "0"))
+                                        }
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 justify-end mt-6">
+                            <button
+                                onClick={cancelInlineEdit}
+                                disabled={inlineEditLoading}
+                                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 text-[#556179] font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={runInlineEdit}
+                                disabled={inlineEditLoading}
+                                className="px-4 py-2 text-sm bg-[#136D6D] text-white rounded-lg hover:bg-[#0f5a5a] transition-colors disabled:opacity-50 font-medium min-w-[100px]"
+                            >
+                                {inlineEditLoading ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Saving...
+                                    </div>
+                                ) : "Confirm Change"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div >
     );
 };

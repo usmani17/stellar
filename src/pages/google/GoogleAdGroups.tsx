@@ -1,6 +1,5 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -104,31 +103,30 @@ export const GoogleAdGroups: React.FC = () => {
   } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Inline edit state
+  // Inline edit state - match Amazon pattern
   const [editingCell, setEditingCell] = useState<{
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
-  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
-  const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [updatingField, _setUpdatingField] = useState<{
+  const [updatingField, setUpdatingField] = useState<{
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
   } | null>(null);
-  const [inlineEditAdgroup, setInlineEditAdgroup] =
-    useState<GoogleAdGroup | null>(null);
-  const [inlineEditField, setInlineEditField] = useState<
-    "bid" | "status" | "name" | "adgroup_name" | null
-  >(null);
-  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
-  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
-  // Name edit modal state
-  const [showNameEditModal, setShowNameEditModal] = useState(false);
-  const [nameEditAdgroup, setNameEditAdgroup] = useState<GoogleAdGroup | null>(null);
-  const [nameEditValue, setNameEditValue] = useState<string>("");
-  const [nameEditLoading, setNameEditLoading] = useState(false);
+  // Pending changes - match Amazon pattern (no modal, show confirm/cancel buttons inline)
+  const [pendingChanges, setPendingChanges] = useState<Record<string, {
+    itemId: string | number;
+    newValue: string;
+  }>>({});
+  // Status edit modal - match TikTok/Amazon pattern (show modal for status confirmation)
+  const [showStatusEditModal, setShowStatusEditModal] = useState(false);
+  const [statusEditData, setStatusEditData] = useState<{
+    adgroup: GoogleAdGroup;
+    oldValue: string;
+    newValue: string;
+  } | null>(null);
+  const [statusEditLoading, setStatusEditLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportType, setExportType] = useState<"current_view" | "all_data">(
@@ -158,7 +156,7 @@ export const GoogleAdGroups: React.FC = () => {
   // Cancel inline edit when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (editingCell && !showInlineEditModal) {
+      if (editingCell) {
         const target = event.target as HTMLElement;
         const isDropdownMenu =
           target.closest('[class*="z-50"]') ||
@@ -169,7 +167,7 @@ export const GoogleAdGroups: React.FC = () => {
 
         if (!isInput && !isDropdownMenu && !isModal) {
           setTimeout(() => {
-            if (editingCell && !showInlineEditModal) {
+            if (editingCell) {
               cancelInlineEdit();
             }
           }, 150);
@@ -177,7 +175,7 @@ export const GoogleAdGroups: React.FC = () => {
       }
     };
 
-    if (editingCell && !showInlineEditModal) {
+    if (editingCell) {
       const timeout = setTimeout(() => {
         document.addEventListener("mousedown", handleClickOutside);
       }, 200);
@@ -187,7 +185,7 @@ export const GoogleAdGroups: React.FC = () => {
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [editingCell, showInlineEditModal]);
+  }, [editingCell]);
 
   // Set page title
   useEffect(() => {
@@ -589,21 +587,15 @@ export const GoogleAdGroups: React.FC = () => {
     setSelectedAdgroups(newSelected);
   };
 
-  // Inline edit handlers
+  // Inline edit handlers - match Amazon pattern (no modal, inline editing)
   const startInlineEdit = (adgroup: GoogleAdGroup, field: "bid" | "status" | "name" | "adgroup_name") => {
-    // For name field, show modal directly instead of inline editing
-    if (field === "name" || field === "adgroup_name") {
-      setNameEditAdgroup(adgroup);
-      setNameEditValue(adgroup.adgroup_name || adgroup.name || "");
-      setShowNameEditModal(true);
-      return;
-    }
-    
     setEditingCell({ adgroupId: adgroup.adgroup_id, field });
     if (field === "bid") {
       setEditedValue((adgroup.cpc_bid_dollars || 0).toString());
     } else if (field === "status") {
       setEditedValue(adgroup.status || "ENABLED");
+    } else if (field === "name" || field === "adgroup_name") {
+      setEditedValue(adgroup.adgroup_name || adgroup.name || "");
     }
   };
 
@@ -623,7 +615,7 @@ export const GoogleAdGroups: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    skipModal: boolean = false
+    fieldKey?: string
   ) => {
     if (!editingCell || !accountId || isCancelling) return;
 
@@ -634,6 +626,7 @@ export const GoogleAdGroups: React.FC = () => {
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
+    const field = fieldKey || editingCell.field;
     let hasChanged = false;
 
     if (editingCell.field === "bid") {
@@ -650,6 +643,29 @@ export const GoogleAdGroups: React.FC = () => {
       const oldValue = (adgroup.status || "ENABLED").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
+      
+      // For status changes, show confirmation modal (match TikTok/Amazon pattern)
+      if (hasChanged) {
+        // Format status values for display
+        const statusDisplayMap: Record<string, string> = {
+          ENABLED: "Enabled",
+          PAUSED: "Paused",
+          Enabled: "Enabled",
+          Paused: "Paused",
+        };
+        const oldValueDisplay = statusDisplayMap[oldValue] || oldValue;
+        const newValueDisplay = statusDisplayMap[newValue] || newValue;
+        
+        setStatusEditData({
+          adgroup,
+          oldValue: oldValueDisplay,
+          newValue: newValueDisplay,
+        });
+        setShowStatusEditModal(true);
+        setEditingCell(null);
+        setEditedValue("");
+        return;
+      }
     } else if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
       const oldValue = (adgroup.adgroup_name || adgroup.name || "").trim();
       const newValue = valueToCheck.trim();
@@ -661,196 +677,91 @@ export const GoogleAdGroups: React.FC = () => {
       return;
     }
 
-    // If skipModal is true (e.g., when canceling), just cancel without showing modal
-    if (skipModal) {
-      cancelInlineEdit();
-      return;
-    }
-
-    // For status changes, show modal
-    if (editingCell.field === "status") {
-      const oldStatusRaw = adgroup.status || "ENABLED";
-      const newStatusRaw = valueToCheck.trim();
-      
-      // Format status values for display
-      const statusDisplayMap: Record<string, string> = {
-        ENABLED: "Enabled",
-        PAUSED: "Paused",
-        Enabled: "Enabled",
-        Paused: "Paused",
-      };
-      const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
-      const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
-      
-      setInlineEditAdgroup(adgroup);
-      setInlineEditField(editingCell.field);
-      setInlineEditOldValue(oldValue);
-      setInlineEditNewValue(newValue);
-      setShowInlineEditModal(true);
-      setEditingCell(null);
-      return;
-    }
-
-    // For bid, show modal
-    if (editingCell.field === "bid") {
-      const newBid = parseFloat(valueToCheck) || 0;
-      const oldBid = adgroup.cpc_bid_dollars || 0;
-      
-      setInlineEditAdgroup(adgroup);
-      setInlineEditField(editingCell.field);
-      setInlineEditOldValue(formatCurrency(oldBid));
-      setInlineEditNewValue(formatCurrency(newBid));
-      setShowInlineEditModal(true);
-      setEditingCell(null);
-      return;
-    }
-
-    // For name, show modal (though this shouldn't be reached since name opens modal directly)
-    if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
-      const oldName = (adgroup.adgroup_name || adgroup.name || "").trim();
-      const newName = valueToCheck.trim();
-      
-      setInlineEditAdgroup(adgroup);
-      setInlineEditField(editingCell.field);
-      setInlineEditOldValue(oldName);
-      setInlineEditNewValue(newName);
-      setShowInlineEditModal(true);
-      setEditingCell(null);
-      return;
-    }
-
-    // Fallback for any other fields (shouldn't happen, but keep modal for safety)
-    let oldValue = "";
-    let newValue = valueToCheck;
-
-    setInlineEditAdgroup(adgroup);
-    setInlineEditField(editingCell.field);
-    setInlineEditOldValue(oldValue);
-    setInlineEditNewValue(newValue);
-    setShowInlineEditModal(true);
+    // For non-status fields, create pending change (inline confirm/cancel buttons)
+    setPendingChanges((prev) => ({
+      ...prev,
+      [field]: {
+        itemId: adgroup.adgroup_id,
+        newValue: valueToCheck.trim(),
+      },
+    }));
     setEditingCell(null);
+    setEditedValue("");
   };
 
-  const runInlineEdit = async () => {
-    if (!inlineEditAdgroup || !inlineEditField || !accountId) return;
+  // Handler for confirming a pending change (clicking the checkmark)
+  const handleConfirmChange = async (itemId: string | number, fieldKey: string, newValue: string) => {
+    if (!accountId) return;
 
-    setInlineEditLoading(true);
+    const adgroup = adgroups.find((a) => a.adgroup_id === itemId);
+    if (!adgroup) return;
+
+    setUpdatingField({ adgroupId: itemId, field: fieldKey as any });
+    
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "status") {
-        // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
-        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-          ENABLED: "ENABLED",
-          PAUSED: "PAUSED",
-          Enabled: "ENABLED",
-          Paused: "PAUSED",
-        };
-        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
-
-        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-          adgroupIds: [inlineEditAdgroup.adgroup_id],
-          action: "status",
-          status: statusValue,
-        });
-
-        if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
+      if (fieldKey === "status" || fieldKey === "adgroup_name" || fieldKey === "name") {
+        if (fieldKey === "status") {
+          const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+            ENABLED: "ENABLED",
+            PAUSED: "PAUSED",
+            Enabled: "ENABLED",
+            Paused: "PAUSED",
+          };
+          const statusValue = statusMap[newValue] || "ENABLED";
+          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+            adgroupIds: [itemId],
+            action: "status",
+            status: statusValue,
+          });
+        } else if (fieldKey === "adgroup_name" || fieldKey === "name") {
+          await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+            adgroupIds: [itemId],
+            action: "name",
+            name: newValue,
+          });
         }
-      } else if (inlineEditField === "bid") {
-        const bidValue = parseFloat(inlineEditNewValue.replace(/[^0-9.]/g, ""));
+      } else if (fieldKey === "bid") {
+        const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
         if (isNaN(bidValue)) {
           throw new Error("Invalid bid value");
         }
-
-        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-          adgroupIds: [inlineEditAdgroup.adgroup_id],
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [itemId],
           action: "bid",
           bid: bidValue,
         });
-
-        if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
-        }
-      } else if (inlineEditField === "name" || inlineEditField === "adgroup_name") {
-        const nameValue = inlineEditNewValue.trim();
-        if (!nameValue) {
-          throw new Error("Name cannot be empty");
-        }
-
-        const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-          adgroupIds: [inlineEditAdgroup.adgroup_id],
-          action: "name",
-          name: nameValue,
-        });
-
-        if (response.errors && response.errors.length > 0) {
-          throw new Error(response.errors[0]);
-        }
       }
 
+      // Remove pending change and reload
+      setPendingChanges((prev) => {
+        const updated = { ...prev };
+        delete updated[fieldKey];
+        return updated;
+      });
       await loadAdgroups(accountIdNum);
-      setShowInlineEditModal(false);
-      setInlineEditAdgroup(null);
-      setInlineEditField(null);
-      setInlineEditOldValue("");
-      setInlineEditNewValue("");
     } catch (error) {
-      console.error("Error updating adgroup:", error);
+      console.error("Failed to update adgroup:", error);
       alert("Failed to update adgroup. Please try again.");
     } finally {
-      setInlineEditLoading(false);
+      setUpdatingField(null);
     }
   };
 
-  const handleNameEditSave = async () => {
-    if (!nameEditAdgroup || !accountId) return;
-    
-    const trimmedName = nameEditValue.trim();
-    if (!trimmedName) {
-      alert("Name cannot be empty");
-      return;
-    }
-    
-    const oldName = (nameEditAdgroup.adgroup_name || nameEditAdgroup.name || "").trim();
-    if (trimmedName === oldName) {
-      setShowNameEditModal(false);
-      setNameEditAdgroup(null);
-      setNameEditValue("");
-      return;
-    }
-    
-    setNameEditLoading(true);
-    try {
-      const accountIdNum = parseInt(accountId, 10);
-      if (isNaN(accountIdNum)) {
-        throw new Error("Invalid account ID");
-      }
-
-      const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-        adgroupIds: [nameEditAdgroup.adgroup_id],
-        action: "name",
-        name: trimmedName,
-      });
-
-      if (response.errors && response.errors.length > 0) {
-        throw new Error(response.errors[0]);
-      }
-
-      await loadAdgroups(accountIdNum);
-      setShowNameEditModal(false);
-      setNameEditAdgroup(null);
-      setNameEditValue("");
-    } catch (error) {
-      console.error("Error updating adgroup name:", error);
-      alert("Failed to update adgroup name. Please try again.");
-    } finally {
-      setNameEditLoading(false);
-    }
+  // Handler for canceling a pending change (clicking the X)
+  const handleCancelChange = (fieldKey: string) => {
+    setPendingChanges((prev) => {
+      const updated = { ...prev };
+      delete updated[fieldKey];
+      return updated;
+    });
   };
+
+  // Removed runInlineEdit and handleNameEditSave - replaced by handleConfirmChange
 
   const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
     if (!accountId || selectedAdgroups.size === 0) return;
@@ -1163,7 +1074,7 @@ export const GoogleAdGroups: React.FC = () => {
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                 Google Ad Group Manager
               </h1>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                   className="edit-button"
@@ -1505,7 +1416,7 @@ export const GoogleAdGroups: React.FC = () => {
                             setShowBidPanel(false);
                             setShowBulkActions(false);
                           }}
-                          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
+                          className="cancel-button"
                         >
                           Cancel
                         </button>
@@ -1810,7 +1721,7 @@ export const GoogleAdGroups: React.FC = () => {
                               setShowConfirmationModal(false);
                               setPendingStatusAction(null);
                             }}
-                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                            className="cancel-button"
                           >
                             Cancel
                           </button>
@@ -1883,7 +1794,7 @@ export const GoogleAdGroups: React.FC = () => {
                           setExportType("current_view");
                         }}
                         disabled={exporting}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[11.2px] font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
@@ -1922,58 +1833,44 @@ export const GoogleAdGroups: React.FC = () => {
                 </div>
               )}
 
-              {/* Inline Edit Confirmation Modal */}
-              {showInlineEditModal && inlineEditAdgroup && inlineEditField && (
+              {/* Status Edit Confirmation Modal - Match TikTok/Amazon pattern */}
+              {showStatusEditModal && statusEditData && (
                 <div
                   className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
                   onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowInlineEditModal(false);
+                    if (e.target === e.currentTarget && !statusEditLoading) {
+                      setShowStatusEditModal(false);
+                      setStatusEditData(null);
                     }
                   }}
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
                     <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Confirm{" "}
-                        {inlineEditField === "bid"
-                        ? "Bid"
-                        : inlineEditField === "status"
-                        ? "Status"
-                        : inlineEditField === "name" || inlineEditField === "adgroup_name"
-                        ? "Name"
-                        : ""}{" "}
-                      Change
+                      Confirm Status Change
                     </h3>
                     <div className="mb-4">
                       <p className="text-[12.8px] text-[#556179] mb-2">
                         Ad Group:{" "}
                         <span className="font-semibold text-[#072929]">
-                          {inlineEditAdgroup.adgroup_name ||
-                            inlineEditAdgroup.name ||
+                          {statusEditData.adgroup.adgroup_name ||
+                            statusEditData.adgroup.name ||
                             "Unnamed Ad Group"}
                         </span>
                       </p>
                       <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                         <div className="flex justify-between items-center">
                           <span className="text-[12.8px] text-[#556179]">
-                            {inlineEditField === "bid"
-                              ? "Bid"
-                              : inlineEditField === "status"
-                              ? "Status"
-                              : inlineEditField === "name" || inlineEditField === "adgroup_name"
-                              ? "Name"
-                              : ""}
-                            :
+                            Status:
                           </span>
                           <div className="flex items-center gap-2">
                             <span className="text-[12.8px] text-[#556179]">
-                              {inlineEditOldValue}
+                              {statusEditData.oldValue}
                             </span>
                             <span className="text-[12.8px] text-[#556179]">
                               →
                             </span>
                             <span className="text-[12.8px] font-semibold text-[#072929]">
-                              {inlineEditNewValue}
+                              {statusEditData.newValue}
                             </span>
                           </div>
                         </div>
@@ -1983,98 +1880,65 @@ export const GoogleAdGroups: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          setShowInlineEditModal(false);
-                          setInlineEditAdgroup(null);
-                          setInlineEditField(null);
-                          setInlineEditOldValue("");
-                          setInlineEditNewValue("");
+                          if (!statusEditLoading) {
+                            setShowStatusEditModal(false);
+                            setStatusEditData(null);
+                          }
                         }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                        disabled={statusEditLoading}
+                        className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={runInlineEdit}
-                        disabled={inlineEditLoading}
+                        onClick={async () => {
+                          if (!statusEditData || !accountId || statusEditLoading) return;
+                          
+                          setStatusEditLoading(true);
+                          try {
+                            const accountIdNum = parseInt(accountId, 10);
+                            if (isNaN(accountIdNum)) {
+                              throw new Error("Invalid account ID");
+                            }
+
+                            // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
+                            const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+                              ENABLED: "ENABLED",
+                              PAUSED: "PAUSED",
+                              Enabled: "ENABLED",
+                              Paused: "PAUSED",
+                            };
+                            const statusValue = statusMap[statusEditData.newValue] || "ENABLED";
+
+                            const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+                              adgroupIds: [statusEditData.adgroup.adgroup_id],
+                              action: "status",
+                              status: statusValue,
+                            });
+
+                            if (response.errors && response.errors.length > 0) {
+                              throw new Error(response.errors[0]);
+                            }
+
+                            await loadAdgroups(accountIdNum);
+                            setShowStatusEditModal(false);
+                            setStatusEditData(null);
+                          } catch (error) {
+                            console.error("Failed to update adgroup status:", error);
+                            alert("Failed to update adgroup status. Please try again.");
+                          } finally {
+                            setStatusEditLoading(false);
+                          }
+                        }}
+                        disabled={statusEditLoading}
                         className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {inlineEditLoading ? "Updating..." : "Confirm"}
+                        {statusEditLoading ? "Updating..." : "Confirm"}
                       </button>
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* Name Edit Modal - Rendered via Portal to avoid z-index issues with sticky columns */}
-              {showNameEditModal && nameEditAdgroup && typeof document !== 'undefined' && createPortal(
-                <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center"
-                  style={{ zIndex: 99999 }}
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget && !nameEditLoading) {
-                      setShowNameEditModal(false);
-                      setNameEditAdgroup(null);
-                      setNameEditValue("");
-                    }
-                  }}
-                >
-                  <div 
-                    className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
-                    style={{ zIndex: 100000 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Ad group
-                    </h3>
-                    <div className="mb-6">
-                      <input
-                        type="text"
-                        value={nameEditValue}
-                        onChange={(e) => setNameEditValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !nameEditLoading) {
-                            handleNameEditSave();
-                          } else if (e.key === "Escape" && !nameEditLoading) {
-                            setShowNameEditModal(false);
-                            setNameEditAdgroup(null);
-                            setNameEditValue("");
-                          }
-                        }}
-                        disabled={nameEditLoading}
-                        autoFocus
-                        className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
-                        placeholder="Enter ad group name"
-                        maxLength={255}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!nameEditLoading) {
-                            setShowNameEditModal(false);
-                            setNameEditAdgroup(null);
-                            setNameEditValue("");
-                          }
-                        }}
-                        disabled={nameEditLoading}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleNameEditSave}
-                        disabled={nameEditLoading || !nameEditValue.trim()}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {nameEditLoading ? "Saving..." : "Save"}
-                      </button>
-                    </div>
-                  </div>
-                </div>,
-                document.body
               )}
 
               {/* Table */}
@@ -2102,6 +1966,9 @@ export const GoogleAdGroups: React.FC = () => {
                     onCancelInlineEdit={cancelInlineEdit}
                     onInlineEditChange={handleInlineEditChange}
                     onConfirmInlineEdit={confirmInlineEdit}
+                    pendingChanges={pendingChanges}
+                    onConfirmChange={handleConfirmChange}
+                    onCancelChange={handleCancelChange}
                     formatCurrency={formatCurrency}
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadge}
@@ -2110,8 +1977,8 @@ export const GoogleAdGroups: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
+              {/* Pagination - Match Amazon style exactly */}
+              {!loading && adgroups.length > 0 && totalPages > 1 && (
                 <div className="flex items-center justify-end mt-4">
                   <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                     <button

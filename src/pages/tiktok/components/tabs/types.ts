@@ -11,6 +11,7 @@ export interface TikTokAdGroup {
     conversions: number;
     ctr: number;
     cpc: number;
+    sales: number;
 }
 
 export interface TikTokAd {
@@ -27,4 +28,5 @@ export interface TikTokAd {
     conversions: number;
     ctr: number;
     cpc: number;
+    sales: number;
 }

@@ -474,6 +474,10 @@ export const GoogleKeywords: React.FC = () => {
     }
   };
 
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
   const handleSort = async (column: string) => {
     if (sorting) return;
 
@@ -1422,10 +1426,10 @@ export const GoogleKeywords: React.FC = () => {
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                 Google Keyword Manager
               </h1>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                  className="px-3 py-2 bg-background-field border border-gray-200 rounded-lg flex items-center gap-2 h-10 hover:bg-gray-50 transition-colors"
+                  className="edit-button"
                 >
                   <svg
                     className="w-5 h-5 text-[#072929]"
@@ -1831,7 +1835,7 @@ export const GoogleKeywords: React.FC = () => {
                             setShowBidPanel(false);
                             setShowBulkActions(false);
                           }}
-                          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
+                          className="cancel-button"
                         >
                           Cancel
                         </button>
@@ -2135,7 +2139,7 @@ export const GoogleKeywords: React.FC = () => {
                               setShowConfirmationModal(false);
                               setPendingStatusAction(null);
                             }}
-                            className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                            className="cancel-button"
                           >
                             Cancel
                           </button>
@@ -2304,7 +2308,7 @@ export const GoogleKeywords: React.FC = () => {
                           }
                         }}
                         disabled={keywordTextEditLoading}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-[#072929] rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
@@ -2464,12 +2468,12 @@ export const GoogleKeywords: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
+              {!loading && keywords.length > 0 && (
                 <div className="flex items-center justify-end mt-4">
                   <div className="flex items-center border border-[#EBEBEB] rounded-lg bg-[#fefefb] overflow-hidden">
                     <button
                       onClick={() =>
-                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                        handlePageChange(Math.max(1, currentPage - 1))
                       }
                       disabled={currentPage === 1}
                       className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
@@ -2522,7 +2526,7 @@ export const GoogleKeywords: React.FC = () => {
                     )}
                     <button
                       onClick={() =>
-                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                        handlePageChange(Math.min(totalPages, currentPage + 1))
                       }
                       disabled={currentPage === totalPages}
                       className="px-3 py-2 text-[10.64px] text-black disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"

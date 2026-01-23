@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
 import type { IColumnDefinition } from "./GoogleAdsTable";
 
@@ -57,7 +57,10 @@ interface GoogleAdGroupsTableProps {
   onStartInlineEdit: (adgroup: GoogleAdGroup, field: "bid" | "status" | "name" | "adgroup_name") => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
-  onConfirmInlineEdit: (value: string) => void;
+  onConfirmInlineEdit: (value: string, fieldKey?: string) => void;
+  pendingChanges?: Record<string, { itemId: string | number; newValue: string }>;
+  onConfirmChange?: (itemId: string | number, fieldKey: string, newValue: string) => void;
+  onCancelChange?: (fieldKey: string) => void;
   formatCurrency: (value: number) => string;
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
@@ -86,6 +89,9 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   onCancelInlineEdit,
   onInlineEditChange,
   onConfirmInlineEdit,
+  pendingChanges = {},
+  onConfirmChange,
+  onCancelChange,
   formatCurrency,
   formatPercentage,
   getStatusBadge,
@@ -113,25 +119,40 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     avg_roas: summary.avg_roas,
   } : null;
 
-  // Define columns for adgroups
+  // Define columns for adgroups - match Amazon column sizes exactly
   const columns: IColumnDefinition[] = useMemo(() => [
     {
       key: "adgroup_name",
       label: "Ad Group Name",
       type: "text",
       sortable: true,
-      sticky: true,
-      minWidth: "min-w-[300px]",
-      maxWidth: "max-w-[400px]",
+      sticky: false, // Not sticky in Amazon - scrolls horizontally with table
+      // Amazon: header has NO width constraint, only cell has min-w-[150px] max-w-[200px]
+      // Don't set minWidth/maxWidth here - header should have no width constraint
       editable: true,
       getValue: (row: GoogleAdGroup) => row.adgroup_name || row.name || "Unnamed Ad Group",
+      render: (value: any, row: GoogleAdGroup) => {
+        // Match Amazon ad group table styling exactly: text-[#0b0f16] with cursor-pointer hover:underline
+        // Width constraints are applied on the td element, not here
+        const adgroupName = value || "Unnamed Ad Group";
+        return (
+          <div
+            className="text-[13.3px] text-[#0b0f16] text-left truncate block w-full whitespace-nowrap cursor-pointer hover:underline"
+            title={adgroupName}
+          >
+            {adgroupName}
+          </div>
+        );
+      },
     },
     {
       key: "campaign_name",
       label: "Campaign Name",
       type: "text",
       sortable: true,
-      minWidth: "min-w-[200px]",
+      // Amazon: min-w-[150px] max-w-[200px]
+      minWidth: "min-w-[150px]",
+      maxWidth: "max-w-[200px]",
       getValue: (row: GoogleAdGroup) => row.campaign_name || "—",
       navigateTo: (row: GoogleAdGroup, accountId: string) => {
         if (row.campaign_id) {
@@ -145,6 +166,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       label: "Account Name",
       type: "text",
       sortable: true,
+      // Amazon doesn't have this column, but keep it compact
       width: "w-[120px]",
       maxWidth: "max-w-[120px]",
       getValue: (row: GoogleAdGroup) => row.account_name || row.customer_id || "—",
@@ -154,8 +176,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       label: "Status",
       type: "status",
       sortable: true,
-      width: "w-[140px]",
-      maxWidth: "max-w-[140px]",
+      // Amazon State column: min-w-[115px]
+      minWidth: "min-w-[115px]",
       editable: true,
       statusOptions: [
         { value: "ENABLED", label: "Enabled" },
@@ -169,8 +191,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       type: "bid",
       sortable: true,
       editable: true,
-      width: "w-[120px]",
-      minWidth: "min-w-[120px]",
+      // Amazon Default Bid: no specific width constraint, let it size naturally
       getValue: (row: GoogleAdGroup) => row.cpc_bid_dollars || 0,
     },
     {
@@ -223,8 +244,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     onConfirmInlineEdit(value);
   };
 
-  // Empty pendingChanges since we're using modal confirmation now
-  const pendingChanges = useMemo(() => ({}), []);
+  // pendingChanges is now passed as a prop
 
   return (
     <GoogleAdsTable
@@ -257,8 +277,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       onCancelInlineEdit={onCancelInlineEdit}
       onInlineEditChange={onInlineEditChange}
       onConfirmInlineEdit={handleConfirmInlineEdit}
-      onConfirmChange={() => {}}
-      onCancelChange={() => {}}
+      onConfirmChange={onConfirmChange || (() => {})}
+      onCancelChange={onCancelChange || (() => {})}
       formatCurrency={formatCurrency}
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}

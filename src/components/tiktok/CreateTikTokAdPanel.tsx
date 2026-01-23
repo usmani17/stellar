@@ -177,13 +177,13 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
     // State for fetched campaign and ad group data
     // These are fetched when campaignId/adgroupId are provided but external data is not
     // ============================================================================
-    
+
     const [fetchedCampaignData, setFetchedCampaignData] = useState<{
         objective_type?: string;
         catalog_enabled?: boolean;
         app_promotion_type?: string;
     } | null>(null);
-    
+
     const [fetchedAdGroupData, setFetchedAdGroupData] = useState<{
         shopping_ads_type?: string;
         product_source?: string;
@@ -197,7 +197,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
         app_id?: string;
         app_type?: string;
     } | null>(null);
-    
+
     // Loading states for data fetching
     const [fetchingCampaignData, setFetchingCampaignData] = useState(false);
     const [fetchingAdGroupData, setFetchingAdGroupData] = useState(false);
@@ -210,7 +210,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
     // ============================================================================
     const campaignData = externalCampaignData || fetchedCampaignData;
     const adGroupData = externalAdGroupData || fetchedAdGroupData;
-    
+
     // ============================================================================
     // END OF STEP 2: DATA FETCHING
     // ============================================================================
@@ -254,7 +254,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                     accountIdNum,
                     campaignId
                 );
-                
+
                 // Extract only the fields we need for conditional logic
                 setFetchedCampaignData({
                     objective_type: data.campaign?.objective_type,
@@ -310,7 +310,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                     page: 1,
                     page_size: 100, // Fetch enough to find the ad group
                 };
-                
+
                 // If campaignId is available, filter by it to reduce API response size
                 if (campaignId) {
                     queryParams.campaign_id = campaignId;
@@ -324,8 +324,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                 // Find ad group by adgroup_id (string) or id (number, converted to string)
                 const adGroup = response.adgroups?.find(
-                    (ag: any) => 
-                        ag.adgroup_id === adgroupId || 
+                    (ag: any) =>
+                        ag.adgroup_id === adgroupId ||
                         ag.adgroup_id?.toString() === adgroupId ||
                         ag.id?.toString() === adgroupId
                 );
@@ -375,7 +375,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
     const [callToAction, setCallToAction] = useState("LEARN_MORE");
     const [deeplink, setDeeplink] = useState("");
     const [trackingPixelId, setTrackingPixelId] = useState("");
-    
+
     // Form State - Product Sales Fields
     const [productSpecificType, setProductSpecificType] = useState("ALL");
     const [itemGroupIds, setItemGroupIds] = useState("");
@@ -387,49 +387,49 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
     const [endCardCta, setEndCardCta] = useState("");
     const [productDisplayFieldList, setProductDisplayFieldList] = useState<string[]>([]);
     const [autoDisclaimerTypes, setAutoDisclaimerTypes] = useState<string[]>([]);
-    
+
     // Form State - Lead Generation Fields
     const [phoneNumber, setPhoneNumber] = useState("");
     const [phoneRegionCode, setPhoneRegionCode] = useState("");
     const [phoneRegionCallingCode, setPhoneRegionCallingCode] = useState("");
     const [autoMessageId, setAutoMessageId] = useState("");
     const [trackingMessageEventSetId, setTrackingMessageEventSetId] = useState("");
-    
+
     // Form State - App Promotion Fields
     const [creativeType, setCreativeType] = useState("");
     const [appName, setAppName] = useState("");
     const [cppUrl, setCppUrl] = useState("");
     const [deeplinkFormatType, setDeeplinkFormatType] = useState("");
     const [fallbackType, setFallbackType] = useState("");
-    
+
     // Form State - Optimization Goal Fields
     const [tiktokPageCategory, setTiktokPageCategory] = useState("");
     const [pageId, setPageId] = useState("");
-    
+
     // Form State - UTM Params (array of {key, value} objects)
-    const [utmParams, setUtmParams] = useState<Array<{key: string; value: string}>>([]);
+    const [utmParams, setUtmParams] = useState<Array<{ key: string; value: string }>>([]);
     const [utmParamKey, setUtmParamKey] = useState("");
     const [utmParamValue, setUtmParamValue] = useState("");
-    
+
     // Form State - Disclaimer Fields (allowlist-only)
     const [disclaimerType, setDisclaimerType] = useState("");
     const [disclaimerText, setDisclaimerText] = useState("");
     const [disclaimerClickableTexts, setDisclaimerClickableTexts] = useState("");
-    
+
     // Form State - Spark Ads Fields
     const [tiktokItemId, setTiktokItemId] = useState("");
     const [promotionalMusicDisabled, setPromotionalMusicDisabled] = useState(false);
     const [itemDuetStatus, setItemDuetStatus] = useState("");
     const [itemStitchStatus, setItemStitchStatus] = useState("");
-    
+
     // Form State - Other Fields
     const [musicId, setMusicId] = useState("");
     const [carouselImageIndex, setCarouselImageIndex] = useState("");
     const [scheduleId, setScheduleId] = useState("");
-    
+
     // Field-specific error messages (Step 5: Validation)
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    
+
     // Helper function to clear field error on change
     const clearFieldError = (fieldName: string) => {
         if (fieldErrors[fieldName]) {
@@ -534,12 +534,12 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
     const isCarousel = adFormat === "CAROUSEL_ADS";
     const isCatalogCarousel = adFormat === "CATALOG_CAROUSEL";
     const isLiveContent = adFormat === "LIVE_CONTENT";
-    
+
     // Identity Type: using state variable 'identityType' (not 'adIdentityType')
     // This is the form state variable that tracks the selected identity type
     // Values: CUSTOMIZED_USER, AUTH_CODE, TT_USER, BC_AUTH_TT
     const adIdentityType = identityType; // Alias for clarity in conditional logic
-    
+
     // Identity Type boolean flags (for use in combined scenario flags)
     const isIdentityCustomizedUser = identityType === "CUSTOMIZED_USER";
     const isIdentityAuthCode = identityType === "AUTH_CODE";
@@ -550,7 +550,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
     // Combined Scenario Flags (for easier conditional rendering)
     // These combine multiple flags to represent complete scenarios
     // ----------------------------------------------------------------------------
-    
+
     // Product Sales scenarios (5 combinations)
     const isVideoShoppingAdsCatalog = isProductSales && isVideoShoppingAds && isProductSourceCatalog;
     const isVideoShoppingAdsStore = isProductSales && isVideoShoppingAds && isProductSourceStore;
@@ -582,16 +582,16 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
     // ----------------------------------------------------------------------------
     // Feature Support Flags (cross-cutting concerns)
     // ----------------------------------------------------------------------------
-    
+
     // UTM params support (varies by objective and ad group settings)
-    const supportsUtmParams = isReach || isTraffic || isVideoViews || 
-        (isLeadGeneration && !isCatalogEnabled) || isEngagement || 
+    const supportsUtmParams = isReach || isTraffic || isVideoViews ||
+        (isLeadGeneration && !isCatalogEnabled) || isEngagement ||
         (isAppPromotion && isAppPreRegistration) || isWebConversions || isRfReach ||
         (isProductSales && isVideoShoppingAds && isProductSourceCatalog && isPromotionWebsite) ||
         (isLeadGeneration && isCatalogEnabled && promotionTargetType === "EXTERNAL_WEBSITE");
 
     // Disclaimer support (allowlist-only, but flag for UI)
-    const supportsDisclaimers = isAppPromotion || isWebConversions || isReach || 
+    const supportsDisclaimers = isAppPromotion || isWebConversions || isReach ||
         isTraffic || isVideoViews || isEngagement || isLeadGeneration || isRfReach;
 
     // ============================================================================
@@ -613,33 +613,33 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
     // ============================================================================
     const validateForm = (): boolean => {
         const errors: Record<string, string> = {};
-        
+
         // Always required fields
         if (!adName.trim()) {
             errors.adName = "Ad name is required";
         } else if (adName.length > 512) {
             errors.adName = "Ad name must be 512 characters or less";
         }
-        
+
         if (!adText.trim()) {
             errors.adText = "Ad text is required";
         }
-        
+
         if (!identityId.trim()) {
             errors.identityId = "Identity ID is required";
         }
-        
+
         // Format-specific validation
         if (isSingleVideo && !videoId.trim()) {
             errors.videoId = "Video ID is required for video format";
         }
-        
+
         if ((isSingleImage || isCarousel || isCatalogCarousel) && !imageIds.trim()) {
             errors.imageIds = "Image IDs are required for image/carousel format";
         }
-        
+
         // Conditional validation based on campaign objective and ad group settings
-        
+
         // Product Sales - Video Shopping Ads with Catalog
         if (isVideoShoppingAdsCatalog && isPromotionWebsite) {
             if (!landingPageUrl.trim()) {
@@ -648,7 +648,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 errors.landingPageUrl = "Landing page URL must be a valid URL";
             }
         }
-        
+
         // Lead Generation - Standard (without catalog)
         if (isLeadGenStandard && promotionWebsiteType !== "TIKTOK_NATIVE_PAGE") {
             if (!landingPageUrl.trim()) {
@@ -657,7 +657,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 errors.landingPageUrl = "Landing page URL must be a valid URL";
             }
         }
-        
+
         // Lead Generation - With Catalog (External Website)
         if (isLeadGenWithCatalog && promotionTargetType === "EXTERNAL_WEBSITE") {
             if (!landingPageUrl.trim()) {
@@ -666,12 +666,12 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 errors.landingPageUrl = "Landing page URL must be a valid URL";
             }
         }
-        
+
         // App Promotion - Android / iOS (Deeplink required)
         if ((isAppPromotionAndroid || isAppPromotionIos) && !deeplink.trim()) {
             errors.deeplink = "Deeplink is required for App Promotion (Android/iOS)";
         }
-        
+
         // Traffic - Standard (not destination visit)
         if (isTraffic && !isTrafficDestinationVisit) {
             if (!landingPageUrl.trim()) {
@@ -680,7 +680,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 errors.landingPageUrl = "Landing page URL must be a valid URL";
             }
         }
-        
+
         // Validate image IDs format (comma-separated)
         if (imageIds.trim()) {
             const ids = imageIds.split(",").map(id => id.trim()).filter(id => id);
@@ -692,7 +692,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 errors.imageIds = "Carousel format supports maximum 35 image IDs";
             }
         }
-        
+
         // Product Sales - Catalog specific validations
         if (isVideoShoppingAdsCatalog) {
             if (!productSpecificType) {
@@ -726,12 +726,12 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 }
             }
         }
-        
+
         // Product Sales - Showcase validations
         if (isVideoShoppingAdsShowcase && !showcaseProducts.trim()) {
             errors.showcaseProducts = "Showcase products are required for Video Shopping Ads with Showcase";
         }
-        
+
         // Lead Generation - Phone Call validations
         if (isLeadGenPhoneCall) {
             if (!phoneNumber.trim()) {
@@ -744,20 +744,20 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 errors.phoneRegionCallingCode = "Phone region calling code is required";
             }
         }
-        
+
         // Lead Generation - Direct Message validations
         if (isLeadGenDirectMessage && !autoMessageId.trim()) {
             errors.autoMessageId = "Auto Message ID is required for Direct Message ads";
         }
-        
+
         // Lead Generation - Social Message validations
-        if (isLeadGenSocialMessage && isOptimizationClick && 
+        if (isLeadGenSocialMessage && isOptimizationClick &&
             messagingAppType && ["MESSENGER", "WHATSAPP"].includes(messagingAppType) && !pageId.trim()) {
             if (!trackingMessageEventSetId.trim()) {
                 errors.trackingMessageEventSetId = "Tracking Message Event Set ID is required";
             }
         }
-        
+
         // Lead Generation - Automotive validations
         if (isLeadGenAutomotive && isCatalogCarousel) {
             if (!endCardCta) {
@@ -772,12 +772,12 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 }
             }
         }
-        
+
         // App Promotion - Pre-registration validations
         if (isAppPromotionPreRegistration && promotionWebsiteType === "TIKTOK_NATIVE_PAGE" && !creativeType) {
             errors.creativeType = "Creative type is required for App Pre-registration with TikTok Instant Page";
         }
-        
+
         // Traffic - Destination Visit validations
         if (isTrafficDestinationVisit) {
             if (!deeplinkFormatType) {
@@ -787,7 +787,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 errors.deeplink = "Deeplink is required for Destination Visit";
             }
         }
-        
+
         // Optimization Goal - PAGE_VISIT validations
         if (isOptimizationPageVisit) {
             if (!tiktokPageCategory) {
@@ -800,32 +800,32 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 errors.pageId = "Page ID is required when Page Category is TIKTOK_INSTANT_PAGE";
             }
         }
-        
+
         // Carousel - Music ID validation
         if (isCarousel && !musicId.trim()) {
             errors.musicId = "Music ID is required for Carousel ads";
         }
-        
+
         // Catalog Carousel - Music ID validation
         if (isCatalogCarousel && !musicId.trim()) {
             errors.musicId = "Music ID is required for Catalog Carousel ads";
         }
-        
+
         // Live Content - Creative Type validation
         if (isLiveContent && !creativeType) {
             errors.creativeType = "Creative type is required for Live Content ads (SHORT_VIDEO_LIVE or DIRECT_LIVE)";
         }
-        
+
         // Live Content - Call to Action validation
         if (isLiveContent && callToAction !== "WATCH_LIVE") {
             errors.callToAction = "Call to Action must be WATCH_LIVE for Live Content ads";
         }
-        
+
         // Spark Ads Pull - TikTok Item ID validation
         if (isSparkAdsPull && !tiktokItemId.trim()) {
             errors.tiktokItemId = "TikTok Item ID is required for Spark Ads Pull";
         }
-        
+
         setFieldErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -842,21 +842,21 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
             identity_id: identityId.trim(),
             identity_type: identityType,
         };
-        
+
         // Format-specific fields
         if (isSingleVideo && videoId.trim()) {
             payload.video_id = videoId.trim();
         }
-        
+
         if ((isSingleImage || isCarousel || isCatalogCarousel) && imageIds.trim()) {
             const ids = imageIds.split(",").map(id => id.trim()).filter(id => id);
             if (ids.length > 0) {
                 payload.image_ids = ids;
             }
         }
-        
+
         // Conditional fields based on campaign objective and ad group settings
-        
+
         // Landing Page URL (conditional)
         if (landingPageUrl.trim()) {
             // For TikTok Instant Page, use page_id instead of landing_page_url
@@ -866,7 +866,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 payload.landing_page_url = landingPageUrl.trim();
             }
         }
-        
+
         // Call to Action (conditional - not all scenarios need it)
         if (callToAction && callToAction !== "LEARN_MORE") {
             payload.call_to_action = callToAction;
@@ -879,7 +879,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
         ) {
             payload.call_to_action = callToAction;
         }
-        
+
         // Deeplink (conditional - required for App Promotion Android/iOS)
         if (deeplink.trim()) {
             payload.deeplink = deeplink.trim();
@@ -890,23 +890,23 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 payload.deeplink_type = "ANDROID";
             }
         }
-        
+
         // Tracking Pixel (optional for all)
         if (trackingPixelId.trim()) {
             payload.tracking_pixel_id = trackingPixelId.trim();
         }
-        
+
         // Product Sales specific fields
         if (isProductSales) {
             // Catalog ID (if available from ad group)
             if (catalogId) {
                 payload.catalog_id = catalogId;
             }
-            
+
             // Product Specific Type (for Video Shopping Ads with Catalog)
             if (isVideoShoppingAdsCatalog && productSpecificType) {
                 payload.product_specific_type = productSpecificType;
-                
+
                 // Item Group IDs (for ALL or PRODUCT_SET)
                 if ((productSpecificType === "ALL" || productSpecificType === "PRODUCT_SET") && itemGroupIds.trim()) {
                     const ids = itemGroupIds.split(",").map(id => id.trim()).filter(id => id);
@@ -914,12 +914,12 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                         payload.item_group_ids = ids;
                     }
                 }
-                
+
                 // Product Set ID (for PRODUCT_SET)
                 if (productSpecificType === "PRODUCT_SET" && productSetId.trim()) {
                     payload.product_set_id = productSetId.trim();
                 }
-                
+
                 // SKU IDs (for CUSTOMIZED_PRODUCTS)
                 if (productSpecificType === "CUSTOMIZED_PRODUCTS" && skuIds.trim()) {
                     const ids = skuIds.split(",").map(id => id.trim()).filter(id => id);
@@ -928,12 +928,12 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                     }
                 }
             }
-            
+
             // Vertical Video Strategy (for Video Shopping Ads)
             if (isVideoShoppingAds && verticalVideoStrategy && verticalVideoStrategy !== "UNSET") {
                 payload.vertical_video_strategy = verticalVideoStrategy;
             }
-            
+
             // Showcase Products (for Video Shopping Ads with Showcase)
             if (isVideoShoppingAdsShowcase && showcaseProducts.trim()) {
                 try {
@@ -958,23 +958,23 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                     }
                 }
             }
-            
+
             // End Card CTA (for Catalog Carousel)
             if (isCatalogCarousel && endCardCta) {
                 payload.end_card_cta = endCardCta;
             }
-            
+
             // Product Display Field List (for Auto-Inventory)
             if (isCatalogCarousel && productDisplayFieldList.length > 0) {
                 payload.product_display_field_list = productDisplayFieldList;
             }
-            
+
             // Auto Disclaimer Types (for Auto-Model)
             if (isCatalogCarousel && autoDisclaimerTypes.length > 0) {
                 payload.auto_disclaimer_types = autoDisclaimerTypes;
             }
         }
-        
+
         // Lead Generation specific fields
         if (isLeadGeneration) {
             // Phone Call fields
@@ -983,17 +983,17 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 if (phoneRegionCode.trim()) payload.phone_region_code = phoneRegionCode.trim();
                 if (phoneRegionCallingCode.trim()) payload.phone_region_calling_code = phoneRegionCallingCode.trim();
             }
-            
+
             // Direct Message fields
             if (isLeadGenDirectMessage && autoMessageId.trim()) {
                 payload.auto_message_id = autoMessageId.trim();
             }
-            
+
             // Social Message fields
             if (isLeadGenSocialMessage && trackingMessageEventSetId.trim()) {
                 payload.tracking_message_event_set_id = trackingMessageEventSetId.trim();
             }
-            
+
             // Automotive fields
             if (isLeadGenAutomotive) {
                 if (vehicleIds.trim()) {
@@ -1004,35 +1004,35 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 }
             }
         }
-        
+
         // App Promotion specific fields
         if (isAppPromotion) {
             // Creative Type (for Pre-registration with TikTok Instant Page)
             if (isAppPromotionPreRegistration && promotionWebsiteType === "TIKTOK_NATIVE_PAGE" && creativeType) {
                 payload.creative_type = creativeType;
             }
-            
+
             // App Name (if provided)
             if (appName.trim()) {
                 payload.app_name = appName.trim();
             }
-            
+
             // Custom Product Page URL (allowlist-only)
             if (cppUrl.trim()) {
                 payload.cpp_url = cppUrl.trim();
             }
-            
+
             // Deeplink Format Type (for Destination Visit)
             if (deeplinkFormatType) {
                 payload.deeplink_format_type = deeplinkFormatType;
             }
-            
+
             // Fallback Type
             if (fallbackType) {
                 payload.fallback_type = fallbackType;
             }
         }
-        
+
         // Optimization Goal specific fields
         if (isOptimizationPageVisit) {
             if (tiktokPageCategory) {
@@ -1042,33 +1042,33 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 payload.page_id = pageId.trim();
             }
         }
-        
+
         // Ad Format specific fields
         if (isCarousel || isCatalogCarousel) {
             if (musicId.trim()) {
                 payload.music_id = musicId.trim();
             }
         }
-        
+
         if (isCatalogCarousel && carouselImageIndex.trim()) {
             const index = parseInt(carouselImageIndex);
             if (!isNaN(index) && index >= 0 && index <= 9) {
                 payload.carousel_image_index = index;
             }
         }
-        
+
         // Live Content specific fields
         if (isLiveContent) {
             if (creativeType) {
                 payload.creative_type = creativeType;
             }
         }
-        
+
         // Spark Ads specific fields
         if (isSparkAdsPull && tiktokItemId.trim()) {
             payload.tiktok_item_id = tiktokItemId.trim();
         }
-        
+
         if (isIdentityAuthCode || isIdentityBcAuthTt) {
             if (promotionalMusicDisabled !== undefined) {
                 payload.promotional_music_disabled = promotionalMusicDisabled;
@@ -1080,17 +1080,17 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 payload.item_stitch_status = itemStitchStatus;
             }
         }
-        
+
         // RF_REACH specific fields
         if (isRfReach && scheduleId.trim()) {
             payload.schedule_id = scheduleId.trim();
         }
-        
+
         // UTM Params (conditional - supported for certain scenarios)
         if (supportsUtmParams && utmParams.length > 0) {
             payload.utm_params = utmParams;
         }
-        
+
         // Disclaimer fields (allowlist-only)
         if (supportsDisclaimers) {
             if (disclaimerType) {
@@ -1103,18 +1103,18 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 payload.disclaimer_clickable_texts = disclaimerClickableTexts.trim();
             }
         }
-        
+
         return payload;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!accountId || !adgroupId) return;
-        
+
         // Clear previous errors
         setFieldErrors({});
         setInternalError(null);
-        
+
         // Validate form (Step 5)
         if (!validateForm()) {
             // Show first error as general error message
@@ -1122,7 +1122,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
             setInternalError(firstError || "Please fix the errors below");
             return;
         }
-        
+
         // Build payload conditionally (Step 6)
         const adData = buildAdPayload();
 
@@ -1140,7 +1140,20 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 onClose();
             } catch (err: any) {
                 console.error("Error creating ad:", err);
-                setInternalError(err.message || "Failed to create ad");
+                // Extract user-friendly error message from response
+                const errorMessage =
+                    err?.response?.data?.error ||
+                    err?.response?.data?.message ||
+                    err?.response?.data?.detail ||
+                    (typeof err?.response?.data === 'object'
+                        ? Object.values(err?.response?.data).flat().join(', ')
+                        : null) ||
+                    (err?.response?.status === 400 ? "Invalid form data. Please check all required fields." : null) ||
+                    (err?.response?.status === 401 ? "Authentication required. Please log in again." : null) ||
+                    (err?.response?.status === 403 ? "You don't have permission to create ads." : null) ||
+                    (err?.response?.status === 500 ? "Server error. Please try again later." : null) ||
+                    "Failed to create ad. Please try again.";
+                setInternalError(errorMessage);
             } finally {
                 setInternalLoading(false);
             }
@@ -1160,7 +1173,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
         setCallToAction("LEARN_MORE");
         setDeeplink("");
         setTrackingPixelId("");
-        
+
         // Product Sales fields
         setProductSpecificType("ALL");
         setItemGroupIds("");
@@ -1172,46 +1185,46 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
         setEndCardCta("");
         setProductDisplayFieldList([]);
         setAutoDisclaimerTypes([]);
-        
+
         // Lead Generation fields
         setPhoneNumber("");
         setPhoneRegionCode("");
         setPhoneRegionCallingCode("");
         setAutoMessageId("");
         setTrackingMessageEventSetId("");
-        
+
         // App Promotion fields
         setCreativeType("");
         setAppName("");
         setCppUrl("");
         setDeeplinkFormatType("");
         setFallbackType("");
-        
+
         // Optimization Goal fields
         setTiktokPageCategory("");
         setPageId("");
-        
+
         // UTM Params
         setUtmParams([]);
         setUtmParamKey("");
         setUtmParamValue("");
-        
+
         // Disclaimer fields
         setDisclaimerType("");
         setDisclaimerText("");
         setDisclaimerClickableTexts("");
-        
+
         // Spark Ads fields
         setTiktokItemId("");
         setPromotionalMusicDisabled(false);
         setItemDuetStatus("");
         setItemStitchStatus("");
-        
+
         // Other fields
         setMusicId("");
         setCarouselImageIndex("");
         setScheduleId("");
-        
+
         setInternalError(null);
         setFieldErrors({});
         // Note: We don't reset fetched campaign/adGroup data as it may be reused
@@ -1287,9 +1300,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 clearFieldError("adName");
                             }}
                             placeholder="Enter ad name"
-                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                fieldErrors.adName ? "border-red-500" : "border-gray-200"
-                            }`}
+                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.adName ? "border-red-500" : "border-gray-200"
+                                }`}
                             required
                         />
                         {fieldErrors.adName && (
@@ -1337,9 +1349,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             }}
                             placeholder="Enter ad text/description"
                             rows={5}
-                            className={`bg-[#FEFEFB] w-full px-4 py-2.5 border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                fieldErrors.adText ? "border-red-500" : "border-gray-200"
-                            }`}
+                            className={`bg-[#FEFEFB] w-full px-4 py-2.5 border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.adText ? "border-red-500" : "border-gray-200"
+                                }`}
                             required
                         />
                         {fieldErrors.adText && (
@@ -1376,9 +1387,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     clearFieldError("identityId");
                                 }}
                                 placeholder="TikTok identity/page ID"
-                                className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                    fieldErrors.identityId ? "border-red-500" : "border-gray-200"
-                                }`}
+                                className={`bg-[#FEFEFB] w-full px-4 py-2.5 h-[38px] border rounded-lg text-[14px] text-[#072929] placeholder-[#BFBFBF] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.identityId ? "border-red-500" : "border-gray-200"
+                                    }`}
                                 required
                             />
                             {fieldErrors.identityId ? (
@@ -1408,9 +1418,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     clearFieldError("videoId");
                                 }}
                                 placeholder="TikTok video ID"
-                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                    fieldErrors.videoId ? "border-red-500" : "border-gray-200"
-                                }`}
+                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.videoId ? "border-red-500" : "border-gray-200"
+                                    }`}
                                 required
                             />
                             {fieldErrors.videoId && (
@@ -1433,9 +1442,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     clearFieldError("imageIds");
                                 }}
                                 placeholder={isCarousel || isCatalogCarousel ? "Comma-separated image IDs (e.g., 123456, 789012)" : "Enter single image ID"}
-                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                    fieldErrors.imageIds ? "border-red-500" : "border-gray-200"
-                                }`}
+                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.imageIds ? "border-red-500" : "border-gray-200"
+                                    }`}
                                 required
                             />
                             {fieldErrors.imageIds ? (
@@ -1452,7 +1460,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {/* ============================================================================
                     CONDITIONAL SECTIONS BY CAMPAIGN OBJECTIVE & AD GROUP SETTINGS
                     ============================================================================ */}
-                
+
                 {isProductSales ? (
                     // PRODUCT_SALES Campaign
                     <>
@@ -1473,9 +1481,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("productSpecificType");
                                             }}
                                             placeholder="Select Product Specific Type"
-                                            buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${
-                                                fieldErrors.productSpecificType ? "border-red-500" : ""
-                                            }`}
+                                            buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${fieldErrors.productSpecificType ? "border-red-500" : ""
+                                                }`}
                                         />
                                         {fieldErrors.productSpecificType && (
                                             <p className="mt-1 text-[12px] text-red-600">{fieldErrors.productSpecificType}</p>
@@ -1496,9 +1503,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                     clearFieldError("productSetId");
                                                 }}
                                                 placeholder="Product Set ID"
-                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                    fieldErrors.productSetId ? "border-red-500" : "border-gray-200"
-                                                }`}
+                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.productSetId ? "border-red-500" : "border-gray-200"
+                                                    }`}
                                                 required
                                             />
                                             {fieldErrors.productSetId && (
@@ -1522,9 +1528,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("itemGroupIds");
                                             }}
                                             placeholder="123456, 789012, ..."
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.itemGroupIds ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.itemGroupIds ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.itemGroupIds && (
@@ -1547,9 +1552,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("skuIds");
                                             }}
                                             placeholder="SKU1, SKU2, ..."
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.skuIds ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.skuIds ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.skuIds && (
@@ -1586,9 +1590,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("landingPageUrl");
                                             }}
                                             placeholder="https://example.com/landing"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.landingPageUrl && (
@@ -1602,7 +1605,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "SHOP_NOW", "SIGN_UP"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -1653,7 +1656,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "SHOP_NOW"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -1682,9 +1685,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         }}
                                         placeholder='[{"item_group_id":"123","store_id":"456","catalog_id":"789"}] or "123,456,789|321,654,987"'
                                         rows={4}
-                                        className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                            fieldErrors.showcaseProducts ? "border-red-500" : "border-gray-200"
-                                        }`}
+                                        className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.showcaseProducts ? "border-red-500" : "border-gray-200"
+                                            }`}
                                         required
                                     />
                                     {fieldErrors.showcaseProducts && (
@@ -1716,7 +1718,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "SHOP_NOW"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -1739,7 +1741,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "SHOP_NOW"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -1775,7 +1777,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["SHOP_NOW", "LEARN_MORE"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -1809,9 +1811,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                     clearFieldError("landingPageUrl");
                                                 }}
                                                 placeholder="TikTok Instant Page ID"
-                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                    fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
-                                                }`}
+                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
+                                                    }`}
                                             />
                                             {fieldErrors.landingPageUrl && (
                                                 <p className="mt-1 text-[12px] text-red-600">{fieldErrors.landingPageUrl}</p>
@@ -1830,9 +1831,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                     clearFieldError("landingPageUrl");
                                                 }}
                                                 placeholder="https://example.com/landing"
-                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                    fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
-                                                }`}
+                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
+                                                    }`}
                                                 required
                                             />
                                             {fieldErrors.landingPageUrl && (
@@ -1847,7 +1847,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "SIGN_UP", "CONTACT_US", "APPLY_NOW"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -1878,9 +1878,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                     clearFieldError("landingPageUrl");
                                                 }}
                                                 placeholder="https://example.com/landing"
-                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                    fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
-                                                }`}
+                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
+                                                    }`}
                                                 required
                                             />
                                             {fieldErrors.landingPageUrl && (
@@ -1900,9 +1899,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                     clearFieldError("landingPageUrl");
                                                 }}
                                                 placeholder="TikTok Instant Page ID"
-                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                    fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
-                                                }`}
+                                                className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
+                                                    }`}
                                             />
                                             {fieldErrors.landingPageUrl && (
                                                 <p className="mt-1 text-[12px] text-red-600">{fieldErrors.landingPageUrl}</p>
@@ -1915,7 +1913,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "CONTACT_US"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -1945,9 +1943,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("phoneNumber");
                                             }}
                                             placeholder="Phone number"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.phoneNumber ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.phoneNumber ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.phoneNumber && (
@@ -1966,9 +1963,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("phoneRegionCode");
                                             }}
                                             placeholder="US"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.phoneRegionCode ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.phoneRegionCode ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.phoneRegionCode && (
@@ -1987,9 +1983,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("phoneRegionCallingCode");
                                             }}
                                             placeholder="+1"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.phoneRegionCallingCode ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.phoneRegionCallingCode ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.phoneRegionCallingCode && (
@@ -2003,7 +1998,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 opt.value === "CONTACT_US"
                                             )}
                                             value={callToAction}
@@ -2031,9 +2026,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             clearFieldError("autoMessageId");
                                         }}
                                         placeholder="Auto Message ID"
-                                        className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                            fieldErrors.autoMessageId ? "border-red-500" : "border-gray-200"
-                                        }`}
+                                        className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.autoMessageId ? "border-red-500" : "border-gray-200"
+                                            }`}
                                         required
                                     />
                                     {fieldErrors.autoMessageId && (
@@ -2046,7 +2040,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "CONTACT_US"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -2075,9 +2069,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("trackingMessageEventSetId");
                                             }}
                                             placeholder="Tracking Message Event Set ID"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.trackingMessageEventSetId ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.trackingMessageEventSetId ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.trackingMessageEventSetId && (
@@ -2091,7 +2084,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "CONTACT_US"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -2119,9 +2112,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             clearFieldError("endCardCta");
                                         }}
                                         placeholder="Select End Card CTA"
-                                        buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${
-                                            fieldErrors.endCardCta ? "border-red-500" : ""
-                                        }`}
+                                        buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${fieldErrors.endCardCta ? "border-red-500" : ""
+                                            }`}
                                     />
                                     {fieldErrors.endCardCta && (
                                         <p className="mt-1 text-[12px] text-red-600">{fieldErrors.endCardCta}</p>
@@ -2140,9 +2132,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("vehicleIds");
                                             }}
                                             placeholder="Vehicle ID 1, Vehicle ID 2, ..."
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.vehicleIds ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.vehicleIds ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.vehicleIds && (
@@ -2178,7 +2169,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["DOWNLOAD", "LEARN_MORE"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -2203,9 +2194,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("deeplink");
                                             }}
                                             placeholder="app://deeplink"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.deeplink ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.deeplink ? "border-red-500" : "border-gray-200"
+                                                }`}
                                         />
                                         {fieldErrors.deeplink && (
                                             <p className="mt-1 text-[12px] text-red-600">{fieldErrors.deeplink}</p>
@@ -2232,9 +2222,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("deeplink");
                                             }}
                                             placeholder="app://deeplink"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.deeplink ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.deeplink ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.deeplink && (
@@ -2247,7 +2236,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["DOWNLOAD", "PLAY_GAME"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -2318,9 +2307,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         clearFieldError("creativeType");
                                     }}
                                     placeholder="Select Creative Type"
-                                    buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${
-                                        fieldErrors.creativeType ? "border-red-500" : ""
-                                    }`}
+                                    buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${fieldErrors.creativeType ? "border-red-500" : ""
+                                        }`}
                                 />
                                 {fieldErrors.creativeType && (
                                     <p className="mt-1 text-[12px] text-red-600">{fieldErrors.creativeType}</p>
@@ -2348,9 +2336,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("deeplinkFormatType");
                                             }}
                                             placeholder="Select Type"
-                                            buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${
-                                                fieldErrors.deeplinkFormatType ? "border-red-500" : ""
-                                            }`}
+                                            buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${fieldErrors.deeplinkFormatType ? "border-red-500" : ""
+                                                }`}
                                         />
                                         {fieldErrors.deeplinkFormatType && (
                                             <p className="mt-1 text-[12px] text-red-600">{fieldErrors.deeplinkFormatType}</p>
@@ -2368,9 +2355,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("deeplink");
                                             }}
                                             placeholder="app://deeplink"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.deeplink ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.deeplink ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.deeplink && (
@@ -2384,7 +2370,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "WATCH_MORE"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -2411,9 +2397,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                                 clearFieldError("landingPageUrl");
                                             }}
                                             placeholder="https://example.com/landing"
-                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                                fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
-                                            }`}
+                                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.landingPageUrl ? "border-red-500" : "border-gray-200"
+                                                }`}
                                             required
                                         />
                                         {fieldErrors.landingPageUrl && (
@@ -2426,7 +2411,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                             Call to Action
                                         </label>
                                         <Dropdown
-                                            options={CALL_TO_ACTION_OPTIONS.filter(opt => 
+                                            options={CALL_TO_ACTION_OPTIONS.filter(opt =>
                                                 ["LEARN_MORE", "SHOP_NOW", "SIGN_UP"].includes(opt.value)
                                             )}
                                             value={callToAction}
@@ -2492,9 +2477,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     clearFieldError("tiktokPageCategory");
                                 }}
                                 placeholder="Select Category"
-                                buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${
-                                    fieldErrors.tiktokPageCategory ? "border-red-500" : ""
-                                }`}
+                                buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${fieldErrors.tiktokPageCategory ? "border-red-500" : ""
+                                    }`}
                             />
                             {fieldErrors.tiktokPageCategory && (
                                 <p className="mt-1 text-[12px] text-red-600">{fieldErrors.tiktokPageCategory}</p>
@@ -2513,9 +2497,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         clearFieldError("pageId");
                                     }}
                                     placeholder="TikTok Instant Page ID"
-                                    className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                        fieldErrors.pageId ? "border-red-500" : "border-gray-200"
-                                    }`}
+                                    className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.pageId ? "border-red-500" : "border-gray-200"
+                                        }`}
                                     required
                                 />
                                 {fieldErrors.pageId && (
@@ -2541,9 +2524,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 clearFieldError("musicId");
                             }}
                             placeholder="Music ID"
-                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                fieldErrors.musicId ? "border-red-500" : "border-gray-200"
-                            }`}
+                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.musicId ? "border-red-500" : "border-gray-200"
+                                }`}
                             required
                         />
                         {fieldErrors.musicId && (
@@ -2559,7 +2541,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             Creative Type * (required for Live Content)
                         </label>
                         <Dropdown
-                            options={CREATIVE_TYPE_OPTIONS.filter(opt => 
+                            options={CREATIVE_TYPE_OPTIONS.filter(opt =>
                                 ["SHORT_VIDEO_LIVE", "DIRECT_LIVE"].includes(opt.value)
                             )}
                             value={creativeType}
@@ -2568,9 +2550,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 clearFieldError("creativeType");
                             }}
                             placeholder="Select Creative Type"
-                            buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${
-                                fieldErrors.creativeType ? "border-red-500" : ""
-                            }`}
+                            buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${fieldErrors.creativeType ? "border-red-500" : ""
+                                }`}
                         />
                         {fieldErrors.creativeType && (
                             <p className="mt-1 text-[12px] text-red-600">{fieldErrors.creativeType}</p>
@@ -2615,9 +2596,8 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 clearFieldError("tiktokItemId");
                             }}
                             placeholder="TikTok Item ID"
-                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                                fieldErrors.tiktokItemId ? "border-red-500" : "border-gray-200"
-                            }`}
+                            className={`bg-white w-full px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${fieldErrors.tiktokItemId ? "border-red-500" : "border-gray-200"
+                                }`}
                             required
                         />
                         {fieldErrors.tiktokItemId && (
