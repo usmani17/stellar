@@ -2849,9 +2849,6 @@ export const GoogleCampaignDetail: React.FC = () => {
                     d="M15 19l-7-7 7-7"
                   />
                 </svg>
-                <span className="text-[14px] font-medium">
-                  Back to Campaigns
-                </span>
               </button>
               <h1 className="text-[24px] font-medium text-[#072929] leading-[normal]">
                 {loading
