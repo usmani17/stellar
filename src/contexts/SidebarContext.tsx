@@ -17,7 +17,7 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 const SIDEBAR_STORAGE_KEY = "sidebar-collapsed";
 const COLLAPSED_WIDTH = 80;
-const EXPANDED_WIDTH = 272;
+const EXPANDED_WIDTH = 200;
 
 export const SidebarProvider: React.FC<{ children: ReactNode }> = ({
   children,

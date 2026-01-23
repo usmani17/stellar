@@ -247,7 +247,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="table-header cursor-pointer hover:bg-gray-50 w-[400px] table-sticky-first-column"
+                                className="table-header w-[400px] table-sticky-first-column"
                                 onClick={() => onSort?.("campaign_name")}
                             >
                                 <div className="flex items-center gap-1">
@@ -256,7 +256,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                 </div>
                             </th>
                             <th
-                                className="table-header cursor-pointer hover:bg-gray-50 min-w-[200px]"
+                                className="table-header min-w-[200px]"
                                 onClick={() => onSort?.("profile_name")}
                             >
                                 <div className="flex items-center gap-1">
@@ -264,16 +264,16 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                     {getSortIcon("profile_name")}
                                 </div>
                             </th>
-                            <th className="table-header cursor-pointer hover:bg-gray-50 min-w-[60px] whitespace-nowrap" onClick={() => onSort?.("objective_type")}>
+                            <th className="table-header min-w-[60px]" onClick={() => onSort?.("objective_type")}>
                                 <div className="flex items-center gap-1">
                                     Type
                                     {getSortIcon("objective_type")}
                                 </div>
                             </th>
                             <th
-                                className="table-header cursor-pointer hover:bg-gray-50 min-w-[115px]"
+                                className="table-header min-w-[115px]"
                                 onClick={() => onSort?.("operation_status")}
-                            >
+                            >       
                                 <div className="flex items-center gap-1">
                                     State
                                     {getSortIcon("operation_status")}
@@ -462,7 +462,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                                     }}
                                                     defaultOpen={true}
                                                     closeOnSelect={true}
-                                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                                    buttonClassName="inline-edit-dropdown"
                                                     width="w-full"
                                                     align="center"
                                                 />

@@ -284,7 +284,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                     Ad Group
                   </th>
                   <th
-                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header hidden md:table-cell"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">
@@ -293,7 +293,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                     </div>
                   </th>
                   <th
-                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header hidden md:table-cell"
                     onClick={() => onSort("cpc_bid_dollars")}
                   >
                     <div className="flex items-center gap-1">

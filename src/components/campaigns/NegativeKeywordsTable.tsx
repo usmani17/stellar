@@ -196,7 +196,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
 
                   {/* State Header */}
                   <th
-                    className={`table-header min-w-[115px] ${
+                    className={`table-header min-w-[250px] ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("state")}
@@ -287,7 +287,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                       </td>
 
                       {/* State */}
-                      <td className="table-cell min-w-[115px]">
+                      <td className="table-cell min-w-[250px]">
                         {inlineEditLoading.has(keyword.id) ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge
@@ -365,7 +365,7 @@ export const NegativeKeywordsTable: React.FC<NegativeKeywordsTableProps> = ({
                               }}
                               defaultOpen={true}
                               closeOnSelect={true}
-                              buttonClassName="w-full text-[13.3px] px-2 py-1"
+                              buttonClassName="inline-edit-dropdown"
                               width="w-full"
                               align="center"
                             />

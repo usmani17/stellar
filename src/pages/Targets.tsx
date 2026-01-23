@@ -946,10 +946,7 @@ export const Targets: React.FC = () => {
       {exportLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[300]">
           <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center gap-4 min-w-[280px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#136D6D] border-t-transparent"></div>
-            <p className="text-[16px] text-[#072929] font-medium">
-              Exporting Targets...
-            </p>
+            <Loader size="lg" message="Exporting Targets..." />
             <p className="text-[13px] text-[#556179] text-center">
               Please wait while we prepare your file
             </p>
@@ -1119,9 +1116,7 @@ export const Targets: React.FC = () => {
                     disabled={exportLoading}
                   >
                     {exportLoading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
-                      </div>
+                      <Loader size="sm" showMessage={false} />
                     ) : (
                       <>
                         <svg
@@ -1148,10 +1143,7 @@ export const Targets: React.FC = () => {
                   <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
                     {exportLoading ? (
                       <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
-                        <p className="text-[13px] text-[#072929] font-medium">
-                          Exporting...
-                        </p>
+                        <Loader size="md" message="Exporting..." />
                         <p className="text-[11px] text-[#556179] text-center px-2">
                           Please wait while we prepare your file
                         </p>
@@ -1489,7 +1481,7 @@ export const Targets: React.FC = () => {
 
                         {/* Target Name */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100 min-w-[150px] max-w-[200px]`}
+                          className={`table-header min-w-[150px] max-w-[200px]`}
                           onClick={() => handleSort("name")}
                         >
                           <div className="flex items-center gap-1">
@@ -1500,10 +1492,10 @@ export const Targets: React.FC = () => {
 
                         {/* State */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100 min-w-[115px]`}
+                          className={`table-header min-w-[115px]`}
                           onClick={() => handleSort("status")}
                         >
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1"> 
                             State
                             {getSortIcon("status")}
                           </div>
@@ -1511,7 +1503,7 @@ export const Targets: React.FC = () => {
 
                         {/* Bid */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className={`table-header min-w-[100px]`}
                           onClick={() => handleSort("bid")}
                         >
                           <div className="flex items-center gap-1">
@@ -1522,7 +1514,7 @@ export const Targets: React.FC = () => {
 
                         {/* Ad Group Name */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100 min-w-[150px] max-w-[200px]`}
+                          className={`table-header min-w-[150px] max-w-[200px]`}
                           onClick={() => handleSort("adgroup_name")}
                         >
                           <div className="flex items-center gap-1">
@@ -1544,7 +1536,7 @@ export const Targets: React.FC = () => {
 
                         {/* Type */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("type")}
                         >
                           <div className="flex items-center gap-1">
@@ -1555,7 +1547,7 @@ export const Targets: React.FC = () => {
 
                         {/* Spends */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("spends")}
                         >
                           <div className="flex items-center gap-1">
@@ -1566,7 +1558,7 @@ export const Targets: React.FC = () => {
 
                         {/* Sales */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("sales")}
                         >
                           <div className="flex items-center gap-1">
@@ -1577,7 +1569,7 @@ export const Targets: React.FC = () => {
 
                         {/* Impressions */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("impressions")}
                         >
                           <div className="flex items-center gap-1">
@@ -1588,7 +1580,7 @@ export const Targets: React.FC = () => {
 
                         {/* Clicks */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("clicks")}
                         >
                           <div className="flex items-center gap-1">
@@ -1599,7 +1591,7 @@ export const Targets: React.FC = () => {
 
                         {/* CTR */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("ctr")}
                         >
                           <div className="flex items-center gap-1">
@@ -1610,7 +1602,7 @@ export const Targets: React.FC = () => {
 
                         {/* ACOS */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("acos")}
                         >
                           <div className="flex items-center gap-1">
@@ -1621,7 +1613,7 @@ export const Targets: React.FC = () => {
 
                         {/* ROAS */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("roas")}
                         >
                           <div className="flex items-center gap-1">
@@ -1734,7 +1726,7 @@ export const Targets: React.FC = () => {
                                   {(() => {
                                     const currentStatus = (
                                       target.status || "Enabled"
-                                    ).toLowerCase();
+                                    ).toLowerCase();  
                                     const isArchived = currentStatus === "archived";
                                     
                                     if (isArchived) {
@@ -1785,7 +1777,7 @@ export const Targets: React.FC = () => {
                                             confirmInlineEdit(newValue);
                                           }, 100);
                                         }}
-                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                        buttonClassName="inline-edit-dropdown"
                                         width="w-full"
                                         align="center"
                                       />
@@ -1979,25 +1971,7 @@ export const Targets: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <svg
-                      className="loading-spinner"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    <p className="loading-message">Loading targets...</p>
+                    <Loader size="lg" message="Loading targets..." />
                   </div>
                 </div>
               )}

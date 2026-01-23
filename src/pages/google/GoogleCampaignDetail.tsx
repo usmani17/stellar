@@ -2920,7 +2920,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           }}
                           defaultOpen={true}
                           closeOnSelect={true}
-                          buttonClassName="w-full text-[13.3px] px-2 py-1"
+                          buttonClassName="inline-edit-dropdown"
                           width="w-full"
                         />
                       </div>

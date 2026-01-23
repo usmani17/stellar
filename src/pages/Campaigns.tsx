@@ -2311,9 +2311,9 @@ export const Campaigns: React.FC = () => {
             </div>
 
             {/* Search, Edit and Export Buttons - Above Table */}
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-2 relative z-[100]">
               {/* Search Box */}
-              <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
+              <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px] relative z-[100]">
                 <div className="relative shrink-0 size-[12px]">
                   <svg
                     width="12"
@@ -2356,9 +2356,9 @@ export const Campaigns: React.FC = () => {
                   className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 relative z-[100]">
                 <div
-                  className="relative inline-flex justify-end"
+                  className="relative inline-flex justify-end z-[100]"
                   ref={dropdownRef}
                 >
                   <Button
@@ -2390,7 +2390,7 @@ export const Campaigns: React.FC = () => {
                     </span>
                   </Button>
                   {showBulkActions && (
-                    <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[110] pointer-events-auto overflow-hidden">
                       <div className="overflow-y-auto">
                         {[
                           { value: "enable", label: "Enabled" },
@@ -2474,7 +2474,7 @@ export const Campaigns: React.FC = () => {
                     </Button>
                   </div>
                   {(showExportDropdown || exportLoading) && (
-                    <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[110] pointer-events-auto overflow-hidden">
                       {exportLoading ? (
                         <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
                           <Loader size="md" />
@@ -3047,10 +3047,10 @@ export const Campaigns: React.FC = () => {
                   ) : (
                     <table className="min-w-[1200px] w-full">
                       {/* Always render table header to maintain height */}
-                      <thead>
+                      <thead className="sticky top-0 z-[90] bg-[#fefefb]">
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
-                          <th className="table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                          <th className="table-header w-[35px] sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]">
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={
@@ -3091,7 +3091,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Profile Header */}
                           <th
-                            className="table-header cursor-pointer hover:bg-gray-50 min-w-[200px]"
+                            className="table-header min-w-[200px]"
                             onClick={() => handleSort("profile_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3118,7 +3118,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* State Header */}
                           <th
-                            className="table-header cursor-pointer hover:bg-gray-50 min-w-[115px]"
+                            className="table-header min-w-[115px]"
                             onClick={() => handleSort("status")}
                           >
                             <div className="flex items-center gap-1">
@@ -3140,7 +3140,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Budget Type Header */}
                           <th
-                            className="table-header cursor-pointer hover:bg-gray-50 whitespace-nowrap"
+                            className="table-header"
                             onClick={() => handleSort("budgetType")}
                           >
                             <div className="flex items-center gap-1">
@@ -3151,7 +3151,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Start Date Header */}
                           <th
-                            className="table-header cursor-pointer hover:bg-gray-50 whitespace-nowrap"
+                            className="table-header"
                             onClick={() => handleSort("startDate")}
                           >
                             <div className="flex items-center gap-1">
@@ -3242,7 +3242,7 @@ export const Campaigns: React.FC = () => {
                             {/* Summary Row */}
                             {summary && (
                               <tr className="table-summary-row">
-                                <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                                <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
                                 <td className="table-cell table-sticky-first-column">
                                   Total ({summary.total_campaigns})
                                 </td>
@@ -3285,7 +3285,7 @@ export const Campaigns: React.FC = () => {
                                   }`}
                                 >
                                   {/* Checkbox */}
-                                  <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                                  <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                     <div className="flex items-center justify-center">
                                       <Checkbox
                                         checked={selectedCampaigns.has(
@@ -3455,7 +3455,7 @@ export const Campaigns: React.FC = () => {
                                               confirmInlineEdit(newValue);
                                             }, 100);
                                           }}
-                                          buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                          buttonClassName="inline-edit-dropdown"
                                           width="w-full"
                                           align="center"
                                         />
@@ -3562,7 +3562,7 @@ export const Campaigns: React.FC = () => {
                                               confirmInlineEdit(newValue);
                                             }, 100);
                                           }}
-                                          buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                          buttonClassName="inline-edit-dropdown"
                                           width="w-full"
                                           align="center"
                                         />

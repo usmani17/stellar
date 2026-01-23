@@ -161,7 +161,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   Preview
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("assetId")}
                 >
                   <div className="flex items-center">
@@ -170,7 +170,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("fileName")}
                 >
                   <div className="flex items-center">
@@ -179,7 +179,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("mediaType")}
                 >
                   <div className="flex items-center">
@@ -188,7 +188,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("fileSize")}
                 >
                   <div className="flex items-center">
@@ -197,7 +197,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("contentType")}
                 >
                   <div className="flex items-center">

@@ -338,7 +338,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                     </div>
                   </th>
                   <th
-                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header hidden md:table-cell"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">

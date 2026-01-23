@@ -1748,7 +1748,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Ad Group Name */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50 min-w-[150px] max-w-[200px]`}
+                          className={`table-header min-w-[150px] max-w-[200px]`}
                           onClick={() => handleSort("name")}
                         >
                           <div className="flex items-center gap-1">
@@ -1759,7 +1759,7 @@ export const Keywords: React.FC = () => {
 
                         {/* State */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50 min-w-[115px]`}
+                          className={`table-header min-w-[115px]`}
                           onClick={() => handleSort("status")}
                         >
                           <div className="flex items-center gap-1">
@@ -1770,7 +1770,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Keyword Bid */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("bid")}
                         >
                           <div className="flex items-center gap-1">
@@ -1792,7 +1792,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Type */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("type")}
                         >
                           <div className="flex items-center gap-1">
@@ -1803,7 +1803,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Spends */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("spends")}
                         >
                           <div className="flex items-center gap-1">
@@ -1814,7 +1814,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Sales */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("sales")}
                         >
                           <div className="flex items-center gap-1">
@@ -1825,7 +1825,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Impressions */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("impressions")}
                         >
                           <div className="flex items-center gap-1">
@@ -1836,7 +1836,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Clicks */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("clicks")}
                         >
                           <div className="flex items-center gap-1">
@@ -1847,7 +1847,7 @@ export const Keywords: React.FC = () => {
 
                         {/* CTR */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("ctr")}
                         >
                           <div className="flex items-center gap-1">
@@ -1858,7 +1858,7 @@ export const Keywords: React.FC = () => {
 
                         {/* ACOS */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("acos")}
                         >
                           <div className="flex items-center gap-1">
@@ -1869,7 +1869,7 @@ export const Keywords: React.FC = () => {
 
                         {/* ROAS */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className="table-header"
                           onClick={() => handleSort("roas")}
                         >
                           <div className="flex items-center gap-1">
@@ -2032,7 +2032,7 @@ export const Keywords: React.FC = () => {
                                             confirmInlineEdit(newValue);
                                           }, 100);
                                         }}
-                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                        buttonClassName="inline-edit-dropdown"
                                         width="w-full"
                                         align="center"
                                       />
@@ -2041,7 +2041,7 @@ export const Keywords: React.FC = () => {
                                 </td>
 
                                 {/* Keyword Bid */}
-                                <td className="table-cell">
+                                <td className="table-cell whitespace-nowrap">
                                   {(() => {
                                     const currentStatus = (
                                       keyword.status || "Enabled"

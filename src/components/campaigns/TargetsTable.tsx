@@ -159,7 +159,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
 
                 {/* State Header */}
                 <th
-                  className={`table-header min-w-[115px] ${
+                  className={`table-header min-w-[250px] ${
                     onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}
                   onClick={() => onSort?.("status")}
@@ -171,7 +171,9 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                 </th>
 
                 {/* Bid Header */}
-                <th className="table-header">Bid</th>
+                <th className="table-header min-w-[100px]">
+                  Bid
+                </th>
 
                 {/* Profile Name Header */}
                 <th className="table-header">Profile</th>
@@ -270,7 +272,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                     </td>
 
                     {/* State */}
-                    <td className="table-cell min-w-[115px]">
+                    <td className="table-cell min-w-[250px]">
                       {(() => {
                         if (inlineEditLoading.has(target.id)) {
                           return (
@@ -349,7 +351,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                               onEditChange?.(newValue);
                               onEditEnd?.(newValue);
                             }}
-                            buttonClassName="w-full text-[13.3px] px-2 py-1"
+                            buttonClassName="inline-edit-dropdown"
                             width="w-full"
                             align="center"
                           />
