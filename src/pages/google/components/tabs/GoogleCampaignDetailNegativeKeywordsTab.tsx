@@ -367,22 +367,6 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
               </svg>
             </Button>
           )}
-          <Button
-            onClick={onSync}
-            disabled={syncing}
-            className="create-entity-button disabled:opacity-50"
-          >
-            {syncing ? (
-              <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
-                Syncing...
-              </span>
-            ) : (
-              <span className="text-[10.64px] text-white font-normal">
-                Sync Negative Keywords
-              </span>
-            )}
-          </Button>
         </div>
       </div>
 

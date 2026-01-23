@@ -321,40 +321,6 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
               </svg>
             </Button>
           )}
-          <Button
-            onClick={onSync}
-            disabled={syncing || syncingAnalytics}
-            className="create-entity-button disabled:opacity-50"
-          >
-            {syncing ? (
-              <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
-                Syncing...
-              </span>
-            ) : (
-              <span className="text-[10.64px] text-white font-normal">
-                Sync Keywords
-              </span>
-            )}
-          </Button>
-          {onSyncAnalytics && (
-            <Button
-              onClick={onSyncAnalytics}
-              disabled={syncing || syncingAnalytics}
-              className="create-entity-button disabled:opacity-50"
-            >
-              {syncingAnalytics ? (
-                <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                  <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
-                  Syncing Analytics...
-                </span>
-              ) : (
-                <span className="text-[10.64px] text-white font-normal">
-                  Sync Analytics
-                </span>
-              )}
-            </Button>
-          )}
         </div>
       </div>
 
