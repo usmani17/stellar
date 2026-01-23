@@ -1,5 +1,6 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -127,6 +128,11 @@ export const GoogleAdGroups: React.FC = () => {
     newValue: string;
   } | null>(null);
   const [statusEditLoading, setStatusEditLoading] = useState(false);
+  // Name edit modal
+  const [showNameEditModal, setShowNameEditModal] = useState(false);
+  const [nameEditAdgroup, setNameEditAdgroup] = useState<GoogleAdGroup | null>(null);
+  const [nameEditValue, setNameEditValue] = useState<string>("");
+  const [nameEditLoading, setNameEditLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportType, setExportType] = useState<"current_view" | "all_data">(
@@ -761,7 +767,30 @@ export const GoogleAdGroups: React.FC = () => {
     });
   };
 
-  // Removed runInlineEdit and handleNameEditSave - replaced by handleConfirmChange
+  // Handler for saving name edit from modal
+  const handleNameEditSave = async () => {
+    if (!nameEditAdgroup || !nameEditValue.trim() || nameEditLoading || !accountId) return;
+
+    setNameEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      await handleConfirmChange(nameEditAdgroup.adgroup_id, "adgroup_name", nameEditValue.trim());
+      
+      // Close modal and reset state
+      setShowNameEditModal(false);
+      setNameEditAdgroup(null);
+      setNameEditValue("");
+    } catch (error) {
+      console.error("Failed to update adgroup name:", error);
+      alert("Failed to update adgroup name. Please try again.");
+    } finally {
+      setNameEditLoading(false);
+    }
+  };
 
   const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
     if (!accountId || selectedAdgroups.size === 0) return;
