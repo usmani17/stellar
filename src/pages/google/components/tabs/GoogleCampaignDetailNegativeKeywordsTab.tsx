@@ -445,7 +445,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                     </div>
                   </th>
                   <th
-                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header hidden md:table-cell"
                     onClick={() => onSort("match_type")}
                   >
                     <div className="flex items-center gap-1">
@@ -454,7 +454,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                     </div>
                   </th>
                   <th
-                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header hidden md:table-cell"
                     onClick={() => onSort("level")}
                   >
                     <div className="flex items-center gap-1">
@@ -466,7 +466,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                     Ad Group
                   </th>
                   <th
-                    className="table-header cursor-pointer hover:bg-gray-50 hidden md:table-cell"
+                    className="table-header hidden md:table-cell"
                     onClick={() => onSort("status")}
                   >
                     <div className="flex items-center gap-1">

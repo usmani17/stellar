@@ -1463,34 +1463,6 @@ export const GoogleKeywords: React.FC = () => {
                     />
                   </svg>
                 </button>
-                <Button
-                  onClick={handleSync}
-                  disabled={syncing || syncingAnalytics}
-                  className="create-entity-button disabled:opacity-50"
-                >
-                  {syncing ? (
-                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                      <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
-                      Syncing...
-                    </span>
-                  ) : (
-                    <span className="text-[10.64px] text-white font-normal">Sync Keywords</span>
-                  )}
-                </Button>
-                <Button
-                  onClick={handleSyncAnalytics}
-                  disabled={syncing || syncingAnalytics}
-                  className="create-entity-button disabled:opacity-50"
-                >
-                  {syncingAnalytics ? (
-                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                      <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
-                      Syncing Analytics...
-                    </span>
-                  ) : (
-                    <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
-                  )}
-                </Button>
               </div>
             </div>
 
@@ -2519,10 +2491,12 @@ export const GoogleKeywords: React.FC = () => {
                       } else {
                         pageNum = currentPage - 2 + i;
                       }
+                      // Ensure pageNum is within valid range [1, totalPages]
+                      pageNum = Math.max(1, Math.min(pageNum, totalPages));
                       return (
                         <button
                           key={pageNum}
-                          onClick={() => handlePageChange(pageNum)}
+                          onClick={() => setCurrentPage(pageNum)}
                           className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
                             currentPage === pageNum
                               ? "bg-white text-[#136D6D] font-semibold"
@@ -2538,9 +2512,9 @@ export const GoogleKeywords: React.FC = () => {
                         ...
                       </span>
                     )}
-                    {totalPages > 5 && (
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
-                        onClick={() => handlePageChange(totalPages)}
+                        onClick={() => setCurrentPage(totalPages)}
                         className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
                           currentPage === totalPages
                             ? "bg-white text-[#136D6D] font-semibold"

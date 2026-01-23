@@ -161,7 +161,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </th>
                 )}
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("adId")}
                 >
                   <div className="flex items-center">
@@ -170,7 +170,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("name")}
                 >
                   <div className="flex items-center">
@@ -179,7 +179,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("status")}
                 >
                   <div className="flex items-center">
@@ -188,7 +188,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("adGroupId")}
                 >
                   <div className="flex items-center">
@@ -197,7 +197,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("campaignId")}
                 >
                   <div className="flex items-center">
@@ -209,7 +209,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   Serving Status
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("creationDateTime")}
                 >
                   <div className="flex items-center">
@@ -218,7 +218,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("lastUpdateDateTime")}
                 >
                   <div className="flex items-center">

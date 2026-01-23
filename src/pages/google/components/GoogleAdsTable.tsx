@@ -520,7 +520,7 @@ export function GoogleAdsTable<T = any>({
       return "table-sticky-first-column";
     }
     // For more sticky columns, would need more specific handling
-    return "sticky bg-[#f5f5f0] z-30";
+    return "sticky bg-[#f5f5f0] z-[120]";
   };
 
   return (
@@ -528,10 +528,10 @@ export function GoogleAdsTable<T = any>({
       <div className="overflow-x-auto overflow-y-visible w-full">
         <div className="relative">
           <table className="min-w-[1200px] w-full">
-            <thead>
+            <thead className="sticky top-0 z-[90] bg-[#fefefb]">
               <tr className="border-b border-[#e8e8e3]">
                 {/* Checkbox Header */}
-                <th className="table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                <th className="table-header w-[35px] sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]">
                   <div className="flex items-center justify-center">
                     <Checkbox
                       checked={allSelected}
@@ -551,7 +551,7 @@ export function GoogleAdsTable<T = any>({
                   return (
                     <th
                       key={column.key}
-                      className={`table-header whitespace-nowrap ${
+                      className={`table-header ${
                         column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
                       } ${stickyClasses} ${widthClasses} ${borderClass}`}
                       onClick={() => column.sortable !== false && onSort(column.key)}
@@ -570,7 +570,7 @@ export function GoogleAdsTable<T = any>({
               {loading && data.length === 0 ? (
                 Array.from({ length: 10 }).map((_, index) => (
                   <tr key={`skeleton-${index}`} className="table-row">
-                    <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                    <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                       <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                     </td>
                     {columns.map((column, colIndex) => (
@@ -593,7 +593,7 @@ export function GoogleAdsTable<T = any>({
                 {/* Summary Row */}
                 {summary && (
                   <tr className="table-summary-row">
-                    <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                    <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
                     {columns.map((column, index) => {
                       const stickyClasses = getStickyClasses(column, index);
                       const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
@@ -696,7 +696,7 @@ export function GoogleAdsTable<T = any>({
                       className="table-row group"
                     >
                       {/* Checkbox */}
-                      <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                      <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedItems.has(itemId)}

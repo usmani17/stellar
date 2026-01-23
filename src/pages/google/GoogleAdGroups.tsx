@@ -58,7 +58,7 @@ export const GoogleAdGroups: React.FC = () => {
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); // Match Amazon: 10 entries per page
+  const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
@@ -1111,34 +1111,6 @@ export const GoogleAdGroups: React.FC = () => {
                     />
                   </svg>
                 </button>
-                <Button
-                  onClick={handleSync}
-                  disabled={syncing || syncingAnalytics}
-                  className="create-entity-button disabled:opacity-50"
-                >
-                  {syncing ? (
-                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                      <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
-                      Syncing...
-                    </span>
-                  ) : (
-                    <span className="text-[10.64px] text-white font-normal">Sync AdGroups</span>
-                  )}
-                </Button>
-                <Button
-                  onClick={handleSyncAnalytics}
-                  disabled={syncing || syncingAnalytics}
-                  className="create-entity-button disabled:opacity-50"
-                >
-                  {syncingAnalytics ? (
-                    <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                      <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
-                      Syncing Analytics...
-                    </span>
-                  ) : (
-                    <span className="text-[10.64px] text-white font-normal">Sync Analytics</span>
-                  )}
-                </Button>
               </div>
             </div>
 
@@ -2029,6 +2001,8 @@ export const GoogleAdGroups: React.FC = () => {
                       } else {
                         pageNum = currentPage - 2 + i;
                       }
+                      // Ensure pageNum is within valid range [1, totalPages]
+                      pageNum = Math.max(1, Math.min(pageNum, totalPages));
                       return (
                         <button
                           key={pageNum}
@@ -2048,7 +2022,7 @@ export const GoogleAdGroups: React.FC = () => {
                         ...
                       </span>
                     )}
-                    {totalPages > 5 && (
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => setCurrentPage(totalPages)}
                         className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${

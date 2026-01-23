@@ -204,16 +204,14 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                   onClick={() => onSort?.("name")}
                 >
                   <div className="flex items-center gap-1">
-                    Ad Group Name
+                    Name
                     {getSortIcon("name")}
                   </div>
                 </th>
 
                 {/* Campaign Name Header - Only show when not in campaign detail */}
                 {showCampaignColumn && (
-                  <th className="table-header min-w-[225px] max-w-[300px]">
-                    Campaign Name
-                  </th>
+                  <th className="table-header min-w-[225px] max-w-[300px]">Campaign Name</th>
                 )}
 
                 {/* Profile Header - Only show when not in campaign detail */}
@@ -242,7 +240,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                 {/* State Header */}
                 <th
-                  className={`table-header min-w-[250px] ${
+                  className={`table-header min-w-[100px] ${
                     onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}
                   onClick={() => onSort?.("status")}
@@ -466,61 +464,69 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         </td>
 
                         {/* Ad Group Name */}
-                        <td className="table-cell min-w-[150px] max-w-[200px]">
-                          {inlineEditLoading.has(adgroup.id) ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {pendingChange?.field === "name"
-                                  ? pendingChange.newValue
-                                  : adgroup.name}
-                              </span>
-                              <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                          ) : pendingChange?.id === adgroup.id &&
-                            pendingChange?.field === "name" ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {pendingChange.newValue}
-                              </span>
-                            </div>
-                          ) : editingField?.id === adgroup.id &&
-                            editingField?.field === "name" ? (
-                            <div className="flex items-center gap-2">
+                        <td className="table-cell min-w-[250px] max-w-[300px]">
+                          {(() => {
+                            if (isArchived) {
+                              return (
+                                <span className="table-text leading-[1.26] opacity-60">
+                                  {adgroup.name}
+                                </span>
+                              );
+                            }
+
+                            if (inlineEditLoading.has(adgroup.id)) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="table-text leading-[1.26]">
+                                    {pendingChange?.field === "name"
+                                      ? pendingChange.newValue
+                                      : adgroup.name}
+                                  </span>
+                                  <Loader size="sm" showMessage={false} />
+                                </div>
+                              );
+                            }
+
+                            const nameValue = editingField?.id === adgroup.id &&
+                              editingField?.field === "name"
+                              ? editedValue
+                              : (adgroup.name || "");
+
+                            return (
                               <input
                                 type="text"
-                                value={editedValue}
-                                onChange={(e) => onEditChange?.(e.target.value)}
-                                className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
-                                autoFocus
-                                onBlur={() => onEditEnd?.()}
+                                value={nameValue}
+                                onFocus={() => {
+                                  if (editingField?.id !== adgroup.id ||
+                                      editingField?.field !== "name") {
+                                    onEditStart?.(
+                                      adgroup.id,
+                                      "name",
+                                      adgroup.name || ""
+                                    );
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  onEditChange?.(e.target.value);
+                                }}
+                                onBlur={() => {
+                                  onEditEnd?.();
+                                }}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" || e.key === "Escape") {
                                     onEditEnd?.();
                                   }
                                 }}
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              className={`text-[13.3px] text-left truncate block w-full whitespace-nowrap ${
-                                isArchived
-                                  ? "text-gray-400 cursor-not-allowed"
-                                  : "text-[#0b0f16] cursor-pointer hover:underline"
-                              }`}
-                              onClick={() => {
-                                if (!isArchived) {
-                                  onEditStart?.(
-                                    adgroup.id,
-                                    "name",
-                                    adgroup.name || ""
-                                  );
+                                className="inline-edit-input min-w-[150px] max-w-[200px]"
+                                disabled={isArchived}
+                                title={
+                                  isArchived
+                                    ? "Archived ad groups cannot be modified"
+                                    : undefined
                                 }
-                              }}
-                              title={adgroup.name}
-                            >
-                              {adgroup.name}
-                            </div>
-                          )}
+                              />
+                            );
+                          })()}
                         </td>
 
                         {/* Campaign Name - Only show when not in campaign detail */}
@@ -581,7 +587,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         )}
 
                         {/* State */}
-                        <td className="table-cell min-w-[250px]">
+                        <td className="table-cell min-w-[100px] whitespace-nowrap">
                           {(() => {
                             if (inlineEditLoading.has(adgroup.id)) {
                               return (
@@ -664,7 +670,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         </td>
 
                         {/* Default Bid */}
-                        <td className="table-cell">
+                        <td className="table-cell whitespace-nowrap">
                           {(() => {
                             if (inlineEditLoading.has(adgroup.id)) {
                               return (

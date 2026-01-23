@@ -245,22 +245,11 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                 await onLoadAllAdGroups();
               }
             }}
-            className="create-entity-button text-[10.64px] font-semibold"
+            className="create-entity-button"
           >
-            <svg
-              className="w-4 h-4 !text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Create Keywords
+            <span className="text-[10.64px] text-white font-normal">
+              Create Keywords
+            </span>
             <svg
               className={`w-4 h-4 !text-white transition-transform ${
                 isCreatePanelOpen ? "rotate-180" : ""
@@ -422,7 +411,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                 <button
                   type="button"
                   onClick={onBidPanelCancel}
-                  className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+                  className="cancel-button"
                 >
                   Cancel
                 </button>
@@ -430,7 +419,7 @@ export const KeywordsTab: React.FC<KeywordsTabProps> = ({
                   type="button"
                   onClick={onBidPanelApply}
                   disabled={!bidValue || bulkLoading}
-                  className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="apply-button"
                 >
                   Apply
                 </button>
