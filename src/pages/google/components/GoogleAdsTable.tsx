@@ -395,55 +395,70 @@ export function GoogleAdsTable<T = any>({
   return (
     <div>
       <div className="overflow-x-auto overflow-y-visible w-full">
-        {loading ? (
-          <div className="text-center py-8 text-[#556179] text-[13.3px]">
-            {loadingMessage}
-          </div>
-        ) : data.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[13.3px] text-[#556179] mb-4">{emptyMessage}</p>
-          </div>
-        ) : (
-          <div className="relative">
-            <table className="min-w-[1200px] w-full">
-              <thead>
-                <tr className="border-b border-[#e8e8e3]">
-                  {/* Checkbox Header */}
-                  <th className="table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
-                    <div className="flex items-center justify-center">
-                      <Checkbox
-                        checked={allSelected}
-                        indeterminate={someSelected}
-                        onChange={onSelectAll}
-                        size="small"
-                      />
-                    </div>
-                  </th>
+        <div className="relative">
+          <table className="min-w-[1200px] w-full">
+            <thead>
+              <tr className="border-b border-[#e8e8e3]">
+                {/* Checkbox Header */}
+                <th className="table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={someSelected}
+                      onChange={onSelectAll}
+                      size="small"
+                    />
+                  </div>
+                </th>
 
-                  {/* Column Headers */}
-                  {columns.map((column, index) => {
-                    const stickyClasses = getStickyClasses(column, index);
-                    const widthClasses = column.width || column.minWidth || "";
-                    const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
-                    
-                    return (
-                      <th
-                        key={column.key}
-                        className={`table-header whitespace-nowrap ${
-                          column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
-                        } ${stickyClasses} ${widthClasses} ${borderClass}`}
-                        onClick={() => column.sortable !== false && onSort(column.key)}
-                      >
-                        <div className="flex items-center gap-1">
-                          {column.label}
-                          {column.sortable !== false && getSortIcon(column.key)}
-                        </div>
-                      </th>
-                    );
-                  })}
+                {/* Column Headers */}
+                {columns.map((column, index) => {
+                  const stickyClasses = getStickyClasses(column, index);
+                  const widthClasses = column.width || column.minWidth || "";
+                  const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                  
+                  return (
+                    <th
+                      key={column.key}
+                      className={`table-header whitespace-nowrap ${
+                        column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
+                      } ${stickyClasses} ${widthClasses} ${borderClass}`}
+                      onClick={() => column.sortable !== false && onSort(column.key)}
+                    >
+                      <div className="flex items-center gap-1">
+                        {column.label}
+                        {column.sortable !== false && getSortIcon(column.key)}
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Show skeleton rows when loading and no data */}
+              {loading && data.length === 0 ? (
+                Array.from({ length: 10 }).map((_, index) => (
+                  <tr key={`skeleton-${index}`} className="table-row">
+                    <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                      <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
+                    </td>
+                    {columns.map((column, colIndex) => (
+                      <td key={column.key} className="table-cell">
+                        <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length + 1} className="table-cell">
+                    <div className="text-center py-8">
+                      <p className="text-[13.3px] text-[#556179] mb-4">{emptyMessage}</p>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
+              ) : (
+                <>
                 {/* Summary Row */}
                 {summary && (
                   <tr className="table-summary-row">
@@ -579,10 +594,11 @@ export function GoogleAdsTable<T = any>({
                     </tr>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -633,11 +633,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   return (
     <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6]">
       <form onSubmit={handleSubmit}>
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
-            {mode === "edit" ? "Edit Google Campaign" : "Create Google Campaign"}
-          </h2>
-
+      <div className="p-4 border-b border-gray-200">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-[16px] font-semibold text-[#072929]">
+          {mode === "edit" ? "Edit Google Campaign" : "Create Google Campaign"}
+        </h2>
+      </div>
+      
           {/* Refresh Message */}
           {refreshMessage && mode === "edit" && (
             <div
@@ -730,10 +732,10 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Campaign Type */}
             <div>
-              <label className="form-label-small">
+              <label className="form-label">
                 Campaign Type *
               </label>
               <div className="space-y-2">
@@ -742,7 +744,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   value={formData.campaign_type}
                   onChange={(value) => handleChange("campaign_type", value)}
                   placeholder="Select campaign type"
-                  buttonClassName="w-full"
+                  buttonClassName="edit-button w-full"
                   disabled={mode === "edit"}
                 />
                 {/* Quick Fill Buttons for Testing */}
@@ -784,15 +786,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Campaign Name */}
             <div>
-              <label className="form-label-small">
+              <label className="form-label">
                 Campaign Name *
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleChange("name", e.target.value)}
-                className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                  errors.name ? "border-red-500" : "border-gray-200"
+                className={`campaign-input w-full ${
+                  errors.name ? "border-red-500" : ""
                 }`}
                 placeholder="Enter campaign name"
               />
@@ -803,7 +805,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Budget Amount */}
             <div>
-              <label className="form-label-small">
+              <label className="form-label">
                 Budget Amount ($) *
               </label>
               <input
@@ -814,8 +816,8 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 onChange={(e) =>
                   handleChange("budget_amount", parseFloat(e.target.value) || 0)
                 }
-                className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                  errors.budget_amount ? "border-red-500" : "border-gray-200"
+                className={`campaign-input w-full ${
+                  errors.budget_amount ? "border-red-500" : ""
                 }`}
                 placeholder="0.00"
               />
@@ -828,21 +830,23 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* Budget Name */}
             <div>
-              <label className="form-label-small">
+              <label className="form-label">
                 Budget Name
               </label>
               <input
                 type="text"
                 value={formData.budget_name || ""}
                 onChange={(e) => handleChange("budget_name", e.target.value)}
-                className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                className={`campaign-input w-full ${
+                  errors.budget_name ? "border-red-500" : ""
+                }`}
                 placeholder="Optional budget name"
               />
             </div>
 
             {/* Start Date */}
             <div>
-              <label className="form-label-small">
+              <label className="form-label">
                 Start Date
               </label>
               {(() => {
@@ -861,7 +865,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     value={formData.start_date || ""}
                     onChange={(e) => handleChange("start_date", e.target.value)}
                     disabled={isReadonly}
-                    className={`bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       isReadonly ? "bg-gray-100 cursor-not-allowed opacity-60" : ""
                     }`}
                     title={isReadonly ? "Start date cannot be changed if it's today or in the past" : ""}
@@ -872,47 +876,49 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
             {/* End Date */}
             <div>
-              <label className="form-label-small">
+              <label className="form-label">
                 End Date
               </label>
               <input
                 type="date"
                 value={formData.end_date || ""}
                 onChange={(e) => handleChange("end_date", e.target.value)}
-                className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                className={`campaign-input w-full ${
+                  errors.end_date ? "border-red-500" : ""
+                }`}
               />
             </div>
 
             {/* Status */}
             <div>
-              <label className="form-label-small">
+              <label className="form-label">
                 Status
               </label>
               <Dropdown<string>
                 options={STATUS_OPTIONS}
                 value={formData.status || "PAUSED"}
                 onChange={(value) => handleChange("status", value)}
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
               />
             </div>
 
             {/* Bidding Strategy Type */}
             <div>
-              <label className="form-label-small">
+              <label className="form-label">
                 Bidding Strategy
               </label>
               <Dropdown<string>
                 options={getAvailableBiddingStrategies(formData.campaign_type)}
                 value={formData.bidding_strategy_type || getDefaultBiddingStrategy(formData.campaign_type)}
                 onChange={(value) => handleChange("bidding_strategy_type", value)}
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
               />
             </div>
 
             {/* Target CPA (required when TARGET_CPA is selected) */}
             {formData.bidding_strategy_type === "TARGET_CPA" && (
               <div>
-                <label className="form-label-small">
+                <label className="form-label">
                   Target CPA ($) *
                 </label>
                 <input
@@ -924,7 +930,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     const value = parseFloat(e.target.value) || 0;
                     handleChange("target_cpa_micros", Math.round(value * 1000000));
                   }}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.target_cpa_micros ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="1.00"
@@ -943,7 +949,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             {/* Target ROAS (required when TARGET_ROAS is selected) */}
             {formData.bidding_strategy_type === "TARGET_ROAS" && (
               <div>
-                <label className="form-label-small">
+                <label className="form-label">
                   Target ROAS *
                 </label>
                 <input
@@ -955,7 +961,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     const value = parseFloat(e.target.value) || 0;
                     handleChange("target_roas", value);
                   }}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.target_roas ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="3.0"
@@ -975,7 +981,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
             {formData.bidding_strategy_type === "TARGET_IMPRESSION_SHARE" && (
               <>
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Where do you want your ads to appear? *
                   </label>
                   <Dropdown<string>
@@ -986,7 +992,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     ]}
                     value={formData.target_impression_share_location || "TOP_OF_PAGE"}
                     onChange={(value) => handleChange("target_impression_share_location", value)}
-                    buttonClassName="w-full"
+                    buttonClassName="edit-button w-full"
                   />
                   {errors.target_impression_share_location && (
                     <p className="text-[10px] text-red-500 mt-1">
@@ -996,7 +1002,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Percent (%) impression share to target *
                   </label>
                   <input
@@ -1009,7 +1015,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       const value = parseFloat(e.target.value) || 0;
                       handleChange("target_impression_share_location_fraction_micros", Math.round(value * 10000));
                     }}
-                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       errors.target_impression_share_location_fraction_micros ? "border-red-500" : "border-gray-200"
                     }`}
                     placeholder="2.0"
@@ -1025,7 +1031,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Maximum CPC bid limit *
                   </label>
                   <input
@@ -1037,7 +1043,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       const value = parseFloat(e.target.value) || 0;
                       handleChange("target_impression_share_cpc_bid_ceiling_micros", Math.round(value * 1000000));
                     }}
-                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       errors.target_impression_share_cpc_bid_ceiling_micros ? "border-red-500" : "border-gray-200"
                     }`}
                     placeholder="3.00"
@@ -1060,15 +1066,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               </h3>
 
               {/* Final URL */}
-              <div>
-                <label className="form-label-small">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                <label className="form-label">
                   Final URL *
                 </label>
                 <input
                   type="url"
                   value={formData.final_url || ""}
                   onChange={(e) => handleChange("final_url", e.target.value)}
-                  className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  className={`campaign-input w-full ${
                     errors.final_url ? "border-red-500" : "border-gray-200"
                   }`}
                   placeholder="https://example.com"
@@ -1078,11 +1085,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     {errors.final_url}
                   </p>
                 )}
-              </div>
-
-              {/* Asset Group Name */}
-              <div>
-                <label className="form-label-small">
+                </div>
+                <div>
+                <label className="form-label">
                   Asset Group Name
                 </label>
                 <input
@@ -1091,14 +1096,24 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   onChange={(e) =>
                     handleChange("asset_group_name", e.target.value)
                   }
-                  className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className={`campaign-input w-full ${
+                    errors.asset_group_name ? "border-red-500" : ""
+                  }`}
                   placeholder="Optional asset group name"
                 />
+                {errors.asset_group_name && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.asset_group_name}
+                  </p>
+                )}
               </div>
 
+              </div>
+
+              
               {/* Headlines */}
               <div>
-                <label className="form-label-small">
+                  <label className="form-label">
                   Headlines * (3-15 required)
                   <span className="text-[10px] text-[#556179] font-normal ml-2">
                     ({formData.headlines?.filter((h) => h.trim()).length || 0}/15)
@@ -1113,16 +1128,31 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                         onChange={(e) =>
                           updateHeadline(index, e.target.value)
                         }
-                        className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        className={`campaign-input w-full ${
+                          errors.headlines ? "border-red-500" : ""
+                        }`}
                         placeholder={`Headline ${index + 1}`}
                       />
                       {formData.headlines && formData.headlines.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeHeadline(index)}
-                          className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-[12px]"
+                          className="p-2 hover:bg-red-50 rounded transition-colors"
+                          title="Remove headline"
                         >
-                          Remove
+                          <svg
+                            className="w-5 h-5 text-red-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
                         </button>
                       )}
                     </div>
@@ -1131,7 +1161,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     <button
                       type="button"
                       onClick={addHeadline}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-[12px]"
+                      className="edit-button"
                     >
                       + Add Headline
                     </button>
@@ -1146,7 +1176,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
               {/* Descriptions */}
               <div>
-                <label className="form-label-small">
+                <label className="form-label">
                   Descriptions * (2-4 required)
                   <span className="text-[10px] text-[#556179] font-normal ml-2">
                     ({formData.descriptions?.filter((d) => d.trim()).length || 0}/4)
@@ -1161,7 +1191,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                           updateDescription(index, e.target.value)
                         }
                         rows={2}
-                        className="bg-white flex-1 px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                        className={`campaign-input w-full ${
+                          errors.descriptions ? "border-red-500" : ""
+                        }`}
                         placeholder={`Description ${index + 1}`}
                       />
                       {formData.descriptions &&
@@ -1169,9 +1201,22 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                           <button
                             type="button"
                             onClick={() => removeDescription(index)}
-                            className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-[12px]"
+                            className="p-2 hover:bg-red-50 rounded transition-colors"
+                            title="Remove description"
                           >
-                            Remove
+                            <svg
+                              className="w-5 h-5 text-red-600"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
                           </button>
                         )}
                     </div>
@@ -1181,7 +1226,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       <button
                         type="button"
                         onClick={addDescription}
-                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-[12px]"
+                        className="edit-button"
                       >
                         + Add Description
                       </button>
@@ -1197,7 +1242,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               {/* Optional Performance Max Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Business Name *
                   </label>
                   <input
@@ -1206,7 +1251,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("business_name", e.target.value)
                     }
-                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       errors.business_name ? "border-red-300" : "border-gray-200"
                     }`}
                     placeholder="Required business name"
@@ -1219,7 +1264,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Long Headline
                   </label>
                   <input
@@ -1228,13 +1273,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("long_headline", e.target.value)
                     }
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className={`campaign-input w-full ${
+                      errors.long_headline ? "border-red-500" : ""
+                    }`}
                     placeholder="Optional long headline"
                   />
                 </div>
 
                 <div>
-                  <label className="form-label-small">
+                    <label className="form-label">
                     Logo (URL or Upload) *
                   </label>
                   <div className="space-y-2">
@@ -1242,9 +1289,16 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       type="url"
                       value={formData.logo_url || ""}
                       onChange={(e) => handleChange("logo_url", e.target.value)}
-                      className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                      className={`campaign-input w-full ${
+                        errors.logo_url ? "border-red-500" : ""
+                      }`}
                       placeholder="https://example.com/logo.png"
                     />
+                    {errors.logo_url && (
+                      <p className="text-[10px] text-red-500 mt-1">
+                        {errors.logo_url}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2">
                       <input
                         type="file"
@@ -1370,7 +1424,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       />
                       <label
                         htmlFor="logo-upload"
-                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded text-[12px] cursor-pointer hover:bg-gray-200 transition-colors"
+                        className="edit-button"
                       >
                         Upload Logo
                       </label>
@@ -1409,7 +1463,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 </div>
 
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Marketing Image URL
                   </label>
                   <input
@@ -1418,7 +1472,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("marketing_image_url", e.target.value)
                     }
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className={`campaign-input w-full ${
+                      errors.marketing_image_url ? "border-red-500" : ""
+                    }`}
                     placeholder="https://example.com/image.png"
                   />
                   {/* Marketing Image Preview */}
@@ -1440,10 +1496,15 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       </div>
                     </div>
                   )}
+                  {errors.marketing_image_url && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.marketing_image_url}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Square Marketing Image URL
                   </label>
                   <input
@@ -1452,7 +1513,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     onChange={(e) =>
                       handleChange("square_marketing_image_url", e.target.value)
                     }
-                    className="bg-white w-full px-3 py-2 border border-gray-200 rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                    className={`campaign-input w-full ${
+                      errors.square_marketing_image_url ? "border-red-500" : ""
+                    }`}
                     placeholder="https://example.com/square-image.png"
                   />
                   {/* Square Marketing Image Preview */}
@@ -1474,6 +1537,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       </div>
                     </div>
                   )}
+                  {errors.square_marketing_image_url && (
+                    <p className="text-[10px] text-red-500 mt-1">
+                      {errors.square_marketing_image_url}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1489,14 +1557,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Merchant ID */}
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Merchant ID *
                   </label>
                   <input
                     type="text"
                     value={formData.merchant_id || ""}
                     onChange={(e) => handleChange("merchant_id", e.target.value)}
-                    className={`bg-white w-full px-3 py-2 border rounded text-[13px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    className={`campaign-input w-full ${
                       errors.merchant_id ? "border-red-500" : "border-gray-200"
                     }`}
                     placeholder="Enter merchant ID"
@@ -1510,27 +1578,27 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
                 {/* Sales Country */}
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Sales Country
                   </label>
                   <Dropdown<string>
                     options={SALES_COUNTRY_OPTIONS}
                     value={formData.sales_country || "US"}
                     onChange={(value) => handleChange("sales_country", value)}
-                    buttonClassName="w-full"
+                    buttonClassName="edit-button w-full"
                   />
                 </div>
 
                 {/* Campaign Priority */}
                 <div>
-                  <label className="form-label-small">
+                  <label className="form-label">
                     Campaign Priority
                   </label>
                   <Dropdown<number>
                     options={CAMPAIGN_PRIORITY_OPTIONS}
                     value={formData.campaign_priority || 0}
                     onChange={(value) => handleChange("campaign_priority", value)}
-                    buttonClassName="w-full"
+                    buttonClassName="w-full edit-button"
                   />
                   <p className="text-[10px] text-[#556179] mt-1">
                     Priority determines how your Shopping campaigns compete with each other. Low (0) = lowest priority, High (2) = highest priority.
@@ -1546,9 +1614,11 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                       onChange={(e) =>
                         handleChange("enable_local", e.target.checked)
                       }
-                      className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
+                      className={`w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40 ${
+                        errors.enable_local ? "border-red-500" : ""
+                      }`}
                     />
-                    <label className="text-[13px] text-[#072929]">
+                    <label className="form-label">
                       Enable Local
                     </label>
                   </div>
@@ -1580,14 +1650,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
           <button
             type="button"
             onClick={handleCancel}
-            className="px-4 py-2 bg-background-field border border-gray-200 text-button-text text-text-primary rounded-lg hover:bg-gray-50 transition-colors"
+            className="cancel-button"
             disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-[#136D6D] text-white rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[13px]"
+            className="create-entity-button"
             disabled={loading}
           >
             {loading ? (mode === "edit" ? "Updating..." : "Creating...") : (mode === "edit" ? "Update Campaign" : "Create Campaign")}
