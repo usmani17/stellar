@@ -55,7 +55,6 @@ const STATE_OPTIONS_SD = [
 ];
 
 const BID_OPTIMIZATION_OPTIONS = [
-  { value: "reach", label: "reach" },
   { value: "clicks", label: "clicks" },
   { value: "conversions", label: "conversions" },
 ];
@@ -449,7 +448,7 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                   )
                 }
                 placeholder="Select bid optimization"
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
               />
               {errors.bidOptimization && (
                 <p className="text-[10px] text-red-500 mt-1">
@@ -466,21 +465,13 @@ export const CreateAdGroupPanel: React.FC<CreateAdGroupPanelProps> = ({
                 Creative Type
               </label>
               <Dropdown<string>
-                options={[
-                  { value: "IMAGE", label: "IMAGE" },
-                  { value: "VIDEO", label: "VIDEO" },
-                  { value: "", label: "None (defaults to IMAGE)" },
-                ]}
-                value={currentAdGroup.creativeType || ""}
+                options={CREATIVE_TYPE_OPTIONS}
+                value={currentAdGroup.creativeType || "IMAGE"}
                 onChange={(value) => {
-                  if (value === "") {
-                    setCurrentAdGroup((prev) => ({ ...prev, creativeType: null }));
-                  } else {
-                    handleChange("creativeType", value as "IMAGE" | "VIDEO");
-                  }
+                  handleChange("creativeType", value as "IMAGE" | "VIDEO");
                 }}
                 placeholder="Select creative type"
-                buttonClassName="w-full"
+                buttonClassName="edit-button w-full"
               />
             </div>
           )}

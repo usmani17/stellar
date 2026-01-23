@@ -99,6 +99,21 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   failedCount = 0,
   failedAds = [],
 }) => {
+  // Generate default ad name
+  const generateDefaultAdName = (): string => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+
+    const dateTime = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+    return `SB Ad - ${dateTime}`;
+  };
+
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
 
@@ -108,6 +123,16 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       loadAssets();
     }
   }, [isOpen, accountId, profileId]);
+
+  // Update default name when panel opens
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentAd((prev) => ({
+        ...prev,
+        name: generateDefaultAdName(),
+      }));
+    }
+  }, [isOpen]);
 
   const loadAssets = async () => {
     if (!accountId) return;
@@ -128,7 +153,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     }
   };
   const [currentAd, setCurrentAd] = useState<SBAdInput>({
-    name: "",
+    name: generateDefaultAdName(),
     state: "ENABLED",
     adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
     adType: undefined, // No default - form will be readonly until selected
@@ -479,7 +504,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
     // Reset form for next ad
     setCurrentAd({
-      name: "",
+      name: generateDefaultAdName(),
       state: "ENABLED",
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
       adType: undefined, // Reset - form will be readonly until selected

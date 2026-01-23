@@ -208,24 +208,6 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                 <th className="table-header">
                   Serving Status
                 </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("creationDateTime")}
-                >
-                  <div className="flex items-center">
-                    Creation Date
-                    {getSortIcon("creationDateTime")}
-                  </div>
-                </th>
-                <th
-                  className="table-header"
-                  onClick={() => onSort?.("lastUpdateDateTime")}
-                >
-                  <div className="flex items-center">
-                    Last Update Date
-                    {getSortIcon("lastUpdateDateTime")}
-                  </div>
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -467,12 +449,6 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                     </td>
                     <td className="table-cell table-text leading-[1.26]">
                       {ad.servingStatus || "—"}
-                    </td>
-                    <td className="table-cell table-text leading-[1.26]">
-                      {formatDate(ad.creationDateTime)}
-                    </td>
-                    <td className="table-cell table-text leading-[1.26]">
-                      {formatDate(ad.lastUpdateDateTime)}
                     </td>
                   </tr>
                 );

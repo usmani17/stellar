@@ -251,18 +251,20 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                   </div>
                 </th>
 
-                {/* Default Bid Header */}
-                <th
-                  className={`table-header ${
-                    onSort ? "cursor-pointer hover:bg-gray-50" : ""
-                  }`}
-                  onClick={() => onSort?.("default_bid")}
-                >
-                  <div className="flex items-center gap-1">
-                    Default Bid
-                    {getSortIcon("default_bid")}
-                  </div>
-                </th>
+                {/* Default Bid Header - Hide for SB campaigns */}
+                {campaignType !== "SB" && (
+                  <th
+                    className={`table-header ${
+                      onSort ? "cursor-pointer hover:bg-gray-50" : ""
+                    }`}
+                    onClick={() => onSort?.("default_bid")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Default Bid
+                      {getSortIcon("default_bid")}
+                    </div>
+                  </th>
+                )}
 
                 {/* CTR Header */}
                 <th
@@ -392,7 +394,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         </>
                       )}
                       <td className="table-cell"></td>
-                      <td className="table-cell"></td>
+                      {campaignType !== "SB" && <td className="table-cell"></td>}
                       <td className="table-cell table-text leading-[1.26]">
                         {summary.total_impressions > 0
                           ? `${(
@@ -669,97 +671,99 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           })()}
                         </td>
 
-                        {/* Default Bid */}
-                        <td className="table-cell whitespace-nowrap">
-                          {(() => {
-                            if (inlineEditLoading.has(adgroup.id)) {
-                              return (
-                                <div className="flex items-center gap-2">
-                                  <span className="table-text leading-[1.26]">
-                                    {pendingChange?.field === "default_bid"
-                                      ? pendingChange.newValue.startsWith("$")
+                        {/* Default Bid - Hide for SB campaigns */}
+                        {campaignType !== "SB" && (
+                          <td className="table-cell whitespace-nowrap">
+                            {(() => {
+                              if (inlineEditLoading.has(adgroup.id)) {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <span className="table-text leading-[1.26]">
+                                      {pendingChange?.field === "default_bid"
+                                        ? pendingChange.newValue.startsWith("$")
+                                          ? pendingChange.newValue
+                                          : `$${parseFloat(
+                                              pendingChange.newValue || "0"
+                                            ).toLocaleString(undefined, {
+                                              minimumFractionDigits: 2,
+                                              maximumFractionDigits: 2,
+                                            })}`
+                                        : adgroup.default_bid || "$0.00"}
+                                    </span>
+                                    <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                                  </div>
+                                );
+                              }
+                              
+                              if (pendingChange?.id === adgroup.id &&
+                                  pendingChange?.field === "default_bid") {
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <span className="table-text leading-[1.26]">
+                                      {pendingChange.newValue.startsWith("$")
                                         ? pendingChange.newValue
                                         : `$${parseFloat(
                                             pendingChange.newValue || "0"
                                           ).toLocaleString(undefined, {
                                             minimumFractionDigits: 2,
                                             maximumFractionDigits: 2,
-                                          })}`
-                                      : adgroup.default_bid || "$0.00"}
-                                  </span>
-                                  <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
-                                </div>
-                              );
-                            }
-                            
-                            if (pendingChange?.id === adgroup.id &&
-                                pendingChange?.field === "default_bid") {
+                                          })}`}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              
+                              const currentBid = adgroup.default_bid
+                                ? adgroup.default_bid.replace(/[^0-9.]/g, "")
+                                : "0";
+                              
+                              const bidValue = editingField?.id === adgroup.id &&
+                                editingField?.field === "default_bid"
+                                ? (editedValue?.replace(/[^0-9.]/g, "") || currentBid)
+                                : currentBid;
+                              
                               return (
-                                <div className="flex items-center gap-2">
-                                  <span className="table-text leading-[1.26]">
-                                    {pendingChange.newValue.startsWith("$")
-                                      ? pendingChange.newValue
-                                      : `$${parseFloat(
-                                          pendingChange.newValue || "0"
-                                        ).toLocaleString(undefined, {
-                                          minimumFractionDigits: 2,
-                                          maximumFractionDigits: 2,
-                                        })}`}
-                                  </span>
-                                </div>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={bidValue}
+                                  onFocus={() => {
+                                    if (!isArchived &&
+                                        (editingField?.id !== adgroup.id ||
+                                         editingField?.field !== "default_bid")) {
+                                      onEditStart?.(adgroup.id, "default_bid", currentBid);
+                                    }
+                                  }}
+                                  onChange={(e) => {
+                                    if (isArchived) return;
+                                    onEditChange?.(e.target.value);
+                                  }}
+                                  onBlur={(e) => {
+                                    if (isArchived) return;
+                                    const inputValue = e.target.value;
+                                    if (editingField?.id === adgroup.id &&
+                                        editingField?.field === "default_bid") {
+                                      onEditEnd?.(inputValue);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (isArchived) return;
+                                    if (e.key === "Enter") {
+                                      e.currentTarget.blur();
+                                    } else if (e.key === "Escape") {
+                                      onEditCancel?.();
+                                    }
+                                  }}
+                                  disabled={isArchived}
+                                  className={`inline-edit-input w-24 ${
+                                    isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                  }`}
+                                />
                               );
-                            }
-                            
-                            const currentBid = adgroup.default_bid
-                              ? adgroup.default_bid.replace(/[^0-9.]/g, "")
-                              : "0";
-                            
-                            const bidValue = editingField?.id === adgroup.id &&
-                              editingField?.field === "default_bid"
-                              ? (editedValue?.replace(/[^0-9.]/g, "") || currentBid)
-                              : currentBid;
-                            
-                            return (
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={bidValue}
-                                onFocus={() => {
-                                  if (!isArchived &&
-                                      (editingField?.id !== adgroup.id ||
-                                       editingField?.field !== "default_bid")) {
-                                    onEditStart?.(adgroup.id, "default_bid", currentBid);
-                                  }
-                                }}
-                                onChange={(e) => {
-                                  if (isArchived) return;
-                                  onEditChange?.(e.target.value);
-                                }}
-                                onBlur={(e) => {
-                                  if (isArchived) return;
-                                  const inputValue = e.target.value;
-                                  if (editingField?.id === adgroup.id &&
-                                      editingField?.field === "default_bid") {
-                                    onEditEnd?.(inputValue);
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (isArchived) return;
-                                  if (e.key === "Enter") {
-                                    e.currentTarget.blur();
-                                  } else if (e.key === "Escape") {
-                                    onEditCancel?.();
-                                  }
-                                }}
-                                disabled={isArchived}
-                                className={`inline-edit-input w-24 ${
-                                  isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
-                                }`}
-                              />
-                            );
-                          })()}
-                        </td>
+                            })()}
+                          </td>
+                        )}
 
                         {/* CTR */}
                         <td className="table-cell">

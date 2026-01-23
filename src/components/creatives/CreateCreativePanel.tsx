@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { Checkbox } from "../ui/Checkbox";
+import { campaignsService } from "../../services/campaigns";
+import type { Asset } from "../campaigns/AssetsTable";
 
 export interface CreativeInput {
   creativeType: "IMAGE" | "VIDEO";
@@ -126,6 +128,8 @@ interface CreateCreativePanelProps {
     properties: any;
     consentToTranslate?: boolean;
   } | null;
+  accountId?: string;
+  profileId?: string;
 }
 
 const CREATIVE_TYPE_OPTIONS = [
@@ -150,6 +154,8 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   adgroups,
   loading = false,
   editCreative,
+  accountId,
+  profileId,
 }) => {
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>(
     adgroups.length > 0 ? String(adgroups[0].adGroupId) : ""
@@ -163,8 +169,48 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
   const [addedPropertyTypes, setAddedPropertyTypes] = useState<Set<string>>(
     new Set()
   );
+  const [activePropertyTab, setActivePropertyTab] = useState<string>("");
   const [addedCreatives, setAddedCreatives] = useState<CreativeInput[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+
+  // Fetch assets when component opens
+  useEffect(() => {
+    if (isOpen && accountId) {
+      loadAssets();
+    }
+  }, [isOpen, accountId, profileId]);
+
+  const loadAssets = async () => {
+    if (!accountId) {
+      console.log("[CreateCreativePanel] No accountId, skipping asset load");
+      return;
+    }
+    
+    try {
+      setAssetsLoading(true);
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        console.error("[CreateCreativePanel] Invalid account ID:", accountId);
+        setAssets([]);
+        return;
+      }
+      console.log("[CreateCreativePanel] Loading assets for accountId:", accountIdNum, "profileId:", profileId);
+      const data = await campaignsService.getAssets(accountIdNum, {
+        page: 1,
+        page_size: 100, // Get all assets for dropdown
+        ...(profileId && { profileId }), // Include profileId if available to filter assets
+      });
+      console.log("[CreateCreativePanel] Assets loaded:", data.assets?.length || 0, "assets");
+      setAssets(data.assets || []);
+    } catch (error) {
+      console.error("[CreateCreativePanel] Failed to load assets:", error);
+      setAssets([]);
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
 
   // Populate form when editing
   useEffect(() => {
@@ -348,6 +394,13 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
       });
       setAddedPropertyTypes(new Set());
       setSelectedPropertyType("");
+      setActivePropertyTab("");
+      
+      // For VIDEO type, automatically add video property and show form
+      if (value === "VIDEO") {
+        handleAddPropertyType("video");
+        setActivePropertyTab("video");
+      }
     } else if (field.startsWith("properties.")) {
       const propPath = field.replace("properties.", "");
       setCurrentCreative((prev) => {
@@ -690,6 +743,77 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
     onClose();
   };
 
+  const handleTestData = () => {
+    if (adgroups.length === 0) {
+      setErrors({ adGroupId: "No ad groups available for test data" });
+      return;
+    }
+
+    // Set first ad group
+    const firstAdGroupId = String(adgroups[0].adGroupId);
+    setSelectedAdGroupId(firstAdGroupId);
+
+    // Combine all test properties into one creative
+    const testCreative: CreativeInput = {
+      creativeType: "IMAGE",
+      properties: {
+        // Custom Image properties
+        customImage: {
+          rectCustomImage: {
+            assetId: "amzn1.assetlibrary.asset1.ee6b9b75765dfae332cb9169593a2eae",
+            assetVersion: "version_v1",
+            croppingCoordinates: {
+              top: 286,
+              left: 0,
+              width: 1200,
+              height: 628,
+            },
+          },
+          squareCustomImage: {
+            assetId: "amzn1.assetlibrary.asset1.ee6b9b75765dfae332cb9169593a2eae",
+            assetVersion: "version_v1",
+            croppingCoordinates: {
+              top: 0,
+              left: 0,
+              width: 1200,
+              height: 1200,
+            },
+          },
+        },
+        // Background properties
+        background: {
+          backgrounds: [
+            {
+              color: "#000000",
+            },
+          ],
+        },
+        // Headline properties
+        headline: {
+          headline: "test",
+          hasTermsAndConditions: true,
+          originalHeadline: "test",
+        },
+        // Brand Logo properties
+        brandLogo: {
+          assetId: "amzn1.assetlibrary.asset1.ce57745d5d5a43a90f516e691b3c7671",
+          assetVersion: "version_v1",
+        },
+      },
+      consentToTranslate: false,
+    };
+
+    setCurrentCreative(testCreative);
+    
+    // Add all property types and set the first one as active
+    const allPropertyTypes = new Set(["customImage", "background", "headline", "brandLogo"]);
+    setAddedPropertyTypes(allPropertyTypes);
+    setActivePropertyTab("headline"); // Set first tab as active
+    
+    // Clear any errors
+    setErrors({});
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -699,24 +823,35 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
           <h2 className="text-[18px] font-semibold text-[#072929]">
             {editCreative ? "Edit Creative" : "Create Creatives"}
           </h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <div className="flex items-center gap-3">
+            {!editCreative && (
+              <button
+                type="button"
+                onClick={handleTestData}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-[13.44px] font-medium"
+              >
+                Test
+              </button>
+            )}
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="p-6">
@@ -759,7 +894,16 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               <Dropdown
                 options={CREATIVE_TYPE_OPTIONS}
                 value={currentCreative.creativeType}
-                onChange={(value) => handleChange("creativeType", value)}
+                onChange={(value) => {
+                  handleChange("creativeType", value);
+                  // When VIDEO is selected, automatically add video property and show form
+                  if (value === "VIDEO") {
+                    if (!addedPropertyTypes.has("video")) {
+                      handleAddPropertyType("video");
+                    }
+                    setActivePropertyTab("video");
+                  }
+                }}
               />
               {errors.creativeType && (
                 <p className="text-red-500 text-xs mt-1">
@@ -775,73 +919,77 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               Creative Details
             </h3>
 
-            {/* Property Type Selector - Checkboxes Inline */}
+            {/* Property Type Selector - Tabs */}
             <div className="mb-4">
-              <label className="form-label-small">
-                Property Types
-              </label>
-              <div className="flex flex-wrap gap-4">
-                {(currentCreative.creativeType === "IMAGE"
-                  ? PROPERTY_TYPE_OPTIONS_IMAGE
-                  : PROPERTY_TYPE_OPTIONS_VIDEO
-                ).map((option) => {
-                  const isChecked = addedPropertyTypes.has(option.value);
+              <div className="flex border-b border-gray-200 mb-4">
+                {/* Show IMAGE property tabs when creative type is IMAGE */}
+                {currentCreative.creativeType === "IMAGE" &&
+                  PROPERTY_TYPE_OPTIONS_IMAGE.map((option) => {
+                  const isActive = activePropertyTab === option.value;
+                  const isAdded = addedPropertyTypes.has(option.value);
                   return (
-                    <div key={option.value} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={isChecked}
-                        onChange={(checked) => {
-                          if (checked) {
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setActivePropertyTab(option.value);
+                        if (!isAdded) {
+                          handleAddPropertyType(option.value);
+                        }
+                      }}
+                      className={`px-4 py-2 text-[14px] transition-colors ${
+                        isActive
+                          ? "text-[#072929] border-b-2 border-[#136D6D]"
+                          : "text-[#556179] hover:text-[#072929]"
+                      }`}
+                    >
+                      {option.label}
+                      </button>
+                    );
+                  })}
+                {/* Always show Video tab, but disable it when creative type is IMAGE */}
+                {PROPERTY_TYPE_OPTIONS_VIDEO.map((option) => {
+                  const isActive = activePropertyTab === option.value;
+                  const isAdded = addedPropertyTypes.has(option.value);
+                  const isDisabled = currentCreative.creativeType !== "VIDEO";
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        if (!isDisabled) {
+                          setActivePropertyTab(option.value);
+                          if (!isAdded) {
                             handleAddPropertyType(option.value);
-                          } else {
-                            handleRemovePropertyType(option.value);
                           }
-                        }}
-                        size="small"
-                      />
-                      <span className="text-[13.44px] text-[#222124]">
-                        {option.label}
-                      </span>
-                    </div>
+                        }
+                      }}
+                      disabled={isDisabled}
+                      className={`px-4 py-2 text-[14px] transition-colors ${
+                        isActive
+                          ? "text-[#072929] border-b-2 border-[#136D6D]"
+                          : isDisabled
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-[#556179] hover:text-[#072929]"
+                      }`}
+                    >
+                      {option.label}
+                     
+                    </button>
                   );
                 })}
               </div>
+              
+              {/* Show form for active tab */}
+              {activePropertyTab && addedPropertyTypes.has(activePropertyTab) && (
+                <div className="mt-4">
+                  {/* Forms will be shown based on activePropertyTab */}
+                </div>
+              )}
             </div>
 
-            {/* Added Properties List */}
-            {addedPropertyTypes.size > 0 && (
-              <div className="mb-4">
-                <label className="form-label-small">
-                  Added Properties
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {Array.from(addedPropertyTypes).map((propType) => (
-                    <div
-                      key={propType}
-                      className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg border border-[#EBEBEB]"
-                    >
-                      <span className="text-[13.44px] text-[#222124] capitalize">
-                        {propType === "customImage"
-                          ? "Custom Image"
-                          : propType === "brandLogo"
-                          ? "Brand Logo"
-                          : propType}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePropertyType(propType)}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Property Forms */}
-            {addedPropertyTypes.has("headline") && (
+            {/* Property Forms - Show only active tab */}
+            {activePropertyTab === "headline" && addedPropertyTypes.has("headline") && (
               <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
@@ -948,7 +1096,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               </div>
             )}
 
-            {addedPropertyTypes.has("brandLogo") && (
+            {activePropertyTab === "brandLogo" && addedPropertyTypes.has("brandLogo") && (
               <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
@@ -973,19 +1121,35 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <input
-                        type="text"
-                        value={
-                          currentCreative.properties.brandLogo?.assetId || ""
-                        }
-                        onChange={(e) =>
+                      <Dropdown<string>
+                        options={assets
+                          .filter((asset) => {
+                            if (!asset.assetId) return false;
+                            // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                            const isImageByAssetType = asset.assetType === 'IMAGE';
+                            const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
+                            const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
+                            // Fallback to old schema for backward compatibility
+                            const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
+                            return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
+                          })
+                          .map((asset) => ({
+                            value: asset.assetId || "",
+                            label: asset.name || asset.fileName
+                              ? `${asset.name || asset.fileName} (${asset.assetId})`
+                              : asset.assetId || `Asset ${asset.id}`,
+                          }))}
+                        value={currentCreative.properties.brandLogo?.assetId || ""}
+                        onChange={(value) => {
                           handleChange("properties.brandLogo", {
                             ...currentCreative.properties.brandLogo,
-                            assetId: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="Asset ID *"
+                            assetId: value || "",
+                            assetVersion: value ? "version_v1" : (currentCreative.properties.brandLogo?.assetVersion || ""),
+                          });
+                        }}
+                        placeholder={assetsLoading ? "Loading..." : "Select Asset ID"}
+                        buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                        disabled={assetsLoading}
                       />
                     </div>
                     <div>
@@ -1212,7 +1376,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               </div>
             )}
 
-            {addedPropertyTypes.has("customImage") && (
+            {activePropertyTab === "customImage" && addedPropertyTypes.has("customImage") && (
               <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
@@ -1235,13 +1399,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       <span className="text-red-500">*</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={
-                          currentCreative.properties.customImage
-                            ?.rectCustomImage?.assetId || ""
-                        }
-                        onChange={(e) => {
+                      <Dropdown<string>
+                        options={assets
+                          .filter((asset) => {
+                            if (!asset.assetId) return false;
+                            // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                            const isImageByAssetType = asset.assetType === 'IMAGE';
+                            const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
+                            const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
+                            // Fallback to old schema for backward compatibility
+                            const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
+                            return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
+                          })
+                          .map((asset) => ({
+                            value: asset.assetId || "",
+                            label: asset.name || asset.fileName
+                              ? `${asset.name || asset.fileName} (${asset.assetId})`
+                              : asset.assetId || `Asset ${asset.id}`,
+                          }))}
+                        value={currentCreative.properties.customImage?.rectCustomImage?.assetId || ""}
+                        onChange={(value) => {
                           setCurrentCreative((prev) => ({
                             ...prev,
                             properties: {
@@ -1249,16 +1426,17 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                               customImage: {
                                 ...prev.properties.customImage,
                                 rectCustomImage: {
-                                  ...prev.properties.customImage
-                                    ?.rectCustomImage,
-                                  assetId: e.target.value,
+                                  ...prev.properties.customImage?.rectCustomImage,
+                                  assetId: value || "",
+                                  assetVersion: value ? "version_v1" : (prev.properties.customImage?.rectCustomImage?.assetVersion || ""),
                                 },
                               },
                             },
                           }));
                         }}
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="Asset ID *"
+                        placeholder={assetsLoading ? "Loading..." : "Select Asset ID"}
+                        buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                        disabled={assetsLoading}
                       />
                       <input
                         type="text"
@@ -1473,13 +1651,26 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                       <span className="text-red-500">*</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={
-                          currentCreative.properties.customImage
-                            ?.squareCustomImage?.assetId || ""
-                        }
-                        onChange={(e) => {
+                      <Dropdown<string>
+                        options={assets
+                          .filter((asset) => {
+                            if (!asset.assetId) return false;
+                            // Check new schema: assetType === 'IMAGE' or fileMetadata.contentType
+                            const isImageByAssetType = asset.assetType === 'IMAGE';
+                            const isImageByContentType = asset.contentType?.toLowerCase().startsWith('image/');
+                            const isImageByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('image/');
+                            // Fallback to old schema for backward compatibility
+                            const isImageByMediaType = asset.mediaType?.toLowerCase() === 'image';
+                            return isImageByAssetType || isImageByContentType || isImageByFileMetadata || isImageByMediaType;
+                          })
+                          .map((asset) => ({
+                            value: asset.assetId || "",
+                            label: asset.name || asset.fileName
+                              ? `${asset.name || asset.fileName} (${asset.assetId})`
+                              : asset.assetId || `Asset ${asset.id}`,
+                          }))}
+                        value={currentCreative.properties.customImage?.squareCustomImage?.assetId || ""}
+                        onChange={(value) => {
                           setCurrentCreative((prev) => ({
                             ...prev,
                             properties: {
@@ -1487,16 +1678,17 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                               customImage: {
                                 ...prev.properties.customImage,
                                 squareCustomImage: {
-                                  ...prev.properties.customImage
-                                    ?.squareCustomImage,
-                                  assetId: e.target.value,
+                                  ...prev.properties.customImage?.squareCustomImage,
+                                  assetId: value || "",
+                                  assetVersion: value ? "version_v1" : (prev.properties.customImage?.squareCustomImage?.assetVersion || ""),
                                 },
                               },
                             },
                           }));
                         }}
-                        className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
-                        placeholder="Asset ID *"
+                        placeholder={assetsLoading ? "Loading..." : "Select Asset ID"}
+                        buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                        disabled={assetsLoading}
                       />
                       <input
                         type="text"
@@ -2024,7 +2216,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               </div>
             )}
 
-            {addedPropertyTypes.has("background") && (
+            {activePropertyTab === "background" && addedPropertyTypes.has("background") && (
               <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
@@ -2187,7 +2379,7 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
               </div>
             )}
 
-            {addedPropertyTypes.has("video") && (
+            {activePropertyTab === "video" && addedPropertyTypes.has("video") && (
               <div className="mb-4 p-4 border border-[#EBEBEB] rounded-lg bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
@@ -2218,24 +2410,37 @@ export const CreateCreativePanel: React.FC<CreateCreativePanelProps> = ({
                           <label className="block text-[10px] text-gray-500 mb-1">
                             Asset ID *
                           </label>
-                          <input
-                            type="text"
-                            value={
-                              currentCreative.properties.video?.video
-                                ?.assetId || ""
-                            }
-                            onChange={(e) =>
+                          <Dropdown<string>
+                            options={assets
+                              .filter((asset) => {
+                                if (!asset.assetId) return false;
+                                // Check both mediaType and contentType for video assets
+                                const isVideoByMediaType = asset.mediaType?.toLowerCase() === 'video';
+                                const isVideoByContentType = asset.contentType?.toLowerCase().startsWith('video/');
+                                const isVideoByFileMetadata = asset.fileMetadata?.contentType?.toLowerCase().startsWith('video/');
+                                const isVideoByAssetType = asset.assetType === 'VIDEO';
+                                return isVideoByMediaType || isVideoByContentType || isVideoByFileMetadata || isVideoByAssetType;
+                              })
+                              .map((asset) => ({
+                                value: asset.assetId || "",
+                                label: asset.name || asset.fileName
+                                  ? `${asset.name || asset.fileName} (${asset.assetId})`
+                                  : asset.assetId || `Asset ${asset.id}`,
+                              }))}
+                            value={currentCreative.properties.video?.video?.assetId || ""}
+                            onChange={(value) => {
                               handleChange("properties.video", {
                                 ...currentCreative.properties.video,
                                 video: {
-                                  ...(currentCreative.properties.video?.video ||
-                                    {}),
-                                  assetId: e.target.value,
+                                  ...(currentCreative.properties.video?.video || {}),
+                                  assetId: value || "",
+                                  assetVersion: value ? "version_v1" : (currentCreative.properties.video?.video?.assetVersion || ""),
                                 },
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px]"
-                            placeholder="Asset ID *"
+                              });
+                            }}
+                            placeholder={assetsLoading ? "Loading..." : "Select Asset ID"}
+                            buttonClassName="edit-button w-full px-3 py-2 border border-[#EBEBEB] rounded-lg text-[13.44px] bg-white"
+                            disabled={assetsLoading}
                           />
                         </div>
                         <div>

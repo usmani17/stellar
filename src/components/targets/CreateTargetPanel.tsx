@@ -501,6 +501,16 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
     Partial<Record<keyof TargetInput, string>>
   >({});
   const [targetErrors, setTargetErrors] = useState<TargetError[]>([]);
+  const [activeExpressionTab, setActiveExpressionTab] = useState<string>(
+    campaignType === "SD" ? "TargetingPredicate" : ""
+  );
+
+  // Sync active tab with currentTarget.sdExpressionStructureType
+  useEffect(() => {
+    if (campaignType === "SD" && currentTarget.sdExpressionStructureType) {
+      setActiveExpressionTab(currentTarget.sdExpressionStructureType);
+    }
+  }, [currentTarget.sdExpressionStructureType, campaignType]);
 
   const handleChange = (
     field: keyof TargetInput,
@@ -938,34 +948,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         </h2>
 
         <div className="space-y-4">
-          {/* Expression Structure Type - For SD campaigns, show on its own row */}
-          {campaignType === "SD" && (
-            <div>
-              <label className="form-label-small">
-                Expression Structure *
-              </label>
-              <div className="flex gap-3">
-                <div className="flex-1 min-w-[220px]">
-                  <Dropdown<string>
-                    options={SD_EXPRESSION_STRUCTURE_TYPES}
-                    value={currentTarget.sdExpressionStructureType || ""}
-                    onChange={(value) =>
-                      handleChange("sdExpressionStructureType", value)
-                    }
-                    placeholder="Select structure type"
-                    buttonClassName="w-full"
-                  />
-                  {errors.sdExpressionStructureType && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.sdExpressionStructureType}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Single line inputs */}
+          {/* Single line inputs - Move to top for SD */}
           <div className="flex items-end gap-3">
             {/* Ad Group Dropdown */}
             <div className="flex-1 min-w-[180px] w-full">
@@ -1000,7 +983,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   value={currentTarget.expressionType}
                   onChange={(value) => handleChange("expressionType", value)}
                   placeholder="Select type"
-                  buttonClassName="w-full"
+                  buttonClassName="edit-button w-full"
                 />
               </div>
             ) : (
@@ -1101,12 +1084,43 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
             )}
           </div>
 
-          {/* SD Dynamic Fields - Show on separate rows */}
+          {/* SD Expression Structure Type Tabs - Show at bottom */}
           {campaignType === "SD" && (
             <>
+              {/* Tabs for Expression Structure Type */}
+              <div className="mb-4">
+                <div className="flex border-b border-gray-200">
+                  {SD_EXPRESSION_STRUCTURE_TYPES.map((option) => {
+                    const isActive = activeExpressionTab === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setActiveExpressionTab(option.value);
+                          handleChange("sdExpressionStructureType", option.value);
+                        }}
+                        className={`px-4 py-2 text-[14px] transition-colors ${
+                          isActive
+                            ? "text-[#072929] border-b-2 border-[#136D6D]"
+                            : "text-[#556179] hover:text-[#072929]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.sdExpressionStructureType && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.sdExpressionStructureType}
+                  </p>
+                )}
+              </div>
+
+              {/* Show only active tab form */}
               {/* TargetingPredicate fields */}
-              {currentTarget.sdExpressionStructureType ===
-                "TargetingPredicate" && (
+              {activeExpressionTab === "TargetingPredicate" && (
                 <div className="flex items-end gap-3">
                   <div className="flex-1 min-w-[200px]">
                     <label className="form-label-small">
@@ -1131,7 +1145,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                         }));
                       }}
                       placeholder="Select predicate type"
-                      buttonClassName="w-full"
+                      buttonClassName="edit-button w-full"
                     />
                     {errors.expressionValue && (
                       <p className="text-[10px] text-red-500 mt-1">
@@ -1173,8 +1187,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               )}
 
               {/* ContentTargetingPredicate field */}
-              {currentTarget.sdExpressionStructureType ===
-                "ContentTargetingPredicate" && (
+              {activeExpressionTab === "ContentTargetingPredicate" && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-[11.2px] font-semibold text-[#556179] uppercase">
@@ -1204,7 +1217,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                                 handleContentCategoryChange(idx, "value", value)
                               }
                               placeholder="Select content category"
-                              buttonClassName="w-full"
+                              buttonClassName="edit-button w-full"
                             />
                             {errors[
                               `contentCategory_${idx}_value` as keyof TargetInput
@@ -1242,8 +1255,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
               )}
 
               {/* TargetingPredicateNested fields */}
-              {currentTarget.sdExpressionStructureType ===
-                "TargetingPredicateNested" && (
+              {activeExpressionTab === "TargetingPredicateNested" && (
                 <>
                   <div className="flex items-end gap-3">
                     <div className="flex-1 min-w-[180px]">
@@ -1257,7 +1269,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                           handleChange("sdNestedType", value)
                         }
                         placeholder="Select type"
-                        buttonClassName="w-full"
+                        buttonClassName="edit-button w-full"
                       />
                       {errors.sdNestedType && (
                         <p className="text-[10px] text-red-500 mt-1">
@@ -1298,7 +1310,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                                   )
                                 }
                                 placeholder="Select predicate type"
-                                buttonClassName="w-full"
+                                buttonClassName="edit-button w-full"
                               />
                               {errors[
                                 `nestedPredicate_${idx}_type` as keyof TargetInput
@@ -1597,7 +1609,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           <button
             type="button"
             onClick={handleAddTarget}
-            className="create-entity-button text-[11px] justify-center"
+            className="apply-button text-[11px] justify-center"
           >
             Add Target
           </button>
