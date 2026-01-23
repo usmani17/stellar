@@ -14,6 +14,7 @@ import CampaignWhiteIcon from "../../assets/campaign-white.svg";
 import AdGroupIcon from "../../assets/images/adgroups.svg";
 import GoogleIcon from "../../assets/images/ri_google-fill.svg";
 import MetaIcon from "../../assets/images/mingcute_meta-line.svg";
+import AmazonIcon from "../../assets/images/ri_amazon-fill.svg";
 import WalmartIcon from "../../assets/images/cbi_walmart.svg";
 import TopKeywordsIcon from "../../assets/images/cbi_walmart.svg";
 import TopProductsIcon from "../../assets/images/cib_instacart.svg";
@@ -295,35 +296,55 @@ export const Sidebar: React.FC = () => {
         {/* Amazon Section */}
         <div className="mb-6">
           {!isCollapsed && (
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                Amazon
-              </h2>
-              <button
-                onClick={toggleAmazonSection}
-                className="p-1 rounded hover:bg-gray-100 transition-colors"
-                aria-label={
-                  isAmazonSectionCollapsed
-                    ? "Expand Amazon section"
-                    : "Collapse Amazon section"
+            <div className="mb-3">
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
+                    : "/accounts"
                 }
+                onClick={(e) => {
+                  handleAccountRequiredClick(e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
+                      : "/accounts/1/amazon/campaigns"
+                  );
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isAmazonSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                    }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                  Amazon
+                </h2>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleAmazonSection();
+                  }}
+                  className="p-1 rounded hover:bg-gray-100 transition-colors"
+                  aria-label={
+                    isAmazonSectionCollapsed
+                      ? "Expand Amazon section"
+                      : "Collapse Amazon section"
+                  }
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className={`w-4 h-4 text-gray-600 transition-transform ${
+                      isAmazonSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                      }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </Link>
             </div>
           )}
           {(isCollapsed || !isAmazonSectionCollapsed) && (
@@ -540,35 +561,55 @@ export const Sidebar: React.FC = () => {
         {/* Google Section */}
         <div className="mb-6">
           {!isCollapsed && (
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                Google
-              </h2>
-              <button
-                onClick={toggleGoogleSection}
-                className="p-1 rounded hover:bg-gray-100 transition-colors"
-                aria-label={
-                  isGoogleSectionCollapsed
-                    ? "Expand Google section"
-                    : "Collapse Google section"
+            <div className="mb-3">
+              <Link
+                to={
+                  accountId
+                    ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                    : "/accounts"
                 }
+                onClick={(e) => {
+                  handleAccountRequiredClick(e, () =>
+                    accountId
+                      ? buildMarketplaceRoute(accountId, "google", "campaigns")
+                      : "/accounts/1/google/campaigns"
+                  );
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isGoogleSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                    }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                  Google
+                </h2>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleGoogleSection();
+                  }}
+                  className="p-1 rounded hover:bg-gray-100 transition-colors"
+                  aria-label={
+                    isGoogleSectionCollapsed
+                      ? "Expand Google section"
+                      : "Collapse Google section"
+                  }
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className={`w-4 h-4 text-gray-600 transition-transform ${
+                      isGoogleSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                      }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </Link>
             </div>
           )}
           {(isCollapsed || !isGoogleSectionCollapsed) && (
@@ -785,35 +826,53 @@ export const Sidebar: React.FC = () => {
         {/* TikTok Section */}
         <div className="mb-6">
           {!isCollapsed && (
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                TikTok
-              </h2>
-              <button
-                onClick={toggleTikTokSection}
-                className="p-1 rounded hover:bg-gray-100 transition-colors"
-                aria-label={
-                  isTikTokSectionCollapsed
-                    ? "Expand TikTok section"
-                    : "Collapse TikTok section"
+            <div className="mb-3">
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/tiktok/campaigns`
+                    : "/accounts"
                 }
+                onClick={(e) => {
+                  handleAccountRequiredClick(e, () =>
+                    accountId ? `/accounts/${accountId}/tiktok/campaigns` : null
+                  );
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isTikTokSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                    }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
+                  TikTok
+                </h2>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleTikTokSection();
+                  }}
+                  className="p-1 rounded hover:bg-gray-100 transition-colors"
+                  aria-label={
+                    isTikTokSectionCollapsed
+                      ? "Expand TikTok section"
+                      : "Collapse TikTok section"
+                  }
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className={`w-4 h-4 text-gray-600 transition-transform ${
+                      isTikTokSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
+                      }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </Link>
             </div>
           )}
 
