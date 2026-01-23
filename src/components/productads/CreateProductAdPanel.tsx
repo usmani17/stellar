@@ -219,79 +219,49 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
         </h2>
 
         <div className="space-y-4">
-          {/* For SD campaigns, show type selector on its own row */}
+          {/* For SD campaigns, show type selector as dropdown */}
           {campaignType === "SD" && (
             <div>
               <label className="form-label-small">
                 Product Type *
               </label>
-              <div className="flex gap-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="sdProductType"
-                    value="sku"
-                    checked={sdProductType === "sku"}
-                    onChange={(e) => {
-                      setSdProductType("sku");
-                      // Clear other fields when switching
-                      setCurrentProductAd((prev) => ({
-                        ...prev,
-                        asin: "",
-                        landingPageURL: "",
-                        landingPageType: "OFF_AMAZON_LINK",
-                        adName: "",
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span className="text-[11.2px] text-[#556179]">
-                    Seller (SKU)
-                  </span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="sdProductType"
-                    value="asin"
-                    checked={sdProductType === "asin"}
-                    onChange={(e) => {
-                      setSdProductType("asin");
-                      setCurrentProductAd((prev) => ({
-                        ...prev,
-                        sku: "",
-                        landingPageURL: "",
-                        landingPageType: "OFF_AMAZON_LINK",
-                        adName: "",
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span className="text-[11.2px] text-[#556179]">
-                    Vendor (ASIN)
-                  </span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="sdProductType"
-                    value="off-amazon"
-                    checked={sdProductType === "off-amazon"}
-                    onChange={(e) => {
-                      setSdProductType("off-amazon");
-                      setCurrentProductAd((prev) => ({
-                        ...prev,
-                        sku: "",
-                        asin: "",
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span className="text-[11.2px] text-[#556179]">
-                    Off-Amazon
-                  </span>
-                </label>
-              </div>
+              <Dropdown<string>
+                options={[
+                  { value: "sku", label: "SKU" },
+                  { value: "asin", label: "ASIN" },
+                  { value: "off-amazon", label: "Off-Amazon" },
+                ]}
+                value={sdProductType}
+                onChange={(value) => {
+                  setSdProductType(value as "sku" | "asin" | "off-amazon");
+                  // Clear other fields when switching
+                  if (value === "sku") {
+                    setCurrentProductAd((prev) => ({
+                      ...prev,
+                      asin: "",
+                      landingPageURL: "",
+                      landingPageType: "OFF_AMAZON_LINK",
+                      adName: "",
+                    }));
+                  } else if (value === "asin") {
+                    setCurrentProductAd((prev) => ({
+                      ...prev,
+                      sku: "",
+                      landingPageURL: "",
+                      landingPageType: "OFF_AMAZON_LINK",
+                      adName: "",
+                    }));
+                  } else if (value === "off-amazon") {
+                    setCurrentProductAd((prev) => ({
+                      ...prev,
+                      sku: "",
+                      asin: "",
+                    }));
+                  }
+                }}
+                placeholder="Select product type"
+                buttonClassName="edit-button w-full"
+              />
             </div>
           )}
 
@@ -396,7 +366,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                     }
                     onChange={(value) => handleChange("landingPageType", value)}
                     placeholder="Select type"
-                    buttonClassName="w-full"
+                    buttonClassName="edit-button w-full"
                   />
                 </div>
                 <div className="flex-1 min-w-[150px]">

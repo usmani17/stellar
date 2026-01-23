@@ -99,6 +99,21 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
   failedCount = 0,
   failedAds = [],
 }) => {
+  // Generate default ad name
+  const generateDefaultAdName = (): string => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+
+    const dateTime = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+    return `SB Ad - ${dateTime}`;
+  };
+
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
 
@@ -138,10 +153,10 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
     }
   };
   const [currentAd, setCurrentAd] = useState<SBAdInput>({
-    name: "",
+    name: generateDefaultAdName(),
     state: "ENABLED",
     adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
-    adType: undefined, // No default - form will be readonly until selected
+    adType: "IMAGE", // Default to IMAGE - form is editable by default
     videoAdType: "PRODUCT", // Default to PRODUCT for video ads
     landingPage: {
       asins: [],
@@ -155,7 +170,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         width: 100,
         height: 100,
       },
-      asins: [],
+      asins: ["", "", ""], // Initialize with 3 empty strings for 3 ASIN fields
       brandName: "",
       brandLogoAssetID: "",
       headline: "",
@@ -508,10 +523,10 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
 
     // Reset form for next ad
     setCurrentAd({
-      name: "",
+      name: generateDefaultAdName(),
       state: "ENABLED",
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
-      adType: undefined, // Reset - form will be readonly until selected
+      adType: "IMAGE", // Reset to IMAGE - form is editable by default
       videoAdType: "PRODUCT", // Reset to default
       landingPage: {
         asins: [],
@@ -525,7 +540,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           width: 100,
           height: 100,
         },
-        asins: [],
+        asins: ["", "", ""], // Initialize with 3 empty strings for 3 ASIN fields
         brandName: "",
         brandLogoAssetID: "",
         headline: "",
@@ -557,6 +572,8 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
       name: "",
       state: "ENABLED",
       adGroupId: adgroups.length > 0 ? adgroups[0].adGroupId : "",
+      adType: "IMAGE", // Default to IMAGE
+      videoAdType: "PRODUCT",
       landingPage: {
         asins: [],
         pageType: "PRODUCT_LIST",
@@ -569,13 +586,14 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           width: 100,
           height: 100,
         },
-        asins: [],
+        asins: ["", "", ""], // Initialize with 3 empty strings for 3 ASIN fields
         brandName: "",
         brandLogoAssetID: "",
         headline: "",
         consentToTranslate: false,
         creativePropertiesToOptimize: [],
         customImages: [],
+        videoAssetIds: [],
       },
     });
     setErrors({});
@@ -705,10 +723,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               value={currentAd.name}
               onChange={(e) => handleChange("name", e.target.value)}
               placeholder="Enter ad name"
-              disabled={!currentAd.adType}
               className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
                 errors.name ? "border-red-500" : "border-gray-200"
-              } ${!currentAd.adType ? "opacity-50 cursor-not-allowed" : ""}`}
+              }`}
             />
             {errors.name && (
               <p className="text-[10px] text-red-500 mt-1">{errors.name}</p>
@@ -728,8 +745,8 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               value={currentAd.adGroupId}
               onChange={(value) => handleChange("adGroupId", value)}
               placeholder={adgroups.length === 0 ? "No ad groups available" : "Select ad group"}
-              buttonClassName={`edit-button w-full ${!currentAd.adType ? "opacity-50 cursor-not-allowed" : ""}`}
-              disabled={!currentAd.adType || adgroups.length === 0}
+              buttonClassName="edit-button w-full"
+              disabled={adgroups.length === 0}
               emptyMessage={adgroups.length === 0 ? "No ad groups available. Please create an ad group first." : "No options available"}
             />
             {errors.adGroupId && (
@@ -751,8 +768,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 handleChange("state", value as "ENABLED" | "PAUSED")
               }
               placeholder="Select state"
-              buttonClassName={`edit-button w-full ${!currentAd.adType ? "opacity-50 cursor-not-allowed" : ""}`}
-              disabled={!currentAd.adType}
+              buttonClassName="edit-button w-full"
             />
           </div>
 
@@ -763,7 +779,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             </label>
             <Dropdown<string>
               options={AD_TYPE_OPTIONS}
-              value={currentAd.adType || ""}
+              value={currentAd.adType || "IMAGE"}
               onChange={(value) => {
                 handleChange("adType", value as "IMAGE" | "VIDEO");
                 // Reset creative fields when switching types
@@ -796,139 +812,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           </div>
         </div>
 
-        {/* Video Ad Type Toggle - Only show when Video is selected */}
-        {currentAd.adType === "VIDEO" && (
-          <div className="mb-4">
-            <label className="form-label-small">
-              Video Type
-            </label>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="videoAdType"
-                  value="PRODUCT"
-                  checked={currentAd.videoAdType === "PRODUCT"}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      handleChange("videoAdType", "PRODUCT");
-                    }
-                  }}
-                  className="accent-forest-f40"
-                />
-                <span className="text-[11.2px] text-[#556179]">Product Video</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="videoAdType"
-                  value="BRAND"
-                  checked={currentAd.videoAdType === "BRAND"}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      handleChange("videoAdType", "BRAND");
-                    }
-                  }}
-                  className="accent-forest-f40"
-                />
-                <span className="text-[11.2px] text-[#556179]">Brand Video</span>
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Creative Section */}
-        <div className="mb-4 p-3  border border-gray-200 rounded-lg">
-          <h3 className="section-title">
-            Creative *
-          </h3>
-
-          {/* Landing Page Fields - Moved from Landing Page section */}
-          <div className={`mb-4 ${!currentAd.adType ? "opacity-50 pointer-events-none" : ""}`}>
-            <div className="flex items-end gap-3 mb-3">
-              <div className="w-[180px]">
-                <label className="form-label-small">
-                  Page Type
-                </label>
-                <Dropdown<string>
-                  options={PAGE_TYPE_OPTIONS}
-                  value={currentAd.landingPage?.pageType || "PRODUCT_LIST"}
-                  onChange={(value) =>
-                    handleChange("landingPage.pageType", value)
-                  }
-                  placeholder="Select page type"
-                  buttonClassName="edit-button w-full"
-                  disabled={!currentAd.adType}
-                />
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <label className="form-label-small">
-                  URL {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" ? "*" : ""}
-                </label>
-                <input
-                  type="text"
-                  value={currentAd.landingPage?.url || ""}
-                  onChange={(e) => handleChange("landingPage.url", e.target.value)}
-                  placeholder="https://www.amazon.com/s?me=TEST"
-                  disabled={!currentAd.adType}
-                  className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                    !currentAd.adType ? "opacity-50 cursor-not-allowed border-gray-200" : 
-                    (currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" && errors.landingPageUrl) ? "border-red-500" : "border-gray-200"
-                  }`}
-                />
-                {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" && errors.landingPageUrl && (
-                  <p className="text-[10px] text-red-500 mt-1">{errors.landingPageUrl}</p>
-                )}
-              </div>
-            </div>
-            <div>
-              <label className="form-label-small">
-                ASINs (Optional)
-              </label>
-              {(currentAd.landingPage?.asins || []).map((asin, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={asin}
-                    onChange={(e) =>
-                      handleArrayChange("landingPage.asins", index, e.target.value)
-                    }
-                    placeholder="B01EXAMPLE"
-                    className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveArrayItem("landingPage.asins", index)}
-                    className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
-                    title="Remove"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => handleAddArrayItem("landingPage.asins")}
-                className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
-              >
-                + Add ASIN
-              </button>
-            </div>
-          </div>
-
-          {/* Brand Name - First field, required */}
+        {/* Brand Name, Brand Logo Asset ID, Headline - Required fields right after Ad Type */}
+        <div className="mb-4">
+          {/* Brand Name */}
           <div className="mb-4">
             <label className="form-label-small">
               Brand Name *
@@ -1023,6 +909,177 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
               )}
             </div>
           </div>
+        </div>
+
+        {/* ASINs - Show exactly 3 text fields (max 3 ASINs) */}
+        <div className="mb-4">
+          <label className="form-label-small">
+            ASINs * (Maximum 3)
+          </label>
+          <div className="space-y-2">
+            {[0, 1, 2].map((index) => {
+              const asins = currentAd.creative?.asins || [];
+              return (
+                <input
+                  key={index}
+                  type="text"
+                  value={asins[index] || ""}
+                  onChange={(e) => {
+                    const newAsins = [...asins];
+                    newAsins[index] = e.target.value;
+                    // Ensure array has exactly 3 elements
+                    while (newAsins.length < 3) {
+                      newAsins.push("");
+                    }
+                    handleChange("creative.asins", newAsins.slice(0, 3));
+                  }}
+                  placeholder={`ASIN ${index + 1} (e.g., B01EXAMPLE)`}
+                  className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.creativeAsins ? "border-red-500" : "border-gray-200"
+                  }`}
+                />
+              );
+            })}
+          </div>
+          {errors.creativeAsins && (
+            <p className="text-[10px] text-red-500 mt-1">{errors.creativeAsins}</p>
+          )}
+        </div>
+
+        {/* Video Ad Type Toggle - Only show when Video is selected */}
+        {currentAd.adType === "VIDEO" && (
+          <div className="mb-4">
+            <label className="form-label-small">
+              Video Type
+            </label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="videoAdType"
+                  value="PRODUCT"
+                  checked={currentAd.videoAdType === "PRODUCT"}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleChange("videoAdType", "PRODUCT");
+                    }
+                  }}
+                  className="accent-forest-f40"
+                />
+                <span className="text-[11.2px] text-[#556179]">Product Video</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="videoAdType"
+                  value="BRAND"
+                  checked={currentAd.videoAdType === "BRAND"}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleChange("videoAdType", "BRAND");
+                    }
+                  }}
+                  className="accent-forest-f40"
+                />
+                <span className="text-[11.2px] text-[#556179]">Brand Video</span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Landing Page Section */}
+        <div className="mb-4 p-4 border border-gray-200 rounded-lg bg-white">
+          <h3 className="section-title mb-4">
+            Landing Page
+          </h3>
+
+          <div className="flex items-end gap-3 mb-4">
+            <div className="w-[180px]">
+              <label className="form-label-small">
+                Page Type
+              </label>
+              <Dropdown<string>
+                options={PAGE_TYPE_OPTIONS}
+                value={currentAd.landingPage?.pageType || "PRODUCT_LIST"}
+                onChange={(value) =>
+                  handleChange("landingPage.pageType", value)
+                }
+                placeholder="Select page type"
+                buttonClassName="edit-button w-full"
+              />
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="form-label-small">
+                URL {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" ? "*" : ""}
+              </label>
+              <input
+                type="text"
+                value={currentAd.landingPage?.url || ""}
+                onChange={(e) => handleChange("landingPage.url", e.target.value)}
+                placeholder="https://www.amazon.com/s?me=TEST"
+                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                  (currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" && errors.landingPageUrl) ? "border-red-500" : "border-gray-200"
+                }`}
+              />
+              {currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND" && errors.landingPageUrl && (
+                <p className="text-[10px] text-red-500 mt-1">{errors.landingPageUrl}</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label-small">
+              ASINs (Optional)
+            </label>
+            {(currentAd.landingPage?.asins || []).map((asin, index) => (
+              <div key={index} className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={asin}
+                  onChange={(e) =>
+                    handleArrayChange("landingPage.asins", index, e.target.value)
+                  }
+                  placeholder="B01EXAMPLE"
+                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveArrayItem("landingPage.asins", index)}
+                  className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
+                  title="Remove"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => handleAddArrayItem("landingPage.asins")}
+              className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
+            >
+              + Add ASIN
+            </button>
+          </div>
+        </div>
+
+        {/* Creative Section */}
+        <div className="mb-4 p-3  border border-gray-200 rounded-lg">
+          <h3 className="section-title">
+            Creative *
+          </h3>
+
 
           {/* Brand Logo Crop - For IMAGE ads and BRAND video ads */}
           {(currentAd.adType === "IMAGE" || (currentAd.adType === "VIDEO" && currentAd.videoAdType === "BRAND")) && (
@@ -1365,57 +1422,6 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
             </>
           )}
 
-          {/* Creative ASINs - At least one required, max 3 */}
-          <div className="mb-4">
-            <label className="form-label-small">
-              ASINs *
-            </label>
-            {(currentAd.creative?.asins || []).map((asin, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={asin}
-                  onChange={(e) =>
-                    handleArrayChange("creative.asins", index, e.target.value)
-                  }
-                  placeholder="B01EXAMPLE"
-                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveArrayItem("creative.asins", index)}
-                  className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
-                  title="Remove"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            ))}
-            {(currentAd.creative?.asins || []).length < 3 && (
-              <button
-                type="button"
-                onClick={() => handleAddArrayItem("creative.asins")}
-                className="text-[11.2px] text-[#136D6D] hover:text-[#0e5a5a]"
-              >
-                + Add ASIN
-              </button>
-            )}
-            {errors.creativeAsins && (
-              <p className="text-[10px] text-red-500 mt-1">{errors.creativeAsins}</p>
-            )}
-          </div>
 
           {/* Consent to Translate - Show for both image and video */}
           <div className="mb-4">

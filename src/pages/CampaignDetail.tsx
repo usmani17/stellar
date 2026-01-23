@@ -3181,23 +3181,22 @@ export const CampaignDetail: React.FC = () => {
       const transformProperties = (props: any) => {
         const transformed = { ...props };
 
-        // Flatten headline structure: properties.headline.headline -> properties.headline
-        // Backend expects: { headline: string, hasTermsAndConditions: boolean, originalHeadline: string }
-        if (transformed.headline && typeof transformed.headline === "object") {
-          // Store the headline object before we modify transformed.headline
-          const headlineObj = transformed.headline;
-
-          // Extract all headline-related fields from the object
-          if (headlineObj.headline !== undefined) {
-            transformed.headline = headlineObj.headline;
+        // For CREATE operations, backend expects headline to be an object:
+        // { headline: { headline: string, hasTermsAndConditions?: boolean, originalHeadline?: string } }
+        // Convert string headline to object format if needed
+        if (transformed.headline) {
+          if (typeof transformed.headline === "string") {
+            // Convert string to object format
+            transformed.headline = {
+              headline: transformed.headline,
+              hasTermsAndConditions: transformed.hasTermsAndConditions || false,
+              originalHeadline: transformed.originalHeadline || "",
+            };
+            // Remove the flat properties since they're now in the headline object
+            delete transformed.hasTermsAndConditions;
+            delete transformed.originalHeadline;
           }
-          if (headlineObj.hasTermsAndConditions !== undefined) {
-            transformed.hasTermsAndConditions =
-              headlineObj.hasTermsAndConditions;
-          }
-          if (headlineObj.originalHeadline !== undefined) {
-            transformed.originalHeadline = headlineObj.originalHeadline;
-          }
+          // If it's already an object, keep it as-is
         }
 
         // Move background.backgrounds to backgrounds directly under properties
@@ -3220,12 +3219,16 @@ export const CampaignDetail: React.FC = () => {
         })),
       });
 
+      console.log("[handleCreateCreative] Amazon API Response:", response);
+
       if (response.success && response.success.length > 0) {
+        console.log("[handleCreateCreative] Success - Created creatives:", response.success);
         // Close panel and reload creatives
         setIsCreateCreativePanelOpen(false);
         setEditingCreative(null);
         await loadCreatives();
       } else if (response.error && response.error.length > 0) {
+        console.error("[handleCreateCreative] Error - Failed to create creatives:", response.error);
         // Extract error messages
         const errorMessages = response.error
           .map(
@@ -3249,7 +3252,8 @@ export const CampaignDetail: React.FC = () => {
         setCreateCreativeError(errorMessages.join(", "));
       }
     } catch (error: any) {
-      console.error("Failed to create creatives:", error);
+      console.error("[handleCreateCreative] Exception - Failed to create creatives:", error);
+      console.error("[handleCreateCreative] Error response:", error?.response?.data);
 
       // Extract error message
       let errorMessage = "Failed to create creatives. Please try again.";
@@ -8738,6 +8742,8 @@ export const CampaignDetail: React.FC = () => {
                       }))}
                       loading={createCreativeLoading}
                       editCreative={editingCreative}
+                      accountId={accountId}
+                      profileId={campaignDetail?.campaign?.profile_id}
                     />
                     {createCreativeError && (
                       <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">

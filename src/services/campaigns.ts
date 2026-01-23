@@ -2387,6 +2387,7 @@ export const campaignsService = {
   ) => {
     const url = `/accounts/${accountId}/sd/creatives/create/`;
     const response = await api.post(url, data);
+    console.log("[createSdCreatives] Amazon API Response:", response.data);
     return response.data;
   },
 
