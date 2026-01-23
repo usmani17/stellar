@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { queryClient } from "../lib/queryClient";
+import { accountsService } from "../services/accounts";
+import { queryKeys } from "../hooks/queries/queryKeys";
 import {
   AuthPageLayout,
   AuthHeader,
@@ -16,6 +19,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [auth0Loading, setAuth0Loading] = useState(false);
   const { login, loginWithAuth0 } = useAuth();
   const navigate = useNavigate();
 
@@ -26,16 +30,49 @@ export const Login: React.FC = () => {
 
     try {
       await login({ email, password });
+      
+      // Prefetch accounts data before navigating so they're ready when page loads
+      try {
+        await queryClient.prefetchQuery({
+          queryKey: queryKeys.accounts.lists(),
+          queryFn: async () => {
+            const data = await accountsService.getAccounts();
+            return Array.isArray(data) ? data : [];
+          },
+        });
+      } catch (prefetchError) {
+        // If prefetch fails, that's okay - the Accounts page will fetch on mount
+        console.warn("Failed to prefetch accounts:", prefetchError);
+      }
+      
       navigate("/accounts");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed. Please try again.");
-    } finally {
+      // Better error handling - check for axios error structure
+      const errorMessage = 
+        err?.response?.data?.error || 
+        err?.response?.data?.message ||
+        err?.message ||
+        "Login failed. Please check your email and password.";
+      setError(errorMessage);
       setLoading(false);
     }
   };
 
   const handleAuth0Login = async () => {
-    await loginWithAuth0();
+    setAuth0Loading(true);
+    try {
+      await loginWithAuth0();
+      // Note: We don't set loading to false here because the page will redirect
+      // If there's an error, it will be caught and we'll reset the loading state
+    } catch (err: any) {
+      const errorMessage = 
+        err?.response?.data?.error || 
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to initiate Auth0 login. Please try again.";
+      setError(errorMessage);
+      setAuth0Loading(false);
+    }
   };
 
   return (
@@ -141,6 +178,8 @@ export const Login: React.FC = () => {
             className="self-stretch"
             variant="oauth"
             type="button"
+            loading={auth0Loading}
+            loadingText="Processing"
           >
             <div className="flex items-center gap-2">
               <img src={auth0Icon} alt="Auth0" className="w-5 h-5" />

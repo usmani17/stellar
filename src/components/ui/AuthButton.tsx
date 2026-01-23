@@ -46,7 +46,14 @@ export const AuthButton: React.FC<AuthButtonProps> = ({
         style={{ fontFamily: "Poppins, sans-serif", color: "black" }}
         {...props}
       >
-        {children}
+        {loading ? (
+          <div className="flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-black border-t-transparent"></div>
+            <span>{loadingText || "Processing"}</span>
+          </div>
+        ) : (
+          children
+        )}
       </button>
     );
   }

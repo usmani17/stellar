@@ -1263,7 +1263,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                     {/* Ad Group (read-only) */}
                     {/* Ad Group Selection */}
                     <div>
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Ad Group *
                         </label>
                         {adgroups.length > 0 ? (
@@ -1289,7 +1289,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                     {/* Ad Name */}
                     <div>
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Ad Name *
                         </label>
                         <input
@@ -1311,7 +1311,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                     {/* Ad Format */}
                     <div>
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Ad Format *
                         </label>
                         <Dropdown
@@ -1338,7 +1338,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 <div className="grid grid-cols-3 gap-6 mb-4">
                     {/* Ad Text */}
                     <div className="md:col-span-2">
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Ad Text *
                         </label>
                         <textarea
@@ -1362,7 +1362,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                     <div className="space-y-3">
                         {/* Identity Type */}
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Identity Type *
                             </label>
                             <Dropdown
@@ -1376,7 +1376,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                         {/* Identity ID */}
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Identity ID *
                             </label>
                             <input
@@ -1407,7 +1407,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                     {/* Video ID (for video formats) */}
                     {isSingleVideo && (
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Video ID *
                             </label>
                             <input
@@ -1431,7 +1431,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                     {/* Image IDs (for image/carousel formats) */}
                     {(isSingleImage || isCarousel || isCatalogCarousel) && (
                         <div className={isCarousel || isCatalogCarousel ? "md:col-span-2" : ""}>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Image IDs *
                             </label>
                             <input
@@ -1470,7 +1470,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Product Specific Type */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Product Specific Type *
                                         </label>
                                         <Dropdown
@@ -1492,7 +1492,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     {/* Product Set ID (conditional) */}
                                     {productSpecificType === "PRODUCT_SET" && (
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Product Set ID *
                                             </label>
                                             <input
@@ -1517,7 +1517,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Item Group IDs (for ALL or PRODUCT_SET) */}
                                 {(productSpecificType === "ALL" || productSpecificType === "PRODUCT_SET") && (
                                     <div className="mb-4">
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Item Group IDs * (comma-separated, max 50)
                                         </label>
                                         <input
@@ -1541,7 +1541,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* SKU IDs (for CUSTOMIZED_PRODUCTS) */}
                                 {productSpecificType === "CUSTOMIZED_PRODUCTS" && (
                                     <div className="mb-4">
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             SKU IDs * (comma-separated, max 20)
                                         </label>
                                         <input
@@ -1564,7 +1564,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                                 {/* Vertical Video Strategy */}
                                 <div className="mb-4">
-                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                    <label className="form-label">
                                         Vertical Video Strategy
                                     </label>
                                     <Dropdown
@@ -1579,7 +1579,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Landing Page URL (required for Catalog Video Shopping Ads) */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Landing Page URL *
                                         </label>
                                         <input
@@ -1601,7 +1601,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                                     {/* Call to Action */}
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -1623,7 +1623,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             <>
                                 {/* Item Group IDs for Store */}
                                 <div className="mb-4">
-                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                    <label className="form-label">
                                         Item Group IDs (comma-separated)
                                     </label>
                                     <input
@@ -1638,7 +1638,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Landing Page URL (optional for Store) */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Landing Page URL
                                         </label>
                                         <input
@@ -1652,7 +1652,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                                     {/* Call to Action */}
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -1674,7 +1674,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             <>
                                 {/* Showcase Products */}
                                 <div className="mb-4">
-                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                    <label className="form-label">
                                         Showcase Products * (JSON array or pipe-separated: item_group_id,store_id,catalog_id|...)
                                     </label>
                                     <textarea
@@ -1700,7 +1700,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Landing Page URL (optional for Showcase) */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Landing Page URL
                                         </label>
                                         <input
@@ -1714,7 +1714,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                                     {/* Call to Action */}
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -1737,7 +1737,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Live Shopping Ads typically don't need landing page URL */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -1760,7 +1760,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Product Shopping Ads - similar to Video Shopping Ads with Store */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Landing Page URL
                                         </label>
                                         <input
@@ -1773,7 +1773,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -1800,7 +1800,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     {promotionWebsiteType === "TIKTOK_NATIVE_PAGE" ? (
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 TikTok Instant Page ID
                                             </label>
                                             <input
@@ -1820,7 +1820,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         </div>
                                     ) : (
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Landing Page URL *
                                             </label>
                                             <input
@@ -1843,7 +1843,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                                     {/* Call to Action */}
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -1867,7 +1867,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     {promotionTargetType === "EXTERNAL_WEBSITE" ? (
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Landing Page URL *
                                             </label>
                                             <input
@@ -1888,7 +1888,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         </div>
                                     ) : (
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 TikTok Instant Page ID
                                             </label>
                                             <input
@@ -1909,7 +1909,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     )}
 
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -1932,7 +1932,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Phone Call Fields */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Phone Number *
                                         </label>
                                         <input
@@ -1952,7 +1952,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         )}
                                     </div>
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Region Code *
                                         </label>
                                         <input
@@ -1972,7 +1972,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         )}
                                     </div>
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Calling Code *
                                         </label>
                                         <input
@@ -1994,7 +1994,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 </div>
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -2015,7 +2015,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                         {isLeadGenDirectMessage && (
                             <>
                                 <div className="mb-4">
-                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                    <label className="form-label">
                                         Auto Message ID *
                                     </label>
                                     <input
@@ -2036,7 +2036,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 </div>
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -2058,7 +2058,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             <>
                                 {isOptimizationClick && messagingAppType && ["MESSENGER", "WHATSAPP"].includes(messagingAppType) && !pageId.trim() && (
                                     <div className="mb-4">
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Tracking Message Event Set ID *
                                         </label>
                                         <input
@@ -2080,7 +2080,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 )}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -2101,7 +2101,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                         {isLeadGenAutomotive && isCatalogCarousel && (
                             <>
                                 <div className="mb-4">
-                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                    <label className="form-label">
                                         End Card CTA *
                                     </label>
                                     <Dropdown
@@ -2121,7 +2121,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 </div>
                                 {productSpecificType === "CUSTOMIZED_PRODUCTS" && (
                                     <div className="mb-4">
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Vehicle IDs * (comma-separated, max 20)
                                         </label>
                                         <input
@@ -2152,7 +2152,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             <>
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Landing Page URL
                                         </label>
                                         <input
@@ -2165,7 +2165,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -2183,7 +2183,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Deeplink for App Promotion */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Deeplink
                                         </label>
                                         <input
@@ -2211,7 +2211,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* App install/retargeting - deeplink required */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Deeplink *
                                         </label>
                                         <input
@@ -2232,7 +2232,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -2250,7 +2250,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Deeplink Format Type and Fallback Type */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Deeplink Format Type
                                         </label>
                                         <Dropdown
@@ -2262,7 +2262,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Fallback Type
                                         </label>
                                         <Dropdown
@@ -2278,7 +2278,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Custom Product Page URL (allowlist-only) */}
                                 {isAppPromotionIos && (
                                     <div className="mb-4">
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Custom Product Page URL (Allowlist Only)
                                         </label>
                                         <input
@@ -2296,7 +2296,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                         {/* App Promotion - Pre-registration */}
                         {isAppPromotionPreRegistration && promotionWebsiteType === "TIKTOK_NATIVE_PAGE" && (
                             <div className="mb-4">
-                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                <label className="form-label">
                                     Creative Type *
                                 </label>
                                 <Dropdown
@@ -2325,7 +2325,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Destination Visit - Deeplink Format Type and Deeplink required */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Deeplink Format Type *
                                         </label>
                                         <Dropdown
@@ -2344,7 +2344,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                         )}
                                     </div>
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Deeplink *
                                         </label>
                                         <input
@@ -2366,7 +2366,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 </div>
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -2386,7 +2386,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                 {/* Standard Traffic - Landing Page URL required */}
                                 <div className="grid grid-cols-3 gap-6 mb-4">
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Landing Page URL *
                                         </label>
                                         <input
@@ -2407,7 +2407,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                        <label className="form-label">
                                             Call to Action
                                         </label>
                                         <Dropdown
@@ -2432,7 +2432,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             {/* Landing Page URL (conditional based on promotion type) */}
                             {isPromotionWebsite && (
                                 <div>
-                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                    <label className="form-label">
                                         Landing Page URL
                                     </label>
                                     <input
@@ -2447,7 +2447,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
 
                             {/* Call to Action */}
                             <div>
-                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                <label className="form-label">
                                     Call to Action
                                 </label>
                                 <Dropdown
@@ -2466,7 +2466,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {isOptimizationPageVisit && (
                     <div className="grid grid-cols-3 gap-6 mb-4">
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 TikTok Page Category *
                             </label>
                             <Dropdown
@@ -2486,7 +2486,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                         </div>
                         {tiktokPageCategory === "TIKTOK_INSTANT_PAGE" && (
                             <div>
-                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                <label className="form-label">
                                     Page ID *
                                 </label>
                                 <input
@@ -2513,7 +2513,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {/* Music ID for Carousel */}
                 {(isCarousel || isCatalogCarousel) && (
                     <div className="mb-4">
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Music ID * (required for Carousel)
                         </label>
                         <input
@@ -2537,7 +2537,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {/* Creative Type for Live Content */}
                 {isLiveContent && (
                     <div className="mb-4">
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Creative Type * (required for Live Content)
                         </label>
                         <Dropdown
@@ -2567,7 +2567,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {/* Catalog Carousel Image Index */}
                 {isCatalogCarousel && (
                     <div className="mb-4">
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Carousel Image Index (0-9, optional)
                         </label>
                         <input
@@ -2585,7 +2585,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {/* Spark Ads Pull - TikTok Item ID */}
                 {isSparkAdsPull && (
                     <div className="mb-4">
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             TikTok Item ID * (required for Spark Ads Pull)
                         </label>
                         <input
@@ -2610,7 +2610,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {(isIdentityAuthCode || isIdentityBcAuthTt) && (
                     <div className="grid grid-cols-3 gap-6 mb-4">
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Promotional Music Disabled
                             </label>
                             <Dropdown
@@ -2625,7 +2625,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             />
                         </div>
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Item Duet Status
                             </label>
                             <Dropdown
@@ -2637,7 +2637,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             />
                         </div>
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Item Stitch Status
                             </label>
                             <Dropdown
@@ -2654,7 +2654,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {/* RF_REACH - Schedule ID */}
                 {isRfReach && (
                     <div className="mb-4">
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Schedule ID (for sequenced delivery)
                         </label>
                         <input
@@ -2670,7 +2670,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {/* UTM Params (conditional - supported for certain scenarios) */}
                 {supportsUtmParams && (
                     <div className="mb-4">
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             UTM Parameters (optional)
                         </label>
                         <div className="space-y-2">
@@ -2733,11 +2733,11 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 {/* Disclaimer Fields (allowlist-only) */}
                 {supportsDisclaimers && (
                     <div className="mb-4 space-y-3">
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Disclaimer Fields (Allowlist Only)
                         </label>
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Disclaimer Type
                             </label>
                             <Dropdown
@@ -2749,7 +2749,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             />
                         </div>
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Disclaimer Text
                             </label>
                             <textarea
@@ -2761,7 +2761,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                             />
                         </div>
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Disclaimer Clickable Texts
                             </label>
                             <input
@@ -2779,7 +2779,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 <div className="grid grid-cols-3 gap-6 mb-4">
                     {/* Tracking Pixel (optional for all) */}
                     <div>
-                        <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                        <label className="form-label">
                             Tracking Pixel ID
                         </label>
                         <input

@@ -2,14 +2,26 @@ import api from "./api";
 
 export interface LogEntry {
   id: number;
-  entity: string;
-  field: string;
-  old_value: string;
-  new_value: string;
-  changed_by: number;
-  changed_by_name: string;
-  changed_at: string;
-  method: "Inline" | "AI" | "Bulk";
+  profileId?: string;
+  action?: string;
+  campaignId?: string;
+  ad_type?: string;
+  entity_type?: string;
+  entity_id?: string;
+  entity_name?: string;
+  field_name?: string;
+  old_value?: string;
+  new_value?: string;
+  status?: string;
+  error_details?: string;
+  method?: "Inline" | "AI" | "Bulk";
+  changed_by?: number;
+  changed_by_name?: string;
+  changed_at?: string;
+  marketplace?: string;
+  // Legacy fields for backward compatibility
+  entity?: string;
+  field?: string;
   campaign_id?: string;
 }
 
@@ -23,6 +35,7 @@ export interface LogsResponse {
 
 export interface LogsQueryParams {
   campaign_id?: string;
+  marketplace?: string; // 'amazon', 'google', 'tiktok'
   page?: number;
   page_size?: number;
   start_date?: string;
@@ -55,6 +68,9 @@ export const logsService = {
     const queryParams = new URLSearchParams();
     if (params?.campaign_id) {
       queryParams.append("campaign_id", params.campaign_id);
+    }
+    if (params?.marketplace) {
+      queryParams.append("marketplace", params.marketplace);
     }
     if (params?.page) {
       queryParams.append("page", params.page.toString());

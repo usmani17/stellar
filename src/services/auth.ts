@@ -7,6 +7,7 @@ export interface User {
   last_name: string;
   company_name: string;
   created_at: string;
+  has_unusable_password?: boolean;
 }
 
 export interface AuthResponse {
@@ -72,6 +73,38 @@ export const authService = {
 
   updateProfile: async (data: Partial<User>): Promise<User> => {
     const response = await api.put<User>('/users/profile/', data);
+    return response.data;
+  },
+
+  saveAuth0Tokens: async (accessToken: string, refreshToken: string): Promise<{ message: string; user_id: number }> => {
+    const response = await api.post<{ message: string; user_id: number }>('/users/save-auth0-tokens/', {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    return response.data;
+  },
+
+  // Backend Auth0 OAuth endpoints
+  getAuth0LoginUrl: async (options?: { connection?: string; screen_hint?: string }): Promise<{ auth_url: string; state: string }> => {
+    const params = new URLSearchParams();
+    if (options?.connection) params.append('connection', options.connection);
+    if (options?.screen_hint) params.append('screen_hint', options.screen_hint);
+    // Don't pass redirect_uri - backend will use its own callback URL from settings
+    
+    const response = await api.get<{ auth_url: string; state: string }>(`/users/auth0/login/?${params.toString()}`);
+    return response.data;
+  },
+
+  getAuth0LogoutUrl: async (): Promise<{ logout_url: string }> => {
+    const response = await api.get<{ logout_url: string }>('/users/auth0/logout/');
+    return response.data;
+  },
+
+  updatePassword: async (newPassword: string, newPassword2: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/users/update-password/', {
+      new_password: newPassword,
+      new_password2: newPassword2,
+    });
     return response.data;
   },
 };

@@ -222,7 +222,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
           {/* For SD campaigns, show type selector on its own row */}
           {campaignType === "SD" && (
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Product Type *
               </label>
               <div className="flex gap-4">
@@ -299,7 +299,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
           <div className="flex items-end gap-3">
             {/* Ad Group Dropdown */}
             <div className="flex-1 min-w-[180px] w-full">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Ad Group *
               </label>
               <Dropdown<string>
@@ -322,7 +322,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
             {/* SKU Input - Show for SP or SD (when SKU type selected) */}
             {(campaignType !== "SD" || sdProductType === "sku") && (
               <div className="flex-1 min-w-[150px]">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   {campaignType === "SD" ? "SKU *" : "SKU"}
                 </label>
                 <input
@@ -343,7 +343,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
             {/* ASIN Input - Show for SP/SB or SD (when ASIN type selected) */}
             {(campaignType !== "SD" || sdProductType === "asin") && (
               <div className="flex-1 min-w-[150px]">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   ASIN {campaignType !== "SD" ? "*" : "*"}
                 </label>
                 <input
@@ -363,7 +363,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
             {campaignType === "SD" && sdProductType === "off-amazon" && (
               <>
                 <div className="flex-1 min-w-[200px]">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Landing Page URL *
                   </label>
                   <input
@@ -382,7 +382,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                   )}
                 </div>
                 <div className="flex-1 min-w-[150px]">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Landing Page Type
                   </label>
                   <Dropdown<string>
@@ -400,7 +400,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
                   />
                 </div>
                 <div className="flex-1 min-w-[150px]">
-                  <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                  <label className="form-label-small">
                     Ad Name *
                   </label>
                   <input
@@ -422,7 +422,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
             {/* Custom Text Input - Only for SP/SB */}
             {campaignType !== "SD" && (
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Custom Text
                 </label>
                 <input
@@ -444,7 +444,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
             {/* Catalog Source Country Code - Only for SP/SB */}
             {campaignType !== "SD" && (
               <div className="flex-1 min-w-[150px]">
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Country Code
                 </label>
                 <input
@@ -462,7 +462,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
 
             {/* State Dropdown */}
             <div className="flex-1 min-w-[120px] w-full">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 State *
               </label>
               <Dropdown<string>

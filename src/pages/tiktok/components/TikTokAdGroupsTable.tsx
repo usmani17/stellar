@@ -292,7 +292,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
     const someSelected = selectableAdgroups.some(ag => selectedAdgroups.has(ag.adgroup_id));
 
     return (
-        <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+        <div className="table-container">
             <div className="overflow-x-auto w-full">
                 {loading ? (
                     <div className="text-center py-8 text-[#556179] text-[13.3px]">
@@ -563,7 +563,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                             onClose={cancelInlineEdit}
                                                             defaultOpen={true}
                                                             closeOnSelect={true}
-                                                            buttonClassName="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#136D6D]"
+                                                            buttonClassName="inline-edit-dropdown"
                                                         />
                                                     </div>
                                                 ) : (

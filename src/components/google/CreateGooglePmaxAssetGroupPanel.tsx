@@ -291,7 +291,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
           </h3>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Asset Group Name *
               </label>
               <input
@@ -319,7 +319,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
               )}
             </div>
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Final URL (Optional)
               </label>
               <input
@@ -374,7 +374,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
             </button>
           </div>
           <div className="mb-3">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Headlines * (3-15 required)
             </label>
             <div className="space-y-2">
@@ -428,7 +428,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
           </div>
 
           <div className="mb-3">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Descriptions * (2-4 required)
             </label>
             <div className="space-y-2">
@@ -487,7 +487,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             {/* Row 1: Long Headline and Business Name */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Long Headline * (Required)
               </label>
               <input
@@ -517,7 +517,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
             </div>
 
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Business Name (Optional)
               </label>
               <input
@@ -531,7 +531,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
 
             {/* Row 2: Marketing Image URLs */}
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Marketing Image URL (Optional)
               </label>
               <input
@@ -565,7 +565,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
             </div>
 
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Square Marketing Image URL (Optional)
               </label>
               <input
@@ -599,7 +599,7 @@ export const CreateGooglePmaxAssetGroupPanel: React.FC<
             </div>
 
             <div>
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Logo URL (Optional)
               </label>
               <input

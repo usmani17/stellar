@@ -639,7 +639,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <div className="flex items-start gap-2">
           {/* Field Dropdown */}
           <div className="w-[200px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Filter
             </label>
             <Dropdown<string>
@@ -728,7 +728,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           {/* Operator Dropdown (for campaign_name and budget) */}
           {selectedField && needsOperator && (
             <div className="w-[150px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Operator
               </label>
               <Dropdown<string>
@@ -766,7 +766,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           {selectedField && (
             <div className={isExpression ? "flex-1" : "w-[150px]"}>
               {!isExpression && (
-                <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                <label className="form-label-small">
                   Value
                 </label>
               )}
@@ -974,7 +974,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 <div className="flex flex-row gap-2 items-end">
                   {/* Expression Type Dropdown */}
                   <div className="flex-1">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    <label className="form-label-small">
                       Expression Type
                     </label>
                     <Dropdown<string>
@@ -990,7 +990,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                   </div>
                   {/* Expression Value Input */}
                   <div className="flex-1">
-                    <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+                    <label className="form-label-small">
                       Expression Value (ASIN)
                     </label>
                     <input
@@ -1036,7 +1036,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           {/* Add Filter Button */}
           <div className="flex flex-col">
             {/* Empty placeholder to match label height (text-[11.2px] + mb-2) */}
-            <div className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase invisible">
+            <div className="form-label-small invisible">
               &nbsp;
             </div>
             <button

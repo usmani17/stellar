@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 import type { AdGroup, CampaignDetail } from "../../services/campaigns";
 
 interface AdGroupsTableProps {
@@ -171,7 +172,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
+    <div className="table-container">
       <div className="overflow-x-auto w-full">
         {adgroups.length === 0 && !loading ? (
           <div className="text-center py-8">
@@ -208,12 +209,9 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                   </div>
                 </th>
 
-                {/* Ad Group ID Header */}
-                <th className="table-header">Ad Group ID</th>
-
                 {/* Campaign Name Header - Only show when not in campaign detail */}
                 {showCampaignColumn && (
-                  <th className="table-header min-w-[150px] max-w-[200px]">
+                  <th className="table-header min-w-[225px] max-w-[300px]">
                     Campaign Name
                   </th>
                 )}
@@ -244,7 +242,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                 {/* State Header */}
                 <th
-                  className={`table-header min-w-[115px] ${
+                  className={`table-header min-w-[250px] ${
                     onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}
                   onClick={() => onSort?.("status")}
@@ -373,7 +371,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
               {loading && adgroups.length === 0 ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={`skeleton-${index}`} className="table-row">
-                    <td className="table-cell" colSpan={15}>
+                    <td className="table-cell" colSpan={14}>
                       <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                     </td>
                   </tr>
@@ -387,7 +385,6 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                       <td className="table-cell table-text leading-[1.26]">
                         Total ({summary.total_adgroups})
                       </td>
-                      <td className="table-cell"></td>
                       {showCampaignColumn && (
                         <>
                           <td className="table-cell"></td>
@@ -526,22 +523,21 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                           )}
                         </td>
 
-                        {/* Ad Group ID */}
-                        <td className="table-cell">
-                          <span className="table-text leading-[1.26]">
-                            {adgroup.adGroupId || "—"}
-                          </span>
-                        </td>
-
                         {/* Campaign Name - Only show when not in campaign detail */}
                         {showCampaignColumn && (
-                          <td className="table-cell min-w-[150px] max-w-[200px]">
+                          <td className="table-cell min-w-[225px] max-w-[300px]">
                             {adgroup.campaignId ? (
                               <button
                                 onClick={(e) =>
                                   handleCampaignNameClick(adgroup, e)
                                 }
-                                className="text-[13.3px] text-[#136D6D] hover:text-[#0f5a5a] hover:underline leading-[1.26] text-left truncate block w-full cursor-pointer"
+                                className="table-edit-link text-left block w-full"
+                                style={{
+                                  whiteSpace: 'normal',
+                                  overflow: 'visible',
+                                  textOverflow: 'clip',
+                                  wordBreak: 'break-word',
+                                }}
                                 title={
                                   adgroup.campaign_name ||
                                   "View campaign details"
@@ -550,7 +546,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                 {adgroup.campaign_name || "—"}
                               </button>
                             ) : (
-                              <span className="table-text leading-[1.26] text-left truncate block w-full">
+                              <span className="table-text leading-[1.26] text-left whitespace-normal break-words block w-full">
                                 {adgroup.campaign_name || "—"}
                               </span>
                             )}
@@ -585,202 +581,178 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         )}
 
                         {/* State */}
-                        <td className="table-cell min-w-[115px]">
-                          {inlineEditLoading.has(adgroup.id) ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {pendingChange?.field === "status"
-                                  ? pendingChange.newValue === "enabled"
-                                    ? "Enabled"
-                                    : pendingChange.newValue === "paused"
-                                    ? "Paused"
-                                    : "Archived"
-                                  : adgroup.status}
-                              </span>
-                              <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                          ) : pendingChange?.id === adgroup.id &&
-                            pendingChange?.field === "status" ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {pendingChange.newValue === "enabled"
-                                  ? "Enabled"
-                                  : pendingChange.newValue === "paused"
-                                  ? "Paused"
-                                  : "Archived"}
-                              </span>
-                            </div>
-                          ) : editingField?.id === adgroup.id &&
-                            editingField?.field === "status" ? (
-                            <div className="flex items-center gap-2">
+                        <td className="table-cell min-w-[250px]">
+                          {(() => {
+                            if (inlineEditLoading.has(adgroup.id)) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="table-text leading-[1.26]">
+                                    {pendingChange?.field === "status"
+                                      ? pendingChange.newValue === "enabled"
+                                        ? "Enabled"
+                                        : pendingChange.newValue === "paused"
+                                        ? "Paused"
+                                        : "Archived"
+                                      : adgroup.status}
+                                  </span>
+                                  <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                              );
+                            }
+                            
+                            if (pendingChange?.id === adgroup.id &&
+                                pendingChange?.field === "status") {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="table-text leading-[1.26]">
+                                    {pendingChange.newValue === "enabled"
+                                      ? "Enabled"
+                                      : pendingChange.newValue === "paused"
+                                      ? "Paused"
+                                      : "Archived"}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            
+                            if (isArchived) {
+                              return (
+                                <div className="opacity-60">
+                                  <StatusBadge status={adgroup.status} />
+                                </div>
+                              );
+                            }
+                            
+                            const statusLower =
+                              adgroup.status?.toLowerCase() || "enabled";
+                            const statusValue =
+                              statusLower === "enable" ||
+                              statusLower === "enabled"
+                                ? "enabled"
+                                : statusLower === "paused"
+                                ? "paused"
+                                : "archived";
+                            
+                            const currentValue = editingField?.id === adgroup.id &&
+                              editingField?.field === "status"
+                              ? editedValue
+                              : statusValue;
+                            
+                            return (
                               <Dropdown
                                 options={[
                                   { value: "enabled", label: "Enabled" },
                                   { value: "paused", label: "Paused" },
                                   { value: "archived", label: "Archived" },
                                 ]}
-                                value={(() => {
-                                  if (editedValue) return editedValue;
-                                  const statusLower =
-                                    adgroup.status?.toLowerCase() || "enabled";
-                                  return statusLower === "enable" ||
-                                    statusLower === "enabled"
-                                    ? "enabled"
-                                    : statusLower === "paused"
-                                    ? "paused"
-                                    : "archived";
-                                })()}
+                                value={currentValue}
                                 onChange={(val) => {
-                                  // Mark that a selection was made for this adgroup
-                                  statusSelectionMadeRef.current = adgroup.id;
                                   const newValue = val as string;
-                                  onEditChange?.(newValue);
-                                  // Call onEditEnd with the new value immediately when a value is selected
-                                  // This will trigger the pending change confirmation
-                                  onEditEnd?.(newValue);
-                                  // Clear the ref after a short delay to allow onClose to check it
-                                  setTimeout(() => {
-                                    if (
-                                      statusSelectionMadeRef.current ===
-                                      adgroup.id
-                                    ) {
-                                      statusSelectionMadeRef.current = null;
-                                    }
-                                  }, 200);
-                                }}
-                                onClose={() => {
-                                  // Only cancel if no selection was made (clicked outside)
-                                  // If a selection was made, statusSelectionMadeRef will be set
-                                  if (
-                                    statusSelectionMadeRef.current !==
-                                      adgroup.id &&
-                                    editingField?.id === adgroup.id
-                                  ) {
-                                    onEditCancel?.();
+                                  if (editingField?.id !== adgroup.id ||
+                                      editingField?.field !== "status") {
+                                    onEditStart?.(adgroup.id, "status", statusValue);
                                   }
+                                  onEditChange?.(newValue);
+                                  onEditEnd?.(newValue);
                                 }}
-                                defaultOpen={true}
-                                closeOnSelect={true}
-                                buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                buttonClassName="inline-edit-dropdown"
                                 width="w-full"
                                 align="center"
                               />
-                            </div>
-                          ) : (
-                            <div
-                              className={`text-[13.3px] leading-[1.26] ${
-                                isArchived
-                                  ? "cursor-not-allowed opacity-60"
-                                  : "cursor-pointer hover:underline"
-                              }`}
-                              onClick={() => {
-                                if (!isArchived) {
-                                  const statusLower =
-                                    adgroup.status?.toLowerCase() || "enabled";
-                                  const statusValue =
-                                    statusLower === "enable" ||
-                                    statusLower === "enabled"
-                                      ? "enabled"
-                                      : statusLower === "paused"
-                                      ? "paused"
-                                      : "archived";
-                                  onEditStart?.(
-                                    adgroup.id,
-                                    "status",
-                                    statusValue
-                                  );
-                                }
-                              }}
-                            >
-                              <StatusBadge status={adgroup.status} />
-                            </div>
-                          )}
+                            );
+                          })()}
                         </td>
 
                         {/* Default Bid */}
                         <td className="table-cell">
-                          {inlineEditLoading.has(adgroup.id) ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {pendingChange?.field === "default_bid"
-                                  ? pendingChange.newValue.startsWith("$")
-                                    ? pendingChange.newValue
-                                    : `$${parseFloat(
-                                        pendingChange.newValue || "0"
-                                      ).toLocaleString(undefined, {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      })}`
-                                  : adgroup.default_bid || "$0.00"}
-                              </span>
-                              <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                          ) : pendingChange?.id === adgroup.id &&
-                            pendingChange?.field === "default_bid" ? (
-                            <div className="flex items-center gap-2">
-                              <span className="table-text leading-[1.26]">
-                                {pendingChange.newValue.startsWith("$")
-                                  ? pendingChange.newValue
-                                  : `$${parseFloat(
-                                      pendingChange.newValue || "0"
-                                    ).toLocaleString(undefined, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    })}`}
-                              </span>
-                            </div>
-                          ) : editingField?.id === adgroup.id &&
-                            editingField?.field === "default_bid" ? (
-                            <div className="flex items-center">
+                          {(() => {
+                            if (inlineEditLoading.has(adgroup.id)) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="table-text leading-[1.26]">
+                                    {pendingChange?.field === "default_bid"
+                                      ? pendingChange.newValue.startsWith("$")
+                                        ? pendingChange.newValue
+                                        : `$${parseFloat(
+                                            pendingChange.newValue || "0"
+                                          ).toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}`
+                                      : adgroup.default_bid || "$0.00"}
+                                  </span>
+                                  <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                              );
+                            }
+                            
+                            if (pendingChange?.id === adgroup.id &&
+                                pendingChange?.field === "default_bid") {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="table-text leading-[1.26]">
+                                    {pendingChange.newValue.startsWith("$")
+                                      ? pendingChange.newValue
+                                      : `$${parseFloat(
+                                          pendingChange.newValue || "0"
+                                        ).toLocaleString(undefined, {
+                                          minimumFractionDigits: 2,
+                                          maximumFractionDigits: 2,
+                                        })}`}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            
+                            const currentBid = adgroup.default_bid
+                              ? adgroup.default_bid.replace(/[^0-9.]/g, "")
+                              : "0";
+                            
+                            const bidValue = editingField?.id === adgroup.id &&
+                              editingField?.field === "default_bid"
+                              ? (editedValue?.replace(/[^0-9.]/g, "") || currentBid)
+                              : currentBid;
+                            
+                            return (
                               <input
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                value={
-                                  editedValue?.replace(/[^0-9.]/g, "") || ""
-                                }
-                                onChange={(e) => onEditChange?.(e.target.value)}
+                                value={bidValue}
+                                onFocus={() => {
+                                  if (!isArchived &&
+                                      (editingField?.id !== adgroup.id ||
+                                       editingField?.field !== "default_bid")) {
+                                    onEditStart?.(adgroup.id, "default_bid", currentBid);
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  if (isArchived) return;
+                                  onEditChange?.(e.target.value);
+                                }}
                                 onBlur={(e) => {
+                                  if (isArchived) return;
                                   const inputValue = e.target.value;
-                                  onEditEnd?.(inputValue);
+                                  if (editingField?.id === adgroup.id &&
+                                      editingField?.field === "default_bid") {
+                                    onEditEnd?.(inputValue);
+                                  }
                                 }}
                                 onKeyDown={(e) => {
+                                  if (isArchived) return;
                                   if (e.key === "Enter") {
                                     e.currentTarget.blur();
                                   } else if (e.key === "Escape") {
                                     onEditCancel?.();
                                   }
                                 }}
-                                className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24"
-                                autoFocus
+                                disabled={isArchived}
+                                className={`inline-edit-input w-24 ${
+                                  isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                }`}
                               />
-                            </div>
-                          ) : (
-                            <div
-                              className={`table-text leading-[1.26] ${
-                                isArchived
-                                  ? "cursor-not-allowed opacity-60"
-                                  : "cursor-pointer hover:underline"
-                              }`}
-                              onClick={() => {
-                                if (!isArchived) {
-                                  const currentBid = adgroup.default_bid
-                                    ? adgroup.default_bid.replace(
-                                        /[^0-9.]/g,
-                                        ""
-                                      )
-                                    : "0";
-                                  onEditStart?.(
-                                    adgroup.id,
-                                    "default_bid",
-                                    currentBid
-                                  );
-                                }
-                              }}
-                            >
-                              {adgroup.default_bid || "$0.00"}
-                            </div>
-                          )}
+                            );
+                          })()}
                         </td>
 
                         {/* CTR */}
@@ -860,25 +832,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
       {loading && (
         <div className="loading-overlay">
           <div className="loading-overlay-content">
-            <svg
-              className="loading-spinner"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <p className="loading-message">Loading ad groups...</p>
+            <Loader size="lg" message="Loading ad groups..." />
           </div>
         </div>
       )}

@@ -311,7 +311,7 @@ export const CreateNegativeKeywordPanel: React.FC<
         <div className="flex items-end gap-3">
           {/* Ad Group Dropdown */}
           <div className="flex-1 min-w-[180px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Ad Group *
             </label>
             <Dropdown<string>
@@ -333,7 +333,7 @@ export const CreateNegativeKeywordPanel: React.FC<
 
           {/* Keyword Text */}
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Keyword Text *
             </label>
             <input
@@ -354,7 +354,7 @@ export const CreateNegativeKeywordPanel: React.FC<
 
           {/* Match Type */}
           <div className="w-[180px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Match Type *
             </label>
             <Dropdown<string>
@@ -374,7 +374,7 @@ export const CreateNegativeKeywordPanel: React.FC<
           {/* State - Only shown for SP campaigns (SB cannot set state at creation) */}
           {!isSB && (
             <div className="w-[140px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 State *
               </label>
               <Dropdown<string>

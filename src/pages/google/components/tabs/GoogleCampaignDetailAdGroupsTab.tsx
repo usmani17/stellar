@@ -4,6 +4,7 @@ import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
+import { Loader } from "../../../../components/ui/Loader";
 import {
   FilterPanel,
   type FilterValues,
@@ -584,7 +585,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
           >
             {syncing ? (
               <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                 Syncing...
               </span>
             ) : (
@@ -601,7 +602,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
             >
               {syncingAnalytics ? (
                 <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                  <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                   Syncing Analytics...
                 </span>
               ) : (
@@ -739,7 +740,58 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                       </td>
                       <td className="table-cell hidden md:table-cell">
                         <div className="relative w-full">
-                          {editingAdGroupId === adgroup.id &&
+                          {updatingAdGroupId === adgroup.id &&
+                          pendingChange?.field === "status" ? (
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={pendingChange.newValue} />
+                              <Loader size="sm" showMessage={false} />
+                            </div>
+                          ) : pendingChange?.id === adgroup.id &&
+                            pendingChange?.field === "status" ? (
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={pendingChange.newValue} />
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={confirmChange}
+                                  className="p-1 hover:bg-green-50 rounded transition-colors"
+                                  title="Confirm"
+                                >
+                                  <svg
+                                    className="w-4 h-4 text-green-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={cancelChange}
+                                  className="p-1 hover:bg-red-50 rounded transition-colors"
+                                  title="Cancel"
+                                >
+                                  <svg
+                                    className="w-4 h-4 text-red-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ) : editingAdGroupId === adgroup.id &&
                             editingField === "status" &&
                             onUpdateAdGroupStatus ? (
                             <div className="flex items-center gap-2">
@@ -810,7 +862,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                 parseFloat(pendingChange.newValue)
                               )}
                             </span>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : pendingChange?.id === adgroup.id &&
                           pendingChange?.field === "bid" ? (
@@ -885,7 +937,7 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                 }
                               }}
                               autoFocus
-                              className="w-24 px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                              className="inline-edit-input w-24"
                             />
                           </div>
                         ) : (

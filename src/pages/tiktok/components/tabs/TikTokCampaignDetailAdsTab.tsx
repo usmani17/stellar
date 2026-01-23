@@ -237,18 +237,193 @@ export const TikTokCampaignDetailAdsTab: React.FC<TikTokCampaignDetailAdsTabProp
             )}
 
             {/* Table */}
-            <TikTokAdTable
-                ads={ads}
-                loading={loading}
-                selectedAdIds={selectedAdIds}
-                onSelectAll={onSelectAll}
-                onSelectAd={onSelectAd}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSort={onSort}
-                onRefresh={onAdsUpdated}
-                accountId={accountId}
-            />
+            <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+                <div className="overflow-x-auto w-full">
+                    {loading ? (
+                        <div className="text-center py-8 text-[#556179] text-[13.3px]">Loading ads...</div>
+                    ) : ads.length === 0 ? (
+                        <div className="text-center py-8 text-[#556179] text-[13.3px]">No ads found</div>
+                    ) : (
+                        <table className="w-full min-w-[1200px]">
+                            <thead className="bg-[#f5f5f0]">
+                                <tr className="border-b border-[#e8e8e3]">
+                                    <th className="table-header w-[35px]">
+                                        <div className="flex items-center justify-center">
+                                            <Checkbox
+                                                checked={ads.length > 0 && ads.every(ad => selectedAdIds.has(ad.ad_id))}
+                                                onChange={onSelectAll}
+                                            />
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        onClick={() => onSort("ad_name")}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            Ad Name {getSortIcon("ad_name")}
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        onClick={() => onSort("operation_status")}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            Status {getSortIcon("operation_status")}
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        onClick={() => onSort("spend")}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            Spend {getSortIcon("spend")}
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        onClick={() => onSort("impressions")}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            Impressions {getSortIcon("impressions")}
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        onClick={() => onSort("clicks")}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            Clicks {getSortIcon("clicks")}
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        onClick={() => onSort("conversions")}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            Conversions {getSortIcon("conversions")}
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        onClick={() => onSort("ctr")}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            CTR {getSortIcon("ctr")}
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="text-left table-cell text-[13.3px] font-medium text-[#29303f] cursor-pointer hover:bg-gray-100"
+                                        onClick={() => onSort("cpc")}
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            CPC {getSortIcon("cpc")}
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {ads.map((item, index) => {
+                                    const isLastRow = index === ads.length - 1;
+                                    const isSelected = selectedAdIds.has(item.ad_id);
+                                    return (
+                                        <tr
+                                            key={item.ad_id}
+                                            className={`hover:bg-gray-50 transition-colors ${!isLastRow ? "border-b border-[#e8e8e3]" : ""} ${isSelected ? "bg-gray-50" : ""}`}
+                                        >
+                                            <td className="table-cell">
+                                                <div className="flex items-center justify-center">
+                                                    <Checkbox
+                                                        checked={isSelected}
+                                                        onChange={(checked) => onSelectAd(item.ad_id, checked)}
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td className="table-cell">
+                                                {editingCell?.ad_id === item.ad_id && editingCell?.field === "ad_name" ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editedValue}
+                                                        onChange={(e) => handleInlineEditChange(e.target.value)}
+                                                        onBlur={(e) => {
+                                                            if (isCancelling) return;
+                                                            confirmInlineEdit(e.target.value);
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter") {
+                                                                e.currentTarget.blur();
+                                                            } else if (e.key === "Escape") {
+                                                                cancelInlineEdit();
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                        maxLength={512}
+                                                        className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className="table-text font-medium cursor-pointer hover:underline truncate block w-full whitespace-nowrap"
+                                                        onClick={() => startInlineEdit(item, "ad_name")}
+                                                        title={item.ad_name}
+                                                    >
+                                                        {item.ad_name}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="table-cell">
+                                                {editingCell?.ad_id === item.ad_id && editingCell?.field === "operation_status" ? (
+                                                    <div className="dropdown-container w-[100px]">
+                                                        <Dropdown
+                                                            options={[
+                                                                { value: "ENABLE", label: "Enable" },
+                                                                { value: "DISABLE", label: "Disable" },
+                                                                { value: "DELETE", label: "Delete" },
+                                                            ]}
+                                                            value={editedValue}
+                                                            onChange={(value) => {
+                                                                handleInlineEditChange(value);
+                                                                confirmInlineEdit(value);
+                                                            }}
+                                                            onClose={cancelInlineEdit}
+                                                            defaultOpen={true}
+                                                            closeOnSelect={true}
+                                                            buttonClassName="inline-edit-dropdown"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className="cursor-pointer hover:underline"
+                                                        onClick={() => startInlineEdit(item, "operation_status")}
+                                                    >
+                                                        <StatusBadge status={item.operation_status} />
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="table-cell table-text">
+                                                {formatCurrency(item.spend)}
+                                            </td>
+                                            <td className="table-cell table-text">
+                                                {formatNumber(item.impressions)}
+                                            </td>
+                                            <td className="table-cell table-text">
+                                                {formatNumber(item.clicks)}
+                                            </td>
+                                            <td className="table-cell table-text">
+                                                {formatNumber(item.conversions)}
+                                            </td>
+                                            <td className="table-cell table-text">
+                                                {formatPercentage(item.ctr)}
+                                            </td>
+                                            <td className="table-cell table-text">
+                                                {formatCurrency(item.cpc)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
 
             {/* Pagination */}
             {!loading && ads.length > 0 && totalPages > 0 && (

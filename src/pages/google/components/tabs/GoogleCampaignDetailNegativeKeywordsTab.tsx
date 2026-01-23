@@ -4,6 +4,7 @@ import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
 import { Button } from "../../../../components/ui";
+import { Loader } from "../../../../components/ui/Loader";
 import {
   FilterPanel,
   type FilterValues,
@@ -373,7 +374,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
           >
             {syncing ? (
               <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
                 Syncing...
               </span>
             ) : (
@@ -508,7 +509,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                             <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : pendingChange?.id === negativeKeyword.id &&
                           pendingChange?.field === "keyword_text" ? (
@@ -580,7 +581,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                             <span className="table-text leading-[1.26]">
                               {pendingChange.newValue}
                             </span>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : pendingChange?.id === negativeKeyword.id &&
                           pendingChange?.field === "match_type" ? (
@@ -691,7 +692,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                         pendingChange?.field === "status" ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : pendingChange?.id === negativeKeyword.id &&
                           pendingChange?.field === "status" ? (
@@ -889,7 +890,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
               >
                 {keywordTextEditLoading ? (
                   <>
-                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                    <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
                     Updating...
                   </>
                 ) : (

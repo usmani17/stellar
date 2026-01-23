@@ -335,7 +335,9 @@ export const CampaignDetail: React.FC = () => {
   const [assetsCurrentPage, setAssetsCurrentPage] = useState(1);
   const [assetsTotalPages, setAssetsTotalPages] = useState(0);
   const [assetsSortBy, setAssetsSortBy] = useState<string>("creationTime");
-  const [assetsSortOrder, setAssetsSortOrder] = useState<"asc" | "desc">("desc");
+  const [assetsSortOrder, setAssetsSortOrder] = useState<"asc" | "desc">(
+    "desc"
+  );
   const [isAssetsFilterPanelOpen, setIsAssetsFilterPanelOpen] = useState(false);
   const [assetsFilters, setAssetsFilters] = useState<FilterValues>([]);
   const [isCreateAssetPanelOpen, setIsCreateAssetPanelOpen] = useState(false);
@@ -362,6 +364,7 @@ export const CampaignDetail: React.FC = () => {
   const [createCreativeError, setCreateCreativeError] = useState<string | null>(
     null
   );
+  const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
 
   // Asset preview modal state
   const [isAssetPreviewModalOpen, setIsAssetPreviewModalOpen] = useState(false);
@@ -741,7 +744,10 @@ export const CampaignDetail: React.FC = () => {
     } else {
       // For non-auto SP campaigns and other types, hide Negative Keywords, Negative Targets, and Creatives
       filteredTabs = filteredTabs.filter(
-        (tab) => tab !== "Negative Keywords" && tab !== "Negative Targets" && tab !== "Creatives"
+        (tab) =>
+          tab !== "Negative Keywords" &&
+          tab !== "Negative Targets" &&
+          tab !== "Creatives"
       );
     }
 
@@ -1400,16 +1406,125 @@ export const CampaignDetail: React.FC = () => {
     assetsFilters,
   ]);
 
+  // Load creatives function
+  const loadCreatives = async () => {
+    if (!accountId || !campaignId || campaignType !== "SD") return;
+
+    setCreativesLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      const response = await campaignsService.getSdCreatives(
+        accountIdNum,
+        campaignId,
+        {
+          sort_by: creativesSortBy,
+          order: creativesSortOrder,
+          page: creativesCurrentPage,
+          page_size: 10,
+        }
+      );
+
+      // Log raw response from API
+      console.log(
+        "[loadCreatives] Raw response from API:",
+        JSON.stringify(response, null, 2)
+      );
+      console.log("[loadCreatives] Raw creatives array:", response.creatives);
+      if (response.creatives && response.creatives.length > 0) {
+        response.creatives.forEach((c: any, idx: number) => {
+          console.log(`[loadCreatives] Raw Creative ${idx + 1}:`, {
+            id: c.id,
+            creativeId: c.creativeId,
+            creativeIdType: typeof c.creativeId,
+            creativeIdValue: String(c.creativeId),
+            adGroupId: c.adGroupId,
+          });
+        });
+      }
+
+      // Parse properties from JSON string to object if needed
+      const creatives = (response.creatives || []).map((creative: any) => {
+        // Log BEFORE transformation
+        const originalCreativeId = creative.creativeId;
+        const originalCreativeIdType = typeof creative.creativeId;
+
+        // Parse properties if it's a string
+        if (creative.properties && typeof creative.properties === "string") {
+          try {
+            creative.properties = JSON.parse(creative.properties);
+          } catch (e) {
+            console.warn("Failed to parse properties JSON:", e);
+          }
+        }
+
+        // Keep creativeId as string to preserve precision (JavaScript Number.MAX_SAFE_INTEGER is 2^53 - 1)
+        // Large integers like 871570822017087826 lose precision if converted to number
+        // We'll convert to number only when needed (e.g., for API calls)
+        // For display and storage, keep as string
+
+        // Ensure adGroupId is a number (not string)
+        if (creative.adGroupId && typeof creative.adGroupId === "string") {
+          creative.adGroupId = parseInt(creative.adGroupId, 10);
+        }
+
+        // Log AFTER transformation
+        if (
+          originalCreativeId !== creative.creativeId ||
+          originalCreativeIdType !== typeof creative.creativeId
+        ) {
+          console.warn(
+            `[loadCreatives] CreativeId changed during transformation:`,
+            {
+              original: originalCreativeId,
+              originalType: originalCreativeIdType,
+              after: creative.creativeId,
+              afterType: typeof creative.creativeId,
+            }
+          );
+        }
+
+        return creative;
+      });
+
+      // Log final creatives
+      console.log(
+        "[loadCreatives] Final creatives after transformation:",
+        creatives
+      );
+      creatives.forEach((c: any, idx: number) => {
+        console.log(`[loadCreatives] Final Creative ${idx + 1}:`, {
+          id: c.id,
+          creativeId: c.creativeId,
+          creativeIdType: typeof c.creativeId,
+          creativeIdValue: String(c.creativeId),
+        });
+      });
+
+      setCreatives(creatives);
+      setCreativesTotalPages(response.total_pages || 0);
+    } catch (error: any) {
+      console.error("Failed to load creatives:", error);
+      setCreatives([]);
+      setCreativesTotalPages(0);
+    } finally {
+      setCreativesLoading(false);
+    }
+  };
+
   // Load creatives when Creatives tab is active (for SD campaigns)
   useEffect(() => {
     if (accountId && activeTab === "Creatives" && campaignType === "SD") {
-      // TODO: Implement loadCreatives when backend endpoint is available
-      // loadCreatives();
+      loadCreatives();
     }
   }, [
     accountId,
     activeTab,
     campaignType,
+    campaignId,
     creativesCurrentPage,
     creativesSortBy,
     creativesSortOrder,
@@ -1633,22 +1748,44 @@ export const CampaignDetail: React.FC = () => {
         return;
       }
 
-      // Load all adgroups with a large page size
-      const data = await campaignsService.getAdGroups(
-        accountIdNum,
-        campaignId,
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0],
-        {
-          page: 1,
-          page_size: 1000, // Large page size to get all adgroups
-          sort_by: "name",
-          order: "asc",
-          type: campaignType || undefined,
-        }
-      );
+      // Load all adgroups by paginating through all pages
+      // This ensures we get all adgroups, not just the first 1000
+      const allAdgroupsList: AdGroup[] = [];
+      let page = 1;
+      const pageSize = 1000; // Fetch in batches of 1000
+      let hasMore = true;
 
-      setAllAdgroups(data.adgroups || []);
+      while (hasMore) {
+        const data = await campaignsService.getAdGroups(
+          accountIdNum,
+          campaignId,
+          startDate.toISOString().split("T")[0],
+          endDate.toISOString().split("T")[0],
+          {
+            page: page,
+            page_size: pageSize,
+            sort_by: "name",
+            order: "asc",
+            type: campaignType || undefined,
+          }
+        );
+
+        const adgroups = data.adgroups || [];
+        allAdgroupsList.push(...adgroups);
+
+        // Check if we've fetched all records
+        const total = data.total || 0;
+        if (adgroups.length === 0 || allAdgroupsList.length >= total) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+
+      setAllAdgroups(allAdgroupsList);
+      console.log(
+        `[loadAllAdGroups] Loaded ${allAdgroupsList.length} adgroups for dropdown`
+      );
     } catch (error) {
       console.error("Failed to load all ad groups:", error);
       setAllAdgroups([]);
@@ -3040,11 +3177,45 @@ export const CampaignDetail: React.FC = () => {
         throw new Error("Ad Group ID is required. Please select an ad group.");
       }
 
+      // Transform properties to match backend expectations
+      const transformProperties = (props: any) => {
+        const transformed = { ...props };
+
+        // Flatten headline structure: properties.headline.headline -> properties.headline
+        // Backend expects: { headline: string, hasTermsAndConditions: boolean, originalHeadline: string }
+        if (transformed.headline && typeof transformed.headline === "object") {
+          // Store the headline object before we modify transformed.headline
+          const headlineObj = transformed.headline;
+
+          // Extract all headline-related fields from the object
+          if (headlineObj.headline !== undefined) {
+            transformed.headline = headlineObj.headline;
+          }
+          if (headlineObj.hasTermsAndConditions !== undefined) {
+            transformed.hasTermsAndConditions =
+              headlineObj.hasTermsAndConditions;
+          }
+          if (headlineObj.originalHeadline !== undefined) {
+            transformed.originalHeadline = headlineObj.originalHeadline;
+          }
+        }
+
+        // Move background.backgrounds to backgrounds directly under properties
+        if (transformed.background?.backgrounds) {
+          transformed.backgrounds = transformed.background.backgrounds;
+          delete transformed.background;
+        } else if (transformed.backgrounds) {
+          // Already in correct format, keep it
+        }
+
+        return transformed;
+      };
+
       const response = await campaignsService.createSdCreatives(accountIdNum, {
         adGroupId: adGroupId,
         creatives: creatives.map((c) => ({
           creativeType: c.creativeType,
-          properties: c.properties,
+          properties: transformProperties(c.properties),
           consentToTranslate: c.consentToTranslate,
         })),
       });
@@ -3052,21 +3223,246 @@ export const CampaignDetail: React.FC = () => {
       if (response.success && response.success.length > 0) {
         // Close panel and reload creatives
         setIsCreateCreativePanelOpen(false);
-        // TODO: Reload creatives when backend endpoint is available
-        // await loadCreatives();
+        setEditingCreative(null);
+        await loadCreatives();
       } else if (response.error && response.error.length > 0) {
+        // Extract error messages
         const errorMessages = response.error
-          .map((e: any) => e.description || e.code)
-          .join(", ");
-        setCreateCreativeError(errorMessages);
+          .map(
+            (e: any) => e.description || e.details || e.code || "Unknown error"
+          )
+          .filter((msg: string) => msg);
+
+        // Show error in popup modal
+        setErrorModal({
+          isOpen: true,
+          title: "Failed to Create Creatives",
+          message:
+            errorMessages.length > 0
+              ? errorMessages.join("\n")
+              : "Failed to create creatives. Please check the errors below.",
+          isSuccess: false,
+          genericErrors: errorMessages,
+        });
+
+        // Also set inline error for backward compatibility
+        setCreateCreativeError(errorMessages.join(", "));
       }
     } catch (error: any) {
       console.error("Failed to create creatives:", error);
-      setCreateCreativeError(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to create creatives. Please try again."
+
+      // Extract error message
+      let errorMessage = "Failed to create creatives. Please try again.";
+      let genericErrors: string[] = [];
+
+      if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+          genericErrors = [error.response.data.error];
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+          genericErrors = [error.response.data.message];
+        }
+
+        // Check for error array in response
+        if (
+          error.response.data.error &&
+          Array.isArray(error.response.data.error)
+        ) {
+          genericErrors = error.response.data.error.map(
+            (e: any) => e.description || e.details || e.code || "Unknown error"
+          );
+          errorMessage = genericErrors.join("\n");
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+        genericErrors = [error.message];
+      }
+
+      // Show error in popup modal
+      setErrorModal({
+        isOpen: true,
+        title: "Failed to Create Creatives",
+        message: errorMessage,
+        isSuccess: false,
+        genericErrors: genericErrors.length > 0 ? genericErrors : undefined,
+      });
+
+      // Also set inline error for backward compatibility
+      setCreateCreativeError(errorMessage);
+    } finally {
+      setCreateCreativeLoading(false);
+    }
+  };
+
+  const handleEditCreative = (creative: Creative) => {
+    // Store the full creative object in state
+    console.log("[handleEditCreative] Storing full creative object:", {
+      id: creative.id,
+      creativeId: creative.creativeId,
+      adGroupId: creative.adGroupId,
+      creativeType: creative.creativeType,
+      properties: creative.properties,
+      moderationStatus: creative.moderationStatus,
+      fullObject: creative,
+    });
+    setEditingCreative(creative);
+    setIsCreateCreativePanelOpen(true);
+    setCreateCreativeError(null);
+  };
+
+  const handleUpdateCreative = async (
+    creative: CreativeInput,
+    adGroupId: number,
+    creativeId: number | string
+  ) => {
+    if (!accountId) return;
+
+    setCreateCreativeLoading(true);
+    setCreateCreativeError(null);
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      // Keep creativeId as string to preserve precision
+      // JavaScript Number.MAX_SAFE_INTEGER is 2^53 - 1, so large integers lose precision
+      // We'll send it as string and let the backend convert it
+      console.log(
+        "[handleUpdateCreative] Creative ID (keeping as string to preserve precision):",
+        {
+          creativeId: creativeId,
+          creativeIdType: typeof creativeId,
+          creativeIdValue: String(creativeId),
+        }
       );
+
+      // Send creativeId as string to preserve precision
+      // Backend will convert to int when needed
+      const creativeIdStr = String(creativeId);
+
+      console.log("[handleUpdateCreative] Update request payload:", {
+        creativeId: creativeIdStr,
+        creativeIdType: typeof creativeIdStr,
+        creativeIdOriginal: creativeId,
+        creativeType: creative.creativeType,
+        adGroupId: adGroupId,
+      });
+
+      // Transform properties to match backend expectations
+      const transformProperties = (props: any) => {
+        const transformed = { ...props };
+
+        // Flatten headline structure: properties.headline.headline -> properties.headline
+        // Backend expects: { headline: string, hasTermsAndConditions: boolean, originalHeadline: string }
+        if (transformed.headline && typeof transformed.headline === "object") {
+          // Store the headline object before we modify transformed.headline
+          const headlineObj = transformed.headline;
+
+          // Extract all headline-related fields from the object
+          if (headlineObj.headline !== undefined) {
+            transformed.headline = headlineObj.headline;
+          }
+          if (headlineObj.hasTermsAndConditions !== undefined) {
+            transformed.hasTermsAndConditions =
+              headlineObj.hasTermsAndConditions;
+          }
+          if (headlineObj.originalHeadline !== undefined) {
+            transformed.originalHeadline = headlineObj.originalHeadline;
+          }
+        }
+
+        // Move background.backgrounds to backgrounds directly under properties
+        if (transformed.background?.backgrounds) {
+          transformed.backgrounds = transformed.background.backgrounds;
+          delete transformed.background;
+        } else if (transformed.backgrounds) {
+          // Already in correct format, keep it
+        }
+
+        return transformed;
+      };
+
+      const response = await campaignsService.updateSdCreatives(accountIdNum, [
+        {
+          creativeId: creativeIdStr, // Send as string to preserve precision
+          creativeType: creative.creativeType || null,
+          properties: transformProperties(creative.properties),
+        },
+      ]);
+
+      if (response.success && response.success.length > 0) {
+        // Close panel and reload creatives
+        setIsCreateCreativePanelOpen(false);
+        setEditingCreative(null);
+        await loadCreatives();
+      } else if (response.error && response.error.length > 0) {
+        // Extract error messages
+        const errorMessages = response.error
+          .map(
+            (e: any) => e.description || e.details || e.code || "Unknown error"
+          )
+          .filter((msg: string) => msg);
+
+        // Show error in popup modal
+        setErrorModal({
+          isOpen: true,
+          title: "Failed to Update Creative",
+          message:
+            errorMessages.length > 0
+              ? errorMessages.join("\n")
+              : "Failed to update creative. Please check the errors below.",
+          isSuccess: false,
+          genericErrors: errorMessages,
+        });
+
+        // Also set inline error for backward compatibility
+        setCreateCreativeError(errorMessages.join(", "));
+      }
+    } catch (error: any) {
+      console.error("Failed to update creative:", error);
+
+      // Extract error message
+      let errorMessage = "Failed to update creative. Please try again.";
+      let genericErrors: string[] = [];
+
+      if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+          genericErrors = [error.response.data.error];
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+          genericErrors = [error.response.data.message];
+        }
+
+        // Check for error array in response
+        if (
+          error.response.data.error &&
+          Array.isArray(error.response.data.error)
+        ) {
+          genericErrors = error.response.data.error.map(
+            (e: any) => e.description || e.details || e.code || "Unknown error"
+          );
+          errorMessage = genericErrors.join("\n");
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+        genericErrors = [error.message];
+      }
+
+      // Show error in popup modal
+      setErrorModal({
+        isOpen: true,
+        title: "Failed to Update Creative",
+        message: errorMessage,
+        isSuccess: false,
+        genericErrors: genericErrors.length > 0 ? genericErrors : undefined,
+      });
+
+      // Also set inline error for backward compatibility
+      setCreateCreativeError(errorMessage);
     } finally {
       setCreateCreativeLoading(false);
     }
@@ -5302,23 +5698,58 @@ export const CampaignDetail: React.FC = () => {
         // Reload negative targets to show the new ones
         await loadNegativeTargets();
       } else {
-        // Partial success or all failed - show summary and keep panel open
-        const successMessage =
-          created > 0
-            ? `${created} negative target(s) created successfully. ${failed} negative target(s) failed.`
-            : `All ${failed} negative target(s) failed to create.`;
+        // Partial success or all failed - extract detailed error messages
+        const errorMessages: string[] = [];
 
-        setCreateNegativeTargetError(successMessage);
-
-        // Show summary popup for partial success
-        if (created > 0 && failed > 0) {
-          setErrorModal({
-            isOpen: true,
-            title: "Summary",
-            message: `${created} negative target(s) created successfully. ${failed} negative target(s) failed.`,
-            isSuccess: false,
+        // Extract error messages from failed_negative_targets
+        if (
+          failedNegativeTargetsData &&
+          Array.isArray(failedNegativeTargetsData)
+        ) {
+          failedNegativeTargetsData.forEach((failed: any) => {
+            if (failed.errors && Array.isArray(failed.errors)) {
+              failed.errors.forEach((err: any) => {
+                const errorMsg =
+                  err.message || err.details || JSON.stringify(err);
+                if (errorMsg && !errorMessages.includes(errorMsg)) {
+                  errorMessages.push(errorMsg);
+                }
+              });
+            }
           });
         }
+
+        // Also check errors array from response
+        if (response.errors && Array.isArray(response.errors)) {
+          response.errors.forEach((err: string) => {
+            if (err && !errorMessages.includes(err)) {
+              errorMessages.push(err);
+            }
+          });
+        }
+
+        // Build error message
+        let errorMessage = "";
+        if (created > 0) {
+          errorMessage = `${created} negative target(s) created successfully. ${failed} negative target(s) failed.`;
+        } else {
+          errorMessage = `All ${failed} negative target(s) failed to create.`;
+        }
+
+        // Append detailed error messages
+        if (errorMessages.length > 0) {
+          errorMessage += "\n\nErrors:\n" + errorMessages.join("\n");
+        }
+
+        setCreateNegativeTargetError(errorMessage);
+
+        // Show summary popup with detailed errors
+        setErrorModal({
+          isOpen: true,
+          title: created > 0 ? "Partial Success" : "Error",
+          message: errorMessage,
+          isSuccess: false,
+        });
       }
 
       // Handle field errors if available
@@ -5327,10 +5758,72 @@ export const CampaignDetail: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Error creating negative targets:", error);
-      const errorMessage =
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to create negative targets. Please try again.";
+
+      // Extract detailed error messages from response
+      let errorMessage = "Failed to create negative targets. Please try again.";
+
+      if (error?.response?.data) {
+        const responseData = error.response.data;
+
+        // Check for failed_negative_targets array with detailed errors
+        if (
+          responseData.failed_negative_targets &&
+          Array.isArray(responseData.failed_negative_targets) &&
+          responseData.failed_negative_targets.length > 0
+        ) {
+          const errorMessages = responseData.failed_negative_targets
+            .map((failed: any) => {
+              if (
+                failed.errors &&
+                Array.isArray(failed.errors) &&
+                failed.errors.length > 0
+              ) {
+                return failed.errors
+                  .map(
+                    (err: any) =>
+                      err.message || err.details || JSON.stringify(err)
+                  )
+                  .join("; ");
+              }
+              return null;
+            })
+            .filter((msg: string | null) => msg !== null);
+
+          if (errorMessages.length > 0) {
+            errorMessage = errorMessages.join(" | ");
+          }
+        }
+
+        // Fallback to errors array
+        if (
+          errorMessage ===
+            "Failed to create negative targets. Please try again." &&
+          responseData.errors &&
+          Array.isArray(responseData.errors) &&
+          responseData.errors.length > 0
+        ) {
+          errorMessage = responseData.errors.join(" | ");
+        }
+
+        // Fallback to error field
+        if (
+          errorMessage ===
+            "Failed to create negative targets. Please try again." &&
+          responseData.error
+        ) {
+          errorMessage = responseData.error;
+        }
+      }
+
+      // Final fallback to error message
+      if (
+        errorMessage ===
+          "Failed to create negative targets. Please try again." &&
+        error?.message
+      ) {
+        errorMessage = error.message;
+      }
+
       setCreateNegativeTargetError(errorMessage);
       setErrorModal({
         isOpen: true,
@@ -8266,21 +8759,27 @@ export const CampaignDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Create Creative Panel */}
+                {/* Create/Edit Creative Panel */}
                 {isCreateCreativePanelOpen && (
                   <div className="mb-4">
                     <CreateCreativePanel
                       isOpen={isCreateCreativePanelOpen}
                       onClose={() => {
                         setIsCreateCreativePanelOpen(false);
+                        setEditingCreative(null);
                         setCreateCreativeError(null);
                       }}
                       onSubmit={handleCreateCreative}
-                      adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups).map((ag) => ({
+                      onUpdate={handleUpdateCreative}
+                      adgroups={(allAdgroups.length > 0
+                        ? allAdgroups
+                        : adgroups
+                      ).map((ag) => ({
                         adGroupId: ag.adGroupId,
                         name: ag.name || `Ad Group ${ag.adGroupId}`,
                       }))}
                       loading={createCreativeLoading}
+                      editCreative={editingCreative}
                     />
                     {createCreativeError && (
                       <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -8302,6 +8801,7 @@ export const CampaignDetail: React.FC = () => {
                     sortBy={creativesSortBy}
                     sortOrder={creativesSortOrder}
                     onSort={handleCreativesSort}
+                    onEdit={handleEditCreative}
                   />
                 </div>
 
@@ -8398,14 +8898,13 @@ export const CampaignDetail: React.FC = () => {
             )}
 
             {activeTab === "Logs" && (
-              <div className="mt-6">
-                <LogsTable
-                  accountId={accountId}
-                  campaignId={campaignId}
-                  showHeader={false}
-                  showExport={true}
-                />
-              </div>
+              <LogsTable
+                accountId={accountId}
+                campaignId={campaignId}
+                marketplace="amazon"
+                showHeader={false}
+                showExport={true}
+              />
             )}
 
             {activeTab !== "Overview" &&

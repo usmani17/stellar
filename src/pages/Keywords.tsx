@@ -21,6 +21,7 @@ import {
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { Loader } from "../components/ui/Loader";
 import { logsService } from "../services/logs";
 
 export const Keywords: React.FC = () => {
@@ -1152,10 +1153,7 @@ export const Keywords: React.FC = () => {
       {exportLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[300]">
           <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center gap-4 min-w-[280px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#136D6D] border-t-transparent"></div>
-            <p className="text-[16px] text-[#072929] font-medium">
-              Exporting Keywords...
-            </p>
+            <Loader size="lg" message="Exporting Keywords..." />
             <p className="text-[13px] text-[#556179] text-center">
               Please wait while we prepare your file
             </p>
@@ -1228,25 +1226,7 @@ export const Keywords: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <svg
-                      className="loading-spinner"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    <p className="loading-message">Loading chart data...</p>
+                    <Loader size="lg" message="Loading chart data..." />
                   </div>
                 </div>
               )}
@@ -1349,7 +1329,7 @@ export const Keywords: React.FC = () => {
                   >
                     {exportLoading ? (
                       <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        <Loader size="sm" />
                       </div>
                     ) : (
                       <>
@@ -1377,10 +1357,7 @@ export const Keywords: React.FC = () => {
                   <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
                     {exportLoading ? (
                       <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
-                        <p className="text-[13px] text-[#072929] font-medium">
-                          Exporting...
-                        </p>
+                        <Loader size="md" message="Exporting..." />
                         <p className="text-[11px] text-[#556179] text-center px-2">
                           Please wait while we prepare your file
                         </p>
@@ -1745,7 +1722,7 @@ export const Keywords: React.FC = () => {
             )}
 
             {/* Table */}
-            <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative">
+            <div className="table-container">
               <div className="overflow-x-auto w-full">
                 {keywords.length === 0 && !loading ? (
                   <div className="text-center py-8">
@@ -2001,121 +1978,128 @@ export const Keywords: React.FC = () => {
 
                                 {/* State */}
                                 <td className="table-cell min-w-[115px]">
-                                  {editingCell?.keywordId ===
-                                    keyword.keywordId &&
-                                  editingCell?.field === "status" ? (
-                                    <Dropdown
-                                      options={[
-                                        { value: "Enabled", label: "Enabled" },
-                                        { value: "Paused", label: "Paused" },
-                                        {
-                                          value: "Archived",
-                                          label: "Archived",
-                                        },
-                                      ]}
-                                      value={
-                                        editedValue ||
-                                        (() => {
-                                          const statusLower = (
-                                            keyword.status || "Enabled"
-                                          ).toLowerCase();
-                                          return statusLower === "enable" ||
-                                            statusLower === "enabled"
-                                            ? "Enabled"
-                                            : statusLower === "paused"
-                                            ? "Paused"
-                                            : statusLower === "archived"
-                                            ? "Archived"
-                                            : "Enabled";
-                                        })()
-                                      }
-                                      onChange={(val) => {
-                                        const newValue = val as string;
-                                        handleInlineEditChange(newValue);
-                                        setTimeout(() => {
-                                          confirmInlineEdit(newValue);
-                                        }, 100);
-                                      }}
-                                      onClose={() => {
-                                        cancelInlineEdit();
-                                      }}
-                                      defaultOpen={true}
-                                      closeOnSelect={true}
-                                      buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                      width="w-full"
-                                      align="center"
-                                    />
-                                  ) : (
-                                    <div
-                                      onClick={() => {
-                                        // Prevent editing if keyword is archived
-                                        const currentStatus = (
-                                          keyword.status || "Enabled"
-                                        ).toLowerCase();
-                                        if (currentStatus === "archived") {
-                                          return; // Archived keywords are read-only
-                                        }
-                                        startInlineEdit(keyword, "status");
-                                      }}
-                                      className={`${
-                                        (
-                                          keyword.status || "Enabled"
-                                        ).toLowerCase() === "archived"
-                                          ? "cursor-not-allowed opacity-60"
-                                          : "cursor-pointer hover:bg-gray-50"
-                                      } rounded px-2 py-1`}
-                                      title={
-                                        (
-                                          keyword.status || "Enabled"
-                                        ).toLowerCase() === "archived"
-                                          ? "Archived keywords cannot be modified"
-                                          : undefined
-                                      }
-                                    >
-                                      <StatusBadge
-                                        status={keyword.status || "Enabled"}
+                                  {(() => {
+                                    const currentStatus = (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase();
+                                    const isArchived = currentStatus === "archived";
+                                    
+                                    if (isArchived) {
+                                      return (
+                                        <div className="opacity-60">
+                                          <StatusBadge
+                                            status={keyword.status || "Enabled"}
+                                          />
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    const statusLower = (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase();
+                                    const normalizedStatus =
+                                      statusLower === "enable" ||
+                                      statusLower === "enabled"
+                                        ? "Enabled"
+                                        : statusLower === "paused"
+                                        ? "Paused"
+                                        : "Enabled";
+                                    
+                                    const statusValue = editingCell?.keywordId === keyword.keywordId &&
+                                      editingCell?.field === "status"
+                                      ? editedValue
+                                      : normalizedStatus;
+                                    
+                                    return (
+                                      <Dropdown
+                                        options={[
+                                          { value: "Enabled", label: "Enabled" },
+                                          { value: "Paused", label: "Paused" },
+                                          {
+                                            value: "Archived",
+                                            label: "Archived",
+                                          },
+                                        ]}
+                                        value={statusValue}
+                                        onChange={(val) => {
+                                          const newValue = val as string;
+                                          if (editingCell?.keywordId !== keyword.keywordId ||
+                                              editingCell?.field !== "status") {
+                                            startInlineEdit(keyword, "status");
+                                          }
+                                          handleInlineEditChange(newValue);
+                                          setTimeout(() => {
+                                            confirmInlineEdit(newValue);
+                                          }, 100);
+                                        }}
+                                        buttonClassName="inline-edit-dropdown"
+                                        width="w-full"
+                                        align="center"
                                       />
-                                    </div>
-                                  )}
+                                    );
+                                  })()}
                                 </td>
 
                                 {/* Keyword Bid */}
                                 <td className="table-cell">
-                                  {editingCell?.keywordId ===
-                                    keyword.keywordId &&
-                                  editingCell?.field === "bid" ? (
-                                    <div className="flex items-center justify-center">
+                                  {(() => {
+                                    const currentStatus = (
+                                      keyword.status || "Enabled"
+                                    ).toLowerCase();
+                                    const isArchived = currentStatus === "archived";
+                                    
+                                    const bidValue = parseFloat(
+                                      (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
+                                    );
+                                    
+                                    const inputValue = editingCell?.keywordId === keyword.keywordId &&
+                                      editingCell?.field === "bid"
+                                      ? editedValue
+                                      : bidValue.toString();
+                                    
+                                    return (
                                       <input
                                         type="number"
-                                        value={editedValue}
-                                        onChange={(e) =>
-                                          handleInlineEditChange(e.target.value)
-                                        }
+                                        value={inputValue}
+                                        onFocus={() => {
+                                          if (!isArchived &&
+                                              (editingCell?.keywordId !== keyword.keywordId ||
+                                               editingCell?.field !== "bid")) {
+                                            startInlineEdit(keyword, "bid");
+                                          }
+                                        }}
+                                        onChange={(e) => {
+                                          if (isArchived) return;
+                                          handleInlineEditChange(e.target.value);
+                                        }}
                                         onBlur={(e) => {
+                                          if (isArchived) return;
                                           const inputValue = e.target.value;
-                                          confirmInlineEdit(inputValue);
+                                          if (editingCell?.keywordId === keyword.keywordId &&
+                                              editingCell?.field === "bid") {
+                                            confirmInlineEdit(inputValue);
+                                          }
                                         }}
                                         onKeyDown={(e) => {
+                                          if (isArchived) return;
                                           if (e.key === "Enter") {
                                             e.currentTarget.blur();
                                           } else if (e.key === "Escape") {
                                             cancelInlineEdit();
                                           }
                                         }}
-                                        autoFocus
-                                        className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                        disabled={isArchived}
+                                        className={`inline-edit-input ${
+                                          isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                        }`}
+                                        title={
+                                          isArchived
+                                            ? "Archived keywords cannot be modified"
+                                            : undefined
+                                        }
                                       />
-                                    </div>
-                                  ) : (
-                                    <p
-                                      onClick={() =>
-                                        startInlineEdit(keyword, "bid")
-                                      }
-                                      className="table-text leading-[1.26] cursor-pointer hover:bg-gray-50 rounded px-2 py-1"
-                                    >
-                                      {keyword.bid || "$0.00"}
-                                    </p>
-                                  )}
+                                    );
+                                  })()}
                                 </td>
 
                                 {/* Campaign Name */}
@@ -2277,25 +2261,7 @@ export const Keywords: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <svg
-                      className="loading-spinner"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    <p className="loading-message">Loading keywords...</p>
+                    <Loader size="lg" message="Loading keywords..." />
                   </div>
                 </div>
               )}

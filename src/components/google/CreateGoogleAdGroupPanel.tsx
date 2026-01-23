@@ -119,7 +119,7 @@ export const CreateGoogleAdGroupPanel: React.FC<
           </h3>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Ad Group Name *
               </label>
               <input
@@ -147,7 +147,7 @@ export const CreateGoogleAdGroupPanel: React.FC<
               )}
             </div>
             <div className="w-[140px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 CPC Bid (Optional)
               </label>
               <input

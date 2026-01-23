@@ -7,7 +7,7 @@ import { TikTokCampaignDetail } from "../pages/tiktok/TikTokCampaignDetail";
 import { TikTokCreateCampaign } from "../pages/tiktok/TikTokCreateCampaign";
 import { TikTokAdGroups } from "../pages/tiktok/TikTokAdGroups";
 import { TikTokAds } from "../pages/tiktok/TikTokAds";
-import { TikTokLogs } from "../pages/tiktok/TikTokLogs";
+import { LogHistory } from "../pages/LogHistory";
 
 function TikTokRoutes() {
     return (
@@ -78,7 +78,19 @@ function TikTokRoutes() {
                     <ProtectedRoute>
                         <AccountRequiredRoute>
                             <Layout>
-                                <TikTokLogs />
+                                <LogHistory />
+                            </Layout>
+                        </AccountRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/accounts/:accountId/tiktok/log-history"
+                element={
+                    <ProtectedRoute>
+                        <AccountRequiredRoute>
+                            <Layout>
+                                <LogHistory />
                             </Layout>
                         </AccountRequiredRoute>
                     </ProtectedRoute>

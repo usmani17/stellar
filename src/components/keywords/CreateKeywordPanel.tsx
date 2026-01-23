@@ -345,7 +345,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
         <div className="flex items-end gap-3">
           {/* Ad Group Dropdown */}
           <div className="flex-1 min-w-[180px] w-full">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Ad Group *
             </label>
             <Dropdown<string>
@@ -367,7 +367,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
           {/* Keyword Text */}
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Keyword Text *
             </label>
             <input
@@ -388,7 +388,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
           {/* Match Type */}
           <div className="w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Match Type *
             </label>
             <Dropdown<string>
@@ -404,7 +404,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
           {/* Bid */}
           <div className="w-[120px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Bid *
             </label>
             <input
@@ -427,7 +427,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
 
           {/* State */}
           <div className="w-[140px]">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               State *
             </label>
             <Dropdown<string>

@@ -8,6 +8,7 @@ import { CampaignDetail } from "../pages/CampaignDetail";
 import { AdGroups } from "../pages/AdGroups";
 import { Keywords } from "../pages/Keywords";
 import { Targets } from "../pages/Targets";
+import { LogHistory } from "../pages/LogHistory";
 
 function AmazonRoutes() {
     return (
@@ -67,6 +68,30 @@ function AmazonRoutes() {
                         <AccountRequiredRoute>
                             <Layout>
                                 <Targets />
+                            </Layout>
+                        </AccountRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/accounts/:accountId/amazon/logs"
+                element={
+                    <ProtectedRoute>
+                        <AccountRequiredRoute>
+                            <Layout>
+                                <LogHistory />
+                            </Layout>
+                        </AccountRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/accounts/:accountId/amazon/log-history"
+                element={
+                    <ProtectedRoute>
+                        <AccountRequiredRoute>
+                            <Layout>
+                                <LogHistory />
                             </Layout>
                         </AccountRequiredRoute>
                     </ProtectedRoute>

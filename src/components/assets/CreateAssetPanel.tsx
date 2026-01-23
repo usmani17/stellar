@@ -529,7 +529,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
         <div className="space-y-4">
           {/* Asset Name - Required */}
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Asset Name *
             </label>
             <input
@@ -555,7 +555,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
           {/* Asset Type - Required */}
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Asset Type *
             </label>
             <Dropdown<string>
@@ -576,7 +576,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
           {/* Asset Sub Type - Required, Dynamic */}
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Asset Sub Type * (1-10 items)
             </label>
             <div className="space-y-2">
@@ -638,7 +638,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
           {/* Brand Entity - Required for Sellers */}
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Brand Entity * (Required for Sellers)
             </label>
             {loadingBrandEntities ? (
@@ -673,7 +673,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
           {/* ASIN List - Optional */}
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               ASIN List (Optional, Max 100)
             </label>
             <div className="space-y-2">
@@ -731,7 +731,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
           {/* Tags - Optional */}
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Tags (Optional)
             </label>
             <div className="space-y-2">
@@ -781,7 +781,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
 
           {/* File Upload - Required (unless URL provided) */}
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               {assetData.assetType === "IMAGE" ? "Image" : "Video"} File *
             </label>
             <div className="space-y-2">

@@ -209,7 +209,7 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
           </h3>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Ad Group Name *
               </label>
               <input
@@ -237,7 +237,7 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
               )}
             </div>
             <div className="w-[140px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 CPC Bid (Optional)
               </label>
               <input
@@ -263,7 +263,7 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
             Responsive Search Ad
           </h3>
           <div className="mb-3">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Headlines * (3-15 required)
             </label>
             <div className="space-y-2">
@@ -317,7 +317,7 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
           </div>
 
           <div className="mb-3">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Descriptions * (2-4 required)
             </label>
             <div className="space-y-2">
@@ -373,7 +373,7 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
           </div>
 
           <div className="w-full">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Final URL (Optional)
             </label>
             <input
@@ -393,7 +393,7 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
           </h3>
           <div className="flex flex-wrap items-end gap-3 mb-3">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Keyword Text
               </label>
               <input
@@ -421,7 +421,7 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
               )}
             </div>
             <div className="w-[140px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Match Type
               </label>
               <Dropdown<string>
@@ -438,7 +438,7 @@ export const CreateGoogleSearchEntitiesPanel: React.FC<
               />
             </div>
             <div className="w-[120px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 CPC Bid (Optional)
               </label>
               <input

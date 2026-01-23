@@ -21,6 +21,7 @@ import {
   type MetricConfig,
 } from "../components/charts/PerformanceChart";
 import { ErrorModal } from "../components/ui/ErrorModal";
+import { Loader } from "../components/ui/Loader";
 
 export const Targets: React.FC = () => {
   const navigate = useNavigate();
@@ -1021,25 +1022,7 @@ export const Targets: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <svg
-                      className="loading-spinner"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    <p className="loading-message">Loading chart data...</p>
+                    <Loader size="lg" message="Loading chart data..." />
                   </div>
                 </div>
               )}
@@ -1520,7 +1503,7 @@ export const Targets: React.FC = () => {
                           className={`table-header cursor-pointer hover:bg-gray-100 min-w-[115px]`}
                           onClick={() => handleSort("status")}
                         >
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1"> 
                             State
                             {getSortIcon("status")}
                           </div>
@@ -1748,120 +1731,128 @@ export const Targets: React.FC = () => {
 
                                 {/* State */}
                                 <td className="table-cell min-w-[115px]">
-                                  {editingCell?.targetId === target.targetId &&
-                                  editingCell?.field === "status" ? (
-                                    <Dropdown
-                                      options={[
-                                        { value: "Enabled", label: "Enabled" },
-                                        { value: "Paused", label: "Paused" },
-                                        {
-                                          value: "Archived",
-                                          label: "Archived",
-                                        },
-                                      ]}
-                                      value={
-                                        editedValue ||
-                                        (() => {
-                                          const statusLower = (
-                                            target.status || "Enabled"
-                                          ).toLowerCase();
-                                          return statusLower === "enable" ||
-                                            statusLower === "enabled"
-                                            ? "Enabled"
-                                            : statusLower === "paused"
-                                            ? "Paused"
-                                            : statusLower === "archived"
-                                            ? "Archived"
-                                            : "Enabled";
-                                        })()
-                                      }
-                                      onChange={(val) => {
-                                        const newValue = val as string;
-                                        handleInlineEditChange(newValue);
-                                        setTimeout(() => {
-                                          confirmInlineEdit(newValue);
-                                        }, 100);
-                                      }}
-                                      onClose={() => {
-                                        cancelInlineEdit();
-                                      }}
-                                      defaultOpen={true}
-                                      closeOnSelect={true}
-                                      buttonClassName="w-full text-[13.3px] px-2 py-1"
-                                      width="w-full"
-                                      align="center"
-                                    />
-                                  ) : (
-                                    <div
-                                      onClick={() => {
-                                        // Prevent editing if target is archived
-                                        const currentStatus = (
-                                          target.status || "Enabled"
-                                        ).toLowerCase();
-                                        if (currentStatus === "archived") {
-                                          return; // Archived targets are read-only
-                                        }
-                                        startInlineEdit(target, "status");
-                                      }}
-                                      className={`${
-                                        (
-                                          target.status || "Enabled"
-                                        ).toLowerCase() === "archived"
-                                          ? "cursor-not-allowed opacity-60"
-                                          : "cursor-pointer hover:bg-gray-100"
-                                      } rounded px-2 py-1`}
-                                      title={
-                                        (
-                                          target.status || "Enabled"
-                                        ).toLowerCase() === "archived"
-                                          ? "Archived targets cannot be modified"
-                                          : undefined
-                                      }
-                                    >
-                                      <StatusBadge
-                                        status={target.status || "Enabled"}
+                                  {(() => {
+                                    const currentStatus = (
+                                      target.status || "Enabled"
+                                    ).toLowerCase();  
+                                    const isArchived = currentStatus === "archived";
+                                    
+                                    if (isArchived) {
+                                      return (
+                                        <div className="opacity-60">
+                                          <StatusBadge
+                                            status={target.status || "Enabled"}
+                                          />
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    const statusLower = (
+                                      target.status || "Enabled"
+                                    ).toLowerCase();
+                                    const normalizedStatus =
+                                      statusLower === "enable" ||
+                                      statusLower === "enabled"
+                                        ? "Enabled"
+                                        : statusLower === "paused"
+                                        ? "Paused"
+                                        : "Enabled";
+                                    
+                                    const statusValue = editingCell?.targetId === target.targetId &&
+                                      editingCell?.field === "status"
+                                      ? editedValue
+                                      : normalizedStatus;
+                                    
+                                    return (
+                                      <Dropdown
+                                        options={[
+                                          { value: "Enabled", label: "Enabled" },
+                                          { value: "Paused", label: "Paused" },
+                                          {
+                                            value: "Archived",
+                                            label: "Archived",
+                                          },
+                                        ]}
+                                        value={statusValue}
+                                        onChange={(val) => {
+                                          const newValue = val as string;
+                                          if (editingCell?.targetId !== target.targetId ||
+                                              editingCell?.field !== "status") {
+                                            startInlineEdit(target, "status");
+                                          }
+                                          handleInlineEditChange(newValue);
+                                          setTimeout(() => {
+                                            confirmInlineEdit(newValue);
+                                          }, 100);
+                                        }}
+                                        buttonClassName="inline-edit-dropdown"
+                                        width="w-full"
+                                        align="center"
                                       />
-                                    </div>
-                                  )}
+                                    );
+                                  })()}
                                 </td>
 
                                 {/* Bid */}
                                 <td className="table-cell">
-                                  {editingCell?.targetId ===
-                                    (target.targetId || target.id) &&
-                                  editingCell?.field === "bid" ? (
-                                    <div className="flex items-center justify-center">
+                                  {(() => {
+                                    const currentStatus = (
+                                      target.status || "Enabled"
+                                    ).toLowerCase();
+                                    const isArchived = currentStatus === "archived";
+                                    
+                                    const bidValue = parseFloat(
+                                      (target.bid || "$0.00").replace(/[^0-9.]/g, "")
+                                    );
+                                    
+                                    const inputValue = editingCell?.targetId === (target.targetId || target.id) &&
+                                      editingCell?.field === "bid"
+                                      ? editedValue
+                                      : bidValue.toString();
+                                    
+                                    return (
                                       <input
                                         type="number"
-                                        value={editedValue}
-                                        onChange={(e) =>
-                                          handleInlineEditChange(e.target.value)
-                                        }
+                                        value={inputValue}
+                                        onFocus={() => {
+                                          if (!isArchived &&
+                                              (editingCell?.targetId !== (target.targetId || target.id) ||
+                                               editingCell?.field !== "bid")) {
+                                            startInlineEdit(target, "bid");
+                                          }
+                                        }}
+                                        onChange={(e) => {
+                                          if (isArchived) return;
+                                          handleInlineEditChange(e.target.value);
+                                        }}
                                         onBlur={(e) => {
+                                          if (isArchived) return;
                                           const inputValue = e.target.value;
-                                          confirmInlineEdit(inputValue);
+                                          if (editingCell?.targetId === (target.targetId || target.id) &&
+                                              editingCell?.field === "bid") {
+                                            confirmInlineEdit(inputValue);
+                                          }
                                         }}
                                         onKeyDown={(e) => {
+                                          if (isArchived) return;
                                           if (e.key === "Enter") {
                                             e.currentTarget.blur();
                                           } else if (e.key === "Escape") {
                                             cancelInlineEdit();
                                           }
                                         }}
-                                        autoFocus
-                                        className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+                                        disabled={isArchived}
+                                        className={`inline-edit-input ${
+                                          isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
+                                        }`}
+                                        title={
+                                          isArchived
+                                            ? "Archived targets cannot be modified"
+                                            : undefined
+                                        }
                                       />
-                                    </div>
-                                  ) : (
-                                    <p
-                                      onClick={() =>
-                                        startInlineEdit(target, "bid")
-                                      }
-                                      className="table-text leading-[1.26] cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
-                                    >
-                                      {target.bid || "$0.00"}
-                                    </p>
-                                  )}
+                                    );
+                                  })()}
                                 </td>
 
                                 {/* Ad Group Name */}

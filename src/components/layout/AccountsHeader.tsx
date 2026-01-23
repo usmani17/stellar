@@ -59,6 +59,15 @@ export const AccountsHeader: React.FC = () => {
                   </div>
                 </div>
                 <button
+                  onClick={() => {
+                    setIsProfileDropdownOpen(false);
+                    navigate("/profile");
+                  }}
+                  className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
+                >
+                  Profile
+                </button>
+                <button
                   onClick={handleLogout}
                   className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
                 >

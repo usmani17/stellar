@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDateRange } from "../../../../contexts/DateRangeContext";
 import { Button } from "../../../../components/ui";
+import { Loader } from "../../../../components/ui/Loader";
 import { googleAdwordsLogsService } from "../../../../services/googleAdwords/googleAdwordsLogs";
 import type { GoogleLogEntry } from "../../../../services/googleAdwords/googleAdwordsLogs";
 
@@ -235,7 +236,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                 >
                   {exportLoading ? (
                     <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                      <Loader size="sm" showMessage={false} />
                     </div>
                   ) : (
                     <>
@@ -263,10 +264,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                 <div className="absolute top-[38px] right-0 w-56 bg-[#FCFCF9] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
                   {exportLoading ? (
                     <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                      <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#136D6D] border-t-transparent"></div>
-                      <p className="text-[13px] text-[#072929] font-medium">
-                        Exporting...
-                      </p>
+                      <Loader size="md" message="Exporting..." />
                       <p className="text-[11px] text-[#556179] text-center px-2">
                         Please wait while we prepare your file
                       </p>

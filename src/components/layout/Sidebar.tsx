@@ -27,10 +27,6 @@ import TargetsWhiteIcon from "../../assets/images/targets-white.svg";
 const AMAZON_SECTION_STORAGE_KEY = "amazon-section-collapsed";
 const GOOGLE_SECTION_STORAGE_KEY = "google-section-collapsed";
 const TIKTOK_SECTION_STORAGE_KEY = "tiktok-section-collapsed";
-const MARKETING_CHANNELS_SECTION_STORAGE_KEY =
-  "marketing-channels-section-collapsed";
-const OVERVIEW_SECTION_STORAGE_KEY = "overview-section-collapsed";
-const LOG_HISTORY_SECTION_STORAGE_KEY = "log-history-section-collapsed";
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
@@ -52,23 +48,6 @@ export const Sidebar: React.FC = () => {
       const saved = localStorage.getItem(TIKTOK_SECTION_STORAGE_KEY);
       return saved === "true" || saved === null; // Default to collapsed
     });
-  const [
-    isMarketingChannelsSectionCollapsed,
-    setIsMarketingChannelsSectionCollapsed,
-  ] = useState<boolean>(() => {
-    const saved = localStorage.getItem(MARKETING_CHANNELS_SECTION_STORAGE_KEY);
-    return saved === "true" || saved === null; // Default to collapsed
-  });
-  const [isOverviewSectionCollapsed, setIsOverviewSectionCollapsed] =
-    useState<boolean>(() => {
-      const saved = localStorage.getItem(OVERVIEW_SECTION_STORAGE_KEY);
-      return saved === "true" || saved === null; // Default to collapsed
-    });
-  const [isLogHistorySectionCollapsed, setIsLogHistorySectionCollapsed] =
-    useState<boolean>(() => {
-      const saved = localStorage.getItem(LOG_HISTORY_SECTION_STORAGE_KEY);
-      return saved === "true" || saved === null; // Default to collapsed
-    });
 
   // Auto-expand/collapse sections based on current page
   useEffect(() => {
@@ -78,8 +57,6 @@ export const Sidebar: React.FC = () => {
     if (location.pathname === "/accounts") {
       setIsAmazonSectionCollapsed(true);
       setIsGoogleSectionCollapsed(true);
-      setIsMarketingChannelsSectionCollapsed(true);
-      setIsOverviewSectionCollapsed(true);
     } else {
       // Auto-expand the relevant marketplace section when on that page
       if (marketplace === "amazon") {
@@ -89,8 +66,6 @@ export const Sidebar: React.FC = () => {
       } else if (marketplace === "tiktok") {
         setIsTikTokSectionCollapsed(false);
       }
-      // Marketing Channels and Overview don't have marketplace-specific routes
-      // so they stay in their saved state
     }
   }, [location.pathname]);
 
@@ -108,26 +83,6 @@ export const Sidebar: React.FC = () => {
     );
   }, [isGoogleSectionCollapsed]);
 
-  useEffect(() => {
-    localStorage.setItem(
-      MARKETING_CHANNELS_SECTION_STORAGE_KEY,
-      String(isMarketingChannelsSectionCollapsed)
-    );
-  }, [isMarketingChannelsSectionCollapsed]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      OVERVIEW_SECTION_STORAGE_KEY,
-      String(isOverviewSectionCollapsed)
-    );
-  }, [isOverviewSectionCollapsed]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      LOG_HISTORY_SECTION_STORAGE_KEY,
-      String(isLogHistorySectionCollapsed)
-    );
-  }, [isLogHistorySectionCollapsed]);
 
   const toggleAmazonSection = () => {
     setIsAmazonSectionCollapsed((prev) => !prev);
@@ -141,17 +96,6 @@ export const Sidebar: React.FC = () => {
     setIsTikTokSectionCollapsed((prev) => !prev);
   };
 
-  const toggleMarketingChannelsSection = () => {
-    setIsMarketingChannelsSectionCollapsed((prev) => !prev);
-  };
-
-  const toggleOverviewSection = () => {
-    setIsOverviewSectionCollapsed((prev) => !prev);
-  };
-
-  const toggleLogHistorySection = () => {
-    setIsLogHistorySectionCollapsed((prev) => !prev);
-  };
 
   const isActive = (path: string) => {
     if (path === "/campaigns") {
@@ -212,12 +156,36 @@ export const Sidebar: React.FC = () => {
         !location.pathname.includes("/tiktok")
       );
     }
+    // Handle marketplace-specific logs routes FIRST to prevent global logs from matching
+    if (path === "/amazon/logs") {
+      return (
+        location.pathname.includes("/amazon/logs") ||
+        location.pathname.includes("/amazon/log-history")
+      );
+    }
+    if (path === "/google/logs") {
+      return (
+        location.pathname.includes("/google/logs") ||
+        location.pathname.includes("/google/log-history")
+      );
+    }
+    if (path === "/tiktok/logs") {
+      return (
+        location.pathname.includes("/tiktok/logs") ||
+        location.pathname.includes("/tiktok/log-history")
+      );
+    }
+    // Global logs route - only match if NOT a marketplace-specific route
     if (path === "/log-history" || path === "/logs") {
       return (
         (location.pathname.includes("/log-history") ||
           location.pathname.includes("/logs")) &&
-        !location.pathname.includes("/google") &&
-        !location.pathname.includes("/tiktok")
+        !location.pathname.includes("/amazon/logs") &&
+        !location.pathname.includes("/amazon/log-history") &&
+        !location.pathname.includes("/google/logs") &&
+        !location.pathname.includes("/google/log-history") &&
+        !location.pathname.includes("/tiktok/logs") &&
+        !location.pathname.includes("/tiktok/log-history")
       );
     }
     return location.pathname === path;
@@ -318,45 +286,6 @@ export const Sidebar: React.FC = () => {
                     }`}
                 >
                   Accounts
-                </span>
-              )}
-            </Link>
-          </div>
-        </div>
-
-        {/* Dashboards Section */}
-        <div className="mb-6">
-          {!isCollapsed && (
-            <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] mb-3 uppercase tracking-wide">
-              Dashboards
-            </h2>
-          )}
-          <div className="space-y-1">
-            <Link
-              to="/dashboards"
-              className={`flex items-center p-2 rounded-xl ${
-                isActive("/dashboards") ? "" : "transition-colors"
-              } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                isActive("/dashboards")
-                  ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                  : "text-black hover:bg-transparent"
-                }`}
-              title={isCollapsed ? "Overview" : undefined}
-            >
-              <img
-                src={InstacartIcon}
-                alt=""
-                className={`w-5 h-5 ${
-                  isActive("/dashboards") ? "brightness-0 invert" : ""
-                  }`}
-              />
-              {!isCollapsed && (
-                <span
-                  className={`text-[12.32px] font-normal leading-[16px] ${
-                    isActive("/dashboards") ? "!text-white" : ""
-                    }`}
-                >
-                  Overview
                 </span>
               )}
             </Link>
@@ -554,6 +483,53 @@ export const Sidebar: React.FC = () => {
                       }`}
                   >
                     Targets
+                  </span>
+                )}
+              </Link>
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/amazon/logs`
+                    : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId
+                      ? `/accounts/${accountId}/amazon/logs`
+                      : "/accounts/1/amazon/logs"
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/amazon/logs") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/amazon/logs")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Logs" : undefined}
+              >
+                <svg
+                  className={`w-5 h-5 ${
+                    isActive("/amazon/logs") ? "brightness-0 invert" : ""
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/amazon/logs") ? "!text-white" : ""
+                    }`}
+                  >
+                    Logs
                   </span>
                 )}
               </Link>
@@ -755,6 +731,53 @@ export const Sidebar: React.FC = () => {
                   </span>
                 )}
               </Link>
+              <Link
+                to={
+                  accountId
+                    ? `/accounts/${accountId}/google/logs`
+                    : "/accounts"
+                }
+                onClick={(e) =>
+                  handleAccountRequiredClick(e, () =>
+                    accountId
+                      ? `/accounts/${accountId}/google/logs`
+                      : "/accounts/1/google/logs"
+                  )
+                }
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/google/logs") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/google/logs")
+                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
+                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
+                }`}
+                title={isCollapsed ? "Logs" : undefined}
+              >
+                <svg
+                  className={`w-5 h-5 ${
+                    isActive("/google/logs") ? "brightness-0 invert" : ""
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                {!isCollapsed && (
+                  <span
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/google/logs") ? "!text-white" : ""
+                    }`}
+                  >
+                    Logs
+                  </span>
+                )}
+              </Link>
             </div>
           )}
         </div>
@@ -909,23 +932,30 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to={
-                  accountId ? `/accounts/${accountId}/tiktok/logs` : "/accounts"
+                  accountId
+                    ? `/accounts/${accountId}/tiktok/logs`
+                    : "/accounts"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
-                    accountId ? `/accounts/${accountId}/tiktok/logs` : null
+                    accountId
+                      ? `/accounts/${accountId}/tiktok/logs`
+                      : "/accounts/1/tiktok/logs"
                   )
                 }
-                className={`flex items-center p-2 rounded-xl ${isActive("/tiktok/logs") ? "" : "transition-colors"
-                  } ${isCollapsed ? "justify-center" : "gap-2"} ${isActive("/tiktok/logs")
+                className={`flex items-center p-2 rounded-xl ${
+                  isActive("/tiktok/logs") ? "" : "transition-colors"
+                } ${isCollapsed ? "justify-center" : "gap-2"} ${
+                  isActive("/tiktok/logs")
                     ? "w-full bg-forest-f60 !text-white hover:!text-white"
                     : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
-                title={isCollapsed ? "TikTok Logs" : undefined}
+                }`}
+                title={isCollapsed ? "Logs" : undefined}
               >
                 <svg
-                  className={`w-5 h-5 ${isActive("/tiktok/logs") ? "brightness-0 invert" : ""
-                    }`}
+                  className={`w-5 h-5 ${
+                    isActive("/tiktok/logs") ? "brightness-0 invert" : ""
+                  }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -934,13 +964,14 @@ export const Sidebar: React.FC = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
                 {!isCollapsed && (
                   <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${isActive("/tiktok/logs") ? "!text-white" : ""
-                      }`}
+                    className={`text-[12.32px] font-normal leading-[16px] ${
+                      isActive("/tiktok/logs") ? "!text-white" : ""
+                    }`}
                   >
                     Logs
                   </span>
@@ -950,309 +981,6 @@ export const Sidebar: React.FC = () => {
           )}
         </div>
 
-        {/* Marketing Channels Section */}
-        <div className="mb-6">
-          {!isCollapsed && (
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                Marketing Channels
-              </h2>
-              <button
-                onClick={toggleMarketingChannelsSection}
-                className="p-1 rounded hover:bg-gray-100 transition-colors"
-                aria-label={
-                  isMarketingChannelsSectionCollapsed
-                    ? "Expand Marketing Channels section"
-                    : "Collapse Marketing Channels section"
-                }
-              >
-                <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isMarketingChannelsSectionCollapsed
-                    ? "rotate-[-90deg]"
-                    : "rotate-0"
-                    }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
-          {(isCollapsed || !isMarketingChannelsSectionCollapsed) && (
-            <div className="space-y-1">
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Meta" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Meta
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Meta" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Meta
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Walmart" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Walmart
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Instacart" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Instacart
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Criteo" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Criteo
-                  </span>
-                )}
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* Overview Section */}
-        <div className="mb-6">
-          {!isCollapsed && (
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                Overview
-              </h2>
-              <button
-                onClick={toggleOverviewSection}
-                className="p-1 rounded hover:bg-gray-100 transition-colors"
-                aria-label={
-                  isOverviewSectionCollapsed
-                    ? "Expand Overview section"
-                    : "Collapse Overview section"
-                }
-              >
-                <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isOverviewSectionCollapsed ? "rotate-[-90deg]" : "rotate-0"
-                    }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
-          {(isCollapsed || !isOverviewSectionCollapsed) && (
-            <div className="space-y-1">
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Trend Chart" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Trend Chart
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "KPI Cards" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    KPI Cards
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Top Keywords" : undefined}
-              >
-                <img src={InstacartIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Top Keywords
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Top Products" : undefined}
-              >
-                <img src={TopKeywordsIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Top Products
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/channels"
-                className={`flex items-center p-2 rounded-xl transition-colors text-black hover:bg-transparent ${
-                  isCollapsed ? "justify-center" : "gap-2"
-                  }`}
-                title={isCollapsed ? "Pixels-Like Box" : undefined}
-              >
-                <img src={TopProductsIcon} alt="" className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="text-[12.32px] font-normal leading-[16px]">
-                    Pixels-Like Box
-                  </span>
-                )}
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* Log / History Section */}
-        <div className="mb-6">
-          {!isCollapsed && (
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[12.32px] font-normal text-[rgba(0,0,0,0.4)] uppercase tracking-wide">
-                Log / History
-              </h2>
-              <button
-                onClick={toggleLogHistorySection}
-                className="p-1 rounded hover:bg-gray-100 transition-colors"
-                aria-label={
-                  isLogHistorySectionCollapsed
-                    ? "Expand Log / History section"
-                    : "Collapse Log / History section"
-                }
-              >
-                <svg
-                  className={`w-4 h-4 text-gray-600 transition-transform ${
-                    isLogHistorySectionCollapsed
-                    ? "rotate-[-90deg]"
-                    : "rotate-0"
-                    }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
-          {(isCollapsed || !isLogHistorySectionCollapsed) && (
-            <div className="space-y-1">
-              <Link
-                to={
-                  accountId
-                    ? `/accounts/${accountId}/log-history`
-                    : "/log-history"
-                }
-                className={`flex items-center p-2 rounded-xl ${
-                  isActive("/log-history") ? "" : "transition-colors"
-                } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                  isActive("/log-history")
-                    ? "w-full bg-forest-f60 !text-white hover:!text-white"
-                    : "text-black hover:bg-transparent hover:text-[#136D6D]"
-                  }`}
-                title={isCollapsed ? "Log / History" : undefined}
-              >
-                <svg
-                  className={`w-5 h-5 ${
-                    isActive("/log-history") ? "brightness-0 invert" : ""
-                    }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                {!isCollapsed && (
-                  <span
-                    className={`text-[12.32px] font-normal leading-[16px] ${
-                      isActive("/log-history") ? "!text-white" : ""
-                      }`}
-                  >
-                    Log / History
-                  </span>
-                )}
-              </Link>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

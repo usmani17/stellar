@@ -196,7 +196,7 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
             Ad Group *
           </h3>
           <div>
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Select Ad Group *
             </label>
             <Dropdown<string>
@@ -241,7 +241,7 @@ export const CreateGoogleShoppingEntitiesPanel: React.FC<
           </h3>
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 CPC Bid *
               </label>
               <input

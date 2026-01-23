@@ -5,14 +5,12 @@ import React, {
   useEffect,
   type ReactNode,
 } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
 import {
   authService,
   type User,
   type LoginCredentials,
   type RegisterData,
 } from "../services/auth";
-import { setAuth0TokenGetter } from "../services/api";
 
 interface AuthContextType {
   user: User | null;
@@ -33,187 +31,46 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const {
-    user: auth0User,
-    isAuthenticated,
-    isLoading: auth0Loading,
-    loginWithRedirect,
-    logout: auth0Logout,
-    getAccessTokenSilently,
-  } = useAuth0();
-
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Sync Auth0 user with backend user
+  // Initialize user from localStorage on mount
   useEffect(() => {
-    const syncUser = async () => {
-      if (auth0Loading) {
-        setLoading(true);
-        return;
-      }
+    const initAuth = async () => {
+      const storedUser = localStorage.getItem("user");
+      const accessToken = localStorage.getItem("accessToken");
 
-      if (isAuthenticated && auth0User) {
+      if (storedUser && accessToken) {
         try {
-          // Get Auth0 access token with audience and scope
-          // With audience configured, Auth0 returns a proper JWT access token (not encrypted)
-          const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
 
-          console.log("Auth0 Audience:", audience);
-          const token = await getAccessTokenSilently({
-            authorizationParams: audience
-              ? {
-                  audience,
-                  scope: "openid profile email offline_access",
-                }
-              : { scope: "openid profile email offline_access" },
-          });
-
-          // Decode JWT token to see what's inside (without verification)
-          if (token) {
-            try {
-              const base64Url = token.split(".")[1];
-              const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-              const jsonPayload = decodeURIComponent(
-                atob(base64)
-                  .split("")
-                  .map(
-                    (c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)
-                  )
-                  .join("")
-              );
-              const decodedToken = JSON.parse(jsonPayload);
-              console.log(
-                "🔓 [FRONTEND] Decoded Access Token Payload:",
-                decodedToken
-              );
-              console.log("🔓 [FRONTEND] Token Claims:", {
-                sub: decodedToken.sub,
-                email: decodedToken.email,
-                aud: decodedToken.aud,
-                iss: decodedToken.iss,
-                exp: decodedToken.exp,
-                iat: decodedToken.iat,
-                allKeys: Object.keys(decodedToken),
-              });
-            } catch (error) {
-              console.error("Failed to decode token:", error);
-            }
-
-            localStorage.setItem("accessToken", token);
-            console.log("Stored access token for backend authentication", {
-              hasAudience: !!audience,
-            });
-
-            // Fetch user profile from backend
-            // The backend will automatically create the user if it doesn't exist
-            try {
-              console.log("Fetching user profile from backend...");
-              const backendUser = await authService.getProfile();
-              console.log("User profile fetched:", backendUser);
-              setUser(backendUser);
-              localStorage.setItem("user", JSON.stringify(backendUser));
-              setLoading(false);
-            } catch (error: any) {
-              // If profile fetch fails, it might be because:
-              // 1. User is being created (first request)
-              // 2. Token validation issue
-              // 3. Network error
-              console.error("Error fetching user profile:", error);
-              console.error("Error details:", {
-                status: error?.response?.status,
-                data: error?.response?.data,
-                message: error?.message,
-              });
-
-              // Retry with exponential backoff
-              const maxRetries = 3;
-              const retry = async (retryCount: number) => {
-                if (retryCount >= maxRetries) {
-                  console.error(
-                    "Max retries reached. User profile fetch failed."
-                  );
-                  setLoading(false);
-                  return;
-                }
-
-                const attemptNumber = retryCount + 1;
-                const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
-                console.log(
-                  `Retrying user profile fetch (attempt ${attemptNumber}/${maxRetries}) after ${delay}ms...`
-                );
-
-                setTimeout(async () => {
-                  try {
-                    const backendUser = await authService.getProfile();
-                    console.log("User profile fetched on retry:", backendUser);
-                    setUser(backendUser);
-                    localStorage.setItem("user", JSON.stringify(backendUser));
-                    setLoading(false);
-                  } catch (retryError: any) {
-                    console.error(
-                      `Error fetching user profile on retry ${attemptNumber}:`,
-                      retryError
-                    );
-                    retry(retryCount + 1);
-                  }
-                }, delay);
-              };
-
-              // Start retry if it's a 403, 401, or network error
-              if (
-                error?.response?.status === 403 ||
-                error?.response?.status === 401 ||
-                error?.code === "NETWORK_ERROR" ||
-                !error?.response
-              ) {
-                retry(0);
-              } else {
-                setLoading(false);
-              }
-            }
-          } else {
-            console.error("No token received from Auth0");
+          // Verify token is still valid by fetching profile
+          try {
+            const backendUser = await authService.getProfile();
+            setUser(backendUser);
+            localStorage.setItem("user", JSON.stringify(backendUser));
+          } catch (error) {
+            // Token might be expired, clear storage
+            console.warn("Token validation failed, clearing auth state");
+            localStorage.removeItem("user");
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+            setUser(null);
           }
         } catch (error) {
-          console.error("Error syncing user:", error);
-        }
-      } else {
-        // Only clear if not authenticated via Auth0 AND not authenticated via traditional login
-        const storedUser = localStorage.getItem("user");
-        const storedToken = localStorage.getItem("accessToken");
-        if (!storedUser && !storedToken) {
+          console.error("Error initializing auth:", error);
+          localStorage.removeItem("user");
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
           setUser(null);
         }
       }
       setLoading(false);
     };
 
-    syncUser();
-  }, [isAuthenticated, auth0User, auth0Loading, getAccessTokenSilently]);
-
-  // Initialize from localStorage on mount (for traditional login)
-  useEffect(() => {
-    const initAuth = async () => {
-      const storedUser = localStorage.getItem("user");
-      const accessToken = localStorage.getItem("accessToken");
-
-      if (storedUser && accessToken && !isAuthenticated) {
-        try {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-        } catch (error) {
-          localStorage.removeItem("user");
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-        }
-      }
-    };
-
-    if (!auth0Loading && !isAuthenticated) {
-      initAuth();
-    }
-  }, [auth0Loading, isAuthenticated]);
+    initAuth();
+  }, []);
 
   const login = async (credentials: LoginCredentials) => {
     const response = await authService.login(credentials);
@@ -224,26 +81,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const loginWithAuth0 = async () => {
-    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
-    await loginWithRedirect({
-      authorizationParams: {
+    try {
+      // Get Auth0 login URL from backend
+      const { auth_url } = await authService.getAuth0LoginUrl({
         screen_hint: "login",
-        scope: "openid profile email offline_access",
-        ...(audience ? { audience } : {}),
-      },
-    });
+      });
+      // Redirect to Auth0
+      window.location.href = auth_url;
+    } catch (error) {
+      console.error("Failed to get Auth0 login URL:", error);
+      throw error;
+    }
   };
 
   const loginWithGoogle = async () => {
-    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
-    await loginWithRedirect({
-      authorizationParams: {
+    try {
+      // Get Auth0 login URL from backend with Google connection
+      const { auth_url } = await authService.getAuth0LoginUrl({
         connection: "google-oauth2",
         screen_hint: "login",
-        scope: "openid profile email offline_access",
-        ...(audience ? { audience } : {}),
-      },
-    });
+      });
+      // Redirect to Auth0
+      window.location.href = auth_url;
+    } catch (error) {
+      console.error("Failed to get Auth0 Google login URL:", error);
+      throw error;
+    }
   };
 
   const register = async (data: RegisterData) => {
@@ -255,41 +118,65 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const registerWithAuth0 = async () => {
-    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
-    await loginWithRedirect({
-      authorizationParams: {
+    try {
+      // Get Auth0 signup URL from backend
+      const { auth_url } = await authService.getAuth0LoginUrl({
         screen_hint: "signup",
-        scope: "openid profile email offline_access",
-        ...(audience ? { audience } : {}),
-      },
-    });
+      });
+      // Redirect to Auth0
+      window.location.href = auth_url;
+    } catch (error) {
+      console.error("Failed to get Auth0 signup URL:", error);
+      throw error;
+    }
   };
 
   const registerWithGoogle = async () => {
-    const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
-    await loginWithRedirect({
-      authorizationParams: {
+    try {
+      // Get Auth0 signup URL from backend with Google connection
+      const { auth_url } = await authService.getAuth0LoginUrl({
         connection: "google-oauth2",
         screen_hint: "signup",
-        scope: "openid profile email offline_access",
-        ...(audience ? { audience } : {}),
-      },
-    });
+      });
+      // Redirect to Auth0
+      window.location.href = auth_url;
+    } catch (error) {
+      console.error("Failed to get Auth0 Google signup URL:", error);
+      throw error;
+    }
   };
 
-  const logout = () => {
-    // If authenticated via Auth0, use Auth0 logout
-    if (isAuthenticated) {
-      auth0Logout({
-        logoutParams: {
-          returnTo: window.location.origin,
-        },
-      });
+  const logout = async () => {
+    try {
+      // Check if we have an Auth0 token (stored in localStorage)
+      const accessToken = localStorage.getItem("accessToken");
+      if (accessToken && user) {
+        // Try to get Auth0 logout URL from backend
+        try {
+          const { logout_url } = await authService.getAuth0LogoutUrl();
+          // Clear local storage first
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("user");
+          setUser(null);
+          // Redirect to Auth0 logout
+          window.location.href = logout_url;
+          return;
+        } catch (error) {
+          console.error("Failed to get Auth0 logout URL:", error);
+          // Fall through to regular logout
+        }
+      }
+    } catch (error) {
+      console.error("Error during logout:", error);
     }
+
+    // Fallback: clear local storage and redirect
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     setUser(null);
+    window.location.href = "/login";
   };
 
   const updateUser = (updatedUser: User) => {
@@ -298,35 +185,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const getAccessToken = async (): Promise<string | null> => {
-    try {
-      // Get access token with audience and scope (returns JWT when audience is configured)
-      const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
-      const token = await getAccessTokenSilently({
-        authorizationParams: audience
-          ? {
-              audience,
-              scope: "openid profile email offline_access",
-            }
-          : { scope: "openid profile email offline_access" },
-      });
-      if (token) {
-        localStorage.setItem("accessToken", token);
-      }
-      return token || null;
-    } catch (error) {
-      console.error("Error getting access token:", error);
-      return null;
-    }
+    // Get token from localStorage (set by backend callback)
+    const token = localStorage.getItem("accessToken");
+    return token || null;
   };
-
-  // Set the token getter for API interceptor to use
-  useEffect(() => {
-    if (isAuthenticated) {
-      setAuth0TokenGetter(getAccessToken);
-    } else {
-      setAuth0TokenGetter(null);
-    }
-  }, [isAuthenticated]);
 
   return (
     <AuthContext.Provider

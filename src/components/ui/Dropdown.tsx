@@ -205,11 +205,10 @@ export const Dropdown = <T extends string | number = string>({
         className={cn(
           // Only apply default styles if edit-button is not in buttonClassName
           !buttonClassName?.includes("edit-button") &&
-            "w-full flex items-center justify-between gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-[10px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] bg-white transition-colors",
+            (buttonClassName?.includes("inline-edit-dropdown")
+              ? "w-full"
+              : "w-full inline-edit-dropdown"),
           disabled && "opacity-50 cursor-not-allowed",
-          !disabled &&
-            !buttonClassName?.includes("edit-button") &&
-            "hover:border-[#556179] cursor-pointer",
           buttonClassName
         )}
       >

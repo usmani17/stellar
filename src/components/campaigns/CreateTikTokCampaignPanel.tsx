@@ -525,7 +525,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                     <div className="grid grid-cols-3 gap-6">
                         {/* Profile */}
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Profile
                             </label>
                             <Dropdown
@@ -543,7 +543,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
 
                         {/* Campaign Objective */}
                         <div>
-                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                            <label className="form-label">
                                 Campaign Objective
                             </label>
                             <Dropdown
@@ -576,7 +576,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name - Edit Mode Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -602,7 +602,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 3: Budget Type, Budget - Edit Mode Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -616,7 +616,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 {budgetMode === "BUDGET_MODE_DAY" ? "Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Lifetime Budget" : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET" ? "Dynamic Daily Budget" : "Budget"}
                                             </label>
                                             <input
@@ -644,7 +644,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name, Product Source - Product Sales Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -667,7 +667,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Product Source
                                             </label>
                                             <Dropdown
@@ -684,7 +684,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {isTikTokShop ? (
                                         <div className="grid grid-cols-3 gap-6">
                                             <div>
-                                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                <label className="form-label">
                                                     TikTok Shop Account
                                                 </label>
                                                 <Dropdown
@@ -697,7 +697,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             </div>
 
                                             <div>
-                                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                <label className="form-label">
                                                     Currency
                                                 </label>
                                                 <input
@@ -709,7 +709,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             </div>
 
                                             <div>
-                                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                <label className="form-label">
                                                     Checkout
                                                 </label>
                                                 <input
@@ -723,7 +723,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     ) : isProductCatalogWebsite ? (
                                         <div className="grid grid-cols-3 gap-6">
                                             <div>
-                                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                <label className="form-label">
                                                     Product Catalog
                                                 </label>
                                                 <Dropdown
@@ -736,7 +736,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             </div>
 
                                             <div>
-                                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                <label className="form-label">
                                                     Optimization Location
                                                 </label>
                                                 <input
@@ -753,7 +753,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             {/* Row 2: Product Catalog - Product Catalog App Only */}
                                             <div className="grid grid-cols-3 gap-6">
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         Product Catalog
                                                     </label>
                                                     <Dropdown
@@ -769,7 +769,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             {/* Row 3: App Platform, App ID, Optimization Location - Product Catalog App Only */}
                                             <div className="grid grid-cols-3 gap-6">
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         App Platform
                                                     </label>
                                                     <Dropdown
@@ -782,7 +782,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         App ID
                                                     </label>
                                                     <input
@@ -795,7 +795,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         Optimization Location
                                                     </label>
                                                     <input
@@ -831,7 +831,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
 
                                         {upgradeSalesObjective && (
                                             <div>
-                                                <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                <label className="form-label">
                                                     Sales Destination
                                                 </label>
                                                 <Dropdown
@@ -863,7 +863,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -879,7 +879,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 6: Status - Product Sales Only */}
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Status
                                             </label>
                                             <Dropdown
@@ -897,7 +897,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name, Sales Destination, Info Box - Sales Merged */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -910,7 +910,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Sales Destination
                                             </label>
                                             <Dropdown
@@ -959,7 +959,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -972,7 +972,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget
                                             </label>
                                             <input
@@ -988,7 +988,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 4: Status - Sales Merged */}
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Status
                                             </label>
                                             <Dropdown
@@ -1006,7 +1006,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name, App Promotion Type, App Platform - App Promotion */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -1019,7 +1019,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 App Promotion Type
                                             </label>
                                             <Dropdown
@@ -1032,7 +1032,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 App Platform
                                             </label>
                                             <Dropdown
@@ -1051,7 +1051,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             {/* Row 3: App Selection - Android Only (no iOS14 or Smart+ toggles) */}
                                             <div className="grid grid-cols-3 gap-6">
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         App Selection
                                                     </label>
                                                     <Dropdown
@@ -1076,7 +1076,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         Budget Type
                                                     </label>
                                                     <Dropdown
@@ -1089,7 +1089,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         {budgetMode === "BUDGET_MODE_DAY" 
                                                             ? "Average Daily Budget" 
                                                             : budgetMode === "BUDGET_MODE_TOTAL"
@@ -1119,7 +1119,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             {/* Row 5: Status - Android Only */}
                                             <div className="grid grid-cols-1 gap-6">
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         Status
                                                     </label>
                                                     <Dropdown
@@ -1137,7 +1137,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             {/* Row 3: App Selection, iOS14 Dedicated Campaign, Smart+ Campaign - App Promotion iOS Only */}
                                             <div className="grid grid-cols-3 gap-6">
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         App Selection
                                                     </label>
                                                     <Dropdown
@@ -1186,7 +1186,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         Budget Type
                                                     </label>
                                                     <Dropdown
@@ -1199,7 +1199,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         {budgetMode === "BUDGET_MODE_DAY" 
                                                             ? "Daily Budget" 
                                                             : budgetMode === "BUDGET_MODE_TOTAL"
@@ -1225,7 +1225,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                             {/* Row 5: Status - App Promotion iOS Only */}
                                             <div className="grid grid-cols-1 gap-6">
                                                 <div>
-                                                    <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                                    <label className="form-label">
                                                         Status
                                                     </label>
                                                     <Dropdown
@@ -1245,7 +1245,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name - Reach Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -1270,7 +1270,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -1288,7 +1288,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget
                                             </label>
                                             <input
@@ -1304,7 +1304,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 4: Status - Reach Only */}
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Status
                                             </label>
                                             <Dropdown
@@ -1322,7 +1322,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name - Traffic Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -1347,7 +1347,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -1360,7 +1360,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 {budgetMode === "BUDGET_MODE_DAY" ? "Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Lifetime Budget" : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET" ? "Dynamic Daily Budget" : "Budget"}
                                             </label>
                                             <input
@@ -1376,7 +1376,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 4: Status - Traffic Only */}
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Status
                                             </label>
                                             <Dropdown
@@ -1394,7 +1394,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name - Video Views Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -1419,7 +1419,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -1437,7 +1437,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 {budgetMode === "BUDGET_MODE_DAY" ? "Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Lifetime Budget" : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET" ? "Dynamic Daily Budget" : "Budget"}
                                             </label>
                                             <input
@@ -1453,7 +1453,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 4: Status - Video Views Only */}
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Status
                                             </label>
                                             <Dropdown
@@ -1471,7 +1471,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name - Lead Generation Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -1496,7 +1496,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -1509,7 +1509,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 {budgetMode === "BUDGET_MODE_DAY" ? "Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Lifetime Budget" : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET" ? "Dynamic Daily Budget" : "Budget"}
                                             </label>
                                             <input
@@ -1525,7 +1525,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 4: Status - Lead Generation Only */}
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Status
                                             </label>
                                             <Dropdown
@@ -1543,7 +1543,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name - Engagement Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -1568,7 +1568,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -1586,7 +1586,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 {budgetMode === "BUDGET_MODE_DAY" ? "Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Lifetime Budget" : budgetMode === "BUDGET_MODE_DYNAMIC_DAILY_BUDGET" ? "Dynamic Daily Budget" : "Budget"}
                                             </label>
                                             <input
@@ -1602,7 +1602,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 4: Status - Engagement Only */}
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Status
                                             </label>
                                             <Dropdown
@@ -1620,7 +1620,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name - Website Conversions Only */}
                                     <div className="grid grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -1645,7 +1645,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <Dropdown
@@ -1658,7 +1658,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 {budgetMode === "BUDGET_MODE_DAY" ? "Daily Budget" : budgetMode === "BUDGET_MODE_TOTAL" ? "Lifetime Budget" : "Budget"}
                                             </label>
                                             <input
@@ -1674,7 +1674,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 4: Status - Website Conversions Only */}
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Status
                                             </label>
                                             <Dropdown
@@ -1692,7 +1692,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 2: Campaign Name & App Promotion Type */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Campaign Name
                                             </label>
                                             <input
@@ -1705,7 +1705,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 App Promotion Type
                                             </label>
                                             <select
@@ -1725,7 +1725,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 3: Budget Section */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Daily Budget
                                             </label>
                                             <input
@@ -1739,7 +1739,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Type
                                             </label>
                                             <select
@@ -1756,7 +1756,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Budget Optimize
                                             </label>
                                             <div className="h-[48px] flex items-center">
@@ -1771,7 +1771,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                     {/* Row 4: Toggle Options */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 Enable Dedicated Campaign
                                             </label>
                                             <div className="h-[48px] flex items-center">
@@ -1783,7 +1783,7 @@ export const CreateTikTokCampaignPanel: React.FC<CreateTikTokCampaignPanelProps>
                                         </div>
 
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-[#072929] mb-2">
+                                            <label className="form-label">
                                                 iOS 14 Dedicated Campaign
                                             </label>
                                             <div className="h-[48px] flex items-center">

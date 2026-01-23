@@ -20,6 +20,7 @@ import {
   GoogleAdGroupsTable,
   type GoogleAdGroup,
 } from "./components/GoogleAdGroupsTable";
+import { Loader } from "../../components/ui/Loader";
 
 // GoogleAdGroup interface is now imported from GoogleAdGroupsTable
 
@@ -1117,7 +1118,7 @@ export const GoogleAdGroups: React.FC = () => {
                 >
                   {syncing ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                      <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                       Syncing...
                     </span>
                   ) : (
@@ -1131,7 +1132,7 @@ export const GoogleAdGroups: React.FC = () => {
                 >
                   {syncingAnalytics ? (
                     <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                      <Loader size="sm" variant="white" showMessage={false} className="!flex-row gap-2" />
                       Syncing Analytics...
                     </span>
                   ) : (
@@ -1302,7 +1303,7 @@ export const GoogleAdGroups: React.FC = () => {
                   {exporting ? (
                     <>
                       <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#136D6D]"></div>
+                        <Loader size="sm" showMessage={false} />
                       </div>
                       <span className="text-[10.64px] text-[#072929] font-normal">
                         Exporting...
@@ -1479,12 +1480,7 @@ export const GoogleAdGroups: React.FC = () => {
                   <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto relative">
                     {bulkLoading && (
                       <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-xl">
-                        <div className="flex flex-col items-center gap-3">
-                          <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
-                          <span className="text-[12.8px] font-medium text-[#136D6D]">
-                            Updating adgroups...
-                          </span>
-                        </div>
+                        <Loader size="md" message="Updating adgroups..." />
                       </div>
                     )}
                     <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
@@ -1838,7 +1834,7 @@ export const GoogleAdGroups: React.FC = () => {
                       >
                         {exporting ? (
                           <>
-                            <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                            <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
                             Exporting...
                           </>
                         ) : (
@@ -1974,7 +1970,7 @@ export const GoogleAdGroups: React.FC = () => {
               )}
 
               {/* Table */}
-              <div className="bg-[#f9f9f6] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+              <div className="table-container">
                 <div className="overflow-x-auto w-full">
                   <GoogleAdGroupsTable
                     adgroups={adgroups}

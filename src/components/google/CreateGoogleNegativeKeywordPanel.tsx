@@ -172,7 +172,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
         {/* Ad Group Selection (only for ad group level) */}
         {level === "adgroup" && (
           <div className="mb-6">
-            <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+            <label className="form-label-small">
               Select Ad Group *
             </label>
             <Dropdown<string>
@@ -223,7 +223,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
           </div>
           <div className="flex flex-wrap items-end gap-3 mb-3">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Keyword Text *
               </label>
               <input
@@ -248,7 +248,7 @@ export const CreateGoogleNegativeKeywordPanel: React.FC<
               )}
             </div>
             <div className="w-[140px]">
-              <label className="block text-[11.2px] font-semibold text-[#556179] mb-2 uppercase">
+              <label className="form-label-small">
                 Match Type *
               </label>
               <Dropdown

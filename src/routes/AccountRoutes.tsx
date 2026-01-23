@@ -7,6 +7,7 @@ import { Channels } from "../pages/Channels";
 import { ConnectTikTok } from "../pages/ConnectTikTok";
 import { Dashboards } from "../pages/Dashboards";
 import { LogHistory } from "../pages/LogHistory";
+import { Profile } from "../pages/Profile";
 import { ColorExamples } from "../pages/ColorExamples";
 
 function AccountRoutes() {
@@ -97,6 +98,16 @@ function AccountRoutes() {
                                 <LogHistory />
                             </Layout>
                         </AccountRequiredRoute>
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/profile"
+                element={
+                    <ProtectedRoute>
+                        <Layout>
+                            <Profile />
+                        </Layout>
                     </ProtectedRoute>
                 }
             />

@@ -4,10 +4,11 @@ import { StatusBadge } from "../ui/StatusBadge";
 
 export interface Creative {
   id: number;
-  creativeId: number;
-  adGroupId: number;
+  creativeId: number | string; // Can be string to preserve precision for large integers
+  adGroupId: number | string; // Can be string to preserve precision for large integers
   creativeType: "IMAGE" | "VIDEO";
-  properties: any;
+  properties: any; // Full JSON properties object
+  moderationStatus?: string;
   consentToTranslate?: boolean;
   state?: string;
   last_updated?: string;
@@ -22,6 +23,7 @@ interface CreativesTableProps {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (column: string) => void;
+  onEdit?: (creative: Creative) => void;
 }
 
 export const CreativesTable: React.FC<CreativesTableProps> = ({
@@ -33,7 +35,9 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
   sortBy = "id",
   sortOrder = "asc",
   onSort,
+  onEdit,
 }) => {
+  console.log(creatives);
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
       return (
@@ -89,17 +93,34 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
     }
   };
 
-  const allSelected = creatives.length > 0 && creatives.every((c) => selectedIds.has(c.id));
-  const someSelected = creatives.some((c) => selectedIds.has(c.id));
+  // Convert creativeId to number for comparison (it may be string to preserve precision)
+  const allSelected =
+    creatives.length > 0 &&
+    creatives.every((c) => selectedIds.has(Number(c.creativeId)));
+  const someSelected = creatives.some((c) =>
+    selectedIds.has(Number(c.creativeId))
+  );
 
-  const getPropertySummary = (properties: any): string => {
-    const parts: string[] = [];
-    if (properties.headline) parts.push("Headline");
-    if (properties.logo) parts.push("Logo");
-    if (properties.customImage) parts.push("Custom Image");
-    if (properties.background) parts.push("Background");
-    if (properties.video) parts.push("Video");
-    return parts.join(", ") || "N/A";
+  const getPropertySummary = (creative: Creative): string => {
+    // Return formatted JSON string of properties
+    if (!creative.properties) {
+      return "N/A";
+    }
+
+    try {
+      // If properties is already a string, parse it first
+      const props =
+        typeof creative.properties === "string"
+          ? JSON.parse(creative.properties)
+          : creative.properties;
+
+      // Return pretty-printed JSON (single line, compact)
+      return JSON.stringify(props, null, 0)
+        .replace(/\n/g, " ")
+        .substring(0, 100);
+    } catch (e) {
+      return String(creative.properties).substring(0, 100);
+    }
   };
 
   if (loading) {
@@ -135,15 +156,6 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
               </th>
               <th
                 className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase cursor-pointer hover:bg-gray-50"
-                onClick={() => handleSort("id")}
-              >
-                <div className="flex items-center">
-                  ID
-                  {getSortIcon("id")}
-                </div>
-              </th>
-              <th
-                className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase cursor-pointer hover:bg-gray-50"
                 onClick={() => handleSort("creativeId")}
               >
                 <div className="flex items-center">
@@ -151,14 +163,23 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   {getSortIcon("creativeId")}
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
-                Type
+              <th
+                className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase cursor-pointer hover:bg-gray-50"
+                onClick={() => handleSort("adGroupId")}
+              >
+                <div className="flex items-center">
+                  Ad Group ID
+                  {getSortIcon("adGroupId")}
+                </div>
               </th>
               <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
-                Properties
+                CreativeType
               </th>
               <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
-                Translate
+                Properties (JSON)
+              </th>
+              <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
+                Moderation Status
               </th>
               <th
                 className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase cursor-pointer hover:bg-gray-50"
@@ -169,27 +190,34 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                   {getSortIcon("last_updated")}
                 </div>
               </th>
+              {onEdit && (
+                <th className="px-4 py-3 text-left text-[11.2px] font-semibold text-[#556179] uppercase">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {creatives.map((creative) => (
               <tr
-                key={creative.id}
+                key={creative.creativeId}
                 className="border-b border-[#EBEBEB] hover:bg-gray-50"
               >
                 <td className="px-4 py-3">
                   {onSelect && (
                     <Checkbox
-                      checked={selectedIds.has(creative.id)}
-                      onChange={(checked) => onSelect(creative.id, checked)}
+                      checked={selectedIds.has(Number(creative.creativeId))}
+                      onChange={(checked) =>
+                        onSelect(Number(creative.creativeId), checked)
+                      }
                     />
                   )}
                 </td>
                 <td className="px-4 py-3 text-[13.44px] text-[#222124]">
-                  {creative.id}
+                  {creative.creativeId}
                 </td>
                 <td className="px-4 py-3 text-[13.44px] text-[#222124]">
-                  {creative.creativeId}
+                  {creative.adGroupId}
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge
@@ -197,14 +225,17 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                     uppercase={false}
                   />
                 </td>
-                <td className="px-4 py-3 text-[13.44px] text-[#222124]">
-                  {getPropertySummary(creative.properties)}
+                <td className="px-4 py-3 text-[13.44px] text-[#222124] font-mono text-xs break-all">
+                  {getPropertySummary(creative)}
                 </td>
                 <td className="px-4 py-3">
-                  {creative.consentToTranslate ? (
-                    <span className="text-green-600 text-[13.44px]">Yes</span>
+                  {creative.moderationStatus ? (
+                    <StatusBadge
+                      status={creative.moderationStatus}
+                      uppercase={false}
+                    />
                   ) : (
-                    <span className="text-gray-400 text-[13.44px]">No</span>
+                    <span className="text-gray-400 text-[13.44px]">N/A</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-[13.44px] text-[#222124]">
@@ -212,6 +243,29 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
                     ? new Date(creative.last_updated).toLocaleDateString()
                     : "N/A"}
                 </td>
+                {onEdit && (
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => onEdit(creative)}
+                      className="text-[#136D6D] hover:text-[#0f5555] transition-colors"
+                      title="Edit creative"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -220,4 +274,3 @@ export const CreativesTable: React.FC<CreativesTableProps> = ({
     </div>
   );
 };
-

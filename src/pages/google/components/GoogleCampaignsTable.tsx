@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
+import { Loader } from "../../../components/ui/Loader";
 import type { IGoogleCampaignsTableProps, IGoogleCampaign } from "../../../types/google/campaign";
 import type { IColumnDefinition } from "../../../types/google";
 
@@ -81,26 +82,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                 disabled={editLoadingCampaignId === row.campaign_id}
               >
                 {editLoadingCampaignId === row.campaign_id ? (
-                  <svg
-                    className="w-4 h-4 text-[#136D6D] animate-spin"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      d="M4 12a8 8 0 018-8"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  <Loader size="sm" showMessage={false} />
                 ) : (
                   <svg
                     className="w-4 h-4 text-[#556179]"
@@ -146,7 +128,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       type: "text",
       sortable: true,
       render: (_value: any, row: IGoogleCampaign) => (
-        <span className="table-text leading-[1.26]">
+        <span className="table-text leading-[1.26] whitespace-nowrap">
           {getChannelTypeLabel(row.advertising_channel_type) || "—"}
         </span>
       ),
@@ -198,6 +180,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       type: "text",
       sortable: true,
       editable: true,
+      minWidth: "min-w-[180px]",
       statusOptions: [
         { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions" },
         { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conversion Value" },

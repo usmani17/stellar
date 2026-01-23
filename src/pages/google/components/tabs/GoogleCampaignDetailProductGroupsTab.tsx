@@ -3,6 +3,7 @@ import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { Dropdown } from "../../../../components/ui/Dropdown";
 import { Banner } from "../../../../components/ui/Banner";
+import { Loader } from "../../../../components/ui/Loader";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 
 interface GoogleProductGroup {
@@ -199,7 +200,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
           >
             {syncing ? (
               <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
                 Syncing...
               </span>
             ) : (
@@ -214,7 +215,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
             >
               {syncingAnalytics ? (
                 <span className="flex items-center gap-2 text-[10.64px] text-white font-normal">
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                  <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
                   Syncing Analytics...
                 </span>
               ) : (
@@ -344,7 +345,7 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                         {updatingProductGroupId === productGroup.id && pendingChange ? (
                           <div className="flex items-center gap-2">
                             <StatusBadge status={pendingChange.newValue} />
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+                            <Loader size="sm" showMessage={false} />
                           </div>
                         ) : pendingChange?.id === productGroup.id ? (
                           <div className="flex items-center gap-2">

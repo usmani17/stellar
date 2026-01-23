@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
+import { Loader } from "../../../components/ui/Loader";
 import { formatDateString, parseDateToYYYYMMDD } from "../../../utils/dateHelpers";
 import type { IColumnDefinition, IGoogleAdsTableProps } from "../../../types/google";
 
@@ -54,7 +55,25 @@ export function GoogleAdsTable<T = any>({
     const hasPendingChange = pendingChange?.itemId === itemId;
     const value = column.getValue(row);
 
-    // Handle editing state first (before custom render) so editable cells work properly
+    // For editable fields (status, budget, start_date, end_date, bidding_strategy_type), 
+    // always show as editable controls (like Amazon campaigns)
+    if (column.editable && (column.key === "status" || column.key === "budget" || 
+        column.key === "start_date" || column.key === "end_date" || column.key === "bidding_strategy_type")) {
+      // Handle updating state
+      if (isUpdating) {
+        return (
+          <div className="flex items-center gap-2">
+            {renderEditableCell(column, value, row, itemId)}
+            <Loader size="sm" showMessage={false} />
+          </div>
+        );
+      }
+      
+      // Always show editable control (similar to Amazon campaigns)
+      return renderEditableCell(column, value, row, itemId);
+    }
+
+    // Handle editing state for other editable fields (before custom render) so editable cells work properly
     if (isEditing && column.editable) {
       return renderEditableCell(column, value, row, itemId);
     }
@@ -64,7 +83,7 @@ export function GoogleAdsTable<T = any>({
       return (
         <div className="flex items-center gap-2">
           {column.render ? column.render(value, row) : renderValue(column, value)}
-          <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#136D6D] border-t-transparent"></div>
+          <Loader size="sm" showMessage={false} />
         </div>
       );
     }
@@ -134,10 +153,11 @@ export function GoogleAdsTable<T = any>({
     }
 
     if (isClickable) {
+      const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
       return (
         <div
           onClick={() => onStartInlineEdit(row, column.key)}
-          className="cursor-pointer hover:bg-gray-50 rounded px-2 py-1 w-full"
+          className={`cursor-pointer hover:bg-gray-50 rounded px-2 py-1 w-full ${whitespaceClass}`}
           style={{ pointerEvents: 'auto' }}
         >
           {cellContent}
@@ -147,14 +167,16 @@ export function GoogleAdsTable<T = any>({
 
     // When panel is open and field is editable, show as read-only (no hover effect)
     if (column.editable && isPanelOpen && !isEditing) {
+      const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
       return (
-        <div className="cursor-not-allowed opacity-60 rounded px-2 py-1 w-full">
+        <div className={`cursor-not-allowed opacity-60 rounded px-2 py-1 w-full ${whitespaceClass}`}>
           {cellContent}
         </div>
       );
     }
 
-    return <div>{cellContent}</div>;
+    const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
+    return <div className={whitespaceClass}>{cellContent}</div>;
   };
 
   const renderValue = (column: IColumnDefinition, value: any): React.ReactNode => {
@@ -201,12 +223,21 @@ export function GoogleAdsTable<T = any>({
           </span>
         );
       case "text":
+        // For bidding_strategy_type, prevent wrapping
+        if (column.key === "bidding_strategy_type") {
+          return <span className="table-text leading-[1.26] whitespace-nowrap">{value || "—"}</span>;
+        }
+        return <span className="table-text leading-[1.26]">{value || "—"}</span>;
       default:
         return <span className="table-text leading-[1.26]">{value || "—"}</span>;
     }
   };
 
   const renderEditableCell = (column: IColumnDefinition, value: any, row: T, itemId: string | number): React.ReactNode => {
+    const isEditing = editingCell?.itemId === itemId && editingCell?.field === column.key;
+    // Use editedValue if actively editing, otherwise use current value from row
+    const displayValue = isEditing ? editedValue : (value !== undefined && value !== null ? value : "");
+    
     // If column has statusOptions, show dropdown (for status, bidding_strategy_type, etc.)
     if (column.statusOptions && column.statusOptions.length > 0) {
       // Use wider width for bidding strategy (longer labels)
@@ -247,69 +278,45 @@ export function GoogleAdsTable<T = any>({
         }
       }
       
-      // For status dropdown specifically, match Amazon's behavior exactly:
-      // 1. Use ref to track if selection was made
-      // 2. Call onEditChange then onConfirmInlineEdit on onChange
-      // 3. Only cancel on onClose if no selection was made
-      // 4. Use width="w-full" and align="center" like Amazon
-      if (column.key === "status") {
-        return (
-          <div className="flex items-center gap-2">
-            <Dropdown
-              options={options}
-              value={editedValue}
-              onChange={(val) => {
-                // Mark that a selection was made for this item (matches Amazon pattern)
-                statusSelectionMadeRef.current = itemId;
-                const newValue = val as string;
-                onInlineEditChange(newValue);
-                // Call onConfirmInlineEdit with the new value immediately when a value is selected
-                // This will trigger the pending change confirmation (matches Amazon's onEditEnd pattern)
-                onConfirmInlineEdit(newValue, column.key);
-                // Clear the ref after a short delay to allow onClose to check it
-                setTimeout(() => {
-                  if (statusSelectionMadeRef.current === itemId) {
-                    statusSelectionMadeRef.current = null;
-                  }
-                }, 200);
-              }}
-              onClose={() => {
-                // Only cancel if no selection was made (clicked outside)
-                // If a selection was made, statusSelectionMadeRef will be set
-                // This matches Amazon's pattern exactly
-                if (
-                  statusSelectionMadeRef.current !== itemId &&
-                  editingCell?.itemId === itemId
-                ) {
-                  onCancelInlineEdit();
-                }
-              }}
-              defaultOpen={true}
-              closeOnSelect={true}
-              buttonClassName="w-full text-[13.3px] px-2 py-1"
-              width="w-full"
-              align="center"
-              className="w-full"
-              menuClassName="z-[100000]"
-            />
-          </div>
-        );
+      // For bidding_strategy_type, convert formatted value back to enum value
+      let dropdownValue = displayValue;
+      if (column.key === "bidding_strategy_type" && dropdownValue && typeof dropdownValue === "string") {
+        // The getValue function returns formatted string (e.g., "Maximize Conversions")
+        // but dropdown needs enum value (e.g., "MAXIMIZE_CONVERSIONS")
+        // Try to find matching option by formatted label
+        const enumValue = options.find(opt => {
+          const formatted = opt.value.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+          return opt.value === dropdownValue || formatted === dropdownValue || opt.label === dropdownValue;
+        });
+        if (enumValue) {
+          dropdownValue = enumValue.value;
+        } else {
+          // If no match found, try to get raw value from row
+          const rawValue = (row as any).bidding_strategy_type;
+          if (rawValue) {
+            dropdownValue = rawValue;
+          }
+        }
       }
       
-      // For other dropdowns (bidding_strategy_type, etc.), use original behavior
       return (
         <div className="flex items-center gap-2">
           <Dropdown
             options={options}
-            value={editedValue}
+            value={dropdownValue}
             onChange={(val) => {
               const newValue = val as string;
+              if (!isEditing) {
+                onStartInlineEdit(row, column.key);
+              }
               onInlineEditChange(newValue);
-              onConfirmInlineEdit(newValue, column.key);
+              setTimeout(() => {
+                onConfirmInlineEdit(newValue, column.key);
+              }, 100);
             }}
-            defaultOpen={true}
+            defaultOpen={isEditing}
             closeOnSelect={true}
-            buttonClassName="w-full text-[13.3px] px-2 py-1"
+            buttonClassName="inline-edit-dropdown min-w-0"
             width={dropdownWidth}
             align="left"
             className="w-full"
@@ -336,35 +343,24 @@ export function GoogleAdsTable<T = any>({
                 { value: "ENABLED", label: "Enabled" },
                 { value: "PAUSED", label: "Paused" },
               ]}
-              value={editedValue}
+              value={displayValue}
               onChange={(val) => {
                 // Mark that a selection was made for this item (matches Amazon pattern)
                 statusSelectionMadeRef.current = itemId;
                 const newValue = val as string;
-                onInlineEditChange(newValue);
-                // Call onConfirmInlineEdit with the new value immediately when a value is selected
-                onConfirmInlineEdit(newValue, column.key);
-                // Clear the ref after a short delay to allow onClose to check it
-                setTimeout(() => {
-                  if (statusSelectionMadeRef.current === itemId) {
-                    statusSelectionMadeRef.current = null;
-                  }
-                }, 200);
-              }}
-              onClose={() => {
-                // Only cancel if no selection was made (clicked outside)
-                if (
-                  statusSelectionMadeRef.current !== itemId &&
-                  editingCell?.itemId === itemId
-                ) {
-                  onCancelInlineEdit();
+                if (!isEditing) {
+                  onStartInlineEdit(row, column.key);
                 }
+                onInlineEditChange(newValue);
+                setTimeout(() => {
+                  onConfirmInlineEdit(newValue, column.key);
+                }, 100);
               }}
-              defaultOpen={true}
+              defaultOpen={isEditing}
               closeOnSelect={true}
-              buttonClassName="w-full text-[13.3px] px-2 py-1"
-              width="w-full"
-              align="center"
+              buttonClassName="inline-edit-dropdown min-w-0"
+              width="w-[120px]"
+              align="left"
               className="w-full"
               menuClassName="z-[100000]"
             />
@@ -403,14 +399,22 @@ export function GoogleAdsTable<T = any>({
         return renderValue(column, value);
       case "budget":
       case "bid":
+        const budgetValue = isEditing ? editedValue : (value || 0).toString();
         return (
           <div className="flex items-center w-full">
             <input
               type="number"
               step="0.01"
               min="0"
-              value={editedValue}
-              onChange={(e) => onInlineEditChange(e.target.value)}
+              value={budgetValue}
+              onFocus={() => {
+                if (!isEditing) {
+                  onStartInlineEdit(row, column.key);
+                }
+              }}
+              onChange={(e) => {
+                onInlineEditChange(e.target.value);
+              }}
               onBlur={(e) => {
                 if (isCancelling) return;
                 const inputValue = e.target.value;
@@ -428,8 +432,8 @@ export function GoogleAdsTable<T = any>({
                   onCancelInlineEdit();
                 }
               }}
-              autoFocus
-              className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+              autoFocus={isEditing}
+              className="inline-edit-input"
             />
           </div>
         );
@@ -453,13 +457,22 @@ export function GoogleAdsTable<T = any>({
             }
           }
         }
+        // Format date value for input (YYYY-MM-DD)
+        const dateValue = isEditing ? editedValue : (value ? parseDateToYYYYMMDD(value) : "");
         return (
           <div className="flex items-center">
             <input
               type="date"
-              value={editedValue}
+              value={dateValue}
               min={minDate}
-              onChange={(e) => onInlineEditChange(e.target.value)}
+              onFocus={() => {
+                if (!isEditing) {
+                  onStartInlineEdit(row, column.key);
+                }
+              }}
+              onChange={(e) => {
+                onInlineEditChange(e.target.value);
+              }}
               onBlur={(e) => {
                 if (isCancelling) return;
                 const inputValue = e.target.value;
@@ -477,8 +490,8 @@ export function GoogleAdsTable<T = any>({
                   onCancelInlineEdit();
                 }
               }}
-              autoFocus
-              className="w-full px-2 py-1 text-[13.3px] text-black border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-forest-f40"
+              autoFocus={isEditing}
+              className="inline-edit-input"
             />
           </div>
         );
@@ -502,103 +515,87 @@ export function GoogleAdsTable<T = any>({
       }
     }
     
-    // Use Tailwind classes directly - first sticky column is at 35px (after checkbox)
+    // Use table-sticky-first-column class for first sticky column (matches Amazon campaigns)
     if (index === 0) {
       return "table-sticky-first-column";
     }
     // For more sticky columns, would need more specific handling
-    return "sticky z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
+    return "sticky bg-[#f5f5f0] z-30";
   };
 
-  // Check if this is ad groups table (first column is adgroup_name)
-  const isAdGroupsTable = columns.length > 0 && columns[0].key === "adgroup_name";
-  // Check if this is keywords table (first column is keyword_text)
-  const isKeywordsTable = columns.length > 0 && columns[0].key === "keyword_text";
-  // Tables that should not have sticky checkbox/keyword name (like Amazon keywords table)
-  const isNonStickyTable = isAdGroupsTable || isKeywordsTable;
-  
-  // Checkbox column classes - match Amazon ad groups/keywords (no bg color, no sticky) vs campaigns (has bg color and sticky)
-  const checkboxHeaderClasses = isNonStickyTable 
-    ? "table-header w-[35px]"
-    : "table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
-  const checkboxCellClasses = isNonStickyTable
-    ? "table-cell"
-    : "table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]";
-  const checkboxSummaryCellClasses = isNonStickyTable
-    ? "table-cell"
-    : "table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]";
-
-  // Use Amazon's background color: bg-[#FEFEFB] for ad groups, bg-[#f9f9f6] for keywords and campaigns
-  const containerBgClass = isAdGroupsTable ? "bg-[#FEFEFB]" : "bg-[#f9f9f6]";
-  
   return (
-    <div className={`${containerBgClass} border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full relative`}>
-      <div className="overflow-x-auto w-full">
-        {loading ? (
-          <div className="text-center py-8 text-[#556179] text-[13.3px]">
-            {loadingMessage}
-          </div>
-        ) : data.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[13.3px] text-[#556179] mb-4">{emptyMessage}</p>
-          </div>
-        ) : (
-          <div className="relative">
-            <table className="min-w-[1200px] w-full">
-              <thead>
-                <tr className="border-b border-[#e8e8e3]">
-                  {/* Checkbox Header */}
-                  <th className={checkboxHeaderClasses}>
-                    <div className="flex items-center justify-center">
-                      <Checkbox
-                        checked={allSelected}
-                        indeterminate={someSelected}
-                        onChange={onSelectAll}
-                        size="small"
-                      />
-                    </div>
-                  </th>
+    <div>
+      <div className="overflow-x-auto overflow-y-visible w-full">
+        <div className="relative">
+          <table className="min-w-[1200px] w-full">
+            <thead>
+              <tr className="border-b border-[#e8e8e3]">
+                {/* Checkbox Header */}
+                <th className="table-header w-[35px] sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={someSelected}
+                      onChange={onSelectAll}
+                      size="small"
+                    />
+                  </div>
+                </th>
 
-                  {/* Column Headers */}
-                  {columns.map((column, index) => {
-                    const stickyClasses = getStickyClasses(column, index);
-                    // For adgroup_name header: no width constraint (matches Amazon)
-                    // For campaign_name header: apply width constraints (matches Amazon)
-                    // For other columns: apply width classes normally
-                    let widthClasses = "";
-                    if (column.key === "adgroup_name") {
-                      // Ad Group Name header has no width constraint in Amazon
-                      widthClasses = "";
-                    } else {
-                      widthClasses = column.width || column.minWidth || "";
-                    }
-                    // Don't add border-r if using table-sticky-first-column (it's already in the class)
-                    const borderClass = column.sticky && !stickyClasses.includes("table-sticky-first-column") ? "border-r border-[#e8e8e3]" : "";
-                    
-                    return (
-                      <th
-                        key={column.key}
-                        className={`table-header ${
-                          column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
-                        } ${stickyClasses} ${widthClasses} ${borderClass}`}
-                        onClick={() => column.sortable !== false && onSort(column.key)}
-                      >
-                        <div className="flex items-center gap-1">
-                          {column.label}
-                          {column.sortable !== false && getSortIcon(column.key)}
-                        </div>
-                      </th>
-                    );
-                  })}
+                {/* Column Headers */}
+                {columns.map((column, index) => {
+                  const stickyClasses = getStickyClasses(column, index);
+                  const widthClasses = column.width || column.minWidth || "";
+                  const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                  
+                  return (
+                    <th
+                      key={column.key}
+                      className={`table-header whitespace-nowrap ${
+                        column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
+                      } ${stickyClasses} ${widthClasses} ${borderClass}`}
+                      onClick={() => column.sortable !== false && onSort(column.key)}
+                    >
+                      <div className="flex items-center gap-1">
+                        {column.label}
+                        {column.sortable !== false && getSortIcon(column.key)}
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Show skeleton rows when loading and no data */}
+              {loading && data.length === 0 ? (
+                Array.from({ length: 10 }).map((_, index) => (
+                  <tr key={`skeleton-${index}`} className="table-row">
+                    <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                      <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
+                    </td>
+                    {columns.map((column, colIndex) => (
+                      <td key={column.key} className="table-cell">
+                        <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length + 1} className="table-cell">
+                    <div className="text-center py-8">
+                      <p className="text-[13.3px] text-[#556179] mb-4">{emptyMessage}</p>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
+              ) : (
+                <>
                 {/* Summary Row */}
                 {summary && (
                   <tr className="table-summary-row">
-                    <td className={checkboxSummaryCellClasses}></td>
+                    <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
                     {columns.map((column, index) => {
-                      const stickyClasses = getStickyClasses(column, index).replace("bg-[#f5f5f0]", "bg-[#f5f5f0]");
+                      const stickyClasses = getStickyClasses(column, index);
                       const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
                       
                       let summaryValue: React.ReactNode = "";
@@ -680,10 +677,7 @@ export function GoogleAdsTable<T = any>({
                     <td colSpan={columns.length + 1} className="relative">
                       <div className="absolute inset-0 bg-white bg-opacity-85 flex items-center justify-center z-20 backdrop-blur-[2px]">
                         <div className="flex flex-col items-center gap-3 bg-white px-6 py-4 rounded-lg shadow-lg border border-[#E6E6E6]">
-                          <div className="relative">
-                            <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#136D6D] border-t-transparent"></div>
-                          </div>
-                          <span className="text-[12.8px] font-medium text-[#136D6D]">{loadingMessage}</span>
+                          <Loader size="md" message={loadingMessage} />
                         </div>
                       </div>
                     </td>
@@ -702,7 +696,7 @@ export function GoogleAdsTable<T = any>({
                       className="table-row group"
                     >
                       {/* Checkbox */}
-                      <td className={checkboxCellClasses}>
+                      <td className="table-cell sticky left-0 z-30 bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                         <div className="flex items-center justify-center">
                           <Checkbox
                             checked={selectedItems.has(itemId)}
@@ -715,19 +709,14 @@ export function GoogleAdsTable<T = any>({
                       {/* Data Cells */}
                       {columns.map((column, colIndex) => {
                         const stickyClasses = getStickyClasses(column, colIndex);
-                        // Don't add border-r if using table-sticky-first-column (it's already in the class)
-                        const borderClass = column.sticky && !stickyClasses.includes("table-sticky-first-column") ? "border-r border-[#e8e8e3]" : "";
-                        // For adgroup_name, don't apply width to cell - it's handled in render function
-                        // For other columns, apply width classes
-                        const widthClasses = (column.key === "adgroup_name") ? "" : (column.width || column.minWidth || "");
-                        const hoverClass = column.sticky ? "group-hover:bg-gray-100" : "";
-                        // For adgroup_name, apply cell width constraints directly on td like Amazon
-                        const cellWidthClasses = (column.key === "adgroup_name") ? "min-w-[150px] max-w-[200px]" : "";
+                        const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                        const widthClasses = column.width || column.minWidth || "";
+                        const hoverClass = column.sticky && colIndex === 0 ? "group-hover:bg-gray-100" : "";
                         
                         return (
                           <td
                             key={column.key}
-                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${cellWidthClasses} ${hoverClass}`}
+                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
                           >
                             {renderCell(column, row, index)}
                           </td>
@@ -736,10 +725,11 @@ export function GoogleAdsTable<T = any>({
                     </tr>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

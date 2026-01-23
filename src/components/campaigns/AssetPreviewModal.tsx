@@ -1,4 +1,5 @@
 import React from "react";
+import { Loader } from "../ui/Loader";
 
 interface AssetPreviewModalProps {
   isOpen: boolean;
@@ -77,10 +78,7 @@ export const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
         <div className="p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#136D6D] border-t-transparent"></div>
-                <p className="text-[14px] text-[#556179]">Loading preview...</p>
-              </div>
+              <Loader size="md" message="Loading preview..." />
             </div>
           ) : error ? (
             <div className="flex items-center justify-center py-12">
