@@ -211,9 +211,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                 {/* Campaign Name Header - Only show when not in campaign detail */}
                 {showCampaignColumn && (
-                  <th className="table-header min-w-[225px] max-w-[300px]">
-                    Campaign Name
-                  </th>
+                  <th className="table-header min-w-[225px] max-w-[300px]">Campaign Name</th>
                 )}
 
                 {/* Profile Header - Only show when not in campaign detail */}

@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
+import { Loader } from "../ui/Loader";
 import type { Keyword } from "../../services/campaigns";
 
 interface KeywordsTableProps {
@@ -117,11 +118,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
   return (
     <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
       <div className="overflow-x-auto w-full">
-        {loading ? (
-          <div className="text-center py-8 text-[#556179] text-[13.3px]">
-            Loading keywords...
-          </div>
-        ) : keywords.length === 0 ? (
+        {keywords.length === 0 && !loading ? (
           <div className="text-center py-8">
             <p className="text-[13.3px] text-[#556179] mb-4">
               No keywords found
@@ -158,9 +155,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                   </th>
 
                   {/* Ad Group Header */}
-                  <th className="table-header">
-                    Ad Group
-                  </th>
+                  <th className="table-header">Ad Group</th>
 
                   {/* State Header */}
                   <th
@@ -176,9 +171,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                   </th>
 
                   {/* Bid Header */}
-                  <th className="table-header">
-                    Bid
-                  </th>
+                  <th className="table-header">Bid</th>
 
                   {/* CTR Header */}
                   <th
@@ -455,6 +448,14 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
           </div>
         )}
       </div>
+      {/* Loading overlay for table */}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-overlay-content">
+            <Loader size="lg" message="Loading keywords..." />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

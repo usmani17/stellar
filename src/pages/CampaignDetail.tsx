@@ -7335,22 +7335,11 @@ export const CampaignDetail: React.FC = () => {
                           await loadAllAdGroups();
                         }
                       }}
-                      className="create-entity-button text-[10.64px] font-semibold"
+                      className="create-entity-button"
                     >
-                      <svg
-                        className="w-4 h-4 !text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                      Create Ads
+                      <span className="text-[10.64px] text-white font-normal">
+                        Create Ads
+                      </span>
                       <svg
                         className={`w-4 h-4 !text-white transition-transform ${
                           isCreateSBAdPanelOpen ? "rotate-180" : ""
@@ -7640,22 +7629,11 @@ export const CampaignDetail: React.FC = () => {
                           await loadAllAdGroups();
                         }
                       }}
-                      className="create-entity-button text-[10.64px] font-normal"
+                      className="create-entity-button"
                     >
-                      <svg
-                        className="w-4 h-4 !text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                      Create Product Ads
+                      <span className="text-[10.64px] text-white font-normal">
+                        Create Product Ads
+                      </span>
                       <svg
                         className={`w-4 h-4 !text-white transition-transform ${
                           isCreateProductAdPanelOpen ? "rotate-180" : ""
@@ -8160,22 +8138,11 @@ export const CampaignDetail: React.FC = () => {
                             !isCreateNegativeTargetPanelOpen
                           )
                         }
-                        className="create-entity-button text-[11.2px] font-normal"
+                        className="create-entity-button"
                       >
-                        <svg
-                          className="w-4 h-4 !text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 4v16m8-8H4"
-                          />
-                        </svg>
-                        Create Negative Targets
+                        <span className="text-[10.64px] text-white font-normal">
+                          Create Negative Targets
+                        </span>
                         <svg
                           className={`w-4 h-4 !text-white transition-transform ${
                             isCreateNegativeTargetPanelOpen ? "rotate-180" : ""
@@ -8507,22 +8474,11 @@ export const CampaignDetail: React.FC = () => {
                       onClick={() => {
                         setIsCreateAssetPanelOpen(!isCreateAssetPanelOpen);
                       }}
-                      className="create-entity-button text-[10.64px] font-semibold"
+                      className="create-entity-button"
                     >
-                      <svg
-                        className="w-4 h-4 !text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                      Create Asset
+                      <span className="text-[10.64px] text-white font-normal">
+                        Create Asset
+                      </span>
                       <svg
                         className={`w-4 h-4 !text-white transition-transform ${
                           isCreateAssetPanelOpen ? "rotate-180" : ""

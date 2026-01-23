@@ -1708,7 +1708,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           <button
             type="button"
             onClick={handleAddAd}
-            className="px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+            className="create-entity-button text-[12px]"
           >
             Add Ad
           </button>
@@ -1795,7 +1795,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+          className="cancel-button"
         >
           Cancel
         </button>
@@ -1803,7 +1803,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={addedAds.length === 0 || loading}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="apply-button"
         >
           {loading ? "Creating..." : "Create All Ads"}
         </button>

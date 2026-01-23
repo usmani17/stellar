@@ -642,7 +642,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+          className="cancel-button"
         >
           Cancel
         </button>
@@ -650,7 +650,7 @@ export const CreateProductAdPanel: React.FC<CreateProductAdPanelProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={addedProductAds.length === 0 || loading}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="create-entity-button"
         >
           {loading
             ? "Creating..."

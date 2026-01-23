@@ -146,22 +146,11 @@ export const NegativeKeywordsTab: React.FC<NegativeKeywordsTabProps> = ({
                   await onLoadAllAdGroups();
                 }
               }}
-              className="create-entity-button text-[10.64px] font-normal"
+              className="create-entity-button"
             >
-              <svg
-                className="w-4 h-4 !text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Create Negative Keywords
+              <span className="text-[10.64px] text-white font-normal">
+                Create Negative Keywords
+              </span>
               <svg
                 className={`w-4 h-4 !text-white transition-transform ${
                   isCreatePanelOpen ? "rotate-180" : ""

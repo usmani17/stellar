@@ -1093,7 +1093,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                 <button
                   type="button"
                   onClick={handleAddTarget}
-                  className="w-full px-4 py-2.5 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+                  className="create-entity-button w-full text-[11px] justify-center"
                 >
                   Add Target
                 </button>
@@ -1597,7 +1597,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           <button
             type="button"
             onClick={handleAddTarget}
-            className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors"
+            className="create-entity-button text-[11px] justify-center"
           >
             Add Target
           </button>
@@ -1605,7 +1605,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+          className="cancel-button"
         >
           Cancel
         </button>
@@ -1613,7 +1613,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
           type="button"
           onClick={handleSubmit}
           disabled={addedTargets.length === 0 || loading}
-          className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="apply-button"
         >
           {loading ? "Creating..." : "Add All Targets"}
         </button>
