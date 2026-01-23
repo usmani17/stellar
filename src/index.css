@@ -604,7 +604,14 @@ body input[type="submit"]:disabled {
 
 .edit-button:focus {
   outline: none !important;
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #136d6d !important;
+  border-color: #136D6D !important;
+  box-shadow: none !important;
+}
+
+.edit-button:focus-visible {
+  outline: none !important;
+  border-color: #136D6D !important;
+  box-shadow: none !important;
 }
 
 .edit-button:disabled {
