@@ -2032,7 +2032,7 @@ export const Keywords: React.FC = () => {
                                             confirmInlineEdit(newValue);
                                           }, 100);
                                         }}
-                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                        buttonClassName="inline-edit-dropdown"
                                         width="w-full"
                                         align="center"
                                       />

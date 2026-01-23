@@ -164,7 +164,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
 
                   {/* State Header */}
                   <th
-                    className={`table-header min-w-[115px] ${
+                    className={`table-header min-w-[250px] ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("status")}
@@ -259,7 +259,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                       </td>
 
                       {/* State */}
-                      <td className="table-cell min-w-[115px]">
+                      <td className="table-cell min-w-[250px]">
                         {(() => {
                           if (inlineEditLoading.has(keyword.id)) {
                             return (
@@ -331,7 +331,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                                 onEditChange?.(newValue);
                                 onEditEnd?.(newValue);
                               }}
-                              buttonClassName="w-full text-[13.3px] px-2 py-1"
+                              buttonClassName="inline-edit-dropdown"
                               width="w-full"
                               align="center"
                             />

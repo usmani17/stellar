@@ -173,7 +173,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
 
                   {/* State Header */}
                   <th
-                    className={`table-header min-w-[115px] ${
+                    className={`table-header min-w-[250px] ${
                       onSort ? "cursor-pointer hover:bg-gray-50" : ""
                     }`}
                     onClick={() => onSort?.("state")}
@@ -248,7 +248,7 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       </td>
 
                       {/* State */}
-                      <td className="table-cell min-w-[115px]">
+                      <td className="table-cell min-w-[250px]">
                         {editingField?.id === target.id &&
                         editingField?.field === "status" ? (
                           <div className="relative">

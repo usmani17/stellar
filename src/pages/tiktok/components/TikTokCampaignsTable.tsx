@@ -273,7 +273,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                             <th
                                 className="table-header cursor-pointer hover:bg-gray-50 min-w-[115px]"
                                 onClick={() => onSort?.("operation_status")}
-                            >
+                            >       
                                 <div className="flex items-center gap-1">
                                     State
                                     {getSortIcon("operation_status")}
@@ -462,7 +462,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                                     }}
                                                     defaultOpen={true}
                                                     closeOnSelect={true}
-                                                    buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                                    buttonClassName="inline-edit-dropdown"
                                                     width="w-full"
                                                     align="center"
                                                 />

@@ -242,7 +242,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                 {/* State Header */}
                 <th
-                  className={`table-header min-w-[115px] ${
+                  className={`table-header min-w-[250px] ${
                     onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}
                   onClick={() => onSort?.("status")}
@@ -581,7 +581,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                         )}
 
                         {/* State */}
-                        <td className="table-cell min-w-[115px]">
+                        <td className="table-cell min-w-[250px]">
                           {(() => {
                             if (inlineEditLoading.has(adgroup.id)) {
                               return (
@@ -655,7 +655,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   onEditChange?.(newValue);
                                   onEditEnd?.(newValue);
                                 }}
-                                buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                buttonClassName="inline-edit-dropdown"
                                 width="w-full"
                                 align="center"
                               />
@@ -747,7 +747,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                   }
                                 }}
                                 disabled={isArchived}
-                                className={`table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-24 ${
+                                className={`inline-edit-input w-24 ${
                                   isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
                                 }`}
                               />

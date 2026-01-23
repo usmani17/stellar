@@ -1503,7 +1503,7 @@ export const Targets: React.FC = () => {
                           className={`table-header cursor-pointer hover:bg-gray-100 min-w-[115px]`}
                           onClick={() => handleSort("status")}
                         >
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1"> 
                             State
                             {getSortIcon("status")}
                           </div>
@@ -1734,7 +1734,7 @@ export const Targets: React.FC = () => {
                                   {(() => {
                                     const currentStatus = (
                                       target.status || "Enabled"
-                                    ).toLowerCase();
+                                    ).toLowerCase();  
                                     const isArchived = currentStatus === "archived";
                                     
                                     if (isArchived) {
@@ -1785,7 +1785,7 @@ export const Targets: React.FC = () => {
                                             confirmInlineEdit(newValue);
                                           }, 100);
                                         }}
-                                        buttonClassName="w-full text-[13.3px] px-2 py-1"
+                                        buttonClassName="inline-edit-dropdown"
                                         width="w-full"
                                         align="center"
                                       />

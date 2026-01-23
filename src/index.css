@@ -371,13 +371,42 @@ body input[type="submit"]:disabled {
   font-size: 13.3px;
   color: #000000;
   border: 1px solid #E5E7EB;
-  border-radius: 0.25rem;
+  border-radius: 0.5rem !important;
   outline: none;
+  background: white;
 }
 
 .inline-edit-input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-semantic-status-primary);
+  box-shadow: 0 0 0 1px var(--color-semantic-status-primary);
+}
+
+/* Inline editable dropdown - used for inline editing dropdowns in tables */
+.inline-edit-dropdown {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.400rem 1rem;
+  font-size: 10px;
+  color: #000000;
+  background-color: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.inline-edit-dropdown:hover {
+  border-color: #556179;
+}
+
+.inline-edit-dropdown:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--color-semantic-status-primary);
+  border-color: var(--color-semantic-status-primary);
 }
 
 /* Example 10: Using in gradients */
@@ -611,6 +640,10 @@ body input[type="submit"]:disabled {
 .edit-button-large:disabled {
   opacity: 0.5 !important;
   cursor: not-allowed !important;
+}
+
+.edit-button-small {
+  width: 100% !important;
 }
 
 /* Button base styles - used for all button variants */
@@ -847,7 +880,6 @@ body input[type="submit"]:disabled {
 
 /* Search input container - used for search boxes with hover and focus effects */
 .search-input-container {
-  background-color: #f0f0ed;
   border: 1px solid #e8e8e3;
   border-radius: 8px;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -859,7 +891,7 @@ body input[type="submit"]:disabled {
 
 .search-input-container:focus-within {
   border-color: #136D6D;
-  box-shadow: 0 0 0 2px rgba(19, 109, 109, 0.1);
+  box-shadow: 0 0 0 1px rgba(19, 109, 109, 0.1);
 }
 
 .search-input-container input {

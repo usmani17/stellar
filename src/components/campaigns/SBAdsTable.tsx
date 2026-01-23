@@ -353,7 +353,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                         </div>
                       )}
                     </td>
-                    <td className="table-cell table-text leading-[1.26] min-w-[115px]">
+                    <td className="table-cell table-text leading-[1.26] min-w-[250px]">
                       {inlineEditLoading.has(ad.id) ? (
                         <div className="flex items-center gap-2">
                           <span className="table-text leading-[1.26]">
@@ -422,7 +422,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                             }}
                             defaultOpen={true}
                             closeOnSelect={true}
-                            buttonClassName="w-full text-[13.3px] px-2 py-1"
+                            buttonClassName="inline-edit-dropdown"
                             width="w-full"
                             align="center"
                           />
