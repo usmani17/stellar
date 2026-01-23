@@ -1,4 +1,3 @@
-import type { IGoogleCampaignsSummary } from "./campaign";
 
 
 export type FieldType = "status" | "budget" | "bid" | "start_date" | "end_date" | "text" | "currency" | "number" | "percentage" | "roas";
@@ -51,7 +50,7 @@ export interface IGoogleAdsTableProps<T = any> {
       oldValue: any;
     } | null;
   };
-  summary: IGoogleCampaignsSummary | null;
+  summary: any | null;
   columns: IColumnDefinition[];
   getId: (row: T) => string | number;
   getItemName: (row: T) => string;

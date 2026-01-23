@@ -254,13 +254,13 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   const [syncMessage, setSyncMessage] = useState<{
     type:
-      | "adgroups"
-      | "ads"
-      | "keywords"
-      | "negative_keywords"
-      | "assetgroups"
-      | "productgroups"
-      | null;
+    | "adgroups"
+    | "ads"
+    | "keywords"
+    | "negative_keywords"
+    | "assetgroups"
+    | "productgroups"
+    | null;
     message: string | null;
   }>({ type: null, message: null });
 
@@ -348,7 +348,7 @@ export const GoogleCampaignDetail: React.FC = () => {
   const [keywordTextEditKeyword, setKeywordTextEditKeyword] = useState<GoogleKeyword | null>(null);
   const [keywordTextEditValue, setKeywordTextEditValue] = useState<string>("");
   const [keywordTextEditLoading, setKeywordTextEditLoading] = useState(false);
-  
+
   // Final URL edit modal state
   const [showFinalUrlModal, setShowFinalUrlModal] = useState(false);
   const [finalUrlKeyword, setFinalUrlKeyword] = useState<GoogleKeyword | null>(null);
@@ -443,6 +443,9 @@ export const GoogleCampaignDetail: React.FC = () => {
     }
   }, [accountId, campaignId, startDate, endDate]);
 
+  const startDateStr = startDate?.toISOString();
+  const endDateStr = endDate?.toISOString();
+
   useEffect(() => {
     // Reset state when campaignId changes
     setCampaignDetail(null);
@@ -478,7 +481,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     if (accountId && campaignId) {
       loadCampaignDetail();
     }
-  }, [accountId, campaignId, startDate?.toISOString(), endDate?.toISOString(), loadCampaignDetail]);
+  }, [accountId, campaignId, startDateStr, endDateStr, loadCampaignDetail]);
 
   // Reset pagination when date range, tab, or filters change
   useEffect(() => {
@@ -559,6 +562,141 @@ export const GoogleCampaignDetail: React.FC = () => {
     assetGroupsFilters,
   ]);
 
+  const loadAdGroups = useCallback(async () => {
+    try {
+      setAdgroupsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setAdgroupsLoading(false);
+        return;
+      }
+
+      const data = await googleAdwordsAdGroupsService.getGoogleAdGroups(
+        accountIdNum,
+        parseInt(campaignId, 10),
+        {
+          filters: adgroupsFilters, // Pass filters array directly
+          page: adgroupsCurrentPage,
+          page_size: 100,
+          sort_by: adgroupsSortBy,
+          order: adgroupsSortOrder,
+        }
+      );
+
+      setAdgroups(data.adgroups || []);
+      setAdgroupsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load ad groups:", error);
+      setAdgroups([]);
+      setAdgroupsTotalPages(0);
+    } finally {
+      setAdgroupsLoading(false);
+    }
+  }, [accountId, campaignId, adgroupsFilters, adgroupsCurrentPage, adgroupsSortBy, adgroupsSortOrder]);
+
+  const loadAds = useCallback(async () => {
+    try {
+      setAdsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setAdsLoading(false);
+        return;
+      }
+
+      const data = await googleAdwordsAdsService.getGoogleAds(
+        accountIdNum,
+        parseInt(campaignId, 10),
+        undefined,
+        {
+          filters: adsFilters, // Pass filters array directly
+          page: adsCurrentPage,
+          page_size: 100,
+          sort_by: adsSortBy,
+          order: adsSortOrder,
+        }
+      );
+
+      setAds(data.ads || []);
+      setAdsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load ads:", error);
+      setAds([]);
+      setAdsTotalPages(0);
+    } finally {
+      setAdsLoading(false);
+    }
+  }, [accountId, campaignId, adsFilters, adsCurrentPage, adsSortBy, adsSortOrder]);
+
+  const loadKeywords = useCallback(async () => {
+    try {
+      setKeywordsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setKeywordsLoading(false);
+        return;
+      }
+
+      const data = await googleAdwordsKeywordsService.getGoogleKeywords(
+        accountIdNum,
+        parseInt(campaignId, 10),
+        undefined,
+        {
+          filters: keywordsFilters, // Pass filters array directly
+          page: keywordsCurrentPage,
+          page_size: 100,
+          sort_by: keywordsSortBy,
+          order: keywordsSortOrder,
+        }
+      );
+
+      setKeywords(data.keywords || []);
+      setKeywordsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load keywords:", error);
+      setKeywords([]);
+      setKeywordsTotalPages(0);
+    } finally {
+      setKeywordsLoading(false);
+    }
+  }, [accountId, campaignId, keywordsFilters, keywordsCurrentPage, keywordsSortBy, keywordsSortOrder]);
+
+  const loadNegativeKeywords = useCallback(async () => {
+    try {
+      setNegativeKeywordsLoading(true);
+      const accountIdNum = parseInt(accountId!, 10);
+
+      if (isNaN(accountIdNum) || !campaignId) {
+        setNegativeKeywordsLoading(false);
+        return;
+      }
+
+      const data =
+        await googleAdwordsNegativeKeywordsService.getGoogleNegativeKeywords(
+          accountIdNum,
+          {
+            filters: negativeKeywordsFilters, // Pass filters array directly
+            campaign_id: campaignId,
+            page: negativeKeywordsCurrentPage,
+            page_size: 100,
+            sort_by: negativeKeywordsSortBy,
+            order: negativeKeywordsSortOrder,
+          }
+        );
+
+      setNegativeKeywords(data.negative_keywords || []);
+      setNegativeKeywordsTotalPages(data.total_pages || 0);
+    } catch (error) {
+      console.error("Failed to load negative keywords:", error);
+      setNegativeKeywords([]);
+      setNegativeKeywordsTotalPages(0);
+    } finally {
+      setNegativeKeywordsLoading(false);
+    }
+  }, [accountId, campaignId, negativeKeywordsFilters, negativeKeywordsCurrentPage, negativeKeywordsSortBy, negativeKeywordsSortOrder]);
+
   useEffect(() => {
     if (
       accountId &&
@@ -577,6 +715,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     adgroupsSortBy,
     adgroupsSortOrder,
     adgroupsFilters,
+    loadAdGroups,
   ]);
 
   useEffect(() => {
@@ -593,6 +732,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     adsSortBy,
     adsSortOrder,
     adsFilters,
+    loadAds,
   ]);
 
   useEffect(() => {
@@ -609,6 +749,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     keywordsSortBy,
     keywordsSortOrder,
     keywordsFilters,
+    loadKeywords,
   ]);
 
   useEffect(() => {
@@ -625,6 +766,7 @@ export const GoogleCampaignDetail: React.FC = () => {
     negativeKeywordsSortBy,
     negativeKeywordsSortOrder,
     negativeKeywordsFilters,
+    loadNegativeKeywords,
   ]);
 
   const loadProductGroups = useCallback(async () => {
@@ -643,7 +785,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         ...productGroupsFilters,
         { field: "ad_type", value: "SHOPPING_PRODUCT_AD" },
       ];
-      
+
       const data = await googleAdwordsAdsService.getGoogleAds(
         accountIdNum,
         parseInt(campaignId, 10),
@@ -724,106 +866,6 @@ export const GoogleCampaignDetail: React.FC = () => {
 
   // Removed all buildFilterParams functions - now passing filters array directly to services
 
-  const loadAdGroups = async () => {
-    try {
-      setAdgroupsLoading(true);
-      const accountIdNum = parseInt(accountId!, 10);
-
-      if (isNaN(accountIdNum) || !campaignId) {
-        setAdgroupsLoading(false);
-        return;
-      }
-
-      const data = await googleAdwordsAdGroupsService.getGoogleAdGroups(
-        accountIdNum,
-        parseInt(campaignId, 10),
-        {
-          filters: adgroupsFilters, // Pass filters array directly
-          page: adgroupsCurrentPage,
-          page_size: 100,
-          sort_by: adgroupsSortBy,
-          order: adgroupsSortOrder,
-        }
-      );
-
-      setAdgroups(data.adgroups || []);
-      setAdgroupsTotalPages(data.total_pages || 0);
-    } catch (error) {
-      console.error("Failed to load ad groups:", error);
-      setAdgroups([]);
-      setAdgroupsTotalPages(0);
-    } finally {
-      setAdgroupsLoading(false);
-    }
-  };
-
-  const loadAds = async () => {
-    try {
-      setAdsLoading(true);
-      const accountIdNum = parseInt(accountId!, 10);
-
-      if (isNaN(accountIdNum) || !campaignId) {
-        setAdsLoading(false);
-        return;
-      }
-
-      const data = await googleAdwordsAdsService.getGoogleAds(
-        accountIdNum,
-        parseInt(campaignId, 10),
-        undefined,
-        {
-          filters: adsFilters, // Pass filters array directly
-          page: adsCurrentPage,
-          page_size: 100,
-          sort_by: adsSortBy,
-          order: adsSortOrder,
-        }
-      );
-
-      setAds(data.ads || []);
-      setAdsTotalPages(data.total_pages || 0);
-    } catch (error) {
-      console.error("Failed to load ads:", error);
-      setAds([]);
-      setAdsTotalPages(0);
-    } finally {
-      setAdsLoading(false);
-    }
-  };
-
-  const loadKeywords = async () => {
-    try {
-      setKeywordsLoading(true);
-      const accountIdNum = parseInt(accountId!, 10);
-
-      if (isNaN(accountIdNum) || !campaignId) {
-        setKeywordsLoading(false);
-        return;
-      }
-
-      const data = await googleAdwordsKeywordsService.getGoogleKeywords(
-        accountIdNum,
-        parseInt(campaignId, 10),
-        undefined,
-        {
-          filters: keywordsFilters, // Pass filters array directly
-          page: keywordsCurrentPage,
-          page_size: 100,
-          sort_by: keywordsSortBy,
-          order: keywordsSortOrder,
-        }
-      );
-
-      setKeywords(data.keywords || []);
-      setKeywordsTotalPages(data.total_pages || 0);
-    } catch (error) {
-      console.error("Failed to load keywords:", error);
-      setKeywords([]);
-      setKeywordsTotalPages(0);
-    } finally {
-      setKeywordsLoading(false);
-    }
-  };
 
   const runInlineEdit = async () => {
     if (!inlineEditField || !accountId || !campaignDetail) return;
@@ -1028,39 +1070,6 @@ export const GoogleCampaignDetail: React.FC = () => {
     setNegativeKeywordsCurrentPage(1);
   };
 
-  const loadNegativeKeywords = async () => {
-    try {
-      setNegativeKeywordsLoading(true);
-      const accountIdNum = parseInt(accountId!, 10);
-
-      if (isNaN(accountIdNum) || !campaignId) {
-        setNegativeKeywordsLoading(false);
-        return;
-      }
-
-      const data =
-        await googleAdwordsNegativeKeywordsService.getGoogleNegativeKeywords(
-          accountIdNum,
-          {
-            filters: negativeKeywordsFilters, // Pass filters array directly
-            campaign_id: campaignId,
-            page: negativeKeywordsCurrentPage,
-            page_size: 100,
-            sort_by: negativeKeywordsSortBy,
-            order: negativeKeywordsSortOrder,
-          }
-        );
-
-      setNegativeKeywords(data.negative_keywords || []);
-      setNegativeKeywordsTotalPages(data.total_pages || 0);
-    } catch (error) {
-      console.error("Failed to load negative keywords:", error);
-      setNegativeKeywords([]);
-      setNegativeKeywordsTotalPages(0);
-    } finally {
-      setNegativeKeywordsLoading(false);
-    }
-  };
 
   // Removed buildNegativeKeywordsFilterParams - now passing filters array directly to service
 
@@ -1139,7 +1148,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       console.error("Cannot edit final URL: keyword is null");
       return;
     }
-    
+
     setFinalUrlKeyword(keyword);
     // Get first URL from final_urls array if available
     const finalUrls = (keyword as any)?.final_urls || (keyword as any)?.finalUrls || null;
@@ -1150,7 +1159,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       currentUrl = finalUrls.trim();
     }
     setFinalUrlValue(currentUrl);
-    
+
     const mobileUrls = (keyword as any)?.final_mobile_urls || (keyword as any)?.finalMobileUrls || null;
     let currentMobileUrl = "";
     if (Array.isArray(mobileUrls) && mobileUrls.length > 0) {
@@ -1162,10 +1171,10 @@ export const GoogleCampaignDetail: React.FC = () => {
     setUseMobileFinalUrl(!!currentMobileUrl);
     setShowFinalUrlModal(true);
   };
-  
+
   const handleFinalUrlEditSave = async () => {
     if (!finalUrlKeyword || !accountId) return;
-    
+
     const trimmedUrl = finalUrlValue.trim();
     if (!trimmedUrl) {
       setErrorModal({
@@ -1175,13 +1184,13 @@ export const GoogleCampaignDetail: React.FC = () => {
       });
       return;
     }
-    
+
     // Validate URL format
     let finalUrl = trimmedUrl;
     if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
       finalUrl = "https://" + finalUrl;
     }
-    
+
     try {
       new URL(finalUrl);
     } catch {
@@ -1192,7 +1201,7 @@ export const GoogleCampaignDetail: React.FC = () => {
       });
       return;
     }
-    
+
     let mobileUrl = "";
     if (useMobileFinalUrl) {
       const trimmedMobileUrl = mobileFinalUrlValue.trim();
@@ -1219,7 +1228,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         return;
       }
     }
-    
+
     setFinalUrlEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -1659,8 +1668,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced adgroup analytics: ${
-          result.rows_inserted || 0
+        `Successfully synced adgroup analytics: ${result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1713,8 +1721,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced ad analytics: ${
-          result.rows_inserted || 0
+        `Successfully synced ad analytics: ${result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1767,8 +1774,7 @@ export const GoogleCampaignDetail: React.FC = () => {
 
       let message =
         result.message ||
-        `Successfully synced keyword analytics: ${
-          result.rows_inserted || 0
+        `Successfully synced keyword analytics: ${result.rows_inserted || 0
         } inserted, ${result.rows_updated || 0} updated`;
 
       if (result.errors && result.errors.length > 0) {
@@ -1912,8 +1918,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         const summaryParts = [];
         if (totalCreated > 0) {
           summaryParts.push(
-            `Successfully created: ${totalCreated} ${
-              totalCreated !== 1 ? "entities" : "entity"
+            `Successfully created: ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
             } (${createdEntities.join(", ")})`
           );
         }
@@ -1943,9 +1948,8 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateSearchEntitiesPanelOpen(false);
         setCreateSearchEntitiesError(null);
-        const successMessage = `Successfully created ${totalCreated} ${
-          totalCreated !== 1 ? "entities" : "entity"
-        }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
+        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
+          }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -2027,8 +2031,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         const summaryParts = [];
         if (totalCreated > 0) {
           summaryParts.push(
-            `Successfully created: ${totalCreated} ${
-              totalCreated !== 1 ? "entities" : "entity"
+            `Successfully created: ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
             } (${createdEntities.join(", ")})`
           );
         }
@@ -2056,9 +2059,8 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateSearchEntitiesPanelOpen(false);
         setCreateSearchEntitiesError(null);
-        const successMessage = `Successfully created ${totalCreated} ${
-          totalCreated !== 1 ? "entities" : "entity"
-        }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
+        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
+          }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -2140,8 +2142,7 @@ export const GoogleCampaignDetail: React.FC = () => {
         const summaryParts = [];
         if (totalCreated > 0) {
           summaryParts.push(
-            `Successfully created: ${totalCreated} ${
-              totalCreated !== 1 ? "entities" : "entity"
+            `Successfully created: ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
             } (${createdEntities.join(", ")})`
           );
         }
@@ -2171,9 +2172,8 @@ export const GoogleCampaignDetail: React.FC = () => {
         // Success - close panel and show success message
         setIsCreateSearchEntitiesPanelOpen(false);
         setCreateSearchEntitiesError(null);
-        const successMessage = `Successfully created ${totalCreated} ${
-          totalCreated !== 1 ? "entities" : "entity"
-        }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
+        const successMessage = `Successfully created ${totalCreated} ${totalCreated !== 1 ? "entities" : "entity"
+          }:\n${createdEntities.map((e) => `• ${e}`).join("\n")}`;
         setErrorModal({
           isOpen: true,
           title: "Success",
@@ -2857,8 +2857,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                 {loading
                   ? "Loading..."
                   : campaignDetail
-                  ? campaignDetail.campaign.name
-                  : "Campaign Not Found"}
+                    ? campaignDetail.campaign.name
+                    : "Campaign Not Found"}
               </h1>
             </div>
 
@@ -2939,8 +2939,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             campaignDetail.campaign.status === "ENABLED"
                               ? "Enabled"
                               : campaignDetail.campaign.status === "PAUSED"
-                              ? "Paused"
-                              : "Removed"
+                                ? "Paused"
+                                : "Removed"
                           }
                         />
                       </div>
@@ -3060,8 +3060,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.start_date
                               ? new Date(campaignDetail.campaign.start_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : "";
                             if (editedValue && editedValue !== oldDate) {
                               setInlineEditField("start_date");
@@ -3077,8 +3077,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             if (e.key === "Enter") {
                               const oldDate = campaignDetail.campaign.start_date
                                 ? new Date(campaignDetail.campaign.start_date)
-                                    .toISOString()
-                                    .split("T")[0]
+                                  .toISOString()
+                                  .split("T")[0]
                                 : "";
                               if (editedValue && editedValue !== oldDate) {
                                 setInlineEditField("start_date");
@@ -3103,16 +3103,16 @@ export const GoogleCampaignDetail: React.FC = () => {
                           setEditingField("start_date");
                           const startDate = campaignDetail.campaign.start_date
                             ? new Date(campaignDetail.campaign.start_date)
-                                .toISOString()
-                                .split("T")[0]
+                              .toISOString()
+                              .split("T")[0]
                             : "";
                           setEditedValue(startDate);
                         }}
                       >
                         {campaignDetail.campaign.start_date
                           ? new Date(
-                              campaignDetail.campaign.start_date
-                            ).toLocaleDateString()
+                            campaignDetail.campaign.start_date
+                          ).toLocaleDateString()
                           : "—"}
                       </div>
                     )}
@@ -3134,8 +3134,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                           onBlur={() => {
                             const oldDate = campaignDetail.campaign.end_date
                               ? new Date(campaignDetail.campaign.end_date)
-                                  .toISOString()
-                                  .split("T")[0]
+                                .toISOString()
+                                .split("T")[0]
                               : "";
                             if (editedValue && editedValue !== oldDate) {
                               setInlineEditField("end_date");
@@ -3151,8 +3151,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                             if (e.key === "Enter") {
                               const oldDate = campaignDetail.campaign.end_date
                                 ? new Date(campaignDetail.campaign.end_date)
-                                    .toISOString()
-                                    .split("T")[0]
+                                  .toISOString()
+                                  .split("T")[0]
                                 : "";
                               if (editedValue && editedValue !== oldDate) {
                                 setInlineEditField("end_date");
@@ -3177,16 +3177,16 @@ export const GoogleCampaignDetail: React.FC = () => {
                           setEditingField("end_date");
                           const endDate = campaignDetail.campaign.end_date
                             ? new Date(campaignDetail.campaign.end_date)
-                                .toISOString()
-                                .split("T")[0]
+                              .toISOString()
+                              .split("T")[0]
                             : "";
                           setEditedValue(endDate);
                         }}
                       >
                         {campaignDetail.campaign.end_date
                           ? new Date(
-                              campaignDetail.campaign.end_date
-                            ).toLocaleDateString()
+                            campaignDetail.campaign.end_date
+                          ).toLocaleDateString()
                           : "—"}
                       </div>
                     )}
@@ -3206,7 +3206,7 @@ export const GoogleCampaignDetail: React.FC = () => {
               <div className="flex flex-col gap-4 mb-4">
                 <div className="flex flex-wrap gap-4 md:gap-7">
                   {campaignDetail.kpi_cards &&
-                  campaignDetail.kpi_cards.length > 0 ? (
+                    campaignDetail.kpi_cards.length > 0 ? (
                     campaignDetail.kpi_cards.map((card, index) => (
                       <KPICard
                         key={index}
@@ -3270,11 +3270,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${
-                      activeTab === tab
-                        ? "border-[#136D6D] text-[#136D6D]"
-                        : "border-transparent text-[#556179] hover:text-[#072929]"
-                    }`}
+                    className={`px-4 py-2 text-[16px] font-medium transition-colors border-b-2 cursor-pointer ${activeTab === tab
+                      ? "border-[#136D6D] text-[#136D6D]"
+                      : "border-transparent text-[#556179] hover:text-[#072929]"
+                      }`}
                   >
                     {tab}
                   </button>
@@ -3295,55 +3294,55 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {/* Create Asset Group Panel - Only for PERFORMANCE_MAX campaigns */}
                   {campaignDetail?.campaign.advertising_channel_type ===
                     "PERFORMANCE_MAX" && (
-                    <>
-                      <div className="mb-4 flex justify-end">
-                        <CreateGooglePmaxAssetGroupSection
-                          isOpen={isCreatePmaxAssetGroupPanelOpen}
-                          onToggle={() => {
-                            setIsCreatePmaxAssetGroupPanelOpen(
-                              !isCreatePmaxAssetGroupPanelOpen
-                            );
-                            setIsAssetGroupsFilterPanelOpen(false);
-                            // Close edit panel when opening create panel
-                            if (!isCreatePmaxAssetGroupPanelOpen) {
-                              handleCloseEditPanel();
-                            }
-                          }}
-                        />
-                      </div>
-                      {isCreatePmaxAssetGroupPanelOpen && campaignId && (
-                        <CreateGooglePmaxAssetGroupPanel
-                          isOpen={isCreatePmaxAssetGroupPanelOpen}
-                          onClose={() => {
-                            setIsCreatePmaxAssetGroupPanelOpen(false);
-                            setCreatePmaxAssetGroupError(null);
-                          }}
-                          onSubmit={handleCreatePmaxAssetGroup}
-                          campaignId={campaignId}
-                          loading={createPmaxAssetGroupLoading}
-                          submitError={createPmaxAssetGroupError}
-                        />
-                      )}
-                      {isEditAssetGroupPanelOpen &&
-                        editingAssetGroupId !== null &&
-                        campaignId && (
-                          <div data-edit-asset-group-panel>
-                            <CreateGooglePmaxAssetGroupPanel
-                              isOpen={isEditAssetGroupPanelOpen}
-                              onClose={handleCloseEditPanel}
-                              onSubmit={handleUpdateAssetGroup}
-                              campaignId={campaignId}
-                              loading={editAssetGroupLoading}
-                              submitError={editAssetGroupError}
-                              editMode={true}
-                              initialData={editingAssetGroupData}
-                              assetGroupId={editingAssetGroupId}
-                              refreshMessage={refreshAssetGroupMessage}
-                            />
-                          </div>
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <CreateGooglePmaxAssetGroupSection
+                            isOpen={isCreatePmaxAssetGroupPanelOpen}
+                            onToggle={() => {
+                              setIsCreatePmaxAssetGroupPanelOpen(
+                                !isCreatePmaxAssetGroupPanelOpen
+                              );
+                              setIsAssetGroupsFilterPanelOpen(false);
+                              // Close edit panel when opening create panel
+                              if (!isCreatePmaxAssetGroupPanelOpen) {
+                                handleCloseEditPanel();
+                              }
+                            }}
+                          />
+                        </div>
+                        {isCreatePmaxAssetGroupPanelOpen && campaignId && (
+                          <CreateGooglePmaxAssetGroupPanel
+                            isOpen={isCreatePmaxAssetGroupPanelOpen}
+                            onClose={() => {
+                              setIsCreatePmaxAssetGroupPanelOpen(false);
+                              setCreatePmaxAssetGroupError(null);
+                            }}
+                            onSubmit={handleCreatePmaxAssetGroup}
+                            campaignId={campaignId}
+                            loading={createPmaxAssetGroupLoading}
+                            submitError={createPmaxAssetGroupError}
+                          />
                         )}
-                    </>
-                  )}
+                        {isEditAssetGroupPanelOpen &&
+                          editingAssetGroupId !== null &&
+                          campaignId && (
+                            <div data-edit-asset-group-panel>
+                              <CreateGooglePmaxAssetGroupPanel
+                                isOpen={isEditAssetGroupPanelOpen}
+                                onClose={handleCloseEditPanel}
+                                onSubmit={handleUpdateAssetGroup}
+                                campaignId={campaignId}
+                                loading={editAssetGroupLoading}
+                                submitError={editAssetGroupError}
+                                editMode={true}
+                                initialData={editingAssetGroupData}
+                                assetGroupId={editingAssetGroupId}
+                                refreshMessage={refreshAssetGroupMessage}
+                              />
+                            </div>
+                          )}
+                      </>
+                    )}
                   <GoogleCampaignDetailAssetGroupsTab
                     assetGroups={assetGroups}
                     loading={assetGroupsLoading}
@@ -3425,69 +3424,69 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {(campaignDetail?.campaign.advertising_channel_type ===
                     "SEARCH" ||
                     campaignDetail?.campaign.advertising_channel_type ===
-                      "SHOPPING") && (
-                    <>
-                      <div className="mb-4 flex justify-end">
-                        <CreateGoogleAdGroupSection
-                          isOpen={
-                            campaignDetail?.campaign
-                              .advertising_channel_type === "SEARCH"
-                              ? isCreateSearchEntitiesPanelOpen
-                              : isCreateShoppingEntitiesPanelOpen
-                          }
-                          onToggle={() => {
-                            if (
+                    "SHOPPING") && (
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <CreateGoogleAdGroupSection
+                            isOpen={
                               campaignDetail?.campaign
                                 .advertising_channel_type === "SEARCH"
-                            ) {
-                              setIsCreateSearchEntitiesPanelOpen(
-                                !isCreateSearchEntitiesPanelOpen
-                              );
-                            } else {
-                              setIsCreateShoppingEntitiesPanelOpen(
-                                !isCreateShoppingEntitiesPanelOpen
-                              );
+                                ? isCreateSearchEntitiesPanelOpen
+                                : isCreateShoppingEntitiesPanelOpen
                             }
-                            setIsAdGroupsFilterPanelOpen(false);
-                          }}
-                        />
-                      </div>
-                      {campaignDetail?.campaign.advertising_channel_type ===
-                        "SEARCH" &&
-                        isCreateSearchEntitiesPanelOpen &&
-                        campaignId && (
-                          <CreateGoogleAdGroupPanel
-                            isOpen={isCreateSearchEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateSearchEntitiesPanelOpen(false);
-                              setCreateSearchEntitiesError(null);
+                            onToggle={() => {
+                              if (
+                                campaignDetail?.campaign
+                                  .advertising_channel_type === "SEARCH"
+                              ) {
+                                setIsCreateSearchEntitiesPanelOpen(
+                                  !isCreateSearchEntitiesPanelOpen
+                                );
+                              } else {
+                                setIsCreateShoppingEntitiesPanelOpen(
+                                  !isCreateShoppingEntitiesPanelOpen
+                                );
+                              }
+                              setIsAdGroupsFilterPanelOpen(false);
                             }}
-                            onSubmit={handleCreateAdGroup}
-                            campaignId={campaignId}
-                            campaignName={campaignDetail?.campaign.name}
-                            loading={createSearchEntitiesLoading}
-                            submitError={null}
                           />
-                        )}
-                      {campaignDetail?.campaign.advertising_channel_type ===
-                        "SHOPPING" &&
-                        isCreateShoppingEntitiesPanelOpen &&
-                        campaignId && (
-                          <CreateGoogleAdGroupPanel
-                            isOpen={isCreateShoppingEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateShoppingEntitiesPanelOpen(false);
-                              setCreateShoppingEntitiesError(null);
-                            }}
-                            onSubmit={handleCreateShoppingAdGroup}
-                            campaignId={campaignId}
-                            campaignName={campaignDetail?.campaign.name}
-                            loading={createShoppingEntitiesLoading}
-                            submitError={createShoppingEntitiesError}
-                          />
-                        )}
-                    </>
-                  )}
+                        </div>
+                        {campaignDetail?.campaign.advertising_channel_type ===
+                          "SEARCH" &&
+                          isCreateSearchEntitiesPanelOpen &&
+                          campaignId && (
+                            <CreateGoogleAdGroupPanel
+                              isOpen={isCreateSearchEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateSearchEntitiesPanelOpen(false);
+                                setCreateSearchEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateAdGroup}
+                              campaignId={campaignId}
+                              campaignName={campaignDetail?.campaign.name}
+                              loading={createSearchEntitiesLoading}
+                              submitError={null}
+                            />
+                          )}
+                        {campaignDetail?.campaign.advertising_channel_type ===
+                          "SHOPPING" &&
+                          isCreateShoppingEntitiesPanelOpen &&
+                          campaignId && (
+                            <CreateGoogleAdGroupPanel
+                              isOpen={isCreateShoppingEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateShoppingEntitiesPanelOpen(false);
+                                setCreateShoppingEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateShoppingAdGroup}
+                              campaignId={campaignId}
+                              campaignName={campaignDetail?.campaign.name}
+                              loading={createShoppingEntitiesLoading}
+                              submitError={createShoppingEntitiesError}
+                            />
+                          )}
+                      </>
+                    )}
                   <GoogleCampaignDetailAdGroupsTab
                     adgroups={adgroups}
                     loading={adgroupsLoading}
@@ -3561,7 +3560,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         );
                         alert(
                           error.response?.data?.error ||
-                            "Failed to update adgroup status"
+                          "Failed to update adgroup status"
                         );
                         throw error;
                       }
@@ -3605,7 +3604,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         console.error("Failed to update adgroup bid:", error);
                         alert(
                           error.response?.data?.error ||
-                            "Failed to update adgroup bid"
+                          "Failed to update adgroup bid"
                         );
                         throw error;
                       }
@@ -3619,72 +3618,72 @@ export const GoogleCampaignDetail: React.FC = () => {
 
               {activeTab === "Ads" &&
                 campaignDetail?.campaign.advertising_channel_type !==
-                  "PERFORMANCE_MAX" && (
+                "PERFORMANCE_MAX" && (
                   <>
                     {/* Create Ad Panel - For SEARCH campaigns */}
                     {campaignDetail?.campaign.advertising_channel_type ===
                       "SEARCH" && (
-                      <>
-                        <div className="mb-4 flex justify-end">
-                          <CreateGoogleAdSection
-                            isOpen={isCreateSearchEntitiesPanelOpen}
-                            onToggle={() => {
-                              setIsCreateSearchEntitiesPanelOpen(
-                                !isCreateSearchEntitiesPanelOpen
-                              );
-                              setIsAdsFilterPanelOpen(false);
-                            }}
-                          />
-                        </div>
-                        {isCreateSearchEntitiesPanelOpen && campaignId && (
-                          <CreateGoogleAdPanel
-                            isOpen={isCreateSearchEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateSearchEntitiesPanelOpen(false);
-                              setCreateSearchEntitiesError(null);
-                            }}
-                            onSubmit={handleCreateAd}
-                            campaignId={campaignId}
-                            accountId={accountId || ""}
-                            loading={createSearchEntitiesLoading}
-                            submitError={null}
-                          />
-                        )}
-                      </>
-                    )}
+                        <>
+                          <div className="mb-4 flex justify-end">
+                            <CreateGoogleAdSection
+                              isOpen={isCreateSearchEntitiesPanelOpen}
+                              onToggle={() => {
+                                setIsCreateSearchEntitiesPanelOpen(
+                                  !isCreateSearchEntitiesPanelOpen
+                                );
+                                setIsAdsFilterPanelOpen(false);
+                              }}
+                            />
+                          </div>
+                          {isCreateSearchEntitiesPanelOpen && campaignId && (
+                            <CreateGoogleAdPanel
+                              isOpen={isCreateSearchEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateSearchEntitiesPanelOpen(false);
+                                setCreateSearchEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateAd}
+                              campaignId={campaignId}
+                              accountId={accountId || ""}
+                              loading={createSearchEntitiesLoading}
+                              submitError={null}
+                            />
+                          )}
+                        </>
+                      )}
                     {/* Create Product Ad Panel - For SHOPPING campaigns */}
                     {campaignDetail?.campaign.advertising_channel_type ===
                       "SHOPPING" && (
-                      <>
-                        <div className="mb-4 flex justify-end">
-                          <CreateGoogleShoppingEntitiesSection
-                            isOpen={isCreateShoppingEntitiesPanelOpen}
-                            onToggle={() => {
-                              setIsCreateShoppingEntitiesPanelOpen(
-                                !isCreateShoppingEntitiesPanelOpen
-                              );
-                              setIsAdsFilterPanelOpen(false);
-                            }}
-                          />
-                        </div>
-                        {isCreateShoppingEntitiesPanelOpen &&
-                          campaignId &&
-                          accountId && (
-                            <CreateGoogleShoppingEntitiesPanel
+                        <>
+                          <div className="mb-4 flex justify-end">
+                            <CreateGoogleShoppingEntitiesSection
                               isOpen={isCreateShoppingEntitiesPanelOpen}
-                              onClose={() => {
-                                setIsCreateShoppingEntitiesPanelOpen(false);
-                                setCreateShoppingEntitiesError(null);
+                              onToggle={() => {
+                                setIsCreateShoppingEntitiesPanelOpen(
+                                  !isCreateShoppingEntitiesPanelOpen
+                                );
+                                setIsAdsFilterPanelOpen(false);
                               }}
-                              onSubmit={handleCreateShoppingEntities}
-                              campaignId={campaignId}
-                              accountId={accountId}
-                              loading={createShoppingEntitiesLoading}
-                              submitError={createShoppingEntitiesError}
                             />
-                          )}
-                      </>
-                    )}
+                          </div>
+                          {isCreateShoppingEntitiesPanelOpen &&
+                            campaignId &&
+                            accountId && (
+                              <CreateGoogleShoppingEntitiesPanel
+                                isOpen={isCreateShoppingEntitiesPanelOpen}
+                                onClose={() => {
+                                  setIsCreateShoppingEntitiesPanelOpen(false);
+                                  setCreateShoppingEntitiesError(null);
+                                }}
+                                onSubmit={handleCreateShoppingEntities}
+                                campaignId={campaignId}
+                                accountId={accountId}
+                                loading={createShoppingEntitiesLoading}
+                                submitError={createShoppingEntitiesError}
+                              />
+                            )}
+                        </>
+                      )}
                     <GoogleCampaignDetailAdsTab
                       ads={ads}
                       loading={adsLoading}
@@ -3752,7 +3751,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                           console.error("Failed to update ad status:", error);
                           alert(
                             error.response?.data?.error ||
-                              "Failed to update ad status"
+                            "Failed to update ad status"
                           );
                         }
                       }}
@@ -3765,36 +3764,36 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {/* Create Keywords Panel - Only for SEARCH campaigns */}
                   {campaignDetail?.campaign.advertising_channel_type ===
                     "SEARCH" && (
-                    <>
-                      <div className="mb-4 flex justify-end">
-                        <CreateGoogleKeywordSection
-                          isOpen={isCreateSearchEntitiesPanelOpen}
-                          onToggle={() => {
-                            setIsCreateSearchEntitiesPanelOpen(
-                              !isCreateSearchEntitiesPanelOpen
-                            );
-                            setIsKeywordsFilterPanelOpen(false);
-                          }}
-                        />
-                      </div>
-                      {isCreateSearchEntitiesPanelOpen &&
-                        campaignId &&
-                        accountId && (
-                          <CreateGoogleKeywordPanel
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <CreateGoogleKeywordSection
                             isOpen={isCreateSearchEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateSearchEntitiesPanelOpen(false);
-                              setCreateSearchEntitiesError(null);
+                            onToggle={() => {
+                              setIsCreateSearchEntitiesPanelOpen(
+                                !isCreateSearchEntitiesPanelOpen
+                              );
+                              setIsKeywordsFilterPanelOpen(false);
                             }}
-                            onSubmit={handleCreateKeywords}
-                            campaignId={campaignId}
-                            accountId={accountId}
-                            loading={createSearchEntitiesLoading}
-                            submitError={null}
                           />
-                        )}
-                    </>
-                  )}
+                        </div>
+                        {isCreateSearchEntitiesPanelOpen &&
+                          campaignId &&
+                          accountId && (
+                            <CreateGoogleKeywordPanel
+                              isOpen={isCreateSearchEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateSearchEntitiesPanelOpen(false);
+                                setCreateSearchEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateKeywords}
+                              campaignId={campaignId}
+                              accountId={accountId}
+                              loading={createSearchEntitiesLoading}
+                              submitError={null}
+                            />
+                          )}
+                      </>
+                    )}
                   <GoogleCampaignDetailKeywordsTab
                     keywords={keywords}
                     loading={keywordsLoading}
@@ -3874,7 +3873,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         );
                         alert(
                           error.response?.data?.error ||
-                            "Failed to update keyword status"
+                          "Failed to update keyword status"
                         );
                       }
                     }}
@@ -3917,7 +3916,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         console.error("Failed to update keyword bid:", error);
                         alert(
                           error.response?.data?.error ||
-                            "Failed to update keyword bid"
+                          "Failed to update keyword bid"
                         );
                       }
                     }}
@@ -3966,7 +3965,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         );
                         alert(
                           error.response?.data?.error ||
-                            "Failed to update keyword match type"
+                          "Failed to update keyword match type"
                         );
                       }
                     }}
@@ -4071,7 +4070,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         );
                         alert(
                           error.response?.data?.error ||
-                            "Failed to update negative keyword status"
+                          "Failed to update negative keyword status"
                         );
                       }
                     }}
@@ -4101,7 +4100,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         );
                         alert(
                           error.response?.data?.error ||
-                            "Failed to update negative keyword match type"
+                          "Failed to update negative keyword match type"
                         );
                       }
                     }}
@@ -4115,36 +4114,36 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {/* Create Shopping Entities Panel - Only for SHOPPING campaigns */}
                   {campaignDetail?.campaign.advertising_channel_type ===
                     "SHOPPING" && (
-                    <>
-                      <div className="mb-4 flex justify-end">
-                        <CreateGoogleShoppingEntitiesSection
-                          isOpen={isCreateShoppingEntitiesPanelOpen}
-                          onToggle={() => {
-                            setIsCreateShoppingEntitiesPanelOpen(
-                              !isCreateShoppingEntitiesPanelOpen
-                            );
-                            // Close filter panel if exists
-                          }}
-                        />
-                      </div>
-                      {isCreateShoppingEntitiesPanelOpen &&
-                        campaignId &&
-                        accountId && (
-                          <CreateGoogleShoppingEntitiesPanel
+                      <>
+                        <div className="mb-4 flex justify-end">
+                          <CreateGoogleShoppingEntitiesSection
                             isOpen={isCreateShoppingEntitiesPanelOpen}
-                            onClose={() => {
-                              setIsCreateShoppingEntitiesPanelOpen(false);
-                              setCreateShoppingEntitiesError(null);
+                            onToggle={() => {
+                              setIsCreateShoppingEntitiesPanelOpen(
+                                !isCreateShoppingEntitiesPanelOpen
+                              );
+                              // Close filter panel if exists
                             }}
-                            onSubmit={handleCreateShoppingEntities}
-                            campaignId={campaignId}
-                            accountId={accountId}
-                            loading={createShoppingEntitiesLoading}
-                            submitError={createShoppingEntitiesError}
                           />
-                        )}
-                    </>
-                  )}
+                        </div>
+                        {isCreateShoppingEntitiesPanelOpen &&
+                          campaignId &&
+                          accountId && (
+                            <CreateGoogleShoppingEntitiesPanel
+                              isOpen={isCreateShoppingEntitiesPanelOpen}
+                              onClose={() => {
+                                setIsCreateShoppingEntitiesPanelOpen(false);
+                                setCreateShoppingEntitiesError(null);
+                              }}
+                              onSubmit={handleCreateShoppingEntities}
+                              campaignId={campaignId}
+                              accountId={accountId}
+                              loading={createShoppingEntitiesLoading}
+                              submitError={createShoppingEntitiesError}
+                            />
+                          )}
+                      </>
+                    )}
                   <GoogleCampaignDetailProductGroupsTab
                     productGroups={productGroups}
                     loading={productGroupsLoading}
@@ -4274,7 +4273,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         );
                         alert(
                           error.response?.data?.error ||
-                            "Failed to update product group status"
+                          "Failed to update product group status"
                         );
                         throw error;
                       }
@@ -4304,10 +4303,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                 {inlineEditField === "status"
                   ? "Status"
                   : inlineEditField === "budget"
-                  ? "Budget"
-                  : inlineEditField === "start_date"
-                  ? "Start Date"
-                  : "End Date"}
+                    ? "Budget"
+                    : inlineEditField === "start_date"
+                      ? "Start Date"
+                      : "End Date"}
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">From:</span>
@@ -4321,10 +4320,10 @@ export const GoogleCampaignDetail: React.FC = () => {
                   {inlineEditField === "status"
                     ? inlineEditNewValue
                     : inlineEditField === "budget"
-                    ? `$${parseFloat(
+                      ? `$${parseFloat(
                         inlineEditNewValue || "0"
                       ).toLocaleString()}`
-                    : inlineEditNewValue}
+                      : inlineEditNewValue}
                 </span>
               </div>
             </div>
@@ -4444,8 +4443,8 @@ export const GoogleCampaignDetail: React.FC = () => {
             </h3>
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-[12px] text-yellow-800">
-                <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly. 
-                This will create a new keyword with the updated text and remove the old one. 
+                <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly.
+                This will create a new keyword with the updated text and remove the old one.
                 The keyword will appear with a new ID after the update.
               </p>
             </div>
@@ -4519,7 +4518,7 @@ export const GoogleCampaignDetail: React.FC = () => {
             }
           }}
         >
-          <div 
+          <div
             className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
             onClick={(e) => e.stopPropagation()}
           >
@@ -4550,7 +4549,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   disabled={finalUrlEditLoading}
                   className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] disabled:opacity-50"
                 />
-                <label 
+                <label
                   htmlFor="use-mobile-url"
                   className="text-[13.3px] text-[#072929] cursor-pointer"
                 >

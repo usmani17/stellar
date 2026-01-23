@@ -219,11 +219,11 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       render: (value: any, row: GoogleKeyword) => {
         const campaignName = value === "—" ? "—" : value;
         const campaignId = row.campaign_id;
-        
+
         if (campaignName === "—" || !campaignId || !currentAccountId) {
           return <span className="table-text">{campaignName}</span>;
         }
-        
+
         return (
           <button
             type="button"
@@ -250,11 +250,11 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       render: (value: any, row: GoogleKeyword) => {
         const adgroupName = value === "—" ? "—" : value;
         const campaignId = row.campaign_id;
-        
+
         if (adgroupName === "—" || !campaignId || !currentAccountId) {
           return <span className="table-text leading-[1.26]">{adgroupName}</span>;
         }
-        
+
         return (
           <button
             type="button"
@@ -308,7 +308,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
         // Try multiple possible field names
         const finalUrls = (row as any).final_urls || (row as any).finalUrls || null;
         const finalMobileUrls = (row as any).final_mobile_urls || (row as any).finalMobileUrls || null;
-        
+
         // Debug logging (remove in production)
         if (import.meta.env.DEV && keywords.length > 0 && row.keyword_id === keywords[0]?.keyword_id) {
           console.log('Final URL Debug:', {
@@ -319,18 +319,18 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
             full_row: row,
           });
         }
-        
+
         // Parse if string (comma-separated or single URL)
-        const urlsArray = Array.isArray(finalUrls) 
+        const urlsArray = Array.isArray(finalUrls)
           ? finalUrls.filter(u => u && u.trim())
           : (typeof finalUrls === "string" && finalUrls.trim() ? finalUrls.split(",").map(u => u.trim()).filter(u => u) : []);
         const mobileUrlsArray = Array.isArray(finalMobileUrls)
           ? finalMobileUrls.filter(u => u && u.trim())
           : (typeof finalMobileUrls === "string" && finalMobileUrls.trim() ? finalMobileUrls.split(",").map(u => u.trim()).filter(u => u) : []);
-        
+
         const hasUrls = urlsArray.length > 0;
         const hasMobileUrls = mobileUrlsArray.length > 0;
-        
+
         return (
           <div className="flex items-center gap-2 group">
             <div className="flex flex-col gap-1 flex-1 min-w-0">
@@ -430,7 +430,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleKeyword) => (row as any).roas || 0,
     },
-  ], [currentAccountId, navigate, onStartFinalUrlEdit]);
+  ], [currentAccountId, navigate, onStartFinalUrlEdit, keywords]);
 
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, _field: string) => {

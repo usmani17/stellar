@@ -19,7 +19,7 @@ import { campaignsService } from "../../services/campaigns";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
-import { GoogleCampaignsTable} from "./components/GoogleCampaignsTable";
+import { GoogleCampaignsTable } from "./components/GoogleCampaignsTable";
 import { CreateGoogleCampaignSection } from "../../components/campaigns/CreateGoogleCampaignSection";
 import {
   CreateGoogleCampaignPanel,
@@ -51,9 +51,7 @@ export const GoogleCampaigns: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
   const [analyticsSyncMessage, setAnalyticsSyncMessage] = useState<
     string | null
   >(null);
@@ -141,11 +139,11 @@ export const GoogleCampaigns: React.FC = () => {
   const [editingCell, setEditingCell] = useState<{
     campaignId: string | number;
     field:
-      | "budget"
-      | "status"
-      | "start_date"
-      | "end_date"
-      | "bidding_strategy_type";
+    | "budget"
+    | "status"
+    | "start_date"
+    | "end_date"
+    | "bidding_strategy_type";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
@@ -154,11 +152,11 @@ export const GoogleCampaigns: React.FC = () => {
   const [updatingField] = useState<{
     campaignId: string | number;
     field:
-      | "budget"
-      | "status"
-      | "start_date"
-      | "end_date"
-      | "bidding_strategy_type";
+    | "budget"
+    | "status"
+    | "start_date"
+    | "end_date"
+    | "bidding_strategy_type";
   } | null>(null);
   const [inlineEditCampaign, setInlineEditCampaign] =
     useState<IGoogleCampaign | null>(null);
@@ -365,7 +363,7 @@ export const GoogleCampaigns: React.FC = () => {
   }, [campaigns, searchQuery, apiSearchQuery, accountId]);
 
   // Sync status hook (after loadCampaigns is defined)
-  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner, checkSyncStatus: _checkSyncStatus } = useGoogleSyncStatus({
     accountId,
     entityType: "campaigns",
     currentData: campaigns,
@@ -408,7 +406,7 @@ export const GoogleCampaigns: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleCampaign(
         accountIdNum,
-        data
+        data as any
       );
 
       console.log("Create Google campaign response:", response);
@@ -1019,119 +1017,6 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const handleSync = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncing(true);
-      setSyncMessage(null);
-      const result = await googleAdwordsCampaignsService.syncGoogleCampaigns(accountIdNum);
-      let message =
-        result.message || `Successfully synced ${result.synced} campaigns`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setSyncMessage(message);
-
-      // Check sync status immediately after triggering sync
-      await checkSyncStatus();
-
-      // Reset to first page and reload campaigns after sync
-      if (result.synced > 0) {
-        setCurrentPage(1);
-        // Small delay to ensure database is updated
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-      await loadCampaigns(accountIdNum);
-
-      if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync campaigns:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync campaigns from Google Ads";
-      setSyncMessage(errorMessage);
-      setTimeout(() => setSyncMessage(null), 8000);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncAnalytics = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncingAnalytics(true);
-      setAnalyticsSyncMessage(null);
-
-      // Always use 1 year date range for analytics sync (365 days)
-      const today = new Date();
-      const oneYearAgo = new Date();
-      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-
-      const result = await googleAdwordsCampaignsService.syncGoogleCampaignAnalytics(
-        accountIdNum,
-        oneYearAgo.toISOString().split("T")[0],
-        today.toISOString().split("T")[0]
-      );
-
-      let message =
-        result.message ||
-        `Successfully synced analytics: ${
-          result.rows_inserted || 0
-        } inserted, ${result.rows_updated || 0} updated`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setAnalyticsSyncMessage(message);
-
-      // Reload campaigns to show updated analytics
-      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await loadCampaigns(accountIdNum);
-      }
-
-      if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync analytics:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync campaign analytics from Google Ads";
-      setAnalyticsSyncMessage(errorMessage);
-      setTimeout(() => setAnalyticsSyncMessage(null), 8000);
-    } finally {
-      setSyncingAnalytics(false);
-    }
-  };
 
   const handleSort = async (column: string) => {
     if (sorting) return; // Prevent multiple simultaneous sorts
@@ -1568,7 +1453,7 @@ export const GoogleCampaigns: React.FC = () => {
           pause: "PAUSED",
         };
         const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
-        
+
         // REMOVED is not in statusMap, so it cannot be set via update operation
         // If user somehow selects REMOVED, it will be caught by backend validation
 
@@ -2013,7 +1898,7 @@ export const GoogleCampaigns: React.FC = () => {
                 day: "numeric",
               });
             }
-          } catch  {
+          } catch {
             // Keep original date if parsing fails
             formattedDate = item.date;
           }
@@ -2109,9 +1994,8 @@ export const GoogleCampaigns: React.FC = () => {
                     Add Filter
                   </span>
                   <svg
-                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                      isFilterPanelOpen ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -2124,8 +2008,8 @@ export const GoogleCampaigns: React.FC = () => {
                     />
                   </svg>
                 </button>
-                
-                
+
+
               </div>
             </div>
 
@@ -2136,26 +2020,26 @@ export const GoogleCampaigns: React.FC = () => {
                 {(!refreshMessage ||
                   refreshMessage.type !== "loading" ||
                   campaignFormMode === "create") && (
-                  <CreateGoogleCampaignPanel
-                    isOpen={isCreateCampaignPanelOpen}
-                    onClose={() => {
-                      setIsCreateCampaignPanelOpen(false);
-                      setCreateCampaignError(null);
-                      setInitialCampaignData(null);
-                      setCampaignFormMode("create");
-                      setCampaignId(undefined);
-                      setRefreshMessage(null);
-                    }}
-                    onSubmit={handleCreateGoogleCampaign}
-                    accountId={accountId}
-                    loading={createCampaignLoading}
-                    submitError={createCampaignError}
-                    mode={campaignFormMode}
-                    initialData={initialCampaignData}
-                    campaignId={campaignId}
-                    refreshMessage={refreshMessage}
-                  />
-                )}
+                    <CreateGoogleCampaignPanel
+                      isOpen={isCreateCampaignPanelOpen}
+                      onClose={() => {
+                        setIsCreateCampaignPanelOpen(false);
+                        setCreateCampaignError(null);
+                        setInitialCampaignData(null);
+                        setCampaignFormMode("create");
+                        setCampaignId(undefined);
+                        setRefreshMessage(null);
+                      }}
+                      onSubmit={handleCreateGoogleCampaign}
+                      accountId={accountId}
+                      loading={createCampaignLoading}
+                      submitError={createCampaignError}
+                      mode={campaignFormMode}
+                      initialData={initialCampaignData}
+                      campaignId={campaignId}
+                      refreshMessage={refreshMessage}
+                    />
+                  )}
               </>
             )}
 
@@ -2165,7 +2049,7 @@ export const GoogleCampaigns: React.FC = () => {
                 <Banner
                   type={
                     syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
+                      syncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
@@ -2180,7 +2064,7 @@ export const GoogleCampaigns: React.FC = () => {
                 <Banner
                   type={
                     analyticsSyncMessage.includes("error") ||
-                    analyticsSyncMessage.includes("Failed")
+                      analyticsSyncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
@@ -2247,228 +2131,228 @@ export const GoogleCampaigns: React.FC = () => {
               <div className="flex items-center justify-end gap-2">
                 {/* Search Box */}
                 <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
-                <div className="relative shrink-0 size-[12px]">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M5.5 9.5C7.70914 9.5 9.5 7.70914 9.5 5.5C9.5 3.29086 7.70914 1.5 5.5 1.5C3.29086 1.5 1.5 3.29086 1.5 5.5C1.5 7.70914 3.29086 9.5 5.5 9.5Z"
-                      stroke="#556179"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M10.5 10.5L8.5 8.5"
-                      stroke="#556179"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    // Don't reset page or call API while typing - only filter client-side
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      // Call backend API when Enter is pressed
-                      setApiSearchQuery(searchQuery);
-                      setCurrentPage(1); // Reset to first page when searching
-                    }
-                  }}
-                  placeholder="Search by Name or Account ID"
-                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
-                />
-              </div>
-              <div
-                className="relative inline-flex justify-end"
-                ref={dropdownRef}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="edit-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowBulkActions((prev) => !prev);
-                    setShowBudgetPanel(false);
-                    setShowExportDropdown(false);
-                  }}
-                >
-                  <svg
-                    className="w-5 h-5 text-[#072929]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
-                    />
-                  </svg>
-                  <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
-                  </span>
-                </Button>
-                {showBulkActions && (
-                  <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    <div className="overflow-y-auto">
-                      {[
-                        { value: "ENABLED", label: "Enable" },
-                        { value: "PAUSED", label: "Pause" },
-                        // REMOVED cannot be set via status update - it's read-only
-                        // To remove campaigns, use delete operation instead
-                        { value: "edit_budget", label: "Edit Budget" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          disabled={selectedCampaigns.size === 0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedCampaigns.size === 0) return;
-                            if (opt.value === "edit_budget") {
-                              setShowBudgetPanel(true);
-                            } else {
-                              setShowBudgetPanel(false);
-                              setPendingStatusAction(
-                                opt.value as "ENABLED" | "PAUSED"
-                              );
-                              setIsBudgetChange(false);
-                              setShowConfirmationModal(true);
-                            }
-                            setShowBulkActions(false);
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="relative shrink-0 size-[12px]">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M5.5 9.5C7.70914 9.5 9.5 7.70914 9.5 5.5C9.5 3.29086 7.70914 1.5 5.5 1.5C3.29086 1.5 1.5 3.29086 1.5 5.5C1.5 7.70914 3.29086 9.5 5.5 9.5Z"
+                        stroke="#556179"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M10.5 10.5L8.5 8.5"
+                        stroke="#556179"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </div>
-                )}
-              </div>
-              <div
-                className="relative inline-flex justify-end"
-                ref={exportDropdownRef}
-              >
-                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      // Don't reset page or call API while typing - only filter client-side
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        // Call backend API when Enter is pressed
+                        setApiSearchQuery(searchQuery);
+                        setCurrentPage(1); // Reset to first page when searching
+                      }
+                    }}
+                    placeholder="Search by Name or Account ID"
+                    className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
+                  />
+                </div>
+                <div
+                  className="relative inline-flex justify-end"
+                  ref={dropdownRef}
+                >
                   <Button
                     type="button"
                     variant="ghost"
                     className="edit-button"
                     onClick={(e) => {
-                      if (exportLoading) return;
                       e.stopPropagation();
-                      setShowExportDropdown((prev) => !prev);
-                      setShowBulkActions(false);
+                      setShowBulkActions((prev) => !prev);
                       setShowBudgetPanel(false);
+                      setShowExportDropdown(false);
                     }}
-                    disabled={
-                      exportLoading || loading || campaigns.length === 0
-                    }
                   >
-                    {exportLoading ? (
-                      <div className="flex items-center justify-center">
-                        <Loader size="sm" showMessage={false} />
-                      </div>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-5 h-5 text-[#072929]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="text-[10.64px] text-[#072929] font-normal">
-                          Export
-                        </span>
-                      </>
-                    )}
+                    <svg
+                      className="w-5 h-5 text-[#072929]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 3.5a2.121 2.121 0 113 3L12 16l-4 1 1-4 9.5-9.5z"
+                      />
+                    </svg>
+                    <span className="text-[10.64px] text-[#072929] font-normal">
+                      Edit
+                    </span>
                   </Button>
-                </div>
-                {(showExportDropdown || exportLoading) && (
-                  <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
-                    {exportLoading ? (
-                      <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
-                        <Loader size="md" message="Exporting..." />
-                        <p className="text-[11px] text-[#556179] text-center px-2">
-                          Please wait while we prepare your file
-                        </p>
-                      </div>
-                    ) : (
+                  {showBulkActions && (
+                    <div className="absolute top-[42px] left-0 w-56 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-[100] pointer-events-auto overflow-hidden">
                       <div className="overflow-y-auto">
                         {[
-                          { value: "bulk_export", label: "Export All" },
-                          {
-                            value: "current_view",
-                            label: "Export Current View",
-                          },
+                          { value: "ENABLED", label: "Enable" },
+                          { value: "PAUSED", label: "Pause" },
+                          // REMOVED cannot be set via status update - it's read-only
+                          // To remove campaigns, use delete operation instead
+                          { value: "edit_budget", label: "Edit Budget" },
                         ].map((opt) => (
                           <button
                             key={opt.value}
                             type="button"
-                            className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
-                            onClick={async (e) => {
+                            className="w-full text-left px-3 py-2 text-[10.64px] text-[#313850] hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            disabled={selectedCampaigns.size === 0}
+                            onClick={(e) => {
                               e.stopPropagation();
-                              e.preventDefault();
-                              const exportType =
-                                opt.value === "bulk_export"
-                                  ? "all_data"
-                                  : "current_view";
-                              // Keep dropdown open during export
-                              await handleExport(exportType);
+                              if (selectedCampaigns.size === 0) return;
+                              if (opt.value === "edit_budget") {
+                                setShowBudgetPanel(true);
+                              } else {
+                                setShowBudgetPanel(false);
+                                setPendingStatusAction(
+                                  opt.value as "ENABLED" | "PAUSED"
+                                );
+                                setIsBudgetChange(false);
+                                setShowConfirmationModal(true);
+                              }
+                              setShowBulkActions(false);
                             }}
-                            disabled={exportLoading}
                           >
-                            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                              <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 20 20"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <rect
-                                  width="20"
-                                  height="20"
-                                  rx="3.2"
-                                  fill="#072929"
-                                />
-                                <path
-                                  d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
-                                  stroke="#F9F9F6"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </div>
-                            <span className="font-normal">{opt.label}</span>
+                            {opt.label}
                           </button>
                         ))}
                       </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+                <div
+                  className="relative inline-flex justify-end"
+                  ref={exportDropdownRef}
+                >
+                  <div className="relative">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="edit-button"
+                      onClick={(e) => {
+                        if (exportLoading) return;
+                        e.stopPropagation();
+                        setShowExportDropdown((prev) => !prev);
+                        setShowBulkActions(false);
+                        setShowBudgetPanel(false);
+                      }}
+                      disabled={
+                        exportLoading || loading || campaigns.length === 0
+                      }
+                    >
+                      {exportLoading ? (
+                        <div className="flex items-center justify-center">
+                          <Loader size="sm" showMessage={false} />
+                        </div>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-5 h-5 text-[#072929]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span className="text-[10.64px] text-[#072929] font-normal">
+                            Export
+                          </span>
+                        </>
+                      )}
+                    </Button>
                   </div>
-                )}
-              </div>
+                  {(showExportDropdown || exportLoading) && (
+                    <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                      {exportLoading ? (
+                        <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                          <Loader size="md" message="Exporting..." />
+                          <p className="text-[11px] text-[#556179] text-center px-2">
+                            Please wait while we prepare your file
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="overflow-y-auto">
+                          {[
+                            { value: "bulk_export", label: "Export All" },
+                            {
+                              value: "current_view",
+                              label: "Export Current View",
+                            },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const exportType =
+                                  opt.value === "bulk_export"
+                                    ? "all_data"
+                                    : "current_view";
+                                // Keep dropdown open during export
+                                await handleExport(exportType);
+                              }}
+                              disabled={exportLoading}
+                            >
+                              <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                <svg
+                                  width="20"
+                                  height="20"
+                                  viewBox="0 0 20 20"
+                                  fill="none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <rect
+                                    width="20"
+                                    height="20"
+                                    rx="3.2"
+                                    fill="#072929"
+                                  />
+                                  <path
+                                    d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                    stroke="#F9F9F6"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </div>
+                              <span className="font-normal">{opt.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[8px] cursor-not-allowed" />
@@ -2506,36 +2390,34 @@ export const GoogleCampaigns: React.FC = () => {
                       </div>
                       {(budgetAction === "increase" ||
                         budgetAction === "decrease") && (
-                        <div className="w-[140px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Unit
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "percent"
+                          <div className="w-[140px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Unit
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "percent"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBudgetUnit("percent")}
-                            >
-                              %
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                budgetUnit === "amount"
+                                  }`}
+                                onClick={() => setBudgetUnit("percent")}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${budgetUnit === "amount"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBudgetUnit("amount")}
-                            >
-                              $
-                            </button>
+                                  }`}
+                                onClick={() => setBudgetUnit("amount")}
+                              >
+                                $
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                           Value
@@ -2628,8 +2510,8 @@ export const GoogleCampaigns: React.FC = () => {
                       {bulkUpdateResults
                         ? "Update Results"
                         : isBudgetChange
-                        ? "Confirm Budget Changes"
-                        : "Confirm Status Changes"}
+                          ? "Confirm Budget Changes"
+                          : "Confirm Status Changes"}
                     </h3>
 
                     {/* Results Summary */}
@@ -2724,11 +2606,10 @@ export const GoogleCampaigns: React.FC = () => {
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
                                 ? `Showing ${previewCount} of ${selectedCampaignsData.length} selected campaigns`
-                                : `${selectedCampaignsData.length} campaign${
-                                    selectedCampaignsData.length !== 1
-                                      ? "s"
-                                      : ""
-                                  } selected`}
+                                : `${selectedCampaignsData.length} campaign${selectedCampaignsData.length !== 1
+                                  ? "s"
+                                  : ""
+                                } selected`}
                             </span>
                           </div>
                           <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -2792,82 +2673,82 @@ export const GoogleCampaigns: React.FC = () => {
 
                     {/* Action Details - Only show before update */}
                     {!bulkUpdateResults && (
-                    <div className="space-y-3 mb-6">
-                      {isBudgetChange ? (
-                        <>
+                      <div className="space-y-3 mb-6">
+                        {isBudgetChange ? (
+                          <>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Action:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {budgetAction === "increase"
+                                  ? "Increase By"
+                                  : budgetAction === "decrease"
+                                    ? "Decrease By"
+                                    : "Set To"}
+                              </span>
+                            </div>
+
+                            {(budgetAction === "increase" ||
+                              budgetAction === "decrease") && (
+                                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                  <span className="text-[12.16px] text-[#556179]">
+                                    Unit:
+                                  </span>
+                                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {budgetUnit === "percent"
+                                      ? "Percentage (%)"
+                                      : "Amount ($)"}
+                                  </span>
+                                </div>
+                              )}
+
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Value:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {budgetValue}{" "}
+                                {budgetUnit === "percent" ? "%" : "$"}
+                              </span>
+                            </div>
+
+                            {budgetAction === "increase" && upperLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Upper Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${upperLimit}
+                                </span>
+                              </div>
+                            )}
+
+                            {budgetAction === "decrease" && lowerLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Lower Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${lowerLimit}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
                           <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.16px] text-[#556179]">
-                              Action:
+                              New Status:
                             </span>
                             <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetAction === "increase"
-                                ? "Increase By"
-                                : budgetAction === "decrease"
-                                ? "Decrease By"
-                                : "Set To"}
-                            </span>
-                          </div>
-
-                          {(budgetAction === "increase" ||
-                            budgetAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Unit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {budgetUnit === "percent"
-                                  ? "Percentage (%)"
-                                  : "Amount ($)"}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Value:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {budgetValue}{" "}
-                              {budgetUnit === "percent" ? "%" : "$"}
-                            </span>
-                          </div>
-
-                          {budgetAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Upper Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${upperLimit}
-                              </span>
-                            </div>
-                          )}
-
-                          {budgetAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Lower Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${lowerLimit}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            New Status:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {pendingStatusAction
-                              ? pendingStatusAction.charAt(0) +
+                              {pendingStatusAction
+                                ? pendingStatusAction.charAt(0) +
                                 pendingStatusAction.slice(1).toLowerCase()
-                              : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                                : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     <div className="flex justify-end gap-3">
@@ -2938,12 +2819,12 @@ export const GoogleCampaigns: React.FC = () => {
                       {inlineEditField === "budget"
                         ? "Budget"
                         : inlineEditField === "status"
-                        ? "Status"
-                        : inlineEditField === "start_date"
-                        ? "Start Date"
-                        : inlineEditField === "end_date"
-                        ? "End Date"
-                        : "Bidding Strategy"}{" "}
+                          ? "Status"
+                          : inlineEditField === "start_date"
+                            ? "Start Date"
+                            : inlineEditField === "end_date"
+                              ? "End Date"
+                              : "Bidding Strategy"}{" "}
                       Change
                     </h3>
                     <div className="mb-4">
@@ -2960,12 +2841,12 @@ export const GoogleCampaigns: React.FC = () => {
                             {inlineEditField === "budget"
                               ? "Budget"
                               : inlineEditField === "status"
-                              ? "Status"
-                              : inlineEditField === "start_date"
-                              ? "Start Date"
-                              : inlineEditField === "end_date"
-                              ? "End Date"
-                              : "Bidding Strategy"}
+                                ? "Status"
+                                : inlineEditField === "start_date"
+                                  ? "Start Date"
+                                  : inlineEditField === "end_date"
+                                    ? "End Date"
+                                    : "Bidding Strategy"}
                             :
                           </span>
                           <div className="flex items-center gap-2">
@@ -2977,20 +2858,20 @@ export const GoogleCampaigns: React.FC = () => {
                             </span>
                             <span className="text-[12.8px] font-semibold text-[#072929]">
                               {inlineEditField === "start_date" ||
-                              inlineEditField === "end_date"
+                                inlineEditField === "end_date"
                                 ? (() => {
-                                    // Format YYYY-MM-DD to MM/DD/YYYY for display
-                                    if (
-                                      !inlineEditNewValue ||
-                                      inlineEditNewValue === "—"
-                                    )
-                                      return "—";
-                                    const parts = inlineEditNewValue.split("-");
-                                    if (parts.length === 3) {
-                                      return `${parts[1]}/${parts[2]}/${parts[0]}`;
-                                    }
-                                    return inlineEditNewValue;
-                                  })()
+                                  // Format YYYY-MM-DD to MM/DD/YYYY for display
+                                  if (
+                                    !inlineEditNewValue ||
+                                    inlineEditNewValue === "—"
+                                  )
+                                    return "—";
+                                  const parts = inlineEditNewValue.split("-");
+                                  if (parts.length === 3) {
+                                    return `${parts[1]}/${parts[2]}/${parts[0]}`;
+                                  }
+                                  return inlineEditNewValue;
+                                })()
                                 : inlineEditNewValue}
                             </span>
                           </div>
@@ -3225,11 +3106,10 @@ export const GoogleCampaigns: React.FC = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                            currentPage === pageNum
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
-                          }`}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -3243,11 +3123,10 @@ export const GoogleCampaigns: React.FC = () => {
                     {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => setCurrentPage(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                          currentPage === totalPages
-                            ? "bg-white text-[#136D6D] font-semibold"
-                            : "text-black hover:bg-gray-50"
-                        }`}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
+                          ? "bg-white text-[#136D6D] font-semibold"
+                          : "text-black hover:bg-gray-50"
+                          }`}
                       >
                         {totalPages}
                       </button>
@@ -3275,7 +3154,7 @@ export const GoogleCampaigns: React.FC = () => {
                 <Banner
                   type={
                     syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
+                      syncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }

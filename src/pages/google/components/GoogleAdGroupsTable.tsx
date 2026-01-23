@@ -1,6 +1,6 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import type { IColumnDefinition } from "./GoogleAdsTable";
+import type { IColumnDefinition } from "../../../types/google";
 
 export interface GoogleAdGroup {
   id: number;
@@ -58,7 +58,7 @@ interface GoogleAdGroupsTableProps {
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
   onConfirmInlineEdit: (value: string, fieldKey?: string) => void;
-  pendingChanges?: Record<string, { itemId: string | number; newValue: string }>;
+  pendingChanges?: Record<string, { itemId: string | number; newValue: string; oldValue: any } | null>;
   onConfirmChange?: (itemId: string | number, fieldKey: string, newValue: string) => void;
   onCancelChange?: (fieldKey: string) => void;
   formatCurrency: (value: number) => string;
@@ -131,7 +131,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       // Don't set minWidth/maxWidth here - header should have no width constraint
       editable: true,
       getValue: (row: GoogleAdGroup) => row.adgroup_name || row.name || "Unnamed Ad Group",
-      render: (value: any, row: GoogleAdGroup) => {
+      render: (value: any, _row: GoogleAdGroup) => {
         // Match Amazon ad group table styling exactly: text-[#0b0f16] with cursor-pointer hover:underline
         // Width constraints are applied on the td element, not here
         const adgroupName = value || "Unnamed Ad Group";
@@ -236,7 +236,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleAdGroup) => row.roas || 0,
     },
-  ], [accountId]);
+  ], []);
 
   // Handle confirm inline edit
   const handleConfirmInlineEdit = (value: string, _field: string) => {
@@ -277,8 +277,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       onCancelInlineEdit={onCancelInlineEdit}
       onInlineEditChange={onInlineEditChange}
       onConfirmInlineEdit={handleConfirmInlineEdit}
-      onConfirmChange={onConfirmChange || (() => {})}
-      onCancelChange={onCancelChange || (() => {})}
+      onConfirmChange={onConfirmChange || (() => { })}
+      onCancelChange={onCancelChange || (() => { })}
       formatCurrency={formatCurrency}
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}

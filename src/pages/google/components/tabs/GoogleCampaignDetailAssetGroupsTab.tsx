@@ -98,8 +98,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         currentStatus === "ENABLE" || currentStatus === "ENABLED"
           ? "ENABLED"
           : currentStatus === "PAUSE" || currentStatus === "PAUSED"
-          ? "PAUSED"
-          : currentStatus;
+            ? "PAUSED"
+            : currentStatus;
       setEditingValue(normalizedStatus);
     }
   };
@@ -119,8 +119,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
       currentStatus === "ENABLE" || currentStatus === "ENABLED"
         ? "ENABLED"
         : currentStatus === "PAUSE" || currentStatus === "PAUSED"
-        ? "PAUSED"
-        : currentStatus;
+          ? "PAUSED"
+          : currentStatus;
     const newStatusUpper = newStatus.toUpperCase();
     const hasChanged = newStatusUpper !== normalizedCurrent;
 
@@ -147,7 +147,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
     setEditingValue("");
   };
 
-  const handleEditEnd = () => {
+  const _handleEditEnd = () => {
     if (!editingAssetGroupId || !editingField) return;
 
     const assetGroup = assetGroups.find((ag) => ag.id === editingAssetGroupId);
@@ -176,7 +176,7 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
         PAUSED: "PAUSED",
       };
       const apiStatus = statusMap[statusModalData.newValue] || statusModalData.newValue.toUpperCase() as "ENABLED" | "PAUSED";
-      
+
       await onUpdateAssetGroupStatus(statusModalData.assetGroup.id, apiStatus);
       setShowStatusModal(false);
       setStatusModalData(null);
@@ -201,11 +201,11 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             type={syncMessage.includes("error") || syncMessage.includes("Failed") ? "error" : "success"}
             message={syncMessage}
             dismissable={true}
-            onDismiss={() => {}}
+            onDismiss={() => { }}
           />
         </div>
       )}
-      
+
       {/* Header with Filter Button and Sync Button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[18px] font-semibold text-[#072929] leading-[100%]">
@@ -233,9 +233,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
               Add Filter
             </span>
             <svg
-              className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                isFilterPanelOpen ? "rotate-180" : ""
-              }`}
+              className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
+                }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -366,9 +365,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                   return (
                     <tr
                       key={assetGroup.id}
-                      className={`${
-                        !isLastRow ? "border-b border-[#e8e8e3]" : ""
-                      } hover:bg-gray-50 transition-colors`}
+                      className={`${!isLastRow ? "border-b border-[#e8e8e3]" : ""
+                        } hover:bg-gray-50 transition-colors`}
                     >
                       <td className="table-cell">
                         <div className="flex items-center justify-center">
@@ -461,8 +459,8 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                           {assetGroup.final_urls && Array.isArray(assetGroup.final_urls) && assetGroup.final_urls.length > 0
                             ? assetGroup.final_urls[0]
                             : assetGroup.final_urls && typeof assetGroup.final_urls === 'string'
-                            ? assetGroup.final_urls
-                            : "—"}
+                              ? assetGroup.final_urls
+                              : "—"}
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
@@ -515,11 +513,10 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
                 <button
                   key={pageNum}
                   onClick={() => onPageChange(pageNum)}
-                  className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                    currentPage === pageNum
+                  className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
                       ? "bg-white text-[#136D6D] font-semibold"
                       : "text-black hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   {pageNum}
                 </button>
@@ -533,11 +530,10 @@ export const GoogleCampaignDetailAssetGroupsTab: React.FC<GoogleCampaignDetailAs
             {totalPages > 5 && (
               <button
                 onClick={() => onPageChange(totalPages)}
-                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                  currentPage === totalPages
+                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
                     ? "bg-white text-[#136D6D] font-semibold"
                     : "text-black hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 {totalPages}
               </button>
