@@ -1770,7 +1770,7 @@ export const Keywords: React.FC = () => {
 
                         {/* Keyword Bid */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-50`}
+                          className={`table-header cursor-pointer hover:bg-gray-50 whitespace-nowrap`}
                           onClick={() => handleSort("bid")}
                         >
                           <div className="flex items-center gap-1">
@@ -2041,7 +2041,7 @@ export const Keywords: React.FC = () => {
                                 </td>
 
                                 {/* Keyword Bid */}
-                                <td className="table-cell">
+                                <td className="table-cell whitespace-nowrap">
                                   {(() => {
                                     const currentStatus = (
                                       keyword.status || "Enabled"

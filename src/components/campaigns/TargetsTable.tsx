@@ -175,7 +175,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                 </th>
 
                 {/* Bid Header */}
-                <th className="table-header">
+                <th className="table-header min-w-[100px]">
                   Bid
                 </th>
 
