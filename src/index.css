@@ -459,10 +459,13 @@ body input[type="submit"]:disabled {
   line-height: 16.2px;
   cursor: pointer;
   background-color: #FEFEFB;
+  white-space: nowrap;
+  transition: background-color 0.2s;
 }
 
 .table-header:hover {
   background-color: #f9fafb;
+  /* gray-50 */
 }
 
 /* Edit button/link styling - used for clickable text elements in tables */

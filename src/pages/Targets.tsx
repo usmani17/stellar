@@ -1481,7 +1481,7 @@ export const Targets: React.FC = () => {
 
                         {/* Target Name */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100 min-w-[150px] max-w-[200px]`}
+                          className={`table-header min-w-[150px] max-w-[200px]`}
                           onClick={() => handleSort("name")}
                         >
                           <div className="flex items-center gap-1">
@@ -1492,7 +1492,7 @@ export const Targets: React.FC = () => {
 
                         {/* State */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100 min-w-[115px]`}
+                          className={`table-header min-w-[115px]`}
                           onClick={() => handleSort("status")}
                         >
                           <div className="flex items-center gap-1"> 
@@ -1503,7 +1503,7 @@ export const Targets: React.FC = () => {
 
                         {/* Bid */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100 min-w-[100px]`}
+                          className={`table-header min-w-[100px]`}
                           onClick={() => handleSort("bid")}
                         >
                           <div className="flex items-center gap-1">
@@ -1514,7 +1514,7 @@ export const Targets: React.FC = () => {
 
                         {/* Ad Group Name */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100 min-w-[150px] max-w-[200px]`}
+                          className={`table-header min-w-[150px] max-w-[200px]`}
                           onClick={() => handleSort("adgroup_name")}
                         >
                           <div className="flex items-center gap-1">
@@ -1536,7 +1536,7 @@ export const Targets: React.FC = () => {
 
                         {/* Type */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("type")}
                         >
                           <div className="flex items-center gap-1">
@@ -1547,7 +1547,7 @@ export const Targets: React.FC = () => {
 
                         {/* Spends */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("spends")}
                         >
                           <div className="flex items-center gap-1">
@@ -1558,7 +1558,7 @@ export const Targets: React.FC = () => {
 
                         {/* Sales */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("sales")}
                         >
                           <div className="flex items-center gap-1">
@@ -1569,7 +1569,7 @@ export const Targets: React.FC = () => {
 
                         {/* Impressions */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("impressions")}
                         >
                           <div className="flex items-center gap-1">
@@ -1580,7 +1580,7 @@ export const Targets: React.FC = () => {
 
                         {/* Clicks */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("clicks")}
                         >
                           <div className="flex items-center gap-1">
@@ -1591,7 +1591,7 @@ export const Targets: React.FC = () => {
 
                         {/* CTR */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("ctr")}
                         >
                           <div className="flex items-center gap-1">
@@ -1602,7 +1602,7 @@ export const Targets: React.FC = () => {
 
                         {/* ACOS */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("acos")}
                         >
                           <div className="flex items-center gap-1">
@@ -1613,7 +1613,7 @@ export const Targets: React.FC = () => {
 
                         {/* ROAS */}
                         <th
-                          className={`table-header cursor-pointer hover:bg-gray-100`}
+                          className="table-header"
                           onClick={() => handleSort("roas")}
                         >
                           <div className="flex items-center gap-1">

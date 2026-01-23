@@ -53,7 +53,7 @@ export const GoogleAds: React.FC = () => {
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(25);
+  const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
@@ -1514,11 +1514,50 @@ export const GoogleAds: React.FC = () => {
                     >
                       Previous
                     </button>
-                    <span className="px-4 py-2 text-[10.64px] text-[#556179] flex items-center">
-                      Page {currentPage} of {totalPages} • Showing{" "}
-                      {(currentPage - 1) * itemsPerPage + 1}–{" "}
-                      {Math.min(currentPage * itemsPerPage, total)} of {total}
-                    </span>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      // Ensure pageNum is within valid range [1, totalPages]
+                      pageNum = Math.max(1, Math.min(pageNum, totalPages));
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                            currentPage === pageNum
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <span className="px-3 py-2 border-r border-gray-200 text-[10.64px] text-[#222124]">
+                        ...
+                      </span>
+                    )}
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                          currentPage === totalPages
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        {totalPages}
+                      </button>
+                    )}
                     <button
                       onClick={() =>
                         setCurrentPage((prev) => Math.min(totalPages, prev + 1))

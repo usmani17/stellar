@@ -490,7 +490,7 @@ export function GoogleAdsTable<T = any>({
                   return (
                     <th
                       key={column.key}
-                      className={`table-header whitespace-nowrap ${
+                      className={`table-header ${
                         column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
                       } ${stickyClasses} ${widthClasses} ${borderClass}`}
                       onClick={() => column.sortable !== false && onSort(column.key)}

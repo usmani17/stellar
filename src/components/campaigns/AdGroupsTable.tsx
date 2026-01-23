@@ -242,7 +242,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                 {/* State Header */}
                 <th
-                  className={`table-header min-w-[100px] whitespace-nowrap ${
+                  className={`table-header min-w-[100px] ${
                     onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}
                   onClick={() => onSort?.("status")}
@@ -255,7 +255,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
 
                 {/* Default Bid Header */}
                 <th
-                  className={`table-header whitespace-nowrap ${
+                  className={`table-header ${
                     onSort ? "cursor-pointer hover:bg-gray-50" : ""
                   }`}
                   onClick={() => onSort?.("default_bid")}

@@ -136,7 +136,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </th>
                 )}
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("adId")}
                 >
                   <div className="flex items-center">
@@ -145,7 +145,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("asin")}
                 >
                   <div className="flex items-center">
@@ -154,7 +154,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("sku")}
                 >
                   <div className="flex items-center">
@@ -163,7 +163,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("status")}
                 >
                   <div className="flex items-center">
@@ -172,7 +172,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                   </div>
                 </th>
                 <th
-                  className="table-header cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="table-header"
                   onClick={() => onSort?.("adGroupId")}
                 >
                   <div className="flex items-center">

@@ -3091,7 +3091,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Profile Header */}
                           <th
-                            className="table-header cursor-pointer hover:bg-gray-50 min-w-[200px]"
+                            className="table-header min-w-[200px]"
                             onClick={() => handleSort("profile_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3118,7 +3118,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* State Header */}
                           <th
-                            className="table-header cursor-pointer hover:bg-gray-50 min-w-[115px]"
+                            className="table-header min-w-[115px]"
                             onClick={() => handleSort("status")}
                           >
                             <div className="flex items-center gap-1">
@@ -3140,7 +3140,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Budget Type Header */}
                           <th
-                            className="table-header cursor-pointer hover:bg-gray-50 whitespace-nowrap"
+                            className="table-header"
                             onClick={() => handleSort("budgetType")}
                           >
                             <div className="flex items-center gap-1">
@@ -3151,7 +3151,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Start Date Header */}
                           <th
-                            className="table-header cursor-pointer hover:bg-gray-50 whitespace-nowrap"
+                            className="table-header"
                             onClick={() => handleSort("startDate")}
                           >
                             <div className="flex items-center gap-1">
