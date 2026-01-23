@@ -291,7 +291,7 @@ export const Accounts: React.FC = () => {
             {/* Header with Create Button and Search */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[22px] sm:text-[24px] font-medium text-[#072929] leading-[normal]">
-                Accounts
+                Brands
               </h1>
               <div className="flex items-center gap-2">
                 <div className="search-input-container h-[40px] w-full md:w-[272px] flex items-center gap-2 px-[10px]">

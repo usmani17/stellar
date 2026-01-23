@@ -7470,14 +7470,16 @@ export const CampaignDetail: React.FC = () => {
                     onSubmit={handleCreateSBAds}
                     adgroups={(allAdgroups.length > 0 ? allAdgroups : adgroups)
                       .filter((ag) => {
-                        // Only show ENABLED adgroups for SB ad creation
+                        // Show all non-archived adgroups (ENABLED and PAUSED)
                         const statusValue =
                           (ag as any).status || (ag as any).state || "";
-                        return statusValue.toUpperCase() === "ENABLED";
+                        const normalizedStatus = String(statusValue).trim().toUpperCase();
+                        // Exclude ARCHIVED, include ENABLED, ENABLE, PAUSED, PAUSE
+                        return normalizedStatus !== "ARCHIVED";
                       })
                       .map((ag) => ({
                         adGroupId: ag.adGroupId || String(ag.id),
-                        name: ag.name,
+                        name: ag.name || ag.adGroupId || String(ag.id),
                       }))}
                     campaignId={campaignId || ""}
                     loading={createSBAdLoading}
@@ -10360,14 +10362,14 @@ export const CampaignDetail: React.FC = () => {
                   <button
                     onClick={cancelAdGroupChange}
                     disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
-                    className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50"
+                    className="cancel-button"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmAdGroupChange}
                     disabled={adGroupEditLoading.has(pendingAdGroupChange.id)}
-                    className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="create-entity-button btn-sm"
                   >
                     {adGroupEditLoading.has(pendingAdGroupChange.id)
                       ? "Updating..."

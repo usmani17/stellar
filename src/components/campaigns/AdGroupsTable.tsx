@@ -79,9 +79,8 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   const { accountId } = useParams<{ accountId: string }>();
   const statusSelectionMadeRef = useRef<number | null>(null);
 
-  // When campaignId is provided, we're in campaign detail view - hide Campaign Name column
-  // When campaignId is not provided, we're in all adgroups view - show all columns
-  const showCampaignColumn = !campaignId;
+  // Show all columns on both adgroups page and campaign detail page
+  const showCampaignColumn = true;
 
   // Navigate to campaign detail page
   const handleCampaignNameClick = (adgroup: AdGroup, e: React.MouseEvent) => {
@@ -517,7 +516,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                     onEditEnd?.();
                                   }
                                 }}
-                                className="inline-edit-input min-w-[150px] max-w-[200px]"
+                                className="inline-edit-input"
                                 disabled={isArchived}
                                 title={
                                   isArchived

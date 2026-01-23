@@ -930,7 +930,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
+    <div className="create-panel">
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-[16px] font-semibold text-[#072929] mb-4">
@@ -938,60 +938,55 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
         </h2>
 
         <div className="space-y-4">
-          {/* Expression Structure Type - For SD campaigns, show on its own row */}
-          {campaignType === "SD" && (
-            <div>
-              <label className="form-label-small">
-                Expression Structure *
-              </label>
-              <div className="flex gap-3">
-                <div className="flex-1 min-w-[220px]">
-                  <Dropdown<string>
-                    options={SD_EXPRESSION_STRUCTURE_TYPES}
-                    value={currentTarget.sdExpressionStructureType || ""}
-                    onChange={(value) =>
-                      handleChange("sdExpressionStructureType", value)
-                    }
-                    placeholder="Select structure type"
-                    buttonClassName="w-full"
-                  />
-                  {errors.sdExpressionStructureType && (
-                    <p className="text-[10px] text-red-500 mt-1">
-                      {errors.sdExpressionStructureType}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Single line inputs */}
-          <div className="flex items-end gap-3">
-            {/* Ad Group Dropdown */}
-            <div className="flex-1 min-w-[180px] w-full">
-              <label className="form-label-small">
-                Ad Group *
-              </label>
-              <Dropdown<string>
-                options={adgroups.map((ag) => ({
-                  value: ag.adGroupId,
-                  label: ag.name,
-                }))}
-                value={currentTarget.adGroupId}
-                onChange={(value) => handleChange("adGroupId", value)}
-                placeholder="Select ad group"
-                buttonClassName="edit-button w-full"
-              />
-              {errors.adGroupId && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  {errors.adGroupId}
-                </p>
-              )}
-            </div>
+          {campaignType === "SD" ? (
+            /* SD Campaign: All 5 fields in one line */
+            <div className="grid grid-cols-5 gap-3">
+              {/* Expression Structure */}
+              <div>
+                <label className="form-label-small">
+                  Expression Structure *
+                </label>
+                <Dropdown<string>
+                  options={SD_EXPRESSION_STRUCTURE_TYPES}
+                  value={currentTarget.sdExpressionStructureType || ""}
+                  onChange={(value) =>
+                    handleChange("sdExpressionStructureType", value)
+                  }
+                  placeholder="Select structure type"
+                  buttonClassName="w-full edit-button"
+                />
+                {errors.sdExpressionStructureType && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.sdExpressionStructureType}
+                  </p>
+                )}
+              </div>
 
-            {/* Expression Type - For SD: manual/auto, For SP/SB: expression types */}
-            {campaignType === "SD" ? (
-              <div className="flex-1 min-w-[140px]">
+              {/* Ad Group */}
+              <div>
+                <label className="form-label-small">
+                  Ad Group *
+                </label>
+                <Dropdown<string>
+                  options={adgroups.map((ag) => ({
+                    value: ag.adGroupId,
+                    label: ag.name,
+                  }))}
+                  value={currentTarget.adGroupId}
+                  onChange={(value) => handleChange("adGroupId", value)}
+                  placeholder="Select ad group"
+                  buttonClassName="edit-button w-full"
+                />
+                {errors.adGroupId && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.adGroupId}
+                  </p>
+                )}
+              </div>
+
+              {/* Expression Type */}
+              <div>
                 <label className="form-label-small">
                   Expression Type *
                 </label>
@@ -1000,10 +995,75 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   value={currentTarget.expressionType}
                   onChange={(value) => handleChange("expressionType", value)}
                   placeholder="Select type"
-                  buttonClassName="w-full"
+                  buttonClassName="w-full edit-button"
                 />
               </div>
-            ) : (
+
+              {/* Bid */}
+              <div>
+                <label className="form-label-small">
+                  Bid *
+                </label>
+                <input
+                  type="number"
+                  value={currentTarget.bid || ""}
+                  onChange={(e) =>
+                    handleChange("bid", parseFloat(e.target.value) || 0)
+                  }
+                  placeholder="0.10"
+                  min="0"
+                  step="0.01"
+                  className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.bid ? "border-red-500" : "border-gray-200"
+                  }`}
+                />
+                {errors.bid && (
+                  <p className="text-[10px] text-red-500 mt-1">{errors.bid}</p>
+                )}
+              </div>
+
+              {/* State */}
+              <div>
+                <label className="form-label-small">
+                  State *
+                </label>
+                <Dropdown<string>
+                  options={STATE_OPTIONS_TO_USE}
+                  value={currentTarget.state}
+                  onChange={(value) =>
+                    handleChange("state", value as TargetInput["state"])
+                  }
+                  placeholder="Select state"
+                  buttonClassName="edit-button w-full"
+                />
+              </div>
+            </div>
+          ) : (
+            /* SP/SB Campaign: Original layout */
+            <div className="flex items-end gap-3">
+              {/* Ad Group Dropdown */}
+              <div className="flex-1 min-w-[180px] w-full">
+                <label className="form-label-small">
+                  Ad Group *
+                </label>
+                <Dropdown<string>
+                  options={adgroups.map((ag) => ({
+                    value: ag.adGroupId,
+                    label: ag.name,
+                  }))}
+                  value={currentTarget.adGroupId}
+                  onChange={(value) => handleChange("adGroupId", value)}
+                  placeholder="Select ad group"
+                  buttonClassName="edit-button w-full"
+                />
+                {errors.adGroupId && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.adGroupId}
+                  </p>
+                )}
+              </div>
+
+              {/* Expression Type */}
               <div className="flex-1 min-w-[200px]">
                 <label className="form-label-small">
                   Expression Type *
@@ -1016,10 +1076,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   buttonClassName="edit-button w-full"
                 />
               </div>
-            )}
 
-            {/* Expression Value - For SP/SB: ASIN or value */}
-            {campaignType !== "SD" && (
+              {/* Expression Value */}
               <div className="flex-1 min-w-[200px]">
                 <label className="form-label-small">
                   Expression Value *
@@ -1043,52 +1101,49 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   </p>
                 )}
               </div>
-            )}
 
-            {/* Bid */}
-            <div className="w-[120px]">
-              <label className="form-label-small">
-                Bid *
-              </label>
-              <input
-                type="number"
-                value={currentTarget.bid || ""}
-                onChange={(e) =>
-                  handleChange("bid", parseFloat(e.target.value) || 0)
-                }
-                placeholder="0.10"
-                min="0"
-                step="0.01"
-                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                  errors.bid ? "border-red-500" : "border-gray-200"
-                }`}
-              />
-              {errors.bid && (
-                <p className="text-[10px] text-red-500 mt-1">{errors.bid}</p>
-              )}
-            </div>
-
-            {/* State */}
-            {/* State field - hidden for SB campaigns (state cannot be set at creation) */}
-            {campaignType !== "SB" && (
-              <div className="w-[140px]">
+              {/* Bid */}
+              <div className="w-[120px]">
                 <label className="form-label-small">
-                  State *
+                  Bid *
                 </label>
-                <Dropdown<string>
-                  options={STATE_OPTIONS_TO_USE}
-                  value={currentTarget.state}
-                  onChange={(value) =>
-                    handleChange("state", value as TargetInput["state"])
+                <input
+                  type="number"
+                  value={currentTarget.bid || ""}
+                  onChange={(e) =>
+                    handleChange("bid", parseFloat(e.target.value) || 0)
                   }
-                  placeholder="Select state"
-                  buttonClassName="edit-button w-full"
+                  placeholder="0.10"
+                  min="0"
+                  step="0.01"
+                  className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                    errors.bid ? "border-red-500" : "border-gray-200"
+                  }`}
                 />
+                {errors.bid && (
+                  <p className="text-[10px] text-red-500 mt-1">{errors.bid}</p>
+                )}
               </div>
-            )}
 
-            {/* Add Target Button - Only show inline for SP/SB, move to bottom for SD */}
-            {campaignType !== "SD" && (
+              {/* State - hidden for SB campaigns */}
+              {campaignType !== "SB" && (
+                <div className="w-[140px]">
+                  <label className="form-label-small">
+                    State *
+                  </label>
+                  <Dropdown<string>
+                    options={STATE_OPTIONS_TO_USE}
+                    value={currentTarget.state}
+                    onChange={(value) =>
+                      handleChange("state", value as TargetInput["state"])
+                    }
+                    placeholder="Select state"
+                    buttonClassName="edit-button w-full"
+                  />
+                </div>
+              )}
+
+              {/* Add Target Button - Only show inline for SP/SB */}
               <div className="w-[120px]">
                 <button
                   type="button"
@@ -1098,8 +1153,8 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                   Add Target
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* SD Dynamic Fields - Show on separate rows */}
           {campaignType === "SD" && (
@@ -1221,9 +1276,22 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRemoveContentCategory(idx)}
-                            className="px-3 py-2.5 text-red-500 hover:text-red-700 text-[11.2px]"
+                            className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
+                            title="Remove"
                           >
-                            Remove
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
                           </button>
                         </div>
                       ))}
@@ -1257,7 +1325,7 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                           handleChange("sdNestedType", value)
                         }
                         placeholder="Select type"
-                        buttonClassName="w-full"
+                        buttonClassName="w-full edit-button"
                       />
                       {errors.sdNestedType && (
                         <p className="text-[10px] text-red-500 mt-1">
@@ -1347,9 +1415,22 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                             <button
                               type="button"
                               onClick={() => handleRemoveNestedPredicate(idx)}
-                              className="px-3 py-2.5 text-red-500 hover:text-red-700 text-[11.2px]"
+                              className="px-3 py-2.5 text-red-500 hover:text-red-700 transition-colors"
+                              title="Remove"
                             >
-                              Remove
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
                             </button>
                           </div>
                         ))}
@@ -1575,9 +1656,22 @@ export const CreateTargetPanel: React.FC<CreateTargetPanelProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRemoveTarget(index)}
-                            className="text-red-500 hover:text-red-700 text-[13.3px]"
+                            className="text-red-500 hover:text-red-700 transition-colors"
+                            title="Remove"
                           >
-                            Remove
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
                           </button>
                         </td>
                       </tr>
