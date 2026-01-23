@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import type { IColumnDefinition } from "./GoogleAdsTable";
+import type { IColumnDefinition } from "../../../types/google";
 
 export interface GoogleKeyword {
   id: number;
@@ -127,7 +127,6 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   formatCurrency,
   formatPercentage,
   getStatusBadge,
-  getMatchTypeLabel,
   getSortIcon,
 }) => {
   const navigate = useNavigate();
@@ -165,6 +164,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
 
   // Map summary to shared format
   const sharedSummary = summary ? {
+    total_campaigns: summary.total_keywords, // Map total_keywords to total_campaigns for compatibility
     total_count: summary.total_keywords,
     total_spends: summary.total_spends,
     total_sales: summary.total_sales,
@@ -174,25 +174,47 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
     avg_roas: summary.avg_roas,
   } : null;
 
-  // Define columns for keywords
+  // Define columns for keywords - matching Amazon keyword table structure
   const columns: IColumnDefinition[] = useMemo(() => [
     {
       key: "keyword_text",
-      label: "Keyword",
+      label: "Keyword Name",
       type: "text",
       sortable: true,
-      sticky: true,
-      minWidth: "min-w-[300px]",
-      maxWidth: "max-w-[400px]",
+      sticky: false,
+      minWidth: "min-w-[150px]",
+      maxWidth: "max-w-[200px]",
       editable: true,
       getValue: (row: GoogleKeyword) => row.keyword_text || "—",
+    },
+    {
+      key: "status",
+      label: "State",
+      type: "status",
+      sortable: true,
+      minWidth: "min-w-[115px]",
+      editable: true,
+      statusOptions: [
+        { value: "ENABLED", label: "Enabled" },
+        { value: "PAUSED", label: "Paused" },
+      ],
+      getValue: (row: GoogleKeyword) => row.status || "",
+    },
+    {
+      key: "bid",
+      label: "Keyword Bid",
+      type: "budget",
+      sortable: true,
+      editable: true,
+      getValue: (row: GoogleKeyword) => row.cpc_bid_dollars || 0,
     },
     {
       key: "campaign_name",
       label: "Campaign Name",
       type: "text",
       sortable: true,
-      minWidth: "min-w-[200px]",
+      minWidth: "min-w-[150px]",
+      maxWidth: "max-w-[200px]",
       getValue: (row: GoogleKeyword) => row.campaign_name || "—",
       render: (value: any, row: GoogleKeyword) => {
         const campaignName = value === "—" ? "—" : value;
@@ -222,14 +244,15 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       label: "Ad Group Name",
       type: "text",
       sortable: true,
-      minWidth: "min-w-[200px]",
+      minWidth: "min-w-[150px]",
+      maxWidth: "max-w-[200px]",
       getValue: (row: GoogleKeyword) => row.adgroup_name || "—",
       render: (value: any, row: GoogleKeyword) => {
         const adgroupName = value === "—" ? "—" : value;
         const campaignId = row.campaign_id;
         
         if (adgroupName === "—" || !campaignId || !currentAccountId) {
-          return <span className="table-text">{adgroupName}</span>;
+          return <span className="table-text leading-[1.26]">{adgroupName}</span>;
         }
         
         return (
@@ -240,7 +263,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
               // Navigate to campaign detail page with adgroups tab
               navigate(`/accounts/${currentAccountId}/google/campaigns/${campaignId}?tab=Ad Groups`);
             }}
-            className="table-edit-link text-left truncate"
+            className="table-edit-link text-left truncate block w-full"
             title={`View ad group: ${adgroupName}`}
           >
             {adgroupName}
@@ -261,31 +284,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
         { value: "PHRASE", label: "Phrase" },
         { value: "BROAD", label: "Broad" },
       ],
-      // Remove custom render to allow editable behavior - use default status rendering
-      // The purple styling can be added via CSS if needed
       getValue: (row: GoogleKeyword) => row.match_type || "EXACT",
-    },
-    {
-      key: "status",
-      label: "State",
-      type: "status",
-      sortable: true,
-      width: "w-[140px]",
-      maxWidth: "max-w-[140px]",
-      editable: true,
-      statusOptions: [
-        { value: "ENABLED", label: "Enabled" },
-        { value: "PAUSED", label: "Paused" },
-      ],
-      getValue: (row: GoogleKeyword) => row.status || "ENABLED",
-    },
-    {
-      key: "bid",
-      label: "Max. CPC",
-      type: "budget",
-      sortable: true,
-      editable: true,
-      getValue: (row: GoogleKeyword) => row.cpc_bid_dollars || 0,
     },
     {
       key: "final_url",
@@ -411,6 +410,13 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       getValue: (row: GoogleKeyword) => (row as any).clicks || 0,
     },
     {
+      key: "ctr",
+      label: "CTR",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => (row as any).ctr || 0,
+    },
+    {
       key: "acos",
       label: "ACOS",
       type: "percentage",
@@ -424,7 +430,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       sortable: true,
       getValue: (row: GoogleKeyword) => (row as any).roas || 0,
     },
-  ], [getMatchTypeLabel, onStartFinalUrlEdit]);
+  ], [currentAccountId, navigate, onStartFinalUrlEdit]);
 
   // Handle confirm inline edit - route to appropriate handler
   const handleConfirmInlineEdit = (value: string, _field: string) => {

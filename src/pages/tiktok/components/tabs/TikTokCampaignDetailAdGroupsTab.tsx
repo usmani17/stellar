@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { campaignsService } from "../../../../services/campaigns";
-import { Checkbox } from "../../../../components/ui/Checkbox";
-import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { FilterPanel, type FilterValues } from "../../../../components/filters/FilterPanel";
 import { CreateTikTokAdGroupPanel } from "../../../../components/tiktok/CreateTikTokAdGroupPanel";
-import { Dropdown } from "../../../../components/ui/Dropdown";
+import { TikTokAdGroupTable } from "./TikTokAdGroupTable";
 
 // Define interface locally or import if shared
 export interface TikTokAdGroup {
@@ -73,28 +71,19 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(externalIsFilterPanelOpen);
 
-    // Inline edit state
-    const [editingCell, setEditingCell] = useState<{
-        adgroup_id: string;
-        field: "adgroup_name" | "operation_status" | "budget";
-    } | null>(null);
-    const [editedValue, setEditedValue] = useState<string>("");
-    const [isCancelling, setIsCancelling] = useState(false);
-    const [updatingField, setUpdatingField] = useState<string | null>(null);
-    const isStartingEditRef = React.useRef(false);
-
-    // Inline edit confirmation modal state
-    const [showInlineEditModal, setShowInlineEditModal] = useState(false);
-    const [inlineEditAdGroup, setInlineEditAdGroup] = useState<TikTokAdGroup | null>(null);
-    const [inlineEditField, setInlineEditField] = useState<"adgroup_name" | "operation_status" | "budget" | null>(null);
-    const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
-    const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
-    const [inlineEditLoading, setInlineEditLoading] = useState(false);
+    // Creation state
+    const [createdAdGroups, setCreatedAdGroups] = useState<any[]>([]);
+    const [failedAdGroupCount, setFailedAdGroupCount] = useState(0);
+    const [failedAdGroups, setFailedAdGroups] = useState<any[]>([]);
 
     // Bulk edit state
     const [showBulkEditDropdown, setShowBulkEditDropdown] = useState(false);
     const [bulkEditLoading, setBulkEditLoading] = useState(false);
     const bulkEditDropdownRef = React.useRef<HTMLDivElement>(null);
+
+    // Bulk status confirmation modal state
+    const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+    const [pendingBulkStatusAction, setPendingBulkStatusAction] = useState<"ENABLE" | "DISABLE" | "DELETE" | null>(null);
 
     // Sync external filter panel state with internal state
     React.useEffect(() => {
@@ -347,26 +336,19 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
         }
 
         const selectedIds = Array.from(selectedAdGroupIds);
-        const selectedAdGroups = adgroups.filter(ag => selectedAdGroupIds.has(ag.adgroup_id));
-
-        // Show confirmation
-        const confirmMessage = `Are you sure you want to ${operationStatus.toLowerCase()} ${selectedIds.length} ad group(s)?`;
-        if (!window.confirm(confirmMessage)) {
-            return;
-        }
-
         setBulkEditLoading(true);
-        setShowBulkEditDropdown(false);
 
         try {
             await campaignsService.updateTikTokAdGroupStatus(accountIdNum, {
                 adgroup_ids: selectedIds,
-                operation_status: operationStatus,
+                operation_status: pendingBulkStatusAction,
             });
 
-            // Clear selection and refresh
-            const idsToClear = Array.from(selectedAdGroupIds);
-            idsToClear.forEach(id => onSelectAdGroup(id, false));
+            // Clear selection and close modal
+            selectedIds.forEach(id => onSelectAdGroup(id, false));
+            setShowBulkStatusModal(false);
+            setPendingBulkStatusAction(null);
+
             if (onRefresh) {
                 onRefresh();
             }
@@ -382,54 +364,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
         }
     };
 
-    const getSortIcon = (column: string) => {
-        if (sortBy !== column) {
-            return (
-                <svg
-                    className="w-4 h-4 ml-1 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                >
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                    />
-                </svg>
-            );
-        }
-        return sortOrder === "asc" ? (
-            <svg
-                className="w-4 h-4 ml-1 text-[#136D6D]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-            >
-                <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 15l7-7 7 7"
-                />
-            </svg>
-        ) : (
-            <svg
-                className="w-4 h-4 ml-1 text-[#136D6D]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-            >
-                <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                />
-            </svg>
-        );
-    };
+
 
     return (
         <>
@@ -467,13 +402,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                     <div className="relative" ref={bulkEditDropdownRef}>
                         <button
                             onClick={() => {
-                                if (selectedAdGroupIds.size === 0) {
-                                    alert("Please select at least one ad group to edit.");
-                                    return;
-                                }
                                 setShowBulkEditDropdown(!showBulkEditDropdown);
                             }}
-                            disabled={bulkEditLoading || selectedAdGroupIds.size === 0}
+                            disabled={bulkEditLoading}
                             className="px-2.5 py-1 bg-[#FEFEFB] border border-[#E3E3E3] rounded-lg flex items-center gap-1.5 h-8 hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors text-[9.5px] text-[#072929] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <svg className="w-4 h-4 text-[#072929]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -557,25 +488,54 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
             {/* Create Ad Group Panel */}
             <CreateTikTokAdGroupPanel
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() => {
+                    setIsCreateModalOpen(false);
+                    // Reset state on close
+                    setCreatedAdGroups([]);
+                    setFailedAdGroupCount(0);
+                    setFailedAdGroups([]);
+                }}
                 campaignId={campaignId!}
                 campaignName={campaignName}
                 objectiveType={objectiveType}
+                createdAdGroups={createdAdGroups}
+                failedCount={failedAdGroupCount}
+                failedAdGroups={failedAdGroups}
                 onSubmit={async (dataArray) => {
-                    try {
-                        if (!accountId) return;
-                        // Create all ad groups in the array
-                        for (const data of dataArray) {
-                            await campaignsService.createTikTokAdGroup(parseInt(accountId), {
+                    if (!accountId) return;
+
+                    const created: any[] = [];
+                    const failed: any[] = [];
+                    let failCount = 0;
+
+                    // Create all ad groups in the array
+                    for (const [index, data] of dataArray.entries()) {
+                        try {
+                            const response = await campaignsService.createTikTokAdGroup(parseInt(accountId), {
                                 ...data,
-                                schedule_start_time: data.schedule_start_time || "",
+                                schedule_start_time: data.schedule_start_time || undefined,
+                            });
+                            // Store index to map back to original list in panel
+                            created.push({ ...response, index, name: data.adgroup_name });
+                        } catch (error: any) {
+                            console.error(`Failed to create ad group ${data.adgroup_name}:`, error.response?.data || error.message);
+                            failCount++;
+                            failed.push({
+                                index,
+                                adgroup: data,
+                                errors: [{ message: JSON.stringify(error.response?.data || error.message) }]
                             });
                         }
-                        if (onRefresh) onRefresh();
-                        setIsCreateModalOpen(false);
-                    } catch (error) {
-                        console.error("Failed to create ad groups:", error);
                     }
+
+                    setCreatedAdGroups(created);
+                    setFailedAdGroupCount(failCount);
+                    setFailedAdGroups(failed);
+
+                    if (onRefresh) onRefresh();
+
+                    // Do not close modal automatically to show results
+                    // Unless clear success on all? Amazon logic keeps it open.
                 }}
             />
 
@@ -901,10 +861,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                     <button
                                         key={pageNum}
                                         onClick={() => onPageChange(pageNum)}
-                                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                                            currentPage === pageNum
-                                                ? "bg-white text-[#136D6D] font-semibold"
-                                                : "text-black hover:bg-gray-50"
+                                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                                            ? "bg-white text-[#136D6D] font-semibold"
+                                            : "text-black hover:bg-gray-50"
                                             }`}
                                     >
                                         {pageNum}
@@ -920,10 +879,9 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                         {totalPages > 5 && (
                             <button
                                 onClick={() => onPageChange(totalPages)}
-                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                                    currentPage === totalPages
-                                        ? "bg-white text-[#136D6D] font-semibold"
-                                        : "text-black hover:bg-gray-50"
+                                className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
+                                    ? "bg-white text-[#136D6D] font-semibold"
+                                    : "text-black hover:bg-gray-50"
                                     }`}
                             >
                                 {totalPages}
@@ -940,27 +898,21 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                 </div>
             )}
 
-            {/* Inline Edit Confirmation Modal */}
-            {showInlineEditModal && inlineEditAdGroup && inlineEditField && (
+
+            {/* Bulk Status Confirmation Modal */}
+            {showBulkStatusModal && pendingBulkStatusAction && (
                 <div
-                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200]"
                     onClick={(e) => {
-                        if (e.target === e.currentTarget && !inlineEditLoading) {
-                            setShowInlineEditModal(false);
-                            setInlineEditAdGroup(null);
-                            setInlineEditField(null);
+                        if (e.target === e.currentTarget && !bulkEditLoading) {
+                            setShowBulkStatusModal(false);
+                            setPendingBulkStatusAction(null);
                         }
                     }}
                 >
-                    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full mx-4">
+                    <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
                         <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
-                            Confirm{" "}
-                            {inlineEditField === "operation_status"
-                                ? "Status"
-                                : inlineEditField === "adgroup_name"
-                                    ? "Name"
-                                    : "Budget"}{" "}
-                            Change
+                            Confirm Status Change
                         </h3>
                         <div className="mb-4">
                             <p className="text-[12.16px] text-[#556179] mb-2">
@@ -1002,23 +954,23 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setShowInlineEditModal(false);
-                                    setInlineEditAdGroup(null);
-                                    setInlineEditField(null);
-                                    setInlineEditOldValue("");
-                                    setInlineEditNewValue("");
+                                    setShowBulkStatusModal(false);
+                                    setPendingBulkStatusAction(null);
                                 }}
                                 className="cancel-button"
+                                disabled={bulkEditLoading}
+
                             >
                                 Cancel
                             </button>
                             <button
                                 type="button"
-                                onClick={runInlineEdit}
-                                disabled={inlineEditLoading}
-                                className="create-entity-button btn-sm"
+                                className={`create-entity-button btn-sm ${pendingBulkStatusAction === "DELETE"
+                                    ? "bg-red-600 hover:bg-red-700"
+                                    : "bg-[#136D6D] hover:bg-[#0e5a5a]"
+                                    }`}
                             >
-                                {inlineEditLoading ? "Saving..." : "Confirm"}
+                                {bulkEditLoading ? "Applying..." : "Confirm"}
                             </button>
                         </div>
                     </div>

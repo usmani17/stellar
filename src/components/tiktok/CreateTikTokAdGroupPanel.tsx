@@ -50,6 +50,18 @@ interface AdGroupFormData {
     status: string;
 }
 
+interface CreatedAdGroup {
+    adGroupId?: string;
+    name: string;
+    index?: number;
+}
+
+interface FailedAdGroup {
+    index: number;
+    adgroup: TikTokAdGroupInput;
+    errors: Array<{ field?: string; message: string }>;
+}
+
 interface CreateTikTokAdGroupPanelProps {
     isOpen: boolean;
     onClose: () => void;
@@ -59,6 +71,9 @@ interface CreateTikTokAdGroupPanelProps {
     objectiveType?: string;
     loading?: boolean;
     submitError?: string | null;
+    createdAdGroups?: CreatedAdGroup[];
+    failedCount?: number;
+    failedAdGroups?: FailedAdGroup[];
 }
 
 const BUDGET_TYPES = [
@@ -272,6 +287,131 @@ const normalizeObjectiveType = (objType: string | undefined): string => {
     return objType.toUpperCase().replace(/_/g, " ").trim();
 };
 
+// Toggle Component
+const Toggle = ({ enabled, setEnabled, label }: { enabled: boolean; setEnabled: (val: boolean) => void; label: string }) => (
+    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setEnabled(!enabled)}>
+        <div className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-200 ${enabled ? 'bg-teal-600' : 'bg-stone-300'}`}>
+            <div className={`bg-white w-3 h-3 rounded-full shadow-sm transform transition-transform duration-200 ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+        </div>
+        <span className="text-teal-950 text-base font-medium">{label}</span>
+    </div>
+);
+
+// Helper function to format date for display (MM-DD-YYYY)
+const formatDateForDisplay = (dateStr: string): string => {
+    if (!dateStr) return "";
+    try {
+        // If already in MM-DD-YYYY format, return as is
+        if (dateStr.includes('-') && dateStr.split('-').length === 3) {
+            const parts = dateStr.split('-');
+            if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                return dateStr;
+            }
+        }
+        // Handle YYYY-MM-DD format (from date input)
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr;
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${month}-${day}-${year}`;
+    } catch {
+        return dateStr;
+    }
+};
+
+// Helper function to convert MM-DD-YYYY to YYYY-MM-DD for date input
+const convertToDateInputFormat = (dateStr: string): string => {
+    if (!dateStr) return "";
+    try {
+        // If in MM-DD-YYYY format, convert to YYYY-MM-DD
+        if (dateStr.includes('-') && dateStr.split('-').length === 3) {
+            const parts = dateStr.split('-');
+            if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                const [month, day, year] = parts;
+                return `${year}-${month}-${day}`;
+            }
+        }
+        return dateStr;
+    } catch {
+        return dateStr;
+    }
+};
+
+const InputField = ({
+    label,
+    value,
+    onChange,
+    placeholder,
+    disabled = false,
+    type = 'text',
+    options,
+    className = ""
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    disabled?: boolean;
+    type?: 'text' | 'date' | 'select';
+    options?: Array<{ value: string; label: string }>;
+    className?: string;
+}) => (
+    <div className={`flex flex-col justify-start items-start ${className}`}>
+        <label className="self-stretch pb-1 text-base font-medium text-[#072929] mb-2">
+            {label}
+        </label>
+        {type === 'date' ? (
+            <div className="relative w-full h-12 px-3 py-2 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-neutral-200 inline-flex justify-start items-center gap-2">
+                <div className={`flex-1 h-5 justify-start text-sm font-normal ${value ? 'text-teal-950' : 'text-stone-400'
+                    }`}>
+                    {value ? formatDateForDisplay(value) : (placeholder || "MM-DD-YYYY")}
+                </div>
+                <input
+                    type="date"
+                    value={convertToDateInputFormat(value)}
+                    onChange={(e) => {
+                        const dateValue = e.target.value;
+                        if (dateValue) {
+                            const formatted = formatDateForDisplay(dateValue);
+                            onChange(formatted);
+                        } else {
+                            onChange("");
+                        }
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="w-5 h-5 relative flex-shrink-0">
+                    <Calendar className="w-5 h-5 text-[#136D6D]" />
+                </div>
+            </div>
+        ) : type === 'select' && options ? (
+            <Dropdown<string>
+                options={options}
+                value={value}
+                onChange={(val: string) => onChange(val)}
+                placeholder={placeholder || `Select ${label.toLowerCase()}`}
+                disabled={disabled}
+                buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                className="w-full"
+            />
+        ) : (
+            <div className={`relative w-full h-12 px-3 py-2 rounded-xl border ${disabled ? 'bg-[#F0F0ED] border-[#D1D1C7]' : 'bg-white border-[#E3E3E3]'
+                } flex items-center`}>
+                <input
+                    type={type}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    className={`flex-1 text-sm ${disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
+                        } ${placeholder && !value ? 'text-[#BFBFBF]' : ''} bg-transparent outline-none`}
+                />
+            </div>
+        )}
+    </div>
+);
+
 export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> = ({
     isOpen,
     onClose,
@@ -281,6 +421,9 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
     objectiveType = "Website Conversions",
     loading: externalLoading = false,
     submitError: externalSubmitError = null,
+    createdAdGroups = [],
+    failedCount = 0,
+    failedAdGroups = [],
 }) => {
     const { accountId } = useParams<{ accountId: string }>();
     const [internalLoading, setInternalLoading] = useState(false);
@@ -289,9 +432,35 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
     // Use external loading/error if provided, otherwise use internal
     const loading = externalLoading || internalLoading;
     const error = externalSubmitError || internalError;
-    
+
     // Normalize objective type for consistent comparison
     const normalizedObjectiveType = normalizeObjectiveType(objectiveType);
+
+    // Objective type flags - moved to top for consistent access
+    const isAppPromotion = normalizedObjectiveType === "APP PROMOTION" ||
+        normalizedObjectiveType === "APP_PROMOTION" ||
+        objectiveType === "App Promotion";
+    const isVideoViews = normalizedObjectiveType === "VIDEO VIEWS" ||
+        normalizedObjectiveType === "VIDEO_VIEWS" ||
+        objectiveType === "Video Views";
+    const isTraffic = normalizedObjectiveType === "TRAFFIC" ||
+        objectiveType === "Traffic";
+    const isReach = normalizedObjectiveType === "REACH" ||
+        objectiveType === "Reach";
+    const isLeadGeneration = normalizedObjectiveType === "LEAD GENERATION" ||
+        normalizedObjectiveType === "LEAD_GENERATION" ||
+        objectiveType === "Lead Generation";
+    const isEngagement = normalizedObjectiveType === "ENGAGEMENT" ||
+        objectiveType === "Engagement";
+    const isProductSales = normalizedObjectiveType === "PRODUCT SALES" ||
+        normalizedObjectiveType === "PRODUCT_SALES" ||
+        objectiveType === "Product Sales";
+    const isSalesMerged = normalizedObjectiveType === "SALES MERGED" ||
+        normalizedObjectiveType === "SALES_MERGED" ||
+        objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
+    const isRFReach = normalizedObjectiveType === "RF REACH" ||
+        normalizedObjectiveType === "RF_REACH" ||
+        objectiveType === "RF_REACH";
 
     // Form State for current ad group being created
     const [adgroupName, setAdgroupName] = useState("");
@@ -301,7 +470,17 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
     const [budgetType, setBudgetType] = useState("BUDGET_MODE_DAY");
     const [budget, setBudget] = useState("");
     const [scheduleType, setScheduleType] = useState("SCHEDULE_FROM_NOW");
-    const [startDate, setStartDate] = useState("");
+
+    // Default start date to today
+    const getTodayFormatted = () => {
+        const today = new Date();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const year = today.getFullYear();
+        return `${month}-${day}-${year}`;
+    };
+    const [startDate, setStartDate] = useState(getTodayFormatted());
+
     const [optimizationGoal, setOptimizationGoal] = useState("CONVERSION");
     const [bidStrategy, setBidStrategy] = useState("BID_TYPE_NO_BID");
     const [billingEvent, setBillingEvent] = useState("CPC");
@@ -309,7 +488,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
     const [trackingPixel, setTrackingPixel] = useState("");
     const [conversionEvent, setConversionEvent] = useState("COMPLETE_PAYMENT");
     const [endDate, setEndDate] = useState("");
-    
+
     // App Promotion specific fields
     const [appPromotionType, setAppPromotionType] = useState("APP_INSTALL");
     const [appStore, setAppStore] = useState("IOS");
@@ -331,56 +510,31 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
 
     // Update default optimization goal based on objective type
     useEffect(() => {
-        const normalizedObjType = normalizeObjectiveType(objectiveType);
-        const isAppPromotion = normalizedObjType === "APP PROMOTION" || 
-                               normalizedObjType === "APP_PROMOTION" ||
-                               objectiveType === "App Promotion";
-        const isVideoViews = normalizedObjType === "VIDEO VIEWS" || 
-                             normalizedObjType === "VIDEO_VIEWS" ||
-                             objectiveType === "Video Views";
-        const isTrafficObj = normalizedObjType === "TRAFFIC" ||
-                             objectiveType === "Traffic";
-        const isReachObj = normalizedObjType === "REACH" ||
-                           objectiveType === "Reach";
-        const isLeadGenObj = normalizedObjType === "LEAD GENERATION" ||
-                             normalizedObjType === "LEAD_GENERATION" ||
-                             objectiveType === "Lead Generation";
-        const isEngagementObj = normalizedObjType === "ENGAGEMENT" ||
-                                 objectiveType === "Engagement";
-        const isProductSalesObj = normalizedObjType === "PRODUCT SALES" ||
-                                  normalizedObjType === "PRODUCT_SALES" ||
-                                  objectiveType === "Product Sales";
-        const isSalesMergedObj = normalizedObjType === "SALES MERGED" ||
-                                  normalizedObjType === "SALES_MERGED" ||
-                                  objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
-        const isRFReachObj = normalizedObjType === "RF REACH" ||
-                             normalizedObjType === "RF_REACH" ||
-                             objectiveType === "RF_REACH";
-        
         if (isAppPromotion && optimizationGoal === "CONVERSION") {
             setOptimizationGoal("INSTALL");
         } else if (isVideoViews && optimizationGoal !== "VIDEO_VIEW") {
             setOptimizationGoal("VIDEO_VIEW");
-        } else if (isTrafficObj && !["CLICK", "LANDING_PAGE_VIEW", "CONVERSION"].includes(optimizationGoal)) {
+        } else if (isTraffic && !["CLICK", "LANDING_PAGE_VIEW", "CONVERSION"].includes(optimizationGoal)) {
             setOptimizationGoal("CLICK");
-        } else if (isReachObj && !["REACH", "SHOW"].includes(optimizationGoal)) {
+        } else if (isReach && !["REACH", "SHOW"].includes(optimizationGoal)) {
             setOptimizationGoal("REACH");
-        } else if (isLeadGenObj && optimizationGoal !== "LEAD_GENERATION") {
+        } else if (isLeadGeneration && optimizationGoal !== "LEAD_GENERATION") {
             setOptimizationGoal("LEAD_GENERATION");
-        } else if (isEngagementObj && !["ENGAGEMENT", "CLICK", "PROFILE_VIEW", "FOLLOW"].includes(optimizationGoal)) {
+        } else if (isEngagement && !["ENGAGEMENT", "CLICK", "PROFILE_VIEW", "FOLLOW"].includes(optimizationGoal)) {
             setOptimizationGoal("ENGAGEMENT");
-        } else if (isProductSalesObj && !["CONVERSION", "VALUE", "CLICK"].includes(optimizationGoal)) {
+        } else if (isProductSales && !["CONVERSION", "VALUE", "CLICK"].includes(optimizationGoal)) {
             setOptimizationGoal("CONVERSION");
-        } else if (isSalesMergedObj && !["CONVERSION", "VALUE", "CLICK"].includes(optimizationGoal)) {
+        } else if (isSalesMerged && !["CONVERSION", "VALUE", "CLICK"].includes(optimizationGoal)) {
             setOptimizationGoal("CONVERSION");
-        } else if (isRFReachObj && optimizationGoal !== "REACH") {
+        } else if (isRFReach && optimizationGoal !== "REACH") {
             setOptimizationGoal("REACH");
-        } else if (!isAppPromotion && !isVideoViews && !isTrafficObj && !isReachObj && !isLeadGenObj && !isEngagementObj && !isProductSalesObj && !isSalesMergedObj && !isRFReachObj && optimizationGoal === "INSTALL") {
+        } else if (!isAppPromotion && !isVideoViews && !isTraffic && !isReach && !isLeadGeneration && !isEngagement && !isProductSales && !isSalesMerged && !isRFReach && optimizationGoal === "INSTALL") {
             setOptimizationGoal("CONVERSION");
         }
-    }, [objectiveType, optimizationGoal]);
+    }, [objectiveType, optimizationGoal, isAppPromotion, isVideoViews, isTraffic, isReach, isLeadGeneration, isEngagement, isProductSales, isSalesMerged, isRFReach]);
 
     const handleAddMore = () => {
+        console.log("Adding more ad group:", adgroupName);
         if (!adgroupName.trim()) {
             setInternalError("Ad Group Name is required");
             return;
@@ -471,7 +625,11 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!accountId || !campaignId) return;
+        console.log("Submitting TikTok Ad Groups. accountId:", accountId, "campaignId:", campaignId);
+        if (!accountId || !campaignId) {
+            console.warn("Submitting failed: accountId or campaignId is missing");
+            return;
+        }
 
         // If there are ad groups in the list, submit all of them
         if (adGroups.length > 0) {
@@ -484,19 +642,21 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     schedule_type: scheduleType,
                     schedule_start_time: group.startDate ? formatDateForAPI(group.startDate, false) : "",
                     schedule_end_time: scheduleType === "SCHEDULE_START_END" && endDate ? formatDateForAPI(endDate, true) : undefined,
-                    optimization_goal: isAppPromotion 
+                    optimization_goal: isAppPromotion
                         ? (APP_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "INSTALL")
                         : isVideoViews
-                        ? (OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "VIDEO_VIEW")
-                        : isTraffic
-                        ? (TRAFFIC_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CLICK")
-                        : isReach
-                        ? (REACH_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "REACH")
-                        : isEngagement
-                        ? (ENGAGEMENT_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "ENGAGEMENT")
-                        : isProductSales
-                        ? (PRODUCT_SALES_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CONVERSION")
-                        : (OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CONVERSION"),
+                            ? (OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "VIDEO_VIEW")
+                            : isTraffic
+                                ? (TRAFFIC_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CLICK")
+                                : isReach
+                                    ? (REACH_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "REACH")
+                                    : isEngagement
+                                        ? (ENGAGEMENT_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "ENGAGEMENT")
+                                        : isLeadGeneration
+                                            ? (LEAD_GENERATION_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "LEAD_GENERATION")
+                                            : (isProductSales || isSalesMerged)
+                                                ? (PRODUCT_SALES_OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CONVERSION")
+                                                : (OPTIMIZATION_GOALS.find(og => og.label === group.optimizationGoal)?.value || "CONVERSION"),
                     billing_event: billingEvent,
                     location_ids: [], // Location should be set per ad group if needed
                 };
@@ -514,7 +674,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 if (deliveryPacing) {
                     baseData.pacing = deliveryPacing;
                 }
-                
+
                 // Add conversion-related fields for WEB_CONVERSIONS objective
                 // Note: pixel_id and external_action are important for conversion tracking
                 if (objectiveType === "Website Conversions" || objectiveType === "WEB_CONVERSIONS") {
@@ -528,9 +688,9 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
 
                 // Add video views fields for VIDEO_VIEWS objective
                 const normalizedObjType = normalizeObjectiveType(objectiveType);
-                const currentIsVideoViews = normalizedObjType === "VIDEO VIEWS" || 
-                                            normalizedObjType === "VIDEO_VIEWS" ||
-                                            objectiveType === "Video Views";
+                const currentIsVideoViews = normalizedObjType === "VIDEO VIEWS" ||
+                    normalizedObjType === "VIDEO_VIEWS" ||
+                    objectiveType === "Video Views";
                 if (currentIsVideoViews) {
                     // App-related fields for Video Views
                     if (appId && appId.trim() !== "") {
@@ -589,8 +749,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
 
                 // Add product sales fields for PRODUCT_SALES objective
                 const currentIsProductSales = normalizedObjectiveType === "PRODUCT SALES" ||
-                                              normalizedObjectiveType === "PRODUCT_SALES" ||
-                                              objectiveType === "Product Sales";
+                    normalizedObjectiveType === "PRODUCT_SALES" ||
+                    objectiveType === "Product Sales";
                 if (currentIsProductSales) {
                     // shopping_ads_type is REQUIRED for PRODUCT_SALES
                     if (shoppingAdsType) {
@@ -617,8 +777,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 // ad groups use app_config instead. We'll handle this if needed.
                 // For now, SALES_MERGED ad groups follow similar logic to PRODUCT_SALES
                 const currentIsSalesMerged = normalizedObjectiveType === "SALES MERGED" ||
-                                              normalizedObjectiveType === "SALES_MERGED" ||
-                                              objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
+                    normalizedObjectiveType === "SALES_MERGED" ||
+                    objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
                 if (currentIsSalesMerged) {
                     // Similar to PRODUCT_SALES, but sales_destination is set at campaign level
                     // Ad groups may need app_id, pixel_id based on campaign settings
@@ -653,7 +813,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     for (const adGroupData of adGroupsData) {
                         await campaignsService.createTikTokAdGroup(parseInt(accountId), {
                             ...adGroupData,
-                            schedule_start_time: adGroupData.schedule_start_time || "",
+                            schedule_start_time: adGroupData.schedule_start_time || undefined,
                         });
                     }
                     handleReset();
@@ -673,21 +833,23 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 budget_mode: budgetType,
                 budget: budget === "CBO" ? 0 : parseFloat(budget) || 0,
                 schedule_type: scheduleType,
-                schedule_start_time: startDate ? formatDateForAPI(startDate, false) : "",
+                schedule_start_time: startDate ? formatDateForAPI(startDate, false) : undefined,
                 schedule_end_time: scheduleType === "SCHEDULE_START_END" && endDate ? formatDateForAPI(endDate, true) : undefined,
-                optimization_goal: isAppPromotion 
+                optimization_goal: isAppPromotion
                     ? (APP_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "INSTALL")
                     : isVideoViews
-                    ? (OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "VIDEO_VIEW")
-                    : isTraffic
-                    ? (TRAFFIC_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "CLICK")
-                    : isReach
-                    ? (REACH_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "REACH")
-                    : (normalizedObjectiveType === "LEAD GENERATION" || normalizedObjectiveType === "LEAD_GENERATION" || objectiveType === "Lead Generation")
-                    ? (LEAD_GENERATION_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "LEAD_GENERATION")
-                    : isEngagement
-                    ? (ENGAGEMENT_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "ENGAGEMENT")
-                    : optimizationGoal,
+                        ? (OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "VIDEO_VIEW")
+                        : isTraffic
+                            ? (TRAFFIC_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "CLICK")
+                            : isReach
+                                ? (REACH_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "REACH")
+                                : isEngagement
+                                    ? (ENGAGEMENT_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "ENGAGEMENT")
+                                    : isLeadGeneration
+                                        ? (LEAD_GENERATION_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "LEAD_GENERATION")
+                                        : (isProductSales || isSalesMerged)
+                                            ? (PRODUCT_SALES_OPTIMIZATION_GOALS.find(og => og.value === optimizationGoal)?.value || "CONVERSION")
+                                            : optimizationGoal,
                 billing_event: billingEvent,
                 location_ids: [],
             };
@@ -719,9 +881,9 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
 
             // Add video views fields for VIDEO_VIEWS objective
             const normalizedObjTypeForSubmit = normalizeObjectiveType(objectiveType);
-            const isVideoViewsForSubmit = normalizedObjTypeForSubmit === "VIDEO VIEWS" || 
-                                         normalizedObjTypeForSubmit === "VIDEO_VIEWS" ||
-                                         objectiveType === "Video Views";
+            const isVideoViewsForSubmit = normalizedObjTypeForSubmit === "VIDEO VIEWS" ||
+                normalizedObjTypeForSubmit === "VIDEO_VIEWS" ||
+                objectiveType === "Video Views";
             if (isVideoViewsForSubmit) {
                 // App-related fields for Video Views
                 if (appId && appId.trim() !== "") {
@@ -777,8 +939,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
 
             // Add product sales fields for PRODUCT_SALES objective
             const currentIsProductSales = normalizedObjTypeForSubmit === "PRODUCT SALES" ||
-                                          normalizedObjTypeForSubmit === "PRODUCT_SALES" ||
-                                          objectiveType === "Product Sales";
+                normalizedObjTypeForSubmit === "PRODUCT_SALES" ||
+                objectiveType === "Product Sales";
             if (currentIsProductSales) {
                 // shopping_ads_type is REQUIRED for PRODUCT_SALES
                 if (shoppingAdsType) {
@@ -807,6 +969,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                 setInternalError(null);
 
                 try {
+                    // Force cast undefined to string (or make interface optional)
+                    // We updated interface, so this should be fine now.
                     await campaignsService.createTikTokAdGroup(parseInt(accountId), {
                         ...adGroupData,
                         schedule_start_time: adGroupData.schedule_start_time || "",
@@ -862,167 +1026,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
 
     if (!isOpen) return null;
 
-    // Check if objective is App Promotion (handle both display name and API value)
-    const isAppPromotion = normalizedObjectiveType === "APP PROMOTION" || 
-                           normalizedObjectiveType === "APP_PROMOTION" ||
-                           objectiveType === "App Promotion";
-    // Check if objective is Video Views (handle various formats)
-    const isVideoViews = normalizedObjectiveType === "VIDEO VIEWS" || 
-                         normalizedObjectiveType === "VIDEO_VIEWS" ||
-                         objectiveType === "Video Views";
-    // Check if objective is Traffic
-    const isTraffic = normalizedObjectiveType === "TRAFFIC" ||
-                      objectiveType === "Traffic";
-    // Check if objective is Reach
-    const isReach = normalizedObjectiveType === "REACH" ||
-                    objectiveType === "Reach";
-    // Check if objective is Lead Generation
-    const isLeadGeneration = normalizedObjectiveType === "LEAD GENERATION" ||
-                             normalizedObjectiveType === "LEAD_GENERATION" ||
-                             objectiveType === "Lead Generation";
-    // Check if objective is Engagement
-    const isEngagement = normalizedObjectiveType === "ENGAGEMENT" ||
-                         objectiveType === "Engagement";
-    // Check if objective is Product Sales
-    const isProductSales = normalizedObjectiveType === "PRODUCT SALES" ||
-                           normalizedObjectiveType === "PRODUCT_SALES" ||
-                           objectiveType === "Product Sales";
-    // Check if objective is Sales Merged
-    const isSalesMerged = normalizedObjectiveType === "SALES MERGED" ||
-                          normalizedObjectiveType === "SALES_MERGED" ||
-                          objectiveType === "Sales (Merged – Website / App / TikTok Shop)";
-    // Check if objective is RF Reach
-    const isRFReach = normalizedObjectiveType === "RF REACH" ||
-                      normalizedObjectiveType === "RF_REACH" ||
-                      objectiveType === "RF_REACH";
+    if (!isOpen) return null;
 
-    // Toggle Component
-    const Toggle = ({ enabled, setEnabled, label }: { enabled: boolean; setEnabled: (val: boolean) => void; label: string }) => (
-        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setEnabled(!enabled)}>
-            <div className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-200 ${enabled ? 'bg-teal-600' : 'bg-stone-300'}`}>
-                <div className={`bg-white w-3 h-3 rounded-full shadow-sm transform transition-transform duration-200 ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
-            </div>
-            <span className="text-teal-950 text-base font-medium">{label}</span>
-        </div>
-    );
-
-    // Helper function to format date for display (MM-DD-YYYY)
-    const formatDateForDisplay = (dateStr: string): string => {
-        if (!dateStr) return "";
-        try {
-            // If already in MM-DD-YYYY format, return as is
-            if (dateStr.includes('-') && dateStr.split('-').length === 3) {
-                const parts = dateStr.split('-');
-                if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
-                    return dateStr;
-                }
-            }
-            // Handle YYYY-MM-DD format (from date input)
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return dateStr;
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${month}-${day}-${year}`;
-        } catch {
-            return dateStr;
-        }
-    };
-
-    // Helper function to convert MM-DD-YYYY to YYYY-MM-DD for date input
-    const convertToDateInputFormat = (dateStr: string): string => {
-        if (!dateStr) return "";
-        try {
-            // If in MM-DD-YYYY format, convert to YYYY-MM-DD
-            if (dateStr.includes('-') && dateStr.split('-').length === 3) {
-                const parts = dateStr.split('-');
-                if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
-                    const [month, day, year] = parts;
-                    return `${year}-${month}-${day}`;
-                }
-            }
-            return dateStr;
-        } catch {
-            return dateStr;
-        }
-    };
-
-    const InputField = ({ 
-        label, 
-        value, 
-        onChange, 
-        placeholder, 
-        disabled = false, 
-        type = 'text',
-        options,
-        className = ""
-    }: {
-        label: string;
-        value: string;
-        onChange: (value: string) => void;
-        placeholder?: string;
-        disabled?: boolean;
-        type?: 'text' | 'date' | 'select';
-        options?: Array<{ value: string; label: string }>;
-        className?: string;
-    }) => (
-        <div className={`flex flex-col justify-start items-start ${className}`}>
-            <label className="self-stretch pb-1 text-base font-medium text-[#072929] mb-2">
-                {label}
-            </label>
-            {type === 'date' ? (
-                <div className="relative w-full h-12 px-3 py-2 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-neutral-200 inline-flex justify-start items-center gap-2">
-                    <div className={`flex-1 h-5 justify-start text-sm font-normal ${
-                        value ? 'text-teal-950' : 'text-stone-400'
-                    }`}>
-                        {value ? formatDateForDisplay(value) : (placeholder || "MM-DD-YYYY")}
-                    </div>
-                    <input
-                        type="date"
-                        value={convertToDateInputFormat(value)}
-                        onChange={(e) => {
-                            const dateValue = e.target.value;
-                            if (dateValue) {
-                                const formatted = formatDateForDisplay(dateValue);
-                                onChange(formatted);
-                            } else {
-                                onChange("");
-                            }
-                        }}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <div className="w-5 h-5 relative flex-shrink-0">
-                        <Calendar className="w-5 h-5 text-[#136D6D]" />
-                    </div>
-                </div>
-            ) : type === 'select' && options ? (
-                <Dropdown<string>
-                    options={options}
-                    value={value}
-                    onChange={(val: string) => onChange(val)}
-                    placeholder={placeholder || `Select ${label.toLowerCase()}`}
-                    disabled={disabled}
-                    buttonClassName={`w-full h-[38px] bg-[#FEFEFB] text-[14px] text-[#072929] ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    className="w-full"
-                />
-            ) : (
-                <div className={`relative w-full h-12 px-3 py-2 rounded-xl border ${
-                    disabled ? 'bg-[#F0F0ED] border-[#D1D1C7]' : 'bg-white border-[#E3E3E3]'
-                } flex items-center`}>
-                    <input
-                        type={type}
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        placeholder={placeholder}
-                        disabled={disabled}
-                        className={`flex-1 text-sm ${
-                            disabled ? 'text-[#072929] cursor-not-allowed' : 'text-[#072929]'
-                        } ${placeholder && !value ? 'text-[#BFBFBF]' : ''} bg-transparent outline-none`}
-                    />
-                </div>
-            )}
-        </div>
-    );
 
     return (
         <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#F9F9F6] mb-4">
@@ -1045,7 +1050,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                         <InputField
                             label="Campaign"
                             value={campaignName || campaignId}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             disabled={true}
                         />
                     </div>
@@ -1061,7 +1066,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                         <InputField
                             label="Objective"
                             value={objectiveType}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             disabled={true}
                         />
                     </div>
@@ -1339,7 +1344,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                             <InputField
                                 label="App Promotion Type"
                                 value={APP_PROMOTION_TYPES.find(apt => apt.value === appPromotionType)?.label || "App Install"}
-                                onChange={() => {}}
+                                onChange={() => { }}
                                 disabled={true}
                             />
                         </div>
@@ -1410,7 +1415,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* Retargeting Fields - Only show when App Promotion Type is APP_RETARGETING */}
                         {appPromotionType === "APP_RETARGETING" && (
                             <div className="flex justify-start items-center gap-4">
@@ -1442,7 +1447,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                             <InputField
                                 label="Promotion / Optimization Location"
                                 value={promotionLocation}
-                                onChange={() => {}}
+                                onChange={() => { }}
                                 disabled={true}
                             />
                         </div>
@@ -2248,7 +2253,7 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                             <InputField
                                 label="Billing Event"
                                 value={billingEvent}
-                                onChange={() => {}}
+                                onChange={() => { }}
                                 disabled={true}
                             />
                         </div>
@@ -2283,8 +2288,8 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                     </div>
                 )}
 
-                {/* Add More Button */}
-                <div 
+                {/* Footer Actions */}
+                <div
                     className="flex justify-start items-center gap-2 cursor-pointer"
                     onClick={handleAddMore}
                 >
@@ -2387,6 +2392,28 @@ export const CreateTikTokAdGroupPanel: React.FC<CreateTikTokAdGroupPanelProps> =
                             </table>
                         </div>
                     </>
+                )}
+
+                {/* Error Summary */}
+                {error && (
+                    <div className="p-4 border-b border-gray-200 bg-red-50">
+                        <p className="text-[13.3px] text-red-600">{error}</p>
+                        {createdAdGroups.length > 0 && failedCount > 0 && (
+                            <p className="text-[12px] text-red-600 mt-1">
+                                {createdAdGroups.length} ad group(s) created successfully.{" "}
+                                {failedCount} ad group(s) failed.
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {/* Success Summary */}
+                {createdAdGroups.length > 0 && failedCount === 0 && (
+                    <div className="p-4 border-b border-gray-200 bg-green-50">
+                        <p className="text-[13.3px] text-green-600">
+                            {createdAdGroups.length} ad group(s) created successfully!
+                        </p>
+                    </div>
                 )}
 
                 {/* Action Buttons */}

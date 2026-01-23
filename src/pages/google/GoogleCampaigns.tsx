@@ -60,11 +60,12 @@ export const GoogleCampaigns: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-  const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState<FilterValues>([]);
+  const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
+  const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
   const isLoadingRef = useRef(false);
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
     useState(false);
@@ -150,7 +151,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [updatingField, setUpdatingField] = useState<{
+  const [updatingField] = useState<{
     campaignId: string | number;
     field:
       | "budget"
@@ -279,6 +280,9 @@ export const GoogleCampaigns: React.FC = () => {
           : undefined,
         end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
         filters: filters || [], // Pass filters array directly - ensure it's always an array
+        ...(apiSearchQuery && {
+          campaign_name__icontains: apiSearchQuery,
+        }),
       };
 
       console.log("🔍 [FILTERS DEBUG] Sending filters to service:", {
@@ -312,7 +316,6 @@ export const GoogleCampaigns: React.FC = () => {
       console.log("Setting campaigns array, length:", campaignsArray.length);
       setCampaigns(campaignsArray);
       setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
       if (response.summary) {
         setSummary(response.summary);
       }
@@ -340,15 +343,29 @@ export const GoogleCampaigns: React.FC = () => {
       console.error("Failed to load Google campaigns:", error);
       setCampaigns([]);
       setTotalPages(0);
-      setTotal(0);
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters, apiSearchQuery]);
+
+  // Apply client-side filtering if searchQuery is different from apiSearchQuery
+  const filteredCampaigns = useMemo(() => {
+    // Apply client-side filtering if searchQuery is different from apiSearchQuery
+    if (searchQuery && searchQuery !== apiSearchQuery) {
+      const query = searchQuery.toLowerCase().trim();
+      return campaigns.filter((campaign) => {
+        const campaignName = (campaign.campaign_name || "").toLowerCase();
+        const accountIdStr = accountId ? accountId.toString() : "";
+        return campaignName.includes(query) || accountIdStr.includes(query);
+      });
+    }
+
+    return campaigns;
+  }, [campaigns, searchQuery, apiSearchQuery, accountId]);
 
   // Sync status hook (after loadCampaigns is defined)
-  const { syncStatus: campaignsSyncStatus, SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
     accountId,
     entityType: "campaigns",
     currentData: campaigns,
@@ -370,56 +387,7 @@ export const GoogleCampaigns: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadCampaigns, sorting]);
-
-  const loadCampaignsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        filters: filterList, // Pass filters array directly
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-      };
-
-      const response = await googleAdwordsCampaignsService.getGoogleCampaigns(
-        accountId,
-        params
-      );
-      setCampaigns(Array.isArray(response.campaigns) ? response.campaigns : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedCampaigns(new Set());
-    } catch (error) {
-      console.error("Failed to load Google campaigns:", error);
-      setCampaigns([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [accountId, currentPage, filters, startDate, endDate, loadCampaigns, sorting, apiSearchQuery]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     if (!accountId) return;
@@ -496,16 +464,10 @@ export const GoogleCampaigns: React.FC = () => {
       // Extract error message from backend response
       let errorMessage = "Failed to create campaign. Please try again.";
       let errorDetails = null;
-      let fieldErrors: Record<string, string> = {};
 
       if (error?.response?.data) {
         // Check for validation errors (400 status)
         if (error.response.status === 400) {
-          // Check for field-specific validation errors
-          if (error.response.data.field_errors) {
-            fieldErrors = error.response.data.field_errors;
-          }
-
           if (error.response.data.error) {
             errorMessage = error.response.data.error;
           } else if (error.response.data.message) {
@@ -1211,7 +1173,6 @@ export const GoogleCampaigns: React.FC = () => {
             Array.isArray(response.campaigns) ? response.campaigns : []
           );
           setTotalPages(response.total_pages || 0);
-          setTotal(response.total || 0);
           if (response.summary) {
             setSummary(response.summary);
           }
@@ -1294,7 +1255,7 @@ export const GoogleCampaigns: React.FC = () => {
   // Selection handlers
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedCampaigns(new Set(campaigns.map((c) => c.campaign_id)));
+      setSelectedCampaigns(new Set(filteredCampaigns.map((c) => c.campaign_id)));
     } else {
       setSelectedCampaigns(new Set());
     }
@@ -1554,7 +1515,7 @@ export const GoogleCampaigns: React.FC = () => {
           }
           const [year, month, day] = parts;
           return `${month}/${day}/${year}`;
-        } catch (e) {
+        } catch {
           return dateStr;
         }
       };
@@ -1573,8 +1534,8 @@ export const GoogleCampaigns: React.FC = () => {
     }
 
     // Fallback for any other fields (shouldn't happen, but keep modal for safety)
-    let oldValue = "";
-    let newValue = valueToCheck;
+    const oldValue = "";
+    const newValue = valueToCheck;
 
     setInlineEditCampaign(campaign);
     setInlineEditField(editingCell.field);
@@ -2021,9 +1982,9 @@ export const GoogleCampaigns: React.FC = () => {
   };
 
   const allSelected =
-    campaigns.length > 0 && selectedCampaigns.size === campaigns.length;
+    filteredCampaigns.length > 0 && selectedCampaigns.size === filteredCampaigns.length;
   const someSelected =
-    selectedCampaigns.size > 0 && selectedCampaigns.size < campaigns.length;
+    selectedCampaigns.size > 0 && selectedCampaigns.size < filteredCampaigns.length;
 
   const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
@@ -2116,7 +2077,7 @@ export const GoogleCampaigns: React.FC = () => {
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
                 Campaigns Overview
               </h1>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <CreateGoogleCampaignSection
                   isOpen={isCreateCampaignPanelOpen}
                   onToggle={() => {
@@ -2281,8 +2242,53 @@ export const GoogleCampaigns: React.FC = () => {
               )}
             </div>
 
-            {/* Edit and Export Buttons - Above Table */}
-            <div className="flex items-center justify-end gap-2">
+            {/* Search, Edit and Export Buttons - Above Table */}
+            <div className="relative">
+              <div className="flex items-center justify-end gap-2">
+                {/* Search Box */}
+                <div className="search-input-container flex gap-[8px] h-[40px] items-center p-[10px] w-[272px]">
+                <div className="relative shrink-0 size-[12px]">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M5.5 9.5C7.70914 9.5 9.5 7.70914 9.5 5.5C9.5 3.29086 7.70914 1.5 5.5 1.5C3.29086 1.5 1.5 3.29086 1.5 5.5C1.5 7.70914 3.29086 9.5 5.5 9.5Z"
+                      stroke="#556179"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10.5 10.5L8.5 8.5"
+                      stroke="#556179"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    // Don't reset page or call API while typing - only filter client-side
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      // Call backend API when Enter is pressed
+                      setApiSearchQuery(searchQuery);
+                      setCurrentPage(1); // Reset to first page when searching
+                    }
+                  }}
+                  placeholder="Search by Name or Account ID"
+                  className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#556179] placeholder:text-[#556179] font-['GT_America_Trial'] font-normal"
+                />
+              </div>
               <div
                 className="relative inline-flex justify-end"
                 ref={dropdownRef}
@@ -2463,6 +2469,10 @@ export const GoogleCampaigns: React.FC = () => {
                   </div>
                 )}
               </div>
+              </div>
+              {isCreateCampaignPanelOpen && (
+                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[8px] cursor-not-allowed" />
+              )}
             </div>
 
             {/* Google Campaigns Table Card with overlay when panel is open */}
@@ -2575,7 +2585,7 @@ export const GoogleCampaigns: React.FC = () => {
                             setShowBudgetPanel(false);
                             setShowBulkActions(false);
                           }}
-                          className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
+                          className="cancel-button"
                         >
                           Cancel
                         </button>
@@ -3152,7 +3162,7 @@ export const GoogleCampaigns: React.FC = () => {
               <div className="table-container">
                 <div className="overflow-x-auto w-full">
                   <GoogleCampaignsTable
-                    campaigns={campaigns}
+                    campaigns={filteredCampaigns}
                     loading={loading}
                     sorting={sorting}
                     accountId={accountId || ""}

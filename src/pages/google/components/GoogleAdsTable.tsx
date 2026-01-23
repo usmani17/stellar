@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
@@ -44,6 +44,8 @@ export function GoogleAdsTable<T = any>({
   isPanelOpen = false,
 }: IGoogleAdsTableProps<T>) {
   const navigate = useNavigate();
+  // Ref to track if a status selection was made (matches Amazon pattern)
+  const statusSelectionMadeRef = useRef<string | number | null>(null);
 
   const renderCell = (column: IColumnDefinition, row: T, index: number) => {
     const itemId = getId(row);
@@ -135,6 +137,21 @@ export function GoogleAdsTable<T = any>({
       }
     }
 
+    // If custom render is provided and column is editable, let the custom render handle the click
+    // This allows custom renders to match exact styling (like TikTok's hover:underline)
+    if (column.render && isClickable) {
+      // Wrap in a div that handles the click, but don't add hover:bg-gray-50 to preserve custom styling
+      return (
+        <div
+          onClick={() => onStartInlineEdit(row, column.key)}
+          className="w-full"
+          style={{ pointerEvents: 'auto' }}
+        >
+          {cellContent}
+        </div>
+      );
+    }
+
     if (isClickable) {
       const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
       return (
@@ -178,6 +195,10 @@ export function GoogleAdsTable<T = any>({
               {label}
             </span>
           );
+        }
+        // For status column, don't show default if value is empty (matches Amazon - no "—" in status)
+        if (column.key === "status" && (!value || value === "")) {
+          return <span className="table-text leading-[1.26]"></span>;
         }
         return getStatusBadge(value || "ENABLED");
       case "currency":
@@ -279,7 +300,7 @@ export function GoogleAdsTable<T = any>({
       }
       
       return (
-        <div className="">
+        <div className="flex items-center gap-2">
           <Dropdown
             options={options}
             value={dropdownValue}
@@ -300,6 +321,11 @@ export function GoogleAdsTable<T = any>({
             align="left"
             className="w-full"
             menuClassName="z-[100000]"
+            onClose={() => {
+              if (!editedValue || editedValue === value) {
+                onCancelInlineEdit();
+              }
+            }}
           />
         </div>
       );
@@ -307,8 +333,11 @@ export function GoogleAdsTable<T = any>({
 
     switch (column.type) {
       case "status":
+        // Status columns with statusOptions are handled in the statusOptions block above
+        // This case should only be reached for status columns without statusOptions (shouldn't happen)
+        // Use Amazon pattern here too for consistency
         return (
-          <div className="">
+          <div className="flex items-center gap-2">
             <Dropdown
               options={column.statusOptions || [
                 { value: "ENABLED", label: "Enabled" },
@@ -316,6 +345,8 @@ export function GoogleAdsTable<T = any>({
               ]}
               value={displayValue}
               onChange={(val) => {
+                // Mark that a selection was made for this item (matches Amazon pattern)
+                statusSelectionMadeRef.current = itemId;
                 const newValue = val as string;
                 if (!isEditing) {
                   onStartInlineEdit(row, column.key);
@@ -336,6 +367,36 @@ export function GoogleAdsTable<T = any>({
           </div>
         );
 
+      case "text":
+        // For text fields like adgroup_name, match Amazon's input styling exactly
+        if (column.editable) {
+          return (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={editedValue}
+                onChange={(e) => onInlineEditChange(e.target.value)}
+                className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                autoFocus
+                onBlur={() => {
+                  if (!isCancelling) {
+                    onConfirmInlineEdit(editedValue, column.key);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === "Escape") {
+                    if (e.key === "Enter") {
+                      onConfirmInlineEdit(editedValue, column.key);
+                    } else {
+                      onCancelInlineEdit();
+                    }
+                  }
+                }}
+              />
+            </div>
+          );
+        }
+        return renderValue(column, value);
       case "budget":
       case "bid":
         const budgetValue = isEditing ? editedValue : (value || 0).toString();
@@ -538,9 +599,9 @@ export function GoogleAdsTable<T = any>({
                       const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
                       
                       let summaryValue: React.ReactNode = "";
-                      // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id
-                      if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id")) {
-                        summaryValue = `Total (${summary?.total_campaigns || 0})`;
+                      // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
+                      if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
+                        summaryValue = `Total (${summary?.total_count || summary?.total_campaigns || 0})`;
                       } else if (column.key === "spends") {
                         summaryValue = formatCurrency(summary?.total_spends || 0);
                       } else if (column.key === "sales") {

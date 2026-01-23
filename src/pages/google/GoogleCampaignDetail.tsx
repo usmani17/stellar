@@ -3611,6 +3611,8 @@ export const GoogleCampaignDetail: React.FC = () => {
                       }
                     }}
                     onStartNameEdit={handleStartAdGroupNameEdit}
+                    accountId={accountId}
+                    onBulkUpdateComplete={loadAdGroups}
                   />
                 </>
               )}
@@ -4397,7 +4399,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={nameEditLoading}
-                className="cancel-button"
+                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
@@ -4479,7 +4481,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={keywordTextEditLoading}
-                className="cancel-button"
+                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
