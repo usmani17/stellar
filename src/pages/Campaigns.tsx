@@ -3050,7 +3050,7 @@ export const Campaigns: React.FC = () => {
                       <thead className="sticky top-0 z-[90] bg-[#fefefb]">
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
-                          <th className="table-header w-[35px] sticky left-0 z-[100] bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                          <th className="table-header w-[35px] sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]">
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={
@@ -3242,7 +3242,7 @@ export const Campaigns: React.FC = () => {
                             {/* Summary Row */}
                             {summary && (
                               <tr className="table-summary-row">
-                                <td className="table-cell sticky left-0 z-[100] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                                <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
                                 <td className="table-cell table-sticky-first-column">
                                   Total ({summary.total_campaigns})
                                 </td>
@@ -3285,7 +3285,7 @@ export const Campaigns: React.FC = () => {
                                   }`}
                                 >
                                   {/* Checkbox */}
-                                  <td className="table-cell sticky left-0 z-[100] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                                  <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                                     <div className="flex items-center justify-center">
                                       <Checkbox
                                         checked={selectedCampaigns.has(
