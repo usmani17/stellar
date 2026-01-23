@@ -334,7 +334,7 @@ export const CreateKeywordPanel: React.FC<CreateKeywordPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="border border-gray-200 rounded-xl shadow-sm w-full bg-[#f9f9f6] mb-4">
+    <div className="create-panel">
       {/* Form */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-[16px] font-semibold text-[#072929] mb-4">

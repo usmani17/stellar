@@ -1502,7 +1502,7 @@ export const TikTokCampaigns: React.FC = () => {
                   setShowConfirmationModal(false);
                   setPendingStatusAction(null);
                 }}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                className="cancel-button"
               >
                 Cancel
               </button>
@@ -1510,7 +1510,7 @@ export const TikTokCampaigns: React.FC = () => {
                 type="button"
                 onClick={handleStatusUpdateConfirm}
                 disabled={statusUpdateLoading}
-                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="create-entity-button btn-sm"
               >
                 {statusUpdateLoading ? "Applying..." : "Confirm"}
               </button>
@@ -1551,7 +1551,7 @@ export const TikTokCampaigns: React.FC = () => {
                   }
                 }}
                 disabled={deleteLoading}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button"
               >
                 Cancel
               </button>
@@ -1625,7 +1625,7 @@ export const TikTokCampaigns: React.FC = () => {
                   setInlineEditOldValue("");
                   setInlineEditNewValue("");
                 }}
-                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                className="cancel-button"
               >
                 Cancel
               </button>
@@ -1633,7 +1633,7 @@ export const TikTokCampaigns: React.FC = () => {
                 type="button"
                 onClick={runInlineEdit}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="create-entity-button btn-sm"
               >
                 {inlineEditLoading ? "Updating..." : "Confirm"}
               </button>

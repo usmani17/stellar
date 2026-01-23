@@ -864,6 +864,22 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
       }
     }
 
+    // SB specific validation
+    if (formData.type === "SB") {
+      if (!formData.brandEntityId || !formData.brandEntityId.trim()) {
+        newErrors.brandEntityId = "Brand Entity ID is required for Sponsored Brands campaigns";
+      }
+      if (!formData.costType || !formData.costType.trim()) {
+        newErrors.costType = "Cost Type is required for Sponsored Brands campaigns";
+      } else {
+        // Validate that costType is one of the valid SB values
+        const validCostTypes = ["CPC", "VCPM", "FIXED_PRICE"];
+        if (!validCostTypes.includes(formData.costType.toUpperCase())) {
+          newErrors.costType = "Cost Type must be CPC, VCPM, or FIXED_PRICE for Sponsored Brands campaigns";
+        }
+      }
+    }
+
     // SD specific validation
     if (formData.type === "SD") {
       if (
@@ -2962,6 +2978,11 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       {mode === "edit" && (
                         <p className="text-[10px] text-[#556179] mt-1 italic">
                           Read-only in edit mode
+                        </p>
+                      )}
+                      {errors.costType && (
+                        <p className="text-[11px] text-red-600 mt-1">
+                          {errors.costType}
                         </p>
                       )}
                     </div>

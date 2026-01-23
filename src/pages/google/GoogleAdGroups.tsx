@@ -1429,7 +1429,7 @@ export const GoogleAdGroups: React.FC = () => {
                             setShowConfirmationModal(true);
                           }}
                           disabled={bulkLoading || !bidValue}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="create-entity-button btn-sm"
                         >
                           Apply
                         </button>
@@ -1735,7 +1735,7 @@ export const GoogleAdGroups: React.FC = () => {
                               }
                             }}
                             disabled={bulkLoading}
-                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="create-entity-button btn-sm"
                           >
                             {bulkLoading ? "Updating..." : "Confirm"}
                           </button>
@@ -1932,13 +1932,84 @@ export const GoogleAdGroups: React.FC = () => {
                           }
                         }}
                         disabled={statusEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="create-entity-button btn-sm"
                       >
                         {statusEditLoading ? "Updating..." : "Confirm"}
                       </button>
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Name Edit Modal - Rendered via Portal to avoid z-index issues with sticky columns */}
+              {showNameEditModal && nameEditAdgroup && typeof document !== 'undefined' && createPortal(
+                <div
+                  className="fixed inset-0 bg-black/60 flex items-center justify-center"
+                  style={{ zIndex: 99999 }}
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !nameEditLoading) {
+                      setShowNameEditModal(false);
+                      setNameEditAdgroup(null);
+                      setNameEditValue("");
+                    }
+                  }}
+                >
+                  <div 
+                    className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
+                    style={{ zIndex: 100000 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
+                      Ad group
+                    </h3>
+                    <div className="mb-6">
+                      <input
+                        type="text"
+                        value={nameEditValue}
+                        onChange={(e) => setNameEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !nameEditLoading) {
+                            handleNameEditSave();
+                          } else if (e.key === "Escape" && !nameEditLoading) {
+                            setShowNameEditModal(false);
+                            setNameEditAdgroup(null);
+                            setNameEditValue("");
+                          }
+                        }}
+                        disabled={nameEditLoading}
+                        autoFocus
+                        className="w-full px-4 py-2.5 text-[13.3px] text-black border-2 border-[#136D6D] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] disabled:opacity-50 disabled:cursor-not-allowed"
+                        placeholder="Enter ad group name"
+                        maxLength={255}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!nameEditLoading) {
+                            setShowNameEditModal(false);
+                            setNameEditAdgroup(null);
+                            setNameEditValue("");
+                          }
+                        }}
+                        disabled={nameEditLoading}
+                        className="cancel-button"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleNameEditSave}
+                        disabled={nameEditLoading || !nameEditValue.trim()}
+                        className="create-entity-button btn-sm"
+                      >
+                        {nameEditLoading ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body
               )}
 
               {/* Table */}

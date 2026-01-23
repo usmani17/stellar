@@ -2667,7 +2667,7 @@ export const Campaigns: React.FC = () => {
                             setShowConfirmationModal(true);
                           }}
                           disabled={bulkLoading || !budgetValue}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="create-entity-button btn-sm"
                         >
                           Apply
                         </button>
@@ -2876,7 +2876,7 @@ export const Campaigns: React.FC = () => {
                           setShowConfirmationModal(false);
                           setPendingStatusAction(null);
                         }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
@@ -2895,7 +2895,7 @@ export const Campaigns: React.FC = () => {
                           setPendingStatusAction(null);
                         }}
                         disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="create-entity-button btn-sm"
                       >
                         {bulkLoading ? "Applying..." : "Confirm"}
                       </button>
@@ -2937,7 +2937,7 @@ export const Campaigns: React.FC = () => {
                           }
                         }}
                         disabled={bulkLoading}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
@@ -3018,7 +3018,7 @@ export const Campaigns: React.FC = () => {
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
                         }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
@@ -3026,7 +3026,7 @@ export const Campaigns: React.FC = () => {
                         type="button"
                         onClick={runInlineEdit}
                         disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="create-entity-button btn-sm"
                       >
                         {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>
@@ -3113,6 +3113,13 @@ export const Campaigns: React.FC = () => {
                             <div className="flex items-center gap-1">
                               Type
                               {getSortIcon("type")}
+                            </div>
+                          </th>
+
+                          {/* Targeting Type Header - Only for SP campaigns */}
+                          <th className="table-header min-w-[120px]">
+                            <div className="flex items-center gap-1">
+                              Targeting Type
                             </div>
                           </th>
 
@@ -3232,7 +3239,7 @@ export const Campaigns: React.FC = () => {
                         {loading && campaigns.length === 0 ? (
                           Array.from({ length: 5 }).map((_, index) => (
                             <tr key={`skeleton-${index}`} className="table-row">
-                              <td className="table-cell" colSpan={15}>
+                              <td className="table-cell" colSpan={16}>
                                 <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                               </td>
                             </tr>
@@ -3246,6 +3253,8 @@ export const Campaigns: React.FC = () => {
                                 <td className="table-cell table-sticky-first-column">
                                   Total ({summary.total_campaigns})
                                 </td>
+                                <td className="table-cell"></td>
+                                <td className="table-cell"></td>
                                 <td className="table-cell"></td>
                                 <td className="table-cell"></td>
                                 <td className="table-cell"></td>
@@ -3401,6 +3410,17 @@ export const Campaigns: React.FC = () => {
                                   <td className="table-cell">
                                     <span className="table-text leading-[1.26]">
                                       {campaign.type || "SP"}
+                                    </span>
+                                  </td>
+
+                                  {/* Targeting Type - Only show for SP campaigns */}
+                                  <td className="table-cell min-w-[120px]">
+                                    <span className="table-text leading-[1.26] whitespace-nowrap">
+                                      {campaign.type === "SP"
+                                        ? (campaign.targetingType ||
+                                            campaign.targeting_type ||
+                                            "—")
+                                        : "—"}
                                     </span>
                                   </td>
 

@@ -703,7 +703,7 @@ export const GoogleKeywords: React.FC = () => {
       setKeywordTextEditValue("");
     } catch (error: any) {
       console.error("Error updating keyword text:", error);
-      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred"; 
       setErrorModal({
         isOpen: true,
         title: "Update Failed",
@@ -1848,7 +1848,7 @@ export const GoogleKeywords: React.FC = () => {
                             setShowConfirmationModal(true);
                           }}
                           disabled={bulkLoading || !bidValue}
-                          className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="create-entity-button btn-sm"
                         >
                           Apply
                         </button>
@@ -2153,7 +2153,7 @@ export const GoogleKeywords: React.FC = () => {
                               }
                             }}
                             disabled={bulkLoading}
-                            className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="create-entity-button btn-sm"
                           >
                             {bulkLoading ? "Updating..." : "Confirm"}
                           </button>
@@ -2233,7 +2233,7 @@ export const GoogleKeywords: React.FC = () => {
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
                         }}
-                        className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
@@ -2241,7 +2241,7 @@ export const GoogleKeywords: React.FC = () => {
                         type="button"
                         onClick={runInlineEdit}
                         disabled={inlineEditLoading}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="create-entity-button btn-sm"
                       >
                         {inlineEditLoading ? "Updating..." : "Confirm"}
                       </button>
@@ -2316,7 +2316,7 @@ export const GoogleKeywords: React.FC = () => {
                         type="button"
                         onClick={handleKeywordTextEditSave}
                         disabled={keywordTextEditLoading || !keywordTextEditValue.trim()}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="create-entity-button btn-sm"
                       >
                         {keywordTextEditLoading ? "Saving..." : "Save"}
                       </button>

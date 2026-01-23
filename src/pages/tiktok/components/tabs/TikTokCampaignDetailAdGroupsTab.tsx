@@ -957,16 +957,15 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                     setShowBulkStatusModal(false);
                                     setPendingBulkStatusAction(null);
                                 }}
+                                className="cancel-button"
                                 disabled={bulkEditLoading}
-                                className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors disabled:opacity-50"
+
                             >
                                 Cancel
                             </button>
                             <button
                                 type="button"
-                                onClick={handleBulkStatusConfirm}
-                                disabled={bulkEditLoading}
-                                className={`px-4 py-2 text-white text-[10.64px] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${pendingBulkStatusAction === "DELETE"
+                                className={`create-entity-button btn-sm ${pendingBulkStatusAction === "DELETE"
                                     ? "bg-red-600 hover:bg-red-700"
                                     : "bg-[#136D6D] hover:bg-[#0e5a5a]"
                                     }`}

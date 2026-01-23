@@ -19,6 +19,8 @@ export interface Campaign {
   profile_name?: string; // Profile name
   profile_id?: string; // Profile ID
   profile_country_code?: string; // Profile country code
+  targetingType?: string; // Targeting type (only for SP campaigns: "AUTO" or "MANUAL")
+  targeting_type?: string; // Targeting type (snake_case variant)
   report_date?: string; // Report date (YYYY-MM-DD) - one row per campaign per day
 }
 
@@ -137,6 +139,7 @@ export interface AdGroup {
   campaign_name?: string;
   profile_name?: string;
   profile_id?: string;
+  profile_country_code?: string;
   type?: string;
   ctr: string;
   spends: string;
