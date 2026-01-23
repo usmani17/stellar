@@ -251,7 +251,6 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                       <td className="table-cell min-w-[250px]">
                         {editingField?.id === target.id &&
                         editingField?.field === "status" ? (
-                          <div className="relative">
                             <Dropdown
                               options={[
                                 ...(campaignType === "SD"
@@ -280,10 +279,10 @@ export const NegativeTargetsTable: React.FC<NegativeTargetsTableProps> = ({
                                 statusSelectionMadeRef.current = null;
                               }}
                               defaultOpen={true}
-                              buttonClassName="w-full bg-[#FEFEFB] border border-gray-200"
+                              buttonClassName="inline-edit-dropdown"
                               width="w-full"
+                              align="center"
                             />
-                          </div>
                         ) : (
                           <div
                             className={`rounded px-2 py-1 transition-colors ${

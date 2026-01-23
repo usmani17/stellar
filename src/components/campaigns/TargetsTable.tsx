@@ -448,7 +448,7 @@ export const TargetsTable: React.FC<TargetsTableProps> = ({
                               }}
                               onClick={(e) => e.stopPropagation()}
                               disabled={isArchived}
-                              className={`table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-20 ${
+                              className={`inline-edit-input w-20 ${
                                 isArchived ? "opacity-60 cursor-not-allowed bg-gray-50" : ""
                               }`}
                             />

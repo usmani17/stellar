@@ -278,7 +278,7 @@ export const ProductAdsTable: React.FC<ProductAdsTableProps> = ({
                                 statusSelectionMadeRef.current = null;
                               }}
                               defaultOpen={true}
-                              buttonClassName="w-full bg-[#FEFEFB] border border-gray-200"
+                              buttonClassName="inline-edit-dropdown"
                               width="w-full"
                             />
                           </div>

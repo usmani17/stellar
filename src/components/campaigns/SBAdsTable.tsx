@@ -321,7 +321,7 @@ export const SBAdsTable: React.FC<SBAdsTableProps> = ({
                             type="text"
                             value={editedValue}
                             onChange={(e) => onEditChange?.(e.target.value)}
-                            className="table-text leading-[1.26] border border-[#e8e8e3] rounded px-2 py-1 w-full min-w-[150px] max-w-[200px]"
+                            className="inline-edit-input min-w-[150px] max-w-[200px]"
                             autoFocus
                             onBlur={() => onEditEnd?.()}
                             onKeyDown={(e) => {
