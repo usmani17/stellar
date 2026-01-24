@@ -33,6 +33,7 @@ import {
   FilterSection,
   FilterSectionPanel,
 } from "../components/filters/FilterSection";
+import { useChartCollapse } from "../hooks/useChartCollapse";
 import {
   PerformanceChart,
   type MetricConfig,
@@ -221,6 +222,11 @@ export const Campaigns: React.FC = () => {
     acos: false,
     roas: false,
   });
+
+  // Chart collapse state with localStorage persistence
+  const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+    "campaigns-chart-collapsed"
+  );
 
   const campaignMetrics: MetricConfig[] = [
     { key: "sales", label: "Sales", color: "#136D6D" },
@@ -2296,6 +2302,8 @@ export const Campaigns: React.FC = () => {
                 onToggle={toggleChartMetric}
                 metrics={campaignMetrics}
                 title="Performance Trends"
+                isCollapsed={isChartCollapsed}
+                onCollapseToggle={toggleChartCollapse}
               />
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />

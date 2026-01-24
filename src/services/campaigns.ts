@@ -3153,6 +3153,59 @@ export const campaignsService = {
     return response.data;
   },
 
+  // Google Merchant Center Accounts
+  getGoogleMerchantAccounts: async (
+    accountId: number,
+    customerId?: string
+  ): Promise<Array<{ value: string; label: string; merchant_id: string; status: string }>> => {
+    let url = `/google-adwords/${accountId}/merchant-accounts/`;
+    if (customerId) {
+      url += `?customer_id=${encodeURIComponent(customerId)}`;
+    }
+    const response = await api.get(url);
+    return response.data.merchant_accounts || [];
+  },
+
+  getGoogleGeoTargetConstants: async (
+    accountId: number,
+    searchQuery?: string,
+    countryCode?: string,
+    customerId?: string
+  ): Promise<Array<{ id: string; name: string; type: string; countryCode: string; resource_name: string }>> => {
+    let url = `/google-adwords/${accountId}/geo-target-constants/`;
+    const params = new URLSearchParams();
+    if (customerId) {
+      params.append('customer_id', customerId);
+    }
+    if (searchQuery) {
+      params.append('query', searchQuery);
+    }
+    if (countryCode) {
+      params.append('country_code', countryCode);
+    }
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    const response = await api.get(url);
+    return response.data.locations || [];
+  },
+
+  getGoogleLanguageConstants: async (
+    accountId: number,
+    customerId?: string
+  ): Promise<Array<{ id: string; name: string; resource_name: string }>> => {
+    let url = `/google-adwords/${accountId}/language-constants/`;
+    const params = new URLSearchParams();
+    if (customerId) {
+      params.append('customer_id', customerId);
+    }
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    const response = await api.get(url);
+    return response.data.languages || [];
+  },
+
   // Google Ad Groups
   getGoogleAdGroups: async (
     accountId: number,

@@ -6,6 +6,7 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
+import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart, type MetricConfig } from "../../components/charts/PerformanceChart";
 import { TikTokAdGroupsTable, type TikTokAdGroup } from "./components/TikTokAdGroupsTable";
 import { Button } from "../../components/ui";
@@ -94,6 +95,11 @@ export const TikTokAdGroups: React.FC = () => {
         ctr: false,
         cpc: false,
     });
+
+    // Chart collapse state with localStorage persistence
+    const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+        "tiktok-adgroups-chart-collapsed"
+    );
 
     const toggleChartMetric = (metric: string) => {
         setChartToggles(prev => ({
@@ -668,6 +674,8 @@ export const TikTokAdGroups: React.FC = () => {
                             onToggle={toggleChartMetric}
                             title="Performance"
                             metrics={metrics}
+                            isCollapsed={isChartCollapsed}
+                            onCollapseToggle={toggleChartCollapse}
                         />
 
                         {/* Budget editor panel */}

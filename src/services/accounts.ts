@@ -187,13 +187,17 @@ export const accountsService = {
 
   // Google Profiles (now using channel_id, similar to Amazon profiles)
   getGoogleProfiles: async (
-    channelId: number
+    channelId: number,
+    selectedOnly: boolean = false
   ): Promise<{ profiles: any[]; total: number; selected: number }> => {
+    const url = selectedOnly 
+      ? `/accounts/channels/${channelId}/google-profiles/?selected_only=true`
+      : `/accounts/channels/${channelId}/google-profiles/`;
     const response = await api.get<{
       profiles: any[];
       total: number;
       selected: number;
-    }>(`/accounts/channels/${channelId}/google-profiles/`);
+    }>(url);
     return response.data;
   },
 

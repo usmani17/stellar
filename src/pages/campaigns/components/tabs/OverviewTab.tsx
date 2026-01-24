@@ -1,4 +1,5 @@
 import React from "react";
+import { useChartCollapse } from "../../../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../../../components/charts/PerformanceChart";
 import { Checkbox } from "../../../../components/ui/Checkbox";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
@@ -47,6 +48,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   loading,
   campaignType,
 }) => {
+  // Chart collapse state with localStorage persistence
+  const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+    "campaigns-overview-chart-collapsed"
+  );
+
   return (
     <>
       {/* Chart Section */}
@@ -55,6 +61,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         toggles={chartToggles}
         onToggle={onToggleChartMetric}
         title="Performance Trends"
+        isCollapsed={isChartCollapsed}
+        onCollapseToggle={toggleChartCollapse}
       />
 
       {/* Top Keywords & Top Products */}
