@@ -1430,7 +1430,7 @@ export const GoogleKeywords: React.FC = () => {
             {/* Header with Filter Button + Sync */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Google Keyword Manager
+                Keywords
               </h1>
               <div className="flex items-center gap-2">
                 <button
@@ -2316,7 +2316,7 @@ export const GoogleKeywords: React.FC = () => {
                           }
                         }}
                         disabled={keywordTextEditLoading}
-                        className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
@@ -2414,7 +2414,7 @@ export const GoogleKeywords: React.FC = () => {
                           }
                         }}
                         disabled={finalUrlEditLoading}
-                        className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>

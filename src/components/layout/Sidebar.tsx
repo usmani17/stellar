@@ -286,7 +286,7 @@ export const Sidebar: React.FC = () => {
                     isActive("/accounts") ? "!text-white" : ""
                     }`}
                 >
-                  Accounts
+                  Brands
                 </span>
               )}
             </Link>

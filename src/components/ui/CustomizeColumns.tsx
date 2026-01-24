@@ -311,7 +311,7 @@ export const CustomizeColumns: React.FC<CustomizeColumnsProps> = ({
             type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="px-4 py-2 text-[12.8px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cancel-button"
           >
             Cancel
           </button>

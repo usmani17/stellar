@@ -199,7 +199,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
     {
       key: "account_name",
-      label: "Account Name",
+      label: "Brand Name",
       type: "text",
       sortable: true,
       // Amazon doesn't have this column, but keep it compact

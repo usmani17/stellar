@@ -722,7 +722,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                 </button>
                 <button
                   onClick={resetForm}
-                  className="cancel-button flex-1"
+                  className="cancel-button"
                   type="button"
                 >
                   Cancel

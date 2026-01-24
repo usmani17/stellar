@@ -8920,14 +8920,14 @@ export const CampaignDetail: React.FC = () => {
               <button
                 onClick={cancelInlineEdit}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="cancel-button"
               >
                 Cancel
               </button>
               <button
                 onClick={runInlineEdit}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 text-sm bg-[#136D6D] text-white rounded hover:bg-[#0f5a5a] disabled:opacity-50"
+                className="create-entity-button btn-sm"
               >
                 {inlineEditLoading ? "Saving..." : "Confirm"}
               </button>

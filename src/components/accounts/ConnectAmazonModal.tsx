@@ -125,7 +125,7 @@ export const ConnectAmazonModal: React.FC<ConnectAmazonModalProps> = ({
                 {/* Manual Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <Input
-                    label="Account Name"
+                    label="Brand Name"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}

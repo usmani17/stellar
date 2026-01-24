@@ -504,18 +504,18 @@ export const SelectAmazonProfiles: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3 justify-end">
-                  <Button
-                    variant="outline"
+                  <button
+                    type="button"
+                    className="cancel-button"
                     onClick={() => navigate("/accounts")}
                     disabled={saving}
-                    className="rounded-lg"
                   >
                     Cancel
-                  </Button>
+                  </button>
                   <Button
                     onClick={handleSave}
                     disabled={saving || selectedProfileIds.size === 0}
-                    className="rounded-lg"
+                    className="create-entity-button btn-sm"
                   >
                     {saving
                       ? "Saving..."

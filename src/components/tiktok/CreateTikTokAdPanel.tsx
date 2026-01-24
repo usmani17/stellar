@@ -2811,7 +2811,7 @@ export const CreateTikTokAdPanel: React.FC<CreateTikTokAdPanelProps> = ({
                 <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-4 py-2 text-[#556179] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-[11.2px]"
+                    className="cancel-button"
                 >
                     Cancel
                 </button>

@@ -502,7 +502,8 @@ export const ListAmazonProfiles: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3 justify-end">
-                  <Button
+                  <button
+                    type="button"
                     onClick={() => {
                       if (accountId) {
                         navigate(`/accounts/${accountId}/channels`);
@@ -511,13 +512,10 @@ export const ListAmazonProfiles: React.FC = () => {
                       }
                     }}
                     disabled={saving}
-                    size="sm"
-                    className="bg-[#f9f9f6] border border-[#072929] h-[36px] px-2 py-1.5 rounded-[8px] flex items-center justify-center"
+                    className="cancel-button"
                   >
-                    <span className="text-[14px] font-semibold text-[#072929]">
-                      Cancel
-                    </span>
-                  </Button>
+                    Cancel
+                  </button>
                   <Button
                     onClick={handleSave}
                     disabled={saving || selectedProfileIds.size === 0}

@@ -122,7 +122,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
     },
     {
       key: "account_name",
-      label: "Account Name",
+      label: "Brand Name",
       type: "text",
       sortable: true,
       minWidth: "min-w-[200px]",

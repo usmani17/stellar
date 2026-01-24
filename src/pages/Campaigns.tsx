@@ -2221,7 +2221,7 @@ export const Campaigns: React.FC = () => {
             {/* Header with Filter and Create Campaign Buttons */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Campaigns Overview
+                Campaigns
               </h1>
               <div className="flex items-center gap-2">
                 <CreateCampaignSection

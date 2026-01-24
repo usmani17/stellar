@@ -1114,7 +1114,7 @@ export const GoogleAdGroups: React.FC = () => {
             {/* Header with Filter Button + Sync */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Google Ad Group Manager
+                AdGroups 
               </h1>
               <div className="flex items-center gap-2">
                 <button
@@ -1838,7 +1838,7 @@ export const GoogleAdGroups: React.FC = () => {
                           setExportType("current_view");
                         }}
                         disabled={exporting}
-                        className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
@@ -1930,7 +1930,7 @@ export const GoogleAdGroups: React.FC = () => {
                           }
                         }}
                         disabled={statusEditLoading}
-                        className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>

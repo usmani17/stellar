@@ -3032,7 +3032,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Account Name */}
+                  {/* Brand Name */}
                   <div className="flex flex-col gap-1">
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Account
@@ -4327,14 +4327,14 @@ export const GoogleCampaignDetail: React.FC = () => {
               <button
                 onClick={cancelInlineEdit}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="cancel-button"
               >
                 Cancel
               </button>
               <button
                 onClick={runInlineEdit}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 text-sm bg-[#136D6D] text-white rounded hover:bg-[#0f5a5a] disabled:opacity-50"
+                className="create-entity-button btn-sm"
               >
                 {inlineEditLoading ? "Saving..." : "Confirm"}
               </button>
@@ -4394,7 +4394,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={nameEditLoading}
-                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button"
               >
                 Cancel
               </button>
@@ -4476,7 +4476,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={keywordTextEditLoading}
-                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button"
               >
                 Cancel
               </button>
@@ -4581,7 +4581,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={finalUrlEditLoading}
-                className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button"
               >
                 Cancel
               </button>
