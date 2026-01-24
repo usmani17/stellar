@@ -27,7 +27,11 @@ import {
 } from "../../components/campaigns/CreateGoogleCampaignPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
+import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { columnPreferencesService } from "../../services/columnPreferences";
+import { queryKeys } from "../../hooks/queries/queryKeys";
 
 // IGoogleCampaign interface is now imported from GoogleCampaignsTable
 
@@ -67,6 +71,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>(""); // For input field and client-side filtering
   const [apiSearchQuery, setApiSearchQuery] = useState<string>(""); // For backend API calls
   const isLoadingRef = useRef(false);
+  const lastRequestParamsRef = useRef<string>(""); // Track last request to prevent duplicate calls
   const [isCreateCampaignPanelOpen, setIsCreateCampaignPanelOpen] =
     useState(false);
   const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
@@ -111,6 +116,17 @@ export const GoogleCampaigns: React.FC = () => {
     roas: false,
   });
 
+  // Chart collapse state with localStorage persistence
+  const [isChartCollapsed, setIsChartCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem("google-campaigns-chart-collapsed");
+    return saved === "true";
+  });
+
+  // Save chart collapse state to localStorage
+  useEffect(() => {
+    localStorage.setItem("google-campaigns-chart-collapsed", String(isChartCollapsed));
+  }, [isChartCollapsed]);
+
   // Selection and bulk actions
   const [selectedCampaigns, setSelectedCampaigns] = useState<
     Set<string | number>
@@ -151,7 +167,7 @@ export const GoogleCampaigns: React.FC = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
-  const [updatingField] = useState<{
+  const [updatingField, setUpdatingField] = useState<{
     campaignId: string | number;
     field:
       | "budget"
@@ -159,6 +175,7 @@ export const GoogleCampaigns: React.FC = () => {
       | "start_date"
       | "end_date"
       | "bidding_strategy_type";
+    newValue: string;
   } | null>(null);
   const [inlineEditCampaign, setInlineEditCampaign] =
     useState<IGoogleCampaign | null>(null);
@@ -190,6 +207,21 @@ export const GoogleCampaigns: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Column visibility state
+  const [showCustomizeColumns, setShowCustomizeColumns] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set());
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const queryClient = useQueryClient();
+  const [inlineEditSuccess, setInlineEditSuccess] = useState<{
+    campaignId: string | number;
+    field: string;
+  } | null>(null);
+  const [inlineEditError, setInlineEditError] = useState<{
+    campaignId: string | number;
+    field: string;
+    message: string;
+  } | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -258,6 +290,71 @@ export const GoogleCampaigns: React.FC = () => {
       resetPageTitle();
     };
   }, []);
+
+  // Default column order (matches GoogleCampaignsTable allColumns order)
+  const defaultColumnOrder = useMemo(() => [
+    "campaign_name",
+    "account_name",
+    "advertising_channel_type",
+    "status",
+    "budget",
+    "start_date",
+    "end_date",
+    "bidding_strategy_type",
+    "impressions",
+    "clicks",
+    "spends",
+    "sales",
+    "roas",
+    "conversions",
+    "conversion_rate",
+    "cost_per_conversion",
+    "avg_cpc",
+    "avg_cost",
+    "interaction_rate",
+  ], []);
+
+  // Load column preferences
+  const { data: columnPreference, isLoading: isLoadingPreferences } = useQuery({
+    queryKey: queryKeys.columnPreferences.detail('google', 'campaigns'),
+    queryFn: () => columnPreferencesService.get('google', 'campaigns'),
+    retry: false, // Don't retry on 404 (no preferences saved yet)
+  });
+
+  // Save column preferences mutation
+  const savePreferencesMutation = useMutation({
+    mutationFn: (preference: { visible_columns: string[]; column_order: string[] }) =>
+      columnPreferencesService.save({
+        marketplace: 'google',
+        entity_type: 'campaigns',
+        visible_columns: preference.visible_columns,
+        column_order: preference.column_order,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.columnPreferences.detail('google', 'campaigns'),
+      });
+      // Close modal after successful save
+      setShowCustomizeColumns(false);
+    },
+  });
+
+  // Initialize columns from preferences or defaults
+  useEffect(() => {
+    if (!isLoadingPreferences) {
+      if (columnPreference) {
+        // Load saved preferences
+        setVisibleColumns(new Set(columnPreference.visible_columns));
+        setColumnOrder(columnPreference.column_order.length > 0 
+          ? columnPreference.column_order 
+          : defaultColumnOrder);
+      } else {
+        // Use defaults
+        setVisibleColumns(new Set(defaultColumnOrder));
+        setColumnOrder(defaultColumnOrder);
+      }
+    }
+  }, [columnPreference, isLoadingPreferences, defaultColumnOrder]);
 
   // Removed buildFilterParams - now passing filters array directly to service
 
@@ -380,14 +477,29 @@ export const GoogleCampaigns: React.FC = () => {
     if (accountId) {
       const accountIdNum = parseInt(accountId, 10);
       if (!isNaN(accountIdNum)) {
-        loadCampaigns(accountIdNum);
+        // Create a unique key for this request to prevent duplicate calls
+        const requestKey = JSON.stringify({
+          accountId: accountIdNum,
+          currentPage,
+          filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
+          startDate: startDate ? startDate.toISOString().split("T")[0] : null,
+          endDate: endDate ? endDate.toISOString().split("T")[0] : null,
+          apiSearchQuery,
+        });
+
+        // Only call loadCampaigns if the request parameters have actually changed
+        if (lastRequestParamsRef.current !== requestKey) {
+          lastRequestParamsRef.current = requestKey;
+          loadCampaigns(accountIdNum);
+        }
       } else {
         setLoading(false);
       }
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate, endDate, loadCampaigns, sorting, apiSearchQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, currentPage, filters, startDate, endDate, sorting, apiSearchQuery]);
 
   const handleCreateGoogleCampaign = async (data: CreateGoogleCampaignData) => {
     if (!accountId) return;
@@ -1399,6 +1511,20 @@ export const GoogleCampaigns: React.FC = () => {
         rawEndDate: campaign.end_date,
       });
 
+      // Validate: end date cannot be in the past
+      if (newValue) {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(
+          today.getMonth() + 1
+        ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        if (newValue < todayStr) {
+          validationError = "End date cannot be in the past";
+          alert(validationError);
+          cancelInlineEdit();
+          return;
+        }
+      }
+
       // Validate: end date cannot be before start date
       // Compare YYYY-MM-DD strings directly to avoid timezone issues
       if (newValue) {
@@ -1545,8 +1671,80 @@ export const GoogleCampaigns: React.FC = () => {
     setEditingCell(null);
   };
 
-  const runInlineEdit = async () => {
-    if (!inlineEditCampaign || !inlineEditField || !accountId) return;
+  // Direct confirmation for budget and date fields (skips modal)
+  const confirmInlineEditDirect = (newValue: string, campaignIdParam?: string | number, fieldParam?: string) => {
+    console.log("confirmInlineEditDirect called with:", { newValue, campaignIdParam, fieldParam, accountId, isCancelling, editingCell });
+    if (!accountId || isCancelling) {
+      console.log("confirmInlineEditDirect early return: missing accountId or cancelling");
+      return;
+    }
+
+    // Use provided parameters or fall back to editingCell
+    const campaignIdToUse = campaignIdParam || editingCell?.campaignId;
+    const fieldToUse = fieldParam || editingCell?.field;
+    
+    console.log("confirmInlineEditDirect resolved values:", { campaignIdToUse, fieldToUse });
+    
+    if (!campaignIdToUse || !fieldToUse) {
+      console.log("confirmInlineEditDirect early return: missing campaignId or field");
+      return;
+    }
+
+    const campaign = campaigns.find(
+      (c) => c.campaign_id === campaignIdToUse
+    );
+    if (!campaign) {
+      console.log("confirmInlineEditDirect early return: campaign not found", campaignIdToUse);
+      return;
+    }
+    
+    console.log("confirmInlineEditDirect found campaign:", campaign.campaign_id);
+
+    // Only allow direct confirmation for budget, date, status, and bidding_strategy_type fields
+    if (
+      fieldToUse !== "budget" &&
+      fieldToUse !== "start_date" &&
+      fieldToUse !== "end_date" &&
+      fieldToUse !== "status" &&
+      fieldToUse !== "bidding_strategy_type"
+    ) {
+      // Fall back to regular confirmation for other fields
+      confirmInlineEdit(newValue, false);
+      return;
+    }
+
+    // Clear any previous errors
+    setInlineEditError(null);
+
+    // Set updating field immediately to show loading in the correct row
+    setUpdatingField({
+      campaignId: campaignIdToUse,
+      field: fieldToUse,
+      newValue: newValue,
+    });
+
+    // Set the values for runInlineEdit
+    setInlineEditCampaign(campaign);
+    setInlineEditField(fieldToUse);
+    setInlineEditNewValue(newValue);
+    
+    // Clear editingCell if it matches the current update (or if editingCell is set)
+    if (!editingCell || (editingCell.campaignId === campaignIdToUse && editingCell.field === fieldToUse)) {
+      setEditingCell(null);
+    }
+
+    // Directly call runInlineEdit with the values we have
+    // Pass values directly to avoid state timing issues
+    runInlineEditDirect(campaign, fieldToUse, newValue);
+  };
+
+  // Direct version that accepts parameters to avoid state timing issues
+  const runInlineEditDirect = async (campaign: IGoogleCampaign, field: string, newValue: string) => {
+    console.log("runInlineEditDirect called with:", { campaign: campaign?.campaign_id, field, newValue, accountId });
+    if (!campaign || !field || !accountId) {
+      console.log("runInlineEditDirect early return:", { campaign: !!campaign, field: !!field, accountId: !!accountId });
+      return;
+    }
 
     setInlineEditLoading(true);
     try {
@@ -1555,7 +1753,7 @@ export const GoogleCampaigns: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "status") {
+      if (field === "status") {
         // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
         // REMOVED is read-only and cannot be set via update operation
         // Handle both formatted display values (from modal) and raw values
@@ -1567,7 +1765,7 @@ export const GoogleCampaigns: React.FC = () => {
           enable: "ENABLED",
           pause: "PAUSED",
         };
-        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+        const statusValue = statusMap[newValue] || "ENABLED";
         
         // REMOVED is not in statusMap, so it cannot be set via update operation
         // If user somehow selects REMOVED, it will be caught by backend validation
@@ -1575,7 +1773,7 @@ export const GoogleCampaigns: React.FC = () => {
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
-            campaignIds: [inlineEditCampaign.campaign_id],
+            campaignIds: [campaign.campaign_id],
             action: "status",
             status: statusValue,
           }
@@ -1586,18 +1784,27 @@ export const GoogleCampaigns: React.FC = () => {
           (error as any).response = { data: { errors: response.errors } };
           throw error;
         }
-      } else if (inlineEditField === "budget") {
+      } else if (field === "budget") {
         const budgetValue = parseFloat(
-          inlineEditNewValue.replace(/[^0-9.]/g, "")
+          newValue.replace(/[^0-9.]/g, "")
         );
         if (isNaN(budgetValue)) {
           throw new Error("Invalid budget value");
         }
 
+        console.log("Calling bulkUpdateGoogleCampaigns for budget:", {
+          accountIdNum,
+          campaignId: campaign.campaign_id,
+          action: "budget",
+          budgetAction: "set",
+          unit: "amount",
+          value: budgetValue,
+        });
+
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
-            campaignIds: [inlineEditCampaign.campaign_id],
+            campaignIds: [campaign.campaign_id],
             action: "budget",
             budgetAction: "set",
             unit: "amount",
@@ -1605,17 +1812,19 @@ export const GoogleCampaigns: React.FC = () => {
           }
         );
 
+        console.log("Budget update response:", response);
+
         if (response.errors && response.errors.length > 0) {
           const error = new Error(response.errors[0]);
           (error as any).response = { data: { errors: response.errors } };
           throw error;
         }
       } else if (
-        inlineEditField === "start_date" ||
-        inlineEditField === "end_date"
+        field === "start_date" ||
+        field === "end_date"
       ) {
-        // inlineEditNewValue should already be in YYYY-MM-DD format from the date input
-        let dateValue = inlineEditNewValue.trim();
+        // newValue should already be in YYYY-MM-DD format from the date input
+        let dateValue = newValue.trim();
         if (!dateValue || dateValue === "—") {
           dateValue = "";
         }
@@ -1623,9 +1832,9 @@ export const GoogleCampaigns: React.FC = () => {
         const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
           accountIdNum,
           {
-            campaignIds: [inlineEditCampaign.campaign_id],
-            action: inlineEditField,
-            [inlineEditField]: dateValue || undefined,
+            campaignIds: [campaign.campaign_id],
+            action: field,
+            [field]: dateValue || undefined,
           }
         );
 
@@ -1634,7 +1843,7 @@ export const GoogleCampaigns: React.FC = () => {
           (error as any).response = { data: { errors: response.errors } };
           throw error;
         }
-      } else if (inlineEditField === "bidding_strategy_type") {
+      } else if (field === "bidding_strategy_type") {
         // Convert formatted display value back to API format (e.g., "Maximize Conversions" -> "MAXIMIZE_CONVERSIONS")
         const biddingStrategyMap: Record<string, string> = {
           "Maximize Conversions": "MAXIMIZE_CONVERSIONS",
@@ -1648,12 +1857,12 @@ export const GoogleCampaigns: React.FC = () => {
 
         // Also handle if already in API format
         const strategyValue =
-          biddingStrategyMap[inlineEditNewValue] ||
-          inlineEditNewValue.toUpperCase().replace(/\s+/g, "_");
+          biddingStrategyMap[newValue] ||
+          newValue.toUpperCase().replace(/\s+/g, "_");
 
         // Build payload with strategy-specific parameters
         const payload: any = {
-          campaignIds: [inlineEditCampaign.campaign_id],
+          campaignIds: [campaign.campaign_id],
           action: "bidding_strategy",
           bidding_strategy_type: strategyValue,
         };
@@ -1711,6 +1920,20 @@ export const GoogleCampaigns: React.FC = () => {
       }
 
       await loadCampaigns(accountIdNum);
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback
+      setInlineEditSuccess({
+        campaignId: campaign.campaign_id,
+        field: field,
+      });
+      // Clear success feedback after 3 seconds
+      setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 3000);
+      
       setShowInlineEditModal(false);
       setInlineEditCampaign(null);
       setInlineEditField(null);
@@ -1724,8 +1947,44 @@ export const GoogleCampaigns: React.FC = () => {
     } catch (error: any) {
       console.error("Error updating campaign:", error);
 
-      // Close the confirmation modal when there's an error
-      setShowInlineEditModal(false);
+      // Clear any previous success
+      setInlineEditSuccess(null);
+
+      // Set error state for inline feedback (for budget/date/status/bidding_strategy_type fields)
+      if (field === "budget" || field === "start_date" || field === "end_date" || field === "status" || field === "bidding_strategy_type") {
+        let errorMessage = "Failed to update campaign. Please try again.";
+        
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (error?.response?.data) {
+          if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (
+            error.response.data.errors &&
+            Array.isArray(error.response.data.errors) &&
+            error.response.data.errors.length > 0
+          ) {
+            // Clean up error messages - remove "Campaign {id}:" prefix if present
+            errorMessage = error.response.data.errors[0].replace(/^Campaign\s+\d+:\s*/i, "");
+          }
+        }
+
+        setInlineEditError({
+          campaignId: campaign.campaign_id,
+          field: field,
+          message: errorMessage,
+        });
+
+        // Auto-dismiss error after 5 seconds
+        setTimeout(() => {
+          setInlineEditError(null);
+        }, 5000);
+      } else {
+        // For other fields, show modal (existing behavior)
+        // Close the confirmation modal when there's an error
+        setShowInlineEditModal(false);
+      }
+
       // Don't clear campaign/field/values on error so user can see what they tried to change
       // But clear the strategy parameters
       setInlineEditTargetCpa("");
@@ -1773,6 +2032,156 @@ export const GoogleCampaigns: React.FC = () => {
               : `${genericErrors.length} error(s) occurred while updating the campaign.`
             : errorMessage,
         genericErrors: genericErrors.length > 1 ? genericErrors : undefined,
+        isSuccess: false,
+      });
+    } finally {
+      setInlineEditLoading(false);
+      setUpdatingField(null);
+    }
+  };
+
+  // Original runInlineEdit for modal-based updates (status, bidding_strategy_type)
+  const runInlineEdit = async () => {
+    if (!inlineEditCampaign || !inlineEditField || !accountId) return;
+
+    setInlineEditLoading(true);
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (inlineEditField === "status") {
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+          enable: "ENABLED",
+          pause: "PAUSED",
+        };
+        const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          {
+            campaignIds: [inlineEditCampaign.campaign_id],
+            action: "status",
+            status: statusValue,
+          }
+        );
+
+        if (response.errors && response.errors.length > 0) {
+          const error = new Error(response.errors[0]);
+          (error as any).response = { data: { errors: response.errors } };
+          throw error;
+        }
+      } else if (inlineEditField === "bidding_strategy_type") {
+        const biddingStrategyMap: Record<string, string> = {
+          "Maximize Conversions": "MAXIMIZE_CONVERSIONS",
+          "Maximize Conversion Value": "MAXIMIZE_CONVERSION_VALUE",
+          "Target Cpa": "TARGET_CPA",
+          "Target Roas": "TARGET_ROAS",
+          "Target Impression Share": "TARGET_IMPRESSION_SHARE",
+          "Target Spend": "TARGET_SPEND",
+          "Manual Cpc": "MANUAL_CPC",
+        };
+
+        const strategyValue =
+          biddingStrategyMap[inlineEditNewValue] ||
+          inlineEditNewValue.toUpperCase().replace(/\s+/g, "_");
+
+        const payload: any = {
+          campaignIds: [inlineEditCampaign.campaign_id],
+          action: "bidding_strategy",
+          bidding_strategy_type: strategyValue,
+        };
+
+        if (strategyValue === "TARGET_CPA" && inlineEditTargetCpa) {
+          const targetCpaValue = parseFloat(inlineEditTargetCpa);
+          if (!isNaN(targetCpaValue) && targetCpaValue > 0) {
+            payload.target_cpa_micros = Math.round(targetCpaValue * 1000000);
+          }
+        }
+
+        if (strategyValue === "TARGET_ROAS" && inlineEditTargetRoas) {
+          const targetRoasValue = parseFloat(inlineEditTargetRoas);
+          if (!isNaN(targetRoasValue) && targetRoasValue > 0) {
+            payload.target_roas = targetRoasValue;
+          }
+        }
+
+        if (strategyValue === "TARGET_IMPRESSION_SHARE") {
+          if (inlineEditImpressionShareLocation) {
+            payload.target_impression_share_location = inlineEditImpressionShareLocation;
+          }
+          if (inlineEditImpressionSharePercent) {
+            const percentValue = parseFloat(inlineEditImpressionSharePercent);
+            if (!isNaN(percentValue) && percentValue >= 0 && percentValue <= 100) {
+              payload.target_impression_share_location_fraction_micros = Math.round(percentValue * 10000);
+            }
+          }
+          if (inlineEditImpressionShareCpcCeiling) {
+            const cpcValue = parseFloat(inlineEditImpressionShareCpcCeiling);
+            if (!isNaN(cpcValue) && cpcValue > 0) {
+              payload.target_impression_share_cpc_bid_ceiling_micros = Math.round(cpcValue * 1000000);
+            }
+          }
+        }
+
+        const response = await googleAdwordsCampaignsService.bulkUpdateGoogleCampaigns(
+          accountIdNum,
+          payload
+        );
+
+        if (response.errors && response.errors.length > 0) {
+          const error = new Error(response.errors[0]);
+          (error as any).response = { data: { errors: response.errors } };
+          throw error;
+        }
+      }
+
+      await loadCampaigns(accountIdNum);
+      
+      setInlineEditError(null);
+      setInlineEditSuccess({
+        campaignId: inlineEditCampaign.campaign_id,
+        field: inlineEditField,
+      });
+      setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 3000);
+      
+      setShowInlineEditModal(false);
+      setInlineEditCampaign(null);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
+      setInlineEditTargetCpa("");
+      setInlineEditTargetRoas("");
+      setInlineEditImpressionShareLocation("TOP_OF_PAGE");
+      setInlineEditImpressionSharePercent("");
+      setInlineEditImpressionShareCpcCeiling("");
+    } catch (error: any) {
+      console.error("Error updating campaign:", error);
+      setInlineEditSuccess(null);
+      setShowInlineEditModal(false);
+      
+      let errorMessage = "Failed to update campaign. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.errors && Array.isArray(error.response.data.errors) && error.response.data.errors.length > 0) {
+          errorMessage = error.response.data.errors[0].replace(/^Campaign\s+\d+:\s*/i, "");
+        }
+      }
+
+      setErrorModal({
+        isOpen: true,
+        title: "Update Failed",
+        message: errorMessage,
         isSuccess: false,
       });
     } finally {
@@ -1922,10 +2331,19 @@ export const GoogleCampaigns: React.FC = () => {
     }
   };
 
-  const handleExport = async (exportType: "all_data" | "current_view") => {
+  const handleExport = async (exportType: "all_data" | "current_view" | "selected") => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    // Validate selected campaigns for selected export
+    if (exportType === "selected" && selectedCampaigns.size === 0) {
+      setErrorModal({
+        isOpen: true,
+        message: "Please select at least one campaign to export.",
+      });
+      return;
+    }
 
     // Keep dropdown open and show loading
     setShowExportDropdown(true);
@@ -1945,6 +2363,11 @@ export const GoogleCampaigns: React.FC = () => {
       if (exportType === "current_view") {
         params.page = currentPage;
         params.page_size = itemsPerPage;
+      }
+
+      // Add campaign IDs for selected export
+      if (exportType === "selected") {
+        params.campaign_ids = Array.from(selectedCampaigns);
       }
 
       // Call export API
@@ -1985,6 +2408,20 @@ export const GoogleCampaigns: React.FC = () => {
     filteredCampaigns.length > 0 && selectedCampaigns.size === filteredCampaigns.length;
   const someSelected =
     selectedCampaigns.size > 0 && selectedCampaigns.size < filteredCampaigns.length;
+
+  // Memoize export options to prevent hooks order issues
+  const exportOptions = useMemo(() => [
+    { value: "bulk_export", label: "Export All" },
+    {
+      value: "current_view",
+      label: "Export Current View",
+    },
+    {
+      value: "selected",
+      label: "Export Selected",
+      disabled: selectedCampaigns.size === 0,
+    },
+  ], [selectedCampaigns.size]);
 
   const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
@@ -2236,6 +2673,8 @@ export const GoogleCampaigns: React.FC = () => {
                 toggles={chartToggles}
                 onToggle={toggleChartMetric}
                 title="Performance Trends"
+                isCollapsed={isChartCollapsed}
+                onCollapseToggle={() => setIsChartCollapsed(!isChartCollapsed)}
               />
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
@@ -2318,7 +2757,7 @@ export const GoogleCampaigns: React.FC = () => {
                     />
                   </svg>
                   <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
+                    Bulk Actions
                   </span>
                 </Button>
                 {showBulkActions && (
@@ -2416,28 +2855,27 @@ export const GoogleCampaigns: React.FC = () => {
                       </div>
                     ) : (
                       <div className="overflow-y-auto">
-                        {[
-                          { value: "bulk_export", label: "Export All" },
-                          {
-                            value: "current_view",
-                            label: "Export Current View",
-                          },
-                        ].map((opt) => (
+                        {exportOptions.map((opt) => (
                           <button
                             key={opt.value}
                             type="button"
-                            className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                            className={`w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3 ${
+                              opt.disabled ? "opacity-50 cursor-not-allowed" : ""
+                            }`}
                             onClick={async (e) => {
                               e.stopPropagation();
                               e.preventDefault();
+                              if (opt.disabled) return;
                               const exportType =
                                 opt.value === "bulk_export"
                                   ? "all_data"
-                                  : "current_view";
+                                  : opt.value === "current_view"
+                                  ? "current_view"
+                                  : "selected";
                               // Keep dropdown open during export
                               await handleExport(exportType);
                             }}
-                            disabled={exportLoading}
+                            disabled={exportLoading || opt.disabled}
                           >
                             <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
                               <svg
@@ -2468,6 +2906,37 @@ export const GoogleCampaigns: React.FC = () => {
                     )}
                   </div>
                 )}
+              </div>
+              <div className="relative inline-flex justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="edit-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowCustomizeColumns(true);
+                    setShowBulkActions(false);
+                    setShowExportDropdown(false);
+                    setShowBudgetPanel(false);
+                  }}
+                >
+                  <svg
+                    className="w-5 h-5 text-[#072929]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                  <span className="text-[10.64px] text-[#072929] font-normal">
+                    Customize Columns
+                  </span>
+                </Button>
               </div>
               </div>
               {isCreateCampaignPanelOpen && (
@@ -3158,6 +3627,45 @@ export const GoogleCampaigns: React.FC = () => {
                 </div>
               )}
 
+              {/* Customize Columns Modal */}
+              <CustomizeColumns
+                columns={[
+                  { key: "campaign_name", label: "Campaign Name", required: true },
+                  { key: "account_name", label: "Account Name" },
+                  { key: "advertising_channel_type", label: "Type" },
+                  { key: "status", label: "State" },
+                  { key: "budget", label: "Budget" },
+                  { key: "start_date", label: "Start Date" },
+                  { key: "end_date", label: "End Date" },
+                  { key: "bidding_strategy_type", label: "Bid strategy type" },
+                  { key: "impressions", label: "Impressions" },
+                  { key: "clicks", label: "Clicks" },
+                  { key: "spends", label: "Cost" },
+                  { key: "sales", label: "Conv. value" },
+                  { key: "roas", label: "Conv. value / cost" },
+                  { key: "conversions", label: "Conversions" },
+                  { key: "conversion_rate", label: "Conv. rate" },
+                  { key: "cost_per_conversion", label: "Cost / conv." },
+                  { key: "avg_cpc", label: "Avg. CPC" },
+                  { key: "avg_cost", label: "Avg. cost" },
+                  { key: "interaction_rate", label: "Interaction rate" },
+                ]}
+                visibleColumns={visibleColumns}
+                columnOrder={columnOrder}
+                onColumnsChange={async (newVisibleColumns, newColumnOrder) => {
+                  setVisibleColumns(newVisibleColumns);
+                  setColumnOrder(newColumnOrder);
+                  // Save preferences
+                  await savePreferencesMutation.mutateAsync({
+                    visible_columns: Array.from(newVisibleColumns),
+                    column_order: newColumnOrder,
+                  });
+                }}
+                isOpen={showCustomizeColumns}
+                onClose={() => setShowCustomizeColumns(false)}
+                isSaving={savePreferencesMutation.isPending}
+              />
+
               {/* Table */}
               <div className="table-container">
                 <div className="overflow-x-auto w-full">
@@ -3176,6 +3684,9 @@ export const GoogleCampaigns: React.FC = () => {
                     isCancelling={isCancelling}
                     summary={summary}
                     updatingField={updatingField}
+                    visibleColumns={visibleColumns}
+                    columnOrder={columnOrder}
+                    inlineEditSuccess={inlineEditSuccess}
                     onSelectAll={handleSelectAll}
                     onSelectCampaign={handleSelectCampaign}
                     onSort={handleSort}
@@ -3183,6 +3694,8 @@ export const GoogleCampaigns: React.FC = () => {
                     onCancelInlineEdit={cancelInlineEdit}
                     onInlineEditChange={handleInlineEditChange}
                     onConfirmInlineEdit={confirmInlineEdit}
+                    onConfirmInlineEditDirect={confirmInlineEditDirect}
+                    inlineEditError={inlineEditError}
                     formatCurrency={formatCurrency}
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadgeLabel}

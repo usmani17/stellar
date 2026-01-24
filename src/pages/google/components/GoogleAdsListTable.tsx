@@ -185,14 +185,14 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
     },
     {
       key: "spends",
-      label: "Spends",
+      label: "Cost",
       type: "currency",
       sortable: true,
       getValue: (row: GoogleAd) => (row as any).spends || 0,
     },
     {
       key: "sales",
-      label: "Sales",
+      label: "Conv. value",
       type: "currency",
       sortable: true,
       getValue: (row: GoogleAd) => (row as any).sales || 0,
@@ -213,17 +213,10 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
     },
     {
       key: "roas",
-      label: "ROAS",
+      label: "Conv. value / Cost",
       type: "roas",
       sortable: true,
       getValue: (row: GoogleAd) => (row as any).roas || 0,
-    },
-    {
-      key: "acos",
-      label: "ACOS",
-      type: "percentage",
-      sortable: true,
-      getValue: (row: GoogleAd) => (row as any).acos || 0,
     },
   ], []);
 

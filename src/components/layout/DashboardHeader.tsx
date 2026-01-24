@@ -9,18 +9,16 @@ import {
   buildMarketplaceRoute,
   getMarketplaceFromUrl,
 } from "../../utils/urlHelpers";
-import { type Account } from "../../services/accounts";
+import { type Account, accountsService } from "../../services/accounts";
 import CustomDateRangePicker from "../ui/CustomDateRangePicker";
 
-// Component to render channels list for an account (uses React Query hook properly)
+// Component to render channels list for an account (uses channels from accounts data)
 const AccountChannelsList: React.FC<{
   accountId: number;
+  channels: Array<{ id: number; channel_name: string; channel_type: string }>;
   navigate: ReturnType<typeof useNavigate>;
   onClose: () => void;
-}> = ({ accountId, navigate, onClose }) => {
-  const { data: accountChannels = [], isLoading: channelsLoading } =
-    useChannels(accountId);
-
+}> = ({ accountId, channels, navigate, onClose }) => {
   return (
     <div
       className="absolute top-0 left-full w-64 bg-[#FEFEFB] border border-[#e8e8e3] rounded-[10px] shadow-lg z-50"
@@ -29,16 +27,12 @@ const AccountChannelsList: React.FC<{
       }}
     >
       <ul>
-        {channelsLoading ? (
-          <li className="px-3 py-2 text-[12.32px] text-[#556179]">
-            Loading...
-          </li>
-        ) : accountChannels.length === 0 ? (
+        {channels.length === 0 ? (
           <li className="px-3 py-2 text-[12.32px] text-[#556179]">
             No channels
           </li>
         ) : (
-          accountChannels.map((channel) => (
+          channels.map((channel) => (
             <li key={channel.id}>
               <button
                 onMouseDown={(e) => e.stopPropagation()}
@@ -70,7 +64,7 @@ export const DashboardHeader: React.FC = () => {
   const { startDate, endDate, setDateRange, formatDateRange } = useDateRange();
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams<{ accountId?: string }>();
+  const params = useParams<{ accountId?: string; channelId?: string }>();
 
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [expandedAccountId, setExpandedAccountId] = useState<number | null>(
@@ -86,15 +80,77 @@ export const DashboardHeader: React.FC = () => {
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
 
-  // Sync selected account
+  // Sync selected account based on accountId or channelId
   useEffect(() => {
+    let isCancelled = false;
+
     if (params.accountId && accounts.length) {
       const acc = accounts.find((a) => a.id === Number(params.accountId));
-      if (acc) setSelectedAccount(acc);
-    } else if (accounts.length && !selectedAccount) {
+      if (acc) {
+        setSelectedAccount(acc);
+        return;
+      }
+    }
+
+    if (params.channelId && accounts.length) {
+      const channelIdNum = Number(params.channelId);
+      
+      // First, check if channels are already in accounts data (from backend)
+      const accountWithChannel = accounts.find((account) => {
+        if (account.channels && account.channels.length > 0) {
+          return account.channels.some((ch) => ch.id === channelIdNum);
+        }
+        return false;
+      });
+
+      if (accountWithChannel && !isCancelled) {
+        setSelectedAccount(accountWithChannel);
+        return;
+      }
+
+      // If channels not in accounts data, fetch them (fallback)
+      const findAccountFromChannel = async () => {
+        // Check all accounts in parallel for better performance
+        const promises = accounts.map(async (account) => {
+          try {
+            const channels = await accountsService.getAccountChannels(account.id);
+            const channel = channels.find((ch) => ch.id === channelIdNum);
+            if (channel) {
+              // If channel is in this account's list, this account owns it
+              return account.id;
+            }
+          } catch (error) {
+            console.error(`Failed to fetch channels for account ${account.id}:`, error);
+          }
+          return null;
+        });
+
+        const results = await Promise.all(promises);
+        
+        // Find the first non-null result (the account that owns the channel)
+        for (let i = 0; i < results.length; i++) {
+          if (results[i] !== null && !isCancelled) {
+            const accountId = results[i];
+            const acc = accounts.find((a) => a.id === accountId);
+            if (acc) {
+              setSelectedAccount(acc);
+              return;
+            }
+          }
+        }
+      };
+      
+      findAccountFromChannel();
+      
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    if (accounts.length && !selectedAccount && !params.channelId) {
       setSelectedAccount(accounts[0]);
     }
-  }, [params.accountId, accounts, selectedAccount]);
+  }, [params.accountId, params.channelId, accounts]);
 
   // Note: Channels are now loaded automatically via React Query hooks
   // No need to manually load channels - the useChannels hook handles it
@@ -129,13 +185,18 @@ export const DashboardHeader: React.FC = () => {
   // Get current marketplace/channel from URL
   const currentMarketplace = getMarketplaceFromUrl(location.pathname);
   
-  // Hide date picker and account dropdown on profile page
+  // Hide date picker and account dropdown on profile page, channels page, and account selection pages
   const isProfilePage = location.pathname === "/profile";
+  const isChannelsPage = /^\/accounts\/\d+\/channels$/.test(location.pathname);
+  const isAccountSelectionPage = /^\/channels\/\d+\/(select-google-accounts|select-tiktok-profiles|list-profiles)$/.test(location.pathname);
+  const shouldHideDatePicker = isProfilePage || isChannelsPage || isAccountSelectionPage;
 
-  // Use React Query hook for selected account's channels
-  const { data: selectedAccountChannels = [] } = useChannels(
-    selectedAccount?.id
+  // Use channels from accounts data if available, otherwise fall back to API call
+  // This avoids unnecessary API calls when channels are already included in accounts response
+  const { data: selectedAccountChannelsFromApi = [] } = useChannels(
+    selectedAccount?.id && !selectedAccount?.channels ? selectedAccount.id : undefined
   );
+  const selectedAccountChannels = selectedAccount?.channels || selectedAccountChannelsFromApi;
   const selectedChannel = selectedAccount
     ? selectedAccountChannels.find(
         (ch) => ch.channel_type === currentMarketplace
@@ -275,6 +336,7 @@ export const DashboardHeader: React.FC = () => {
                       >
                         <AccountChannelsList
                           accountId={account.id}
+                          channels={account.channels || []}
                           navigate={navigate}
                           onClose={() => {
                             setIsAccountDropdownOpen(false);
@@ -294,7 +356,7 @@ export const DashboardHeader: React.FC = () => {
 
       {/* RIGHT */}
       <div className="flex items-center gap-5 ml-auto">
-        {!isProfilePage && (
+        {!shouldHideDatePicker && (
           <div className="relative" ref={datePickerRef}>
           <button
             onClick={() => setIsDatePickerOpen((p) => !p)}

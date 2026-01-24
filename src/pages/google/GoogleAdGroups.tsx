@@ -792,6 +792,13 @@ export const GoogleAdGroups: React.FC = () => {
     }
   };
 
+  // Handler for opening edit ad group name modal (triggered by pencil icon)
+  const handleEditAdGroup = (adgroup: GoogleAdGroup) => {
+    setNameEditAdgroup(adgroup);
+    setNameEditValue(adgroup.adgroup_name || adgroup.name || "");
+    setShowNameEditModal(true);
+  };
+
   const runBulkStatus = async (statusValue: "ENABLED" | "PAUSED") => {
     if (!accountId || selectedAdgroups.size === 0) return;
     const accountIdNum = parseInt(accountId, 10);
@@ -2073,6 +2080,8 @@ export const GoogleAdGroups: React.FC = () => {
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadge}
                     getSortIcon={getSortIcon}
+                    onEditAdGroup={handleEditAdGroup}
+                    editLoadingAdGroupId={nameEditLoading ? nameEditAdgroup?.adgroup_id : null}
                   />
                 </div>
               </div>

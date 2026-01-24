@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 import {
@@ -33,9 +34,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const initRef = useRef(false); // Prevent duplicate calls in StrictMode
 
   // Initialize user from localStorage on mount
   useEffect(() => {
+    // Prevent duplicate calls (especially in React StrictMode)
+    if (initRef.current) {
+      return;
+    }
+    initRef.current = true;
+
     const initAuth = async () => {
       const storedUser = localStorage.getItem("user");
       const accessToken = localStorage.getItem("accessToken");

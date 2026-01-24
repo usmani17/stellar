@@ -48,4 +48,20 @@ export const queryKeys = {
         campaignId,
       ] as const,
   },
+  googleProfiles: {
+    all: ["googleProfiles"] as const,
+    lists: (channelId: number) =>
+      [...queryKeys.googleProfiles.all, "list", channelId] as const,
+  },
+  columnPreferences: {
+    all: ["columnPreferences"] as const,
+    detail: (marketplace: string, entityType: string, presetName?: string) =>
+      [
+        ...queryKeys.columnPreferences.all,
+        "detail",
+        marketplace,
+        entityType,
+        presetName || "default",
+      ] as const,
+  },
 } as const;

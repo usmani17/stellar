@@ -522,9 +522,7 @@ export const Channels: React.FC = () => {
                             <td className="table-cell">
                               <span className="table-text">
                                 {profileCounts[channel.id]
-                                  ? `${profileCounts[channel.id].selected}/${
-                                      profileCounts[channel.id].total
-                                    }`
+                                  ? profileCounts[channel.id].selected
                                   : "—"}
                               </span>
                             </td>
@@ -533,8 +531,9 @@ export const Channels: React.FC = () => {
                                 <Button
                                   size="sm"
                                   className="create-entity-button"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (channel.channel_type === "google") {
+                                      // Navigate directly to selection page (loads from database)
                                       navigate(
                                         `/channels/${channel.id}/select-google-accounts`
                                       );
@@ -552,7 +551,7 @@ export const Channels: React.FC = () => {
                                   }}
                                 >
                                   <span className="text-[14px] font-medium">
-                                    Profiles
+                                    Select Profiles
                                   </span>
                                 </Button>
                                 <Button

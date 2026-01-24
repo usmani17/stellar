@@ -12,8 +12,8 @@ export interface IColumnDefinition {
   minWidth?: string;
   maxWidth?: string;
   width?: string;
-  // For editable fields
-  editable?: boolean;
+  // For editable fields - can be boolean or function that takes row and returns boolean
+  editable?: boolean | ((row: any) => boolean);
   // For status fields - options
   statusOptions?: Array<{ value: string; label: string }>;
   // For navigation
@@ -43,6 +43,7 @@ export interface IGoogleAdsTableProps<T = any> {
   updatingField: {
     itemId: string | number;
     field: string;
+    newValue?: string;
   } | null;
   pendingChanges: {
     [field: string]: {
@@ -63,7 +64,7 @@ export interface IGoogleAdsTableProps<T = any> {
   onStartInlineEdit: (item: T, field: string) => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
-  onConfirmInlineEdit: (value: string, field: string) => void;
+  onConfirmInlineEdit: (value: string, field?: string, itemId?: string | number) => void;
   onConfirmChange: (itemId: string | number, field: string, newValue: any) => void;
   onCancelChange: (field: string) => void;
   formatCurrency: (value: number) => string;
@@ -71,4 +72,13 @@ export interface IGoogleAdsTableProps<T = any> {
   getStatusBadge: (status: string) => React.ReactElement;
   getSortIcon: (column: string) => React.ReactElement;
   isPanelOpen?: boolean; // When true, editable fields become read-only
+  inlineEditSuccess?: {
+    itemId: string | number;
+    field: string;
+  } | null;
+  inlineEditError?: {
+    itemId: string | number;
+    field: string;
+    message: string;
+  } | null;
 }

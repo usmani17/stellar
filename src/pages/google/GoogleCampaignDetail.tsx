@@ -3218,15 +3218,15 @@ export const GoogleCampaignDetail: React.FC = () => {
                       />
                     ))
                   ) : (
-                    // Default KPI cards with zero values if no data available - matching Amazon's 6 stats
+                    // Default KPI cards with zero values if no data available - matching Google Ads terminology
                     <>
                       <KPICard
-                        label="Spends "
+                        label="Cost"
                         value="$0"
                         className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                       />
                       <KPICard
-                        label="Sales "
+                        label="Conv. value"
                         value="$0"
                         className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                       />
@@ -3241,12 +3241,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                       />
                       <KPICard
-                        label="ACOS"
-                        value="0.0%"
-                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
-                      />
-                      <KPICard
-                        label="ROAS"
+                        label="Conv. value / Cost"
                         value="0.00 x"
                         className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                       />

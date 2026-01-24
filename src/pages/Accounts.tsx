@@ -575,145 +575,177 @@ export const Accounts: React.FC = () => {
                             </td>
                             <td className="table-cell">
                               <div className="flex items-center gap-2 justify-end md:justify-start">
-                                <div className="relative z-20">
-                                  <Menu
-                                    trigger={
-                                      <Button
-                                        size="sm"
-                                        disabled={isConnecting || isDeleting}
-                                        className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
-                                      >
-                                        <span className="text-[14px] font-medium">
-                                          {isConnecting
-                                            ? "Connecting..."
-                                            : "Connect"}
-                                        </span>
-                                      </Button>
-                                    }
-                                    items={[
-                                      {
-                                        label: "Amazon",
-                                        icon: (
-                                          <img
-                                            src={AmazonIcon}
-                                            alt="Amazon"
-                                            className="w-5 h-5"
-                                          />
-                                        ),
-                                        onClick: () =>
-                                          handleConnectAmazon(account.id),
-                                        disabled: isConnecting || isDeleting,
-                                      },
-                                      {
-                                        label: "Google",
-                                        icon: (
-                                          <img
-                                            src={GoogleIcon}
-                                            alt="Google"
-                                            className="w-5 h-5"
-                                          />
-                                        ),
-                                        onClick: () =>
-                                          handleConnectGoogle(account.id),
-                                        disabled: isConnecting || isDeleting,
-                                      },
-                                      {
-                                        label: "TikTok",
-                                        icon: (
-                                          <svg
-                                            className="w-5 h-5"
-                                            fill="currentColor"
-                                            viewBox="0 0 24 24"
-                                            xmlns="http://www.w3.org/2000/svg"
+                                {account.channels_count && account.channels_count > 0 ? (
+                                  // If account has channels, show "View Channels" as primary button
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      disabled={isDeleting}
+                                      onClick={() => {
+                                        navigate(
+                                          `/accounts/${account.id}/channels`
+                                        );
+                                      }}
+                                      className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-4 py-1.5 h-[36px] rounded-lg flex items-center gap-2 whitespace-nowrap"
+                                    >
+                                      <span className="text-[14px] font-medium">
+                                        View Channels
+                                      </span>
+                                    </Button>
+                                    <div className="relative z-30">
+                                      <Menu
+                                        items={[
+                                          {
+                                            label: "Connect Amazon",
+                                            icon: (
+                                              <img
+                                                src={AmazonIcon}
+                                                alt="Amazon"
+                                                className="w-5 h-5"
+                                              />
+                                            ),
+                                            onClick: () =>
+                                              handleConnectAmazon(account.id),
+                                            disabled: isConnecting || isDeleting,
+                                          },
+                                          {
+                                            label: "Connect Google",
+                                            icon: (
+                                              <img
+                                                src={GoogleIcon}
+                                                alt="Google"
+                                                className="w-5 h-5"
+                                              />
+                                            ),
+                                            onClick: () =>
+                                              handleConnectGoogle(account.id),
+                                            disabled: isConnecting || isDeleting,
+                                          },
+                                          {
+                                            label: "Connect TikTok",
+                                            icon: (
+                                              <svg
+                                                className="w-5 h-5"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                              >
+                                                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                              </svg>
+                                            ),
+                                            onClick: () =>
+                                              handleConnectTikTok(account.id),
+                                            disabled: isConnecting || isDeleting,
+                                          },
+                                          {
+                                            label: "Assign User",
+                                            icon: <AssignUserIcon />,
+                                            onClick: () => {
+                                              // TODO: Implement assign user functionality
+                                              alert(
+                                                "Assign User functionality coming soon"
+                                              );
+                                            },
+                                          },
+                                          {
+                                            label: "Delete",
+                                            icon: <DeleteIcon />,
+                                            onClick: () =>
+                                              handleDeleteAccount(account.id),
+                                          },
+                                        ]}
+                                      />
+                                    </div>
+                                  </>
+                                ) : (
+                                  // If no channels, show "Connect" as primary button
+                                  <>
+                                    <div className="relative z-20">
+                                      <Menu
+                                        trigger={
+                                          <Button
+                                            size="sm"
+                                            disabled={isConnecting || isDeleting}
+                                            className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-2 py-1.5 h-[36px] rounded-lg flex items-center gap-2 w-[100px] justify-center"
                                           >
-                                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                                          </svg>
-                                        ),
-                                        onClick: () =>
-                                          handleConnectTikTok(account.id),
-                                        disabled: isConnecting || isDeleting,
-                                      },
-                                      // Hide these for now - uncomment when ready to implement
-                                      // {
-                                      //   label: "Walmart",
-                                      //   icon: (
-                                      //     <img
-                                      //       src={WalmartIcon}
-                                      //       alt="Walmart"
-                                      //       className="w-5 h-5"
-                                      //     />
-                                      //   ),
-                                      //   onClick: () => {
-                                      //     // TODO: Implement Walmart OAuth
-                                      //     alert("Walmart integration coming soon");
-                                      //   },
-                                      //   disabled: isConnecting || isDeleting,
-                                      // },
-                                      // {
-                                      //   label: "Instacart",
-                                      //   icon: (
-                                      //     <img
-                                      //       src={InstacartIcon}
-                                      //       alt="Instacart"
-                                      //       className="w-5 h-5"
-                                      //     />
-                                      //   ),
-                                      //   onClick: () => {
-                                      //     // TODO: Implement Instacart OAuth
-                                      //     alert("Instacart integration coming soon");
-                                      //   },
-                                      //   disabled: isConnecting || isDeleting,
-                                      // },
-                                      // {
-                                      //   label: "Criteo",
-                                      //   icon: (
-                                      //     <img
-                                      //       src={CriteoIcon}
-                                      //       alt="Criteo"
-                                      //       className="w-5 h-5"
-                                      //     />
-                                      //   ),
-                                      //   onClick: () => {
-                                      //     // TODO: Implement Criteo OAuth
-                                      //     alert("Criteo integration coming soon");
-                                      //   },
-                                      //   disabled: isConnecting || isDeleting,
-                                      // },
-                                    ]}
-                                    align="left"
-                                  />
-                                </div>
-                                <div className="relative z-30">
-                                  <Menu
-                                    items={[
-                                      {
-                                        label: "View Channels",
-                                        icon: <ViewChannelsIcon />,
-                                        onClick: () => {
-                                          navigate(
-                                            `/accounts/${account.id}/channels`
-                                          );
-                                        },
-                                      },
-                                      {
-                                        label: "Assign User",
-                                        icon: <AssignUserIcon />,
-                                        onClick: () => {
-                                          // TODO: Implement assign user functionality
-                                          alert(
-                                            "Assign User functionality coming soon"
-                                          );
-                                        },
-                                      },
-                                      {
-                                        label: "Delete",
-                                        icon: <DeleteIcon />,
-                                        onClick: () =>
-                                          handleDeleteAccount(account.id),
-                                      },
-                                    ]}
-                                  />
-                                </div>
+                                            <span className="text-[14px] font-medium">
+                                              {isConnecting
+                                                ? "Connecting..."
+                                                : "Connect"}
+                                            </span>
+                                          </Button>
+                                        }
+                                        items={[
+                                          {
+                                            label: "Amazon",
+                                            icon: (
+                                              <img
+                                                src={AmazonIcon}
+                                                alt="Amazon"
+                                                className="w-5 h-5"
+                                              />
+                                            ),
+                                            onClick: () =>
+                                              handleConnectAmazon(account.id),
+                                            disabled: isConnecting || isDeleting,
+                                          },
+                                          {
+                                            label: "Google",
+                                            icon: (
+                                              <img
+                                                src={GoogleIcon}
+                                                alt="Google"
+                                                className="w-5 h-5"
+                                              />
+                                            ),
+                                            onClick: () =>
+                                              handleConnectGoogle(account.id),
+                                            disabled: isConnecting || isDeleting,
+                                          },
+                                          {
+                                            label: "TikTok",
+                                            icon: (
+                                              <svg
+                                                className="w-5 h-5"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                              >
+                                                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                              </svg>
+                                            ),
+                                            onClick: () =>
+                                              handleConnectTikTok(account.id),
+                                            disabled: isConnecting || isDeleting,
+                                          },
+                                        ]}
+                                        align="left"
+                                      />
+                                    </div>
+                                    <div className="relative z-30">
+                                      <Menu
+                                        items={[
+                                          {
+                                            label: "Assign User",
+                                            icon: <AssignUserIcon />,
+                                            onClick: () => {
+                                              // TODO: Implement assign user functionality
+                                              alert(
+                                                "Assign User functionality coming soon"
+                                              );
+                                            },
+                                          },
+                                          {
+                                            label: "Delete",
+                                            icon: <DeleteIcon />,
+                                            onClick: () =>
+                                              handleDeleteAccount(account.id),
+                                          },
+                                        ]}
+                                      />
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
