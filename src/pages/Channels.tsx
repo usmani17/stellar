@@ -582,9 +582,9 @@ export const Channels: React.FC = () => {
                             </td>
                             <td className="table-cell relative">
                               <div className="flex items-center gap-3">
-                                <Button
+                              <Button
                                   size="sm"
-                                  className="create-entity-button"
+                                  className="connect-button"
                                   onClick={async () => {
                                     if (channel.channel_type === "google") {
                                       // Navigate directly to selection page (loads from database)
@@ -604,23 +604,46 @@ export const Channels: React.FC = () => {
                                     }
                                   }}
                                 >
-                                  <span className="text-[14px] font-medium">
+                                  <span>
                                     Select Profiles
                                   </span>
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
+                                <button
                                   onClick={() => handleDeleteChannel(channel)}
                                   disabled={deletingChannelId === channel.id}
-                                  className="cancel-button"
+                                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title={deletingChannelId === channel.id ? "Deleting..." : "Delete channel"}
                                 >
-                                  <span className="text-[14px] font-medium">
-                                    {deletingChannelId === channel.id
-                                      ? "Deleting..."
-                                      : "Delete"}
-                                  </span>
-                                </Button>
+                                  {deletingChannelId === channel.id ? (
+                                    <svg
+                                      className="w-5 h-5 text-gray-400 animate-spin"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                      />
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                      />
+                                    </svg>
+                                  ) : (
+                                    <svg
+                                      className="w-5 h-5 text-gray-600 hover:text-red-600 transition-colors"
+                                      fill="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                    </svg>
+                                  )}
+                                </button>
                               </div>
                             </td>
                           </tr>

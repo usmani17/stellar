@@ -687,9 +687,9 @@ export const Accounts: React.FC = () => {
                                           `/brands/${account.id}/channels`
                                         );
                                       }}
-                                      className="bg-[#136d6d] text-[#fbfafc] hover:bg-[#0e5a5a] hover:!text-white px-4 py-1.5 h-[36px] rounded-lg flex items-center gap-2 whitespace-nowrap"
+                                      className="connect-button"
                                     >
-                                      <span className="text-[14px] font-medium">
+                                      <span className="">
                                         View Channels
                                       </span>
                                     </Button>
