@@ -18,7 +18,7 @@ function AccountRoutes() {
                 element={
                     <ProtectedRoute>
                         <Layout>
-                            <Navigate to="/accounts" replace />
+                            <Navigate to="/brands" replace />
                         </Layout>
                     </ProtectedRoute>
                 }
@@ -34,7 +34,7 @@ function AccountRoutes() {
                 }
             />
             <Route
-                path="/accounts"
+                path="/brands"
                 element={
                     <ProtectedRoute>
                         <Layout>
@@ -54,7 +54,7 @@ function AccountRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/channels"
+                path="/brands/:accountId/channels"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -66,7 +66,7 @@ function AccountRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/connect-tiktok"
+                path="/brands/:accountId/connect-tiktok"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -78,7 +78,7 @@ function AccountRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/log-history"
+                path="/brands/:accountId/log-history"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -90,7 +90,7 @@ function AccountRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/log-history/:campaignId"
+                path="/brands/:accountId/log-history/:campaignId"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -127,7 +127,7 @@ function AccountRoutes() {
                 element={
                     <ProtectedRoute>
                         <Layout>
-                            <Navigate to="/accounts" replace />
+                            <Navigate to="/brands" replace />
                         </Layout>
                     </ProtectedRoute>
                 }
@@ -137,7 +137,7 @@ function AccountRoutes() {
                 element={
                     <ProtectedRoute>
                         <Layout>
-                            <Navigate to="/accounts" replace />
+                            <Navigate to="/brands" replace />
                         </Layout>
                     </ProtectedRoute>
                 }

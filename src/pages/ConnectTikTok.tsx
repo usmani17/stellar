@@ -80,7 +80,7 @@ export const ConnectTikTok: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate("/accounts")}
+            onClick={() => navigate("/brands")}
             className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors"
           >
             Cancel

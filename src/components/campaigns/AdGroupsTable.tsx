@@ -92,7 +92,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
     const campaignType = (adgroup.type || "sp").toLowerCase();
     const campaignTypeAndId = `${campaignType}_${adgroup.campaignId}`;
 
-    navigate(`/accounts/${accountId}/amazon/campaigns/${campaignTypeAndId}`);
+    navigate(`/brands/${accountId}/amazon/campaigns/${campaignTypeAndId}`);
   };
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {

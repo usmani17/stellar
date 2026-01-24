@@ -192,7 +192,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getValue: (row: GoogleAdGroup) => row.campaign_name || "—",
       navigateTo: (row: GoogleAdGroup, accountId: string) => {
         if (row.campaign_id) {
-          return `/accounts/${accountId}/google/campaigns/${row.campaign_id}`;
+          return `/brands/${accountId}/google/campaigns/${row.campaign_id}`;
         }
         return null;
       },

@@ -240,7 +240,7 @@ export const DashboardHeader: React.FC = () => {
   
   // Hide date picker and account dropdown on profile page, channels page, and account selection pages
   const isProfilePage = location.pathname === "/profile";
-  const isChannelsPage = /^\/accounts\/\d+\/channels$/.test(location.pathname);
+  const isChannelsPage = /^\/brands\/\d+\/channels$/.test(location.pathname);
   const isAccountSelectionPage = /^\/channels\/\d+\/(select-google-accounts|select-tiktok-profiles|list-profiles)$/.test(location.pathname);
   const shouldHideDatePicker = isProfilePage || isChannelsPage || isAccountSelectionPage;
 
@@ -268,7 +268,7 @@ export const DashboardHeader: React.FC = () => {
           onClick={() => {
             if (accounts.length === 0) {
               // If no accounts, redirect to accounts page to create one
-              navigate("/accounts");
+              navigate("/brands");
               return;
             }
             const open = !isAccountDropdownOpen;
@@ -279,7 +279,7 @@ export const DashboardHeader: React.FC = () => {
               setExpandedAccountId(null);
             }
           }}
-          className="flex items-center gap-2 h-10 px-4 bg-[#FEFEFB] border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+          className="account-dropdown-button"
         >
           <div 
             className="w-5 h-5 rounded text-white text-[10px] flex items-center justify-center font-semibold"
@@ -305,11 +305,11 @@ export const DashboardHeader: React.FC = () => {
                       <span className="text-[13.2px] text-[#556179]">•</span>
                       <div className="flex items-center gap-1.5">
                         {selectedChannel.channel_type === "amazon" && (
-                          <div className="w-5 h-5 flex items-center justify-center bg-[#FF9900] rounded">
-                            <span className="text-white font-bold text-[10px] leading-none">
-                              A
-                            </span>
-                          </div>
+                          <img
+                            src={AmazonIcon}
+                            alt="Amazon"
+                            className="w-4 h-4"
+                          />
                         )}
                         {selectedChannel.channel_type === "google" && (
                           <img
@@ -387,7 +387,7 @@ export const DashboardHeader: React.FC = () => {
                   </p>
                   <button
                     onClick={() => {
-                      navigate("/accounts");
+                      navigate("/brands");
                       setIsAccountDropdownOpen(false);
                     }}
                     className="text-[12.32px] text-[#136D6D] hover:text-[#0e5a5a] font-medium underline"
@@ -483,7 +483,7 @@ export const DashboardHeader: React.FC = () => {
           <div className="relative" ref={datePickerRef}>
           <button
             onClick={() => setIsDatePickerOpen((p) => !p)}
-            className="flex items-center gap-2 h-10 px-4 bg-[#FEFEFB] border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+            className="account-dropdown-button"
           >
             <svg
               className="w-5 h-5 text-[#072929]"
@@ -548,7 +548,7 @@ export const DashboardHeader: React.FC = () => {
         <div className="relative" ref={profileDropdownRef}>
           <button
             onClick={() => setIsProfileDropdownOpen((p) => !p)}
-            className="w-8 h-8 rounded-full bg-[#FEFEFB] border border-gray-200 flex items-center justify-center text-gray-600 text-[12.32px] font-semibold hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
+            className="profile-avatar-button"
           >
             {user?.first_name?.[0] || "U"}
           </button>

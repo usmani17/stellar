@@ -28,7 +28,7 @@ export const GoogleOAuthCallback: React.FC = () => {
         setError(`Google OAuth error: ${errorParam}`);
         setLoading(false);
         setTimeout(() => {
-          navigate("/accounts");
+          navigate("/brands");
         }, 3000);
         return;
       }
@@ -38,7 +38,7 @@ export const GoogleOAuthCallback: React.FC = () => {
         setError("No authorization code received from Google");
         setLoading(false);
         setTimeout(() => {
-          navigate("/accounts");
+          navigate("/brands");
         }, 3000);
         return;
       }
@@ -59,7 +59,7 @@ export const GoogleOAuthCallback: React.FC = () => {
           );
           setLoading(false);
           setTimeout(() => {
-            navigate("/accounts", { replace: true });
+            navigate("/brands", { replace: true });
           }, 5000);
           return;
         }
@@ -68,14 +68,24 @@ export const GoogleOAuthCallback: React.FC = () => {
         if (response.needs_account_selection && response.id) {
           // Refresh accounts to show the new channel
           await refreshAccounts();
+          // Store success message in localStorage to show on next page
+          localStorage.setItem('channel_created_success', JSON.stringify({
+            message: 'Google channel connected successfully!',
+            type: 'success'
+          }));
           // Redirect to account selection page with channelId (like Amazon)
           setLoading(false);
           navigate(`/channels/${response.id}/select-google-accounts`, { replace: true });
         } else {
           // Channel created directly (shouldn't happen with new flow)
           await refreshAccounts();
+          // Store success message in localStorage to show on next page
+          localStorage.setItem('channel_created_success', JSON.stringify({
+            message: 'Google channel connected successfully!',
+            type: 'success'
+          }));
           setLoading(false);
-          navigate("/accounts", { replace: true });
+          navigate("/brands", { replace: true });
         }
       } catch (err: any) {
         console.error("Google OAuth callback error:", err);
@@ -87,7 +97,7 @@ export const GoogleOAuthCallback: React.FC = () => {
         );
         setLoading(false);
         setTimeout(() => {
-          navigate("/accounts", { replace: true });
+          navigate("/brands", { replace: true });
         }, 5000);
       }
     };

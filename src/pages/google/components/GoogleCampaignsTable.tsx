@@ -70,10 +70,10 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       maxWidth: "max-w-[400px]",
       editable: false,
       navigateTo: (row: IGoogleCampaign, accountId: string) =>
-        `/accounts/${accountId}/google-campaigns/${row.campaign_id}`,
+        `/brands/${accountId}/google-campaigns/${row.campaign_id}`,
       getValue: (row: IGoogleCampaign) => row.campaign_name || "Unnamed Campaign",
       render: (value: any, row: IGoogleCampaign) => {
-        const navPath = `/accounts/${accountId}/google-campaigns/${row.campaign_id}`;
+        const navPath = `/brands/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
           <div className="group relative flex items-center gap-2">
             {onEditCampaign && (

@@ -12,6 +12,7 @@ import { Button, Menu, DeleteConfirmationModal } from "../components/ui";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
 import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
+import { Banner } from "../components/ui/Banner";
 
 export const Channels: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
@@ -45,6 +46,7 @@ export const Channels: React.FC = () => {
   const [deletingChannelId, setDeletingChannelId] = useState<number | null>(
     null
   );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Get account ID number
   const accountIdNum = accountId ? parseInt(accountId, 10) : undefined;
@@ -60,10 +62,30 @@ export const Channels: React.FC = () => {
     };
   }, []);
 
+  // Check for profiles saved success message on mount
+  useEffect(() => {
+    const profilesSuccess = localStorage.getItem('profiles_saved_success');
+    if (profilesSuccess) {
+      try {
+        const data = JSON.parse(profilesSuccess);
+        // Use the message from backend which includes sync information
+        setSuccessMessage(data.message || 'Profiles saved successfully');
+        localStorage.removeItem('profiles_saved_success');
+        // Auto-dismiss after 8 seconds to give users time to read the sync message
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 8000);
+      } catch (e) {
+        console.error('Failed to parse success message:', e);
+        localStorage.removeItem('profiles_saved_success');
+      }
+    }
+  }, []);
+
   // Set brand  name when accountId or brands change
   useEffect(() => {
     if (!accountIdNum) {
-      navigate("/accounts");
+      navigate("/brands");
       return;
     }
 
@@ -257,7 +279,7 @@ export const Channels: React.FC = () => {
         <div className="p-8 bg-white">
           {/* Back to Brands Link */}
           <button
-            onClick={() => navigate(`/accounts`)}
+            onClick={() => navigate(`/brands`)}
             className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors mb-4"
           >
             <svg
@@ -276,6 +298,15 @@ export const Channels: React.FC = () => {
             <span className="text-[14px] font-medium">Back to Brands</span>
           </button>
 
+          {successMessage && (
+            <Banner
+              type="success"
+              message={successMessage}
+              dismissable={true}
+              onDismiss={() => setSuccessMessage(null)}
+              className="mb-6"
+            />
+          )}
           {oauthError && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-[14px]">
               {oauthError}
@@ -484,19 +515,19 @@ export const Channels: React.FC = () => {
                                     onClick={() => {
                                       if (channel.channel_type === "amazon") {
                                         navigate(
-                                          `/accounts/${accountId}/campaigns`
+                                          `/brands/${accountId}/campaigns`
                                         );
                                       } else if (
                                         channel.channel_type === "google"
                                       ) {
                                         navigate(
-                                          `/accounts/${accountId}/google-campaigns`
+                                          `/brands/${accountId}/google-campaigns`
                                         );
                                       } else if (
                                         channel.channel_type === "tiktok"
                                       ) {
                                         navigate(
-                                          `/accounts/${accountId}/tiktok/campaigns`
+                                          `/brands/${accountId}/tiktok/campaigns`
                                         );
                                       }
                                     }}
@@ -577,16 +608,19 @@ export const Channels: React.FC = () => {
                                     Select Profiles
                                   </span>
                                 </Button>
-                                <button
-                                  type="button"
+                                <Button
+                                  size="sm"
+                                  variant="outline"
                                   onClick={() => handleDeleteChannel(channel)}
                                   disabled={deletingChannelId === channel.id}
                                   className="cancel-button"
                                 >
-                                  {deletingChannelId === channel.id
-                                    ? "Deleting..."
-                                    : "Delete"}
-                                </button>
+                                  <span className="text-[14px] font-medium">
+                                    {deletingChannelId === channel.id
+                                      ? "Deleting..."
+                                      : "Delete"}
+                                  </span>
+                                </Button>
                               </div>
                             </td>
                           </tr>

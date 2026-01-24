@@ -34,7 +34,7 @@ export const TikTokCreateCampaign: React.FC = () => {
                             <Button
                                 onClick={() => {
                                     if (accountId) {
-                                        navigate(`/accounts/${accountId}/tiktok/campaigns`);
+                                        navigate(`/brands/${accountId}/tiktok/campaigns`);
                                     }
                                 }}
                                 variant="outline"

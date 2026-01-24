@@ -269,7 +269,7 @@ export const TikTokCampaigns: React.FC = () => {
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
               navigate(
-                `/accounts/${accountId}/tiktok/campaigns/${editingCampaign.campaign_id}`
+                `/brands/${accountId}/tiktok/campaigns/${editingCampaign.campaign_id}`
               );
             },
           },
@@ -300,7 +300,7 @@ export const TikTokCampaigns: React.FC = () => {
               onClick: () => {
                 setErrorModal({ isOpen: false, message: "" });
                 navigate(
-                  `/accounts/${accountId}/tiktok/campaigns/${campaignId}`
+                  `/brands/${accountId}/tiktok/campaigns/${campaignId}`
                 );
               },
             },

@@ -6,11 +6,11 @@ const LAST_SELECTED_ACCOUNT_KEY = 'lastSelectedAccountId';
 
 /**
  * Extract account_id from URL pathname
- * @param pathname - Current pathname (e.g., '/accounts/1/amazon/campaigns')
+ * @param pathname - Current pathname (e.g., '/brands/1/amazon/campaigns')
  * @returns account_id as number or null if not found
  */
 export const getAccountIdFromUrl = (pathname: string): number | null => {
-  const match = pathname.match(/^\/accounts\/(\d+)/);
+  const match = pathname.match(/^\/brands\/(\d+)/);
   if (match && match[1]) {
     const accountId = parseInt(match[1], 10);
     return isNaN(accountId) ? null : accountId;
@@ -74,7 +74,7 @@ export const getCurrentAccountId = (pathname: string): number | null => {
 export const buildAccountRoute = (accountId: number, path: string): string => {
   // Remove leading slash if present
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return `/accounts/${accountId}/${cleanPath}`;
+  return `/brands/${accountId}/${cleanPath}`;
 };
 
 /**
@@ -91,7 +91,7 @@ export const buildMarketplaceRoute = (
   entity: string,
   id?: string | number
 ): string => {
-  const basePath = `/accounts/${accountId}/${marketplace}/${entity}`;
+  const basePath = `/brands/${accountId}/${marketplace}/${entity}`;
   return id !== undefined ? `${basePath}/${id}` : basePath;
 };
 
@@ -102,7 +102,7 @@ export const buildMarketplaceRoute = (
  */
 export const requiresAccountId = (pathname: string): boolean => {
   // Routes that don't require account ID
-  if (pathname === '/accounts' || pathname.startsWith('/accounts/oauth')) {
+  if (pathname === '/brands' || pathname.startsWith('/brands/oauth')) {
     return false;
   }
   
@@ -111,8 +111,8 @@ export const requiresAccountId = (pathname: string): boolean => {
     return false;
   }
   
-  // Routes starting with /accounts/:accountId require account ID
-  if (pathname.startsWith('/accounts/')) {
+  // Routes starting with /brands/:accountId require account ID
+  if (pathname.startsWith('/brands/')) {
     return true;
   }
   
@@ -126,7 +126,7 @@ export const requiresAccountId = (pathname: string): boolean => {
  * @returns marketplace name or null if not found
  */
 export const getMarketplaceFromUrl = (pathname: string): string | null => {
-  const match = pathname.match(/^\/accounts\/\d+\/([^/]+)\//);
+  const match = pathname.match(/^\/brands\/\d+\/([^/]+)\//);
   return match ? match[1] : null;
 };
 
@@ -136,7 +136,7 @@ export const getMarketplaceFromUrl = (pathname: string): string | null => {
  * @returns entity name or null if not found
  */
 export const getEntityFromUrl = (pathname: string): string | null => {
-  const match = pathname.match(/^\/accounts\/\d+\/[^/]+\/([^/]+)/);
+  const match = pathname.match(/^\/brands\/\d+\/[^/]+\/([^/]+)/);
   return match ? match[1] : null;
 };
 

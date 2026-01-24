@@ -479,7 +479,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                             <td className="table-cell">
                                                 <div className="table-text leading-[1.26] text-left">
                                                     {item.campaign_id ? (
-                                                        <Link to={`/accounts/${1}/tiktok/campaigns/${item.campaign_id}`} className="hover:underline hover:text-[#136D6D]">
+                                                        <Link to={`/brands/${1}/tiktok/campaigns/${item.campaign_id}`} className="hover:underline hover:text-[#136D6D]">
                                                             {item.campaign_name}
                                                         </Link>
                                                     ) : (

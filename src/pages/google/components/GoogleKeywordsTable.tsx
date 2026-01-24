@@ -229,7 +229,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/accounts/${currentAccountId}/google/campaigns/${campaignId}`);
+              navigate(`/brands/${currentAccountId}/google/campaigns/${campaignId}`);
             }}
             className="table-edit-link text-left truncate"
             title={`View campaign: ${campaignName}`}
@@ -261,7 +261,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               // Navigate to campaign detail page with adgroups tab
-              navigate(`/accounts/${currentAccountId}/google/campaigns/${campaignId}?tab=Ad Groups`);
+              navigate(`/brands/${currentAccountId}/google/campaigns/${campaignId}?tab=Ad Groups`);
             }}
             className="table-edit-link text-left truncate block w-full"
             title={`View ad group: ${adgroupName}`}

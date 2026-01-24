@@ -13,7 +13,7 @@ function TikTokRoutes() {
     return (
         <>
             <Route
-                path="/accounts/:accountId/tiktok/campaigns"
+                path="/brands/:accountId/tiktok/campaigns"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -25,7 +25,7 @@ function TikTokRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/tiktok/campaigns/create"
+                path="/brands/:accountId/tiktok/campaigns/create"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -37,7 +37,7 @@ function TikTokRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/tiktok/campaigns/:campaignId"
+                path="/brands/:accountId/tiktok/campaigns/:campaignId"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -49,7 +49,7 @@ function TikTokRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/tiktok/adgroups"
+                path="/brands/:accountId/tiktok/adgroups"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -61,7 +61,7 @@ function TikTokRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/tiktok/ads"
+                path="/brands/:accountId/tiktok/ads"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -73,7 +73,7 @@ function TikTokRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/tiktok/logs"
+                path="/brands/:accountId/tiktok/logs"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -85,7 +85,7 @@ function TikTokRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/tiktok/log-history"
+                path="/brands/:accountId/tiktok/log-history"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>

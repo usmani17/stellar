@@ -551,7 +551,7 @@ export const GoogleCampaigns: React.FC = () => {
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
               navigate(
-                `/accounts/${accountIdNum}/google-campaigns/${newCampaignId}`
+                `/brands/${accountIdNum}/google-campaigns/${newCampaignId}`
               );
             },
           },

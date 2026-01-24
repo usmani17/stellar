@@ -2832,7 +2832,7 @@ export const GoogleCampaignDetail: React.FC = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={() =>
-                  navigate(`/accounts/${accountId}/google-campaigns`)
+                  navigate(`/brands/${accountId}/google-campaigns`)
                 }
                 className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors"
               >

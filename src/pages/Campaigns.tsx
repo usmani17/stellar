@@ -917,7 +917,7 @@ export const Campaigns: React.FC = () => {
             onClick: () => {
               setErrorModal({ isOpen: false, message: "" });
               navigate(
-                `/accounts/${accountIdNum}/campaigns/${campaignTypeAndId}`
+                `/brands/${accountIdNum}/campaigns/${campaignTypeAndId}`
               );
             },
           },

@@ -27,7 +27,7 @@ export const AmazonOAuthCallback: React.FC = () => {
         setLoading(false);
         // Redirect to accounts after 3 seconds
         setTimeout(() => {
-          navigate("/accounts");
+          navigate("/brands");
         }, 3000);
         return;
       }
@@ -38,7 +38,7 @@ export const AmazonOAuthCallback: React.FC = () => {
         setLoading(false);
         // Redirect to accounts after 3 seconds
         setTimeout(() => {
-          navigate("/accounts");
+          navigate("/brands");
         }, 3000);
         return;
       }
@@ -69,6 +69,11 @@ export const AmazonOAuthCallback: React.FC = () => {
             "Redirecting to profile selection for channel:",
             channelId
           );
+          // Store success message in localStorage to show on next page
+          localStorage.setItem('channel_created_success', JSON.stringify({
+            message: 'Amazon channel connected successfully!',
+            type: 'success'
+          }));
           // Use window.location for immediate redirect (more reliable than navigate)
           // Small delay to ensure state is saved
           setTimeout(() => {
@@ -87,7 +92,7 @@ export const AmazonOAuthCallback: React.FC = () => {
           );
           setLoading(false);
           setTimeout(() => {
-            navigate("/accounts", { replace: true });
+            navigate("/brands", { replace: true });
           }, 3000);
         }
       } catch (err: any) {
@@ -100,7 +105,7 @@ export const AmazonOAuthCallback: React.FC = () => {
         setLoading(false);
         // Redirect to accounts after 3 seconds
         setTimeout(() => {
-          navigate("/accounts");
+          navigate("/brands");
         }, 3000);
       }
     };

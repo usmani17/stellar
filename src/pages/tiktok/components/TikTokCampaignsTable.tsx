@@ -99,7 +99,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     const handleCampaignClick = (campaignId: string) => {
         if (accountId) {
-            navigate(`/accounts/${accountId}/tiktok/campaigns/${campaignId}`);
+            navigate(`/brands/${accountId}/tiktok/campaigns/${campaignId}`);
         }
     };
 

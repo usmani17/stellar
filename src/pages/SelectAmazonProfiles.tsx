@@ -5,6 +5,7 @@ import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button, Checkbox } from "../components/ui";
+import { Banner } from "../components/ui/Banner";
 
 interface AmazonProfile {
   // Amazon API fields (primary)
@@ -48,12 +49,32 @@ export const SelectAmazonProfiles: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (channelId) {
       loadProfiles();
     }
   }, [channelId]);
+
+  // Check for channel created success message on mount
+  useEffect(() => {
+    const channelSuccess = localStorage.getItem('channel_created_success');
+    if (channelSuccess) {
+      try {
+        const { message } = JSON.parse(channelSuccess);
+        setSuccessMessage(message);
+        localStorage.removeItem('channel_created_success');
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 5000);
+      } catch (e) {
+        console.error('Failed to parse success message:', e);
+        localStorage.removeItem('channel_created_success');
+      }
+    }
+  }, []);
 
   const loadProfiles = async () => {
     if (!channelId) return;
@@ -260,8 +281,18 @@ export const SelectAmazonProfiles: React.FC = () => {
       console.log("Save profiles result:", result);
 
       if (result && result.message) {
+        // Store success message in localStorage to show on next page
+        // Use the actual message from backend which includes sync info
+        localStorage.setItem('profiles_saved_success', JSON.stringify({
+          message: result.message,
+          type: 'success',
+          total_saved: result.total_saved,
+          newly_created: result.newly_created,
+          updated: result.updated,
+          sync_initiated: result.sync_initiated
+        }));
         // Success - navigate to accounts
-        navigate("/accounts");
+        navigate("/brands");
       } else {
         setError("Profiles saved but no confirmation received");
       }
@@ -329,6 +360,15 @@ export const SelectAmazonProfiles: React.FC = () => {
               </p>
             </div>
 
+            {successMessage && (
+              <Banner
+                type="success"
+                message={successMessage}
+                dismissable={true}
+                onDismiss={() => setSuccessMessage(null)}
+                className="mb-6"
+              />
+            )}
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-[14px]">
                 {error}
@@ -504,14 +544,13 @@ export const SelectAmazonProfiles: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3 justify-end">
-                  <button
-                    type="button"
+                  <Button
                     className="cancel-button"
-                    onClick={() => navigate("/accounts")}
+                    onClick={() => navigate("/brands")}
                     disabled={saving}
                   >
                     Cancel
-                  </button>
+                  </Button>
                   <Button
                     onClick={handleSave}
                     disabled={saving || selectedProfileIds.size === 0}
