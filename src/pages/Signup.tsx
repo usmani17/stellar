@@ -142,10 +142,10 @@ export const Signup: React.FC = () => {
             />
           </div>
 
-          {/* Create Account Button */}
+          {/* Create Brand Button */}
           <div className="flex flex-col items-center w-full">
             <AuthButton loading={loading} loadingText="Creating account...">
-              Create account
+              Create brand
             </AuthButton>
           </div>
 

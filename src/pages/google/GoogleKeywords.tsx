@@ -1424,7 +1424,7 @@ export const GoogleKeywords: React.FC = () => {
             {/* Header with Filter Button + Sync */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <h1 className="text-[20px] sm:text-[22.8px] font-medium text-[#072929] leading-[1.26]">
-                Google Keyword Manager
+                Keywords
               </h1>
               <div className="flex items-center gap-2">
                 <button

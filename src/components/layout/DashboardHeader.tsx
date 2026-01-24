@@ -11,6 +11,34 @@ import {
 } from "../../utils/urlHelpers";
 import { type Account } from "../../services/accounts";
 import CustomDateRangePicker from "../ui/CustomDateRangePicker";
+import GoogleIcon from "../../assets/images/ri_google-fill.svg";
+import AmazonIcon from "../../assets/images/amazon-fill.svg";
+
+// Generate a color based on the first letter of the brand name
+const getInitialColor = (initial: string): string => {
+  const colors = [
+    "#136D6D", // Teal
+    "#072929", // Dark teal
+    "#556179", // Slate
+    "#8B5CF6", // Purple
+    "#EC4899", // Pink
+    "#F59E0B", // Amber
+    "#10B981", // Green
+    "#3B82F6", // Blue
+    "#EF4444", // Red
+    "#06B6D4", // Cyan
+    "#F97316", // Orange
+    "#6366F1", // Indigo
+    "#14B8A6", // Teal variant
+    "#A855F7", // Purple variant
+    "#E11D48", // Rose
+  ];
+  
+  if (!initial) return colors[0];
+  const charCode = initial.toUpperCase().charCodeAt(0);
+  const index = (charCode - 65) % colors.length; // A-Z maps to 0-25, then wraps
+  return colors[index];
+};
 
 // Component to render channels list for an account (uses React Query hook properly)
 const AccountChannelsList: React.FC<{
@@ -52,9 +80,34 @@ const AccountChannelsList: React.FC<{
                   );
                   onClose();
                 }}
-                className="w-full text-left px-3 py-2 text-[12.32px] hover:bg-gray-50"
+                className="w-full flex items-center gap-2 text-left px-3 py-2 text-[12.32px] hover:bg-gray-50"
               >
-                {channel.channel_name}
+                {channel.channel_type === "amazon" && (
+                  <img
+                    src={AmazonIcon}
+                    alt="Amazon"
+                    className="w-5 h-5 flex-shrink-0"
+                  />
+                )}
+                {channel.channel_type === "google" && (
+                  <img
+                    src={GoogleIcon}
+                    alt="Google"
+                    className="w-4 h-4 flex-shrink-0"
+                  />
+                )}
+                {channel.channel_type === "tiktok" && (
+                  <svg
+                    className="w-4 h-4 flex-shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                  </svg>
+                )}
+                <span>{channel.channel_name}</span>
               </button>
             </li>
           ))
@@ -167,7 +220,15 @@ export const DashboardHeader: React.FC = () => {
           }}
           className="flex items-center gap-2 h-10 px-4 bg-[#FEFEFB] border border-gray-200 rounded-[12px] hover:border-[#136D6D] hover:bg-[#f5f5f0] transition-colors"
         >
-          <div className="w-5 h-5 rounded bg-[#072929] text-white text-[10px] flex items-center justify-center font-semibold">
+          <div 
+            className="w-5 h-5 rounded text-white text-[10px] flex items-center justify-center font-semibold"
+            style={{
+              backgroundColor: getInitialColor(
+                selectedAccount?.name?.[0]?.toUpperCase() ||
+                (accounts.length === 0 ? "!" : "A")
+              )
+            }}
+          >
             {selectedAccount?.name?.[0]?.toUpperCase() ||
               (accounts.length === 0 ? "!" : "A")}
           </div>
@@ -178,14 +239,41 @@ export const DashboardHeader: React.FC = () => {
                   ? "No Accounts - Click to Create"
                   : "Select Account")}
             </span>
-            {selectedChannel && (
-              <>
-                <span className="text-[13.2px] text-[#556179]">•</span>
-                <span className="text-[13.2px] text-[#556179]">
-                  {selectedChannel.channel_name}
-                </span>
-              </>
-            )}
+                  {selectedChannel && (
+                    <>
+                      <span className="text-[13.2px] text-[#556179]">•</span>
+                      <div className="flex items-center gap-1.5">
+                        {selectedChannel.channel_type === "amazon" && (
+                          <div className="w-5 h-5 flex items-center justify-center bg-[#FF9900] rounded">
+                            <span className="text-white font-bold text-[10px] leading-none">
+                              A
+                            </span>
+                          </div>
+                        )}
+                        {selectedChannel.channel_type === "google" && (
+                          <img
+                            src={GoogleIcon}
+                            alt="Google"
+                            className="w-4 h-4"
+                          />
+                        )}
+                        {selectedChannel.channel_type === "tiktok" && (
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                            aria-hidden="true"
+                          >
+                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                          </svg>
+                        )}
+                        <span className="text-[13.2px] text-[#556179]">
+                          {selectedChannel.channel_name}
+                        </span>
+                      </div>
+                    </>
+                  )}
           </div>
           <svg
             className={`w-4 h-4 text-[#072929] transition-transform ${
@@ -206,6 +294,30 @@ export const DashboardHeader: React.FC = () => {
 
         {isAccountDropdownOpen && (
           <div className="absolute top-[60px] left-0 z-40 bg-[#FEFEFB] border border-[#e8e8e3] rounded-[10px] shadow-lg w-72">
+            {/* Header with title and close button */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#e8e8e3]">
+              <h3 className="text-[13.2px] font-semibold text-[#072929]">
+                Switch between brands
+              </h3>
+              <button
+                onClick={() => setIsAccountDropdownOpen(false)}
+                className="w-5 h-5 flex items-center justify-center text-[#556179] hover:text-[#072929] transition-colors"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
             <ul className="py-1">
               {accounts.length === 0 ? (
                 <li className="px-3 py-4 text-center">
@@ -223,45 +335,14 @@ export const DashboardHeader: React.FC = () => {
                   </button>
                 </li>
               ) : (
-                accounts.map((account) => (
-                  <li key={account.id} className="relative">
-                    <button
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onMouseEnter={() => {
-                        if (hoverTimeoutRef.current) {
-                          clearTimeout(hoverTimeoutRef.current);
-                          hoverTimeoutRef.current = null;
-                        }
-                        setExpandedAccountId(account.id);
-                      }}
-                      onMouseLeave={() => {
-                        hoverTimeoutRef.current = window.setTimeout(() => {
-                          setExpandedAccountId(null);
-                        }, 150);
-                      }}
-                      onClick={() => {
-                        setSelectedAccount(account);
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 text-[12.32px] hover:bg-gray-50"
-                    >
-                      <span>{account.name}</span>
-                      <svg
-                        className="w-3 h-3 text-[#556179]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </button>
-
-                    {expandedAccountId === account.id && (
-                      <div
+                accounts.map((account) => {
+                  const initial = account.name?.[0]?.toUpperCase() || "A";
+                  const bgColor = getInitialColor(initial);
+                  
+                  return (
+                    <li key={account.id} className="relative">
+                      <button
+                        onMouseDown={(e) => e.stopPropagation()}
                         onMouseEnter={() => {
                           if (hoverTimeoutRef.current) {
                             clearTimeout(hoverTimeoutRef.current);
@@ -270,21 +351,63 @@ export const DashboardHeader: React.FC = () => {
                           setExpandedAccountId(account.id);
                         }}
                         onMouseLeave={() => {
-                          setExpandedAccountId(null);
+                          hoverTimeoutRef.current = window.setTimeout(() => {
+                            setExpandedAccountId(null);
+                          }, 150);
                         }}
+                        onClick={() => {
+                          setSelectedAccount(account);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-[12.32px] hover:bg-gray-50 text-left"
                       >
-                        <AccountChannelsList
-                          accountId={account.id}
-                          navigate={navigate}
-                          onClose={() => {
-                            setIsAccountDropdownOpen(false);
+                        <div 
+                          className="w-5 h-5 rounded text-white text-[10px] flex items-center justify-center font-semibold flex-shrink-0"
+                          style={{ backgroundColor: bgColor }}
+                        >
+                          {initial}
+                        </div>
+                        <span className="flex-1 text-left">{account.name}</span>
+                        <svg
+                          className="w-3 h-3 text-[#556179] flex-shrink-0 ml-auto"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </button>
+
+                      {expandedAccountId === account.id && (
+                        <div
+                          onMouseEnter={() => {
+                            if (hoverTimeoutRef.current) {
+                              clearTimeout(hoverTimeoutRef.current);
+                              hoverTimeoutRef.current = null;
+                            }
+                            setExpandedAccountId(account.id);
+                          }}
+                          onMouseLeave={() => {
                             setExpandedAccountId(null);
                           }}
-                        />
-                      </div>
-                    )}
-                  </li>
-                ))
+                        >
+                          <AccountChannelsList
+                            accountId={account.id}
+                            navigate={navigate}
+                            onClose={() => {
+                              setIsAccountDropdownOpen(false);
+                              setExpandedAccountId(null);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })
               )}
             </ul>
           </div>

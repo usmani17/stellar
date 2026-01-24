@@ -77,7 +77,7 @@ export const Accounts: React.FC = () => {
 
   const handleCreateAccount = async () => {
     if (!newAccountName.trim()) {
-      alert("Please enter an account name");
+      alert("Please enter an brand name");
       return;
     }
 
@@ -87,13 +87,13 @@ export const Accounts: React.FC = () => {
       });
       setNewAccountName("");
       setShowCreateAccount(false);
-      // React Query automatically invalidates and refetches accounts list
+      // React Query automatically invalidates and refetches brands list
     } catch (error: any) {
-      alert(error.response?.data?.error || "Failed to create account");
+      alert(error.response?.data?.error || "Failed to create brand");
     }
   };
 
-  // Scroll to create account form when it's shown
+  // Scroll to create brand form when it's shown
   const createAccountFormRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -232,7 +232,7 @@ export const Accounts: React.FC = () => {
       // React Query automatically invalidates and refetches accounts list
     } catch (error: any) {
       console.error("Failed to update account:", error);
-      alert(error.response?.data?.error || "Failed to update account name");
+      alert(error.response?.data?.error || "Failed to update brand name");
     }
   };
 
@@ -354,12 +354,12 @@ export const Accounts: React.FC = () => {
                   onClick={() => setShowCreateAccount(!showCreateAccount)}
                   className="create-entity-button"
                 >
-                  Create Account
+                  Create Brand
                 </button>
               </div>
             </div>
 
-            {/* Create Account Form */}
+            {/* Create Brand Form */}
             {showCreateAccount && (
               <div ref={createAccountFormRef}>
                 <Card>
@@ -369,7 +369,7 @@ export const Accounts: React.FC = () => {
                         type="text"
                         value={newAccountName}
                         onChange={(e) => setNewAccountName(e.target.value)}
-                        placeholder="Account name"
+                        placeholder="Brand name"
                         className="campaign-input w-full"
                         onKeyPress={(e) =>
                           e.key === "Enter" && handleCreateAccount()
@@ -429,7 +429,7 @@ export const Accounts: React.FC = () => {
                 <table className="w-full">
                   <thead>
                     <tr>
-                      <th className="table-header">Account Name</th>
+                      <th className="table-header">Brand Name</th>
                       <th className="table-header">Users</th>
                       <th className="table-header">Created</th>
                       <th className="table-header">Created By</th>
@@ -539,7 +539,7 @@ export const Accounts: React.FC = () => {
                                       startEditAccountName(account);
                                     }}
                                     className="table-edit-icon"
-                                    title="Edit account name"
+                                    title="Edit brand name"
                                   >
                                     <svg
                                       className="w-4 h-4 text-[#556179]"

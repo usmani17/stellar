@@ -3032,7 +3032,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Account Name */}
+                  {/* Brand Name */}
                   <div className="flex flex-col gap-1">
                     <label className="text-[13.3px] font-medium text-[#29303f] leading-[16.2px]">
                       Account

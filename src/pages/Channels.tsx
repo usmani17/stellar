@@ -10,7 +10,7 @@ import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button, Menu, DeleteConfirmationModal } from "../components/ui";
 import { setPageTitle, resetPageTitle } from "../utils/pageTitle";
-import AmazonIcon from "../assets/images/ri_amazon-fill.svg";
+import AmazonIcon from "../assets/images/amazon-fill.svg";
 import GoogleIcon from "../assets/images/ri_google-fill.svg";
 
 export const Channels: React.FC = () => {
@@ -60,14 +60,14 @@ export const Channels: React.FC = () => {
     };
   }, []);
 
-  // Set account name when accountId or accounts change
+  // Set brand  name when accountId or brands change
   useEffect(() => {
     if (!accountIdNum) {
       navigate("/accounts");
       return;
     }
 
-    // Set account name from context
+    // Set brand name from context
     const foundAccount = accounts.find((acc) => acc.id === accountIdNum);
     if (foundAccount) {
       setAccount({ id: foundAccount.id, name: foundAccount.name });
@@ -90,7 +90,7 @@ export const Channels: React.FC = () => {
       });
       setProfileCounts(counts);
 
-      // Update account name from channel if not found in accounts context
+      // Update brand name from channel if not found in brands context
       if (!account && channels.length > 0 && channels[0].account_name) {
         setAccount({ id: accountIdNum!, name: channels[0].account_name });
       }
@@ -255,7 +255,7 @@ export const Channels: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="p-8 bg-white">
-          {/* Back to Accounts Link */}
+          {/* Back to Brands Link */}
           <button
             onClick={() => navigate(`/accounts`)}
             className="flex items-center gap-2 text-[#072929] hover:text-[#136D6D] transition-colors mb-4"
@@ -273,7 +273,7 @@ export const Channels: React.FC = () => {
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            <span className="text-[14px] font-medium">Back to Accounts</span>
+            <span className="text-[14px] font-medium">Back to Brands</span>
           </button>
 
           {oauthError && (
@@ -322,7 +322,6 @@ export const Channels: React.FC = () => {
                 <Menu
                   trigger={
                     <Button
-                      size="sm"
                       disabled={isConnecting}
                       className="create-entity-button"
                     >
@@ -384,7 +383,7 @@ export const Channels: React.FC = () => {
                       <th className="table-header">Channel Name</th>
                       <th className="table-header">Type</th>
                       <th className="table-header">Channel Created</th>
-                      <th className="table-header">Profiles</th>
+                      <th className="table-header">Connected Profiles Count</th>
                       <th className="table-header">Actions</th>
                     </tr>
                   </thead>
@@ -457,6 +456,30 @@ export const Channels: React.FC = () => {
                                 />
                               ) : (
                                 <div className="flex items-center gap-2">
+                                  {channel.channel_type === "amazon" && (
+                                    <img
+                                      src={AmazonIcon}
+                                      alt="Amazon"
+                                      className="w-5 h-5 flex-shrink-0"
+                                    />
+                                  )}
+                                  {channel.channel_type === "google" && (
+                                    <img
+                                      src={GoogleIcon}
+                                      alt="Google"
+                                      className="w-5 h-5 flex-shrink-0"
+                                    />
+                                  )}
+                                  {channel.channel_type === "tiktok" && (
+                                    <svg
+                                      className="w-5 h-5 flex-shrink-0"
+                                      fill="currentColor"
+                                      viewBox="0 0 24 24"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                    </svg>
+                                  )}
                                   <button
                                     onClick={() => {
                                       if (channel.channel_type === "amazon") {
@@ -522,9 +545,7 @@ export const Channels: React.FC = () => {
                             <td className="table-cell">
                               <span className="table-text">
                                 {profileCounts[channel.id]
-                                  ? `${profileCounts[channel.id].selected}/${
-                                      profileCounts[channel.id].total
-                                    }`
+                                  ? profileCounts[channel.id].selected
                                   : "—"}
                               </span>
                             </td>
