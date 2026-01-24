@@ -583,7 +583,7 @@ export const Keywords: React.FC = () => {
 
   // Inline edit handlers
   const startInlineEdit = (keyword: Keyword, field: "bid" | "status") => {
-    setEditingCell({ keywordId: keyword.keywordId, field });
+    setEditingCell({ keywordId: keyword.keywordId || keyword.id, field });
     if (field === "bid") {
       // Extract numeric value from formatted string
       const bidValue = parseFloat(
@@ -614,11 +614,15 @@ export const Keywords: React.FC = () => {
     setEditedValue(value);
   };
 
-  const confirmInlineEdit = (newValueOverride?: string) => {
-    if (!editingCell || !accountId) return;
+  const confirmInlineEdit = (newValueOverride?: string, keywordIdOverride?: string | number, fieldOverride?: "bid" | "status") => {
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const keywordIdToUse = keywordIdOverride || editingCell?.keywordId;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!keywordIdToUse || !fieldToUse || !accountId) return;
 
     const keyword = keywords.find(
-      (k) => (k.keywordId || k.id) === editingCell.keywordId
+      (k) => String(k.keywordId || k.id) === String(keywordIdToUse)
     );
     if (!keyword) return;
 
@@ -628,7 +632,7 @@ export const Keywords: React.FC = () => {
 
     // Check if value actually changed
     let hasChanged = false;
-    if (editingCell.field === "bid") {
+    if (fieldToUse === "bid") {
       // Parse the new value, handling empty strings
       const newBidStr = valueToCheck.trim();
       const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
@@ -643,7 +647,7 @@ export const Keywords: React.FC = () => {
         return;
       }
       hasChanged = Math.abs(newBid - oldBid) > 0.01;
-    } else if (editingCell.field === "status") {
+    } else if (fieldToUse === "status") {
       // Normalize status values for comparison
       const oldValue = (keyword.status || "Enabled").trim();
       const newValue = valueToCheck.trim();
@@ -658,18 +662,18 @@ export const Keywords: React.FC = () => {
     let oldValue = "";
     let newValue = valueToCheck;
 
-    if (editingCell.field === "bid") {
+    if (fieldToUse === "bid") {
       oldValue = formatCurrency(
         parseFloat((keyword.bid || "$0.00").replace(/[^0-9.]/g, ""))
       );
       newValue = formatCurrency(parseFloat(valueToCheck) || 0);
-    } else if (editingCell.field === "status") {
+    } else if (fieldToUse === "status") {
       oldValue = keyword.status || "Enabled";
       newValue = valueToCheck;
     }
 
     setInlineEditKeyword(keyword);
-    setInlineEditField(editingCell.field);
+    setInlineEditField(fieldToUse);
     setInlineEditOldValue(oldValue);
     setInlineEditNewValue(newValue);
     setShowInlineEditModal(true);
@@ -2013,7 +2017,8 @@ export const Keywords: React.FC = () => {
                                         ? "Paused"
                                         : "Enabled";
                                     
-                                    const statusValue = editingCell?.keywordId === keyword.keywordId &&
+                                    const keywordId = keyword.keywordId || keyword.id;
+                                    const statusValue = editingCell?.keywordId === keywordId &&
                                       editingCell?.field === "status"
                                       ? editedValue
                                       : normalizedStatus;
@@ -2031,14 +2036,21 @@ export const Keywords: React.FC = () => {
                                         value={statusValue}
                                         onChange={(val) => {
                                           const newValue = val as string;
-                                          if (editingCell?.keywordId !== keyword.keywordId ||
-                                              editingCell?.field !== "status") {
+                                          const keywordId = keyword.keywordId || keyword.id;
+                                          const wasEditing = editingCell?.keywordId === keywordId &&
+                                            editingCell?.field === "status";
+                                          
+                                          if (!wasEditing) {
                                             startInlineEdit(keyword, "status");
+                                            // Pass keyword ID and field directly to avoid state timing issues
+                                            setTimeout(() => {
+                                              handleInlineEditChange(newValue);
+                                              confirmInlineEdit(newValue, keywordId, "status");
+                                            }, 0);
+                                          } else {
+                                            handleInlineEditChange(newValue);
+                                            confirmInlineEdit(newValue, keywordId, "status");
                                           }
-                                          handleInlineEditChange(newValue);
-                                          setTimeout(() => {
-                                            confirmInlineEdit(newValue);
-                                          }, 100);
                                         }}
                                         buttonClassName="inline-edit-dropdown"
                                         width="w-full"
@@ -2060,7 +2072,8 @@ export const Keywords: React.FC = () => {
                                       (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
                                     );
                                     
-                                    const inputValue = editingCell?.keywordId === keyword.keywordId &&
+                                    const keywordIdForBid = keyword.keywordId || keyword.id;
+                                    const inputValue = editingCell?.keywordId === keywordIdForBid &&
                                       editingCell?.field === "bid"
                                       ? editedValue
                                       : bidValue.toString();
@@ -2071,7 +2084,7 @@ export const Keywords: React.FC = () => {
                                         value={inputValue}
                                         onFocus={() => {
                                           if (!isArchived &&
-                                              (editingCell?.keywordId !== keyword.keywordId ||
+                                              (editingCell?.keywordId !== keywordIdForBid ||
                                                editingCell?.field !== "bid")) {
                                             startInlineEdit(keyword, "bid");
                                           }
@@ -2083,9 +2096,10 @@ export const Keywords: React.FC = () => {
                                         onBlur={(e) => {
                                           if (isArchived) return;
                                           const inputValue = e.target.value;
-                                          if (editingCell?.keywordId === keyword.keywordId &&
+                                          const keywordIdForBid = keyword.keywordId || keyword.id;
+                                          if (editingCell?.keywordId === keywordIdForBid &&
                                               editingCell?.field === "bid") {
-                                            confirmInlineEdit(inputValue);
+                                            confirmInlineEdit(inputValue, keywordIdForBid, "bid");
                                           }
                                         }}
                                         onKeyDown={(e) => {

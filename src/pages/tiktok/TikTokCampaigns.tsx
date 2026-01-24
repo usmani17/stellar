@@ -677,11 +677,15 @@ export const TikTokCampaigns: React.FC = () => {
     }
   }, [editingCell, showInlineEditModal]);
 
-  const confirmInlineEdit = (newValueOverride?: string) => {
-    if (!editingCell || !accountId || isCancelling) return;
+  const confirmInlineEdit = (newValueOverride?: string, campaignIdOverride?: string | number, fieldOverride?: string) => {
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const campaignIdToUse = campaignIdOverride || editingCell?.campaign_id;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!campaignIdToUse || !fieldToUse || !accountId || isCancelling) return;
 
     const campaign = campaigns.find(
-      (c) => c.campaign_id === editingCell.campaign_id
+      (c) => String(c.campaign_id) === String(campaignIdToUse)
     );
     if (!campaign) return;
 
@@ -690,7 +694,7 @@ export const TikTokCampaigns: React.FC = () => {
 
     // Check if value actually changed
     let hasChanged = false;
-    if (editingCell.field === "budget") {
+    if (fieldToUse === "budget") {
       const newBudgetStr = valueToCheck.trim();
       const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
       const oldBudget = campaign.budget || 0;
@@ -700,7 +704,7 @@ export const TikTokCampaigns: React.FC = () => {
         return;
       }
       hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
-    } else if (editingCell.field === "operation_status") {
+    } else if (fieldToUse === "operation_status") {
       const oldValue = normalizeStatus(campaign.operation_status);
       const newValue = valueToCheck.trim().toUpperCase();
       hasChanged = newValue !== oldValue;
@@ -714,16 +718,16 @@ export const TikTokCampaigns: React.FC = () => {
     let oldValue = "";
     let newValue = valueToCheck;
 
-    if (editingCell.field === "budget") {
+    if (fieldToUse === "budget") {
       oldValue = formatCurrency(campaign.budget || 0);
       newValue = formatCurrency(parseFloat(valueToCheck) || 0);
-    } else if (editingCell.field === "operation_status") {
+    } else if (fieldToUse === "operation_status") {
       oldValue = normalizeStatus(campaign.operation_status);
       newValue = valueToCheck.toUpperCase();
     }
 
     setInlineEditCampaign(campaign);
-    setInlineEditField(editingCell.field);
+    setInlineEditField(fieldToUse as "operation_status" | "budget");
     setInlineEditOldValue(oldValue);
     setInlineEditNewValue(newValue);
     setShowInlineEditModal(true);

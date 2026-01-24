@@ -583,11 +583,15 @@ export const Targets: React.FC = () => {
     setEditedValue(value);
   };
 
-  const confirmInlineEdit = (newValueOverride?: string) => {
-    if (!editingCell || !accountId) return;
+  const confirmInlineEdit = (newValueOverride?: string, targetIdOverride?: string | number, fieldOverride?: "bid" | "status") => {
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const targetIdToUse = targetIdOverride || editingCell?.targetId;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!targetIdToUse || !fieldToUse || !accountId) return;
 
     const target = targets.find(
-      (t) => (t.targetId || t.id) === editingCell.targetId
+      (t) => String(t.targetId || t.id) === String(targetIdToUse)
     );
     if (!target) return;
 
@@ -597,7 +601,7 @@ export const Targets: React.FC = () => {
 
     // Check if value actually changed
     let hasChanged = false;
-    if (editingCell.field === "bid") {
+    if (fieldToUse === "bid") {
       // Parse the new value, handling empty strings
       const newBidStr = valueToCheck.trim();
       const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
@@ -612,7 +616,7 @@ export const Targets: React.FC = () => {
         return;
       }
       hasChanged = Math.abs(newBid - oldBid) > 0.01;
-    } else if (editingCell.field === "status") {
+    } else if (fieldToUse === "status") {
       // Normalize status values for comparison
       const oldValue = (target.status || "Enabled").trim();
       const newValue = valueToCheck.trim();
@@ -627,18 +631,18 @@ export const Targets: React.FC = () => {
     let oldValue = "";
     let newValue = valueToCheck;
 
-    if (editingCell.field === "bid") {
+    if (fieldToUse === "bid") {
       oldValue = formatCurrency(
         parseFloat((target.bid || "$0.00").replace(/[^0-9.]/g, ""))
       );
       newValue = formatCurrency(parseFloat(valueToCheck) || 0);
-    } else if (editingCell.field === "status") {
+    } else if (fieldToUse === "status") {
       oldValue = target.status || "Enabled";
       newValue = valueToCheck;
     }
 
     setInlineEditTarget(target);
-    setInlineEditField(editingCell.field);
+    setInlineEditField(fieldToUse);
     setInlineEditOldValue(oldValue);
     setInlineEditNewValue(newValue);
     setShowInlineEditModal(true);
@@ -1776,14 +1780,20 @@ export const Targets: React.FC = () => {
                                         value={statusValue}
                                         onChange={(val) => {
                                           const newValue = val as string;
-                                          if (editingCell?.targetId !== target.targetId ||
-                                              editingCell?.field !== "status") {
+                                          const wasEditing = editingCell?.targetId === target.targetId &&
+                                            editingCell?.field === "status";
+                                          
+                                          if (!wasEditing) {
                                             startInlineEdit(target, "status");
+                                            // Pass target ID and field directly to avoid state timing issues
+                                            setTimeout(() => {
+                                              handleInlineEditChange(newValue);
+                                              confirmInlineEdit(newValue, target.targetId || target.id, "status");
+                                            }, 0);
+                                          } else {
+                                            handleInlineEditChange(newValue);
+                                            confirmInlineEdit(newValue, target.targetId || target.id, "status");
                                           }
-                                          handleInlineEditChange(newValue);
-                                          setTimeout(() => {
-                                            confirmInlineEdit(newValue);
-                                          }, 100);
                                         }}
                                         buttonClassName="inline-edit-dropdown"
                                         width="w-full"

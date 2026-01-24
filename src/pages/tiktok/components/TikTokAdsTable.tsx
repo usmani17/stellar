@@ -161,10 +161,14 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
         setEditedValue(value);
     };
 
-    const confirmInlineEdit = (newValueOverride?: string) => {
-        if (!editingCell || isCancelling) return;
+    const confirmInlineEdit = (newValueOverride?: string, adIdOverride?: string | number, fieldOverride?: string) => {
+        // Use override parameters if provided, otherwise fall back to editingCell state
+        const adIdToUse = adIdOverride || editingCell?.ad_id;
+        const fieldToUse = fieldOverride || editingCell?.field;
+        
+        if (!adIdToUse || !fieldToUse || isCancelling) return;
 
-        const ad = ads.find((a) => a.ad_id === editingCell.ad_id);
+        const ad = ads.find((a) => String(a.ad_id) === String(adIdToUse));
         if (!ad) return;
 
         const valueToCheck =
@@ -172,7 +176,7 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
 
         // Check if value actually changed
         const currentValue =
-            editingCell.field === "ad_name" ? ad.ad_name : ad.operation_status;
+            fieldToUse === "ad_name" ? ad.ad_name : ad.operation_status;
 
         if (valueToCheck === currentValue) {
             cancelInlineEdit();
@@ -180,10 +184,10 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
         }
 
         // Trigger callback
-        if (editingCell.field === "ad_name" && onUpdateAdName) {
-            onUpdateAdName(editingCell.ad_id, valueToCheck);
-        } else if (editingCell.field === "operation_status" && onUpdateAdStatus) {
-            onUpdateAdStatus(editingCell.ad_id, valueToCheck);
+        if (fieldToUse === "ad_name" && onUpdateAdName) {
+            onUpdateAdName(String(adIdToUse), valueToCheck);
+        } else if (fieldToUse === "operation_status" && onUpdateAdStatus) {
+            onUpdateAdStatus(String(adIdToUse), valueToCheck);
         }
 
         setEditingCell(null);
@@ -503,8 +507,21 @@ export const TikTokAdsTable: React.FC<TikTokAdsTableProps> = ({
                                                             ]}
                                                             value={editedValue}
                                                             onChange={(value) => {
-                                                                handleInlineEditChange(value);
-                                                                confirmInlineEdit(value);
+                                                                const newValue = value as string;
+                                                                const wasEditing = editingCell?.ad_id === item.ad_id &&
+                                                                    editingCell?.field === "operation_status";
+                                                                
+                                                                if (!wasEditing) {
+                                                                    startInlineEdit(item, "operation_status");
+                                                                    // Pass ad ID and field directly to avoid state timing issues
+                                                                    setTimeout(() => {
+                                                                        handleInlineEditChange(newValue);
+                                                                        confirmInlineEdit(newValue, item.ad_id, "operation_status");
+                                                                    }, 0);
+                                                                } else {
+                                                                    handleInlineEditChange(newValue);
+                                                                    confirmInlineEdit(newValue, item.ad_id, "operation_status");
+                                                                }
                                                             }}
                                                             onClose={cancelInlineEdit}
                                                             defaultOpen={true}

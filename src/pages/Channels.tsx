@@ -582,7 +582,7 @@ export const Channels: React.FC = () => {
                             </td>
                             <td className="table-cell relative">
                               <div className="flex items-center gap-3">
-                              <Button
+                                <Button
                                   size="sm"
                                   className="connect-button"
                                   onClick={async () => {

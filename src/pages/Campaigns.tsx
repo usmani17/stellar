@@ -653,11 +653,15 @@ export const Campaigns: React.FC = () => {
     setEditedValue(value);
   };
 
-  const confirmInlineEdit = (newValueOverride?: string) => {
-    if (!editingCell || !accountId) return;
+  const confirmInlineEdit = (newValueOverride?: string, campaignIdOverride?: string | number, fieldOverride?: "budget" | "budgetType" | "status") => {
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const campaignIdToUse = campaignIdOverride || editingCell?.campaignId;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!campaignIdToUse || !fieldToUse || !accountId) return;
 
     const campaign = campaigns.find(
-      (c) => c.campaignId === editingCell.campaignId
+      (c) => String(c.campaignId) === String(campaignIdToUse)
     );
     if (!campaign) return;
 
@@ -667,7 +671,7 @@ export const Campaigns: React.FC = () => {
 
     // Check if value actually changed
     let hasChanged = false;
-    if (editingCell.field === "budget") {
+    if (fieldToUse === "budget") {
       // Parse the new value, handling empty strings
       const newBudgetStr = valueToCheck.trim();
       const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
@@ -680,11 +684,11 @@ export const Campaigns: React.FC = () => {
         return;
       }
       hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
-    } else if (editingCell.field === "budgetType") {
+    } else if (fieldToUse === "budgetType") {
       const oldValue = (campaign.budgetType || "").trim().toUpperCase();
       const newValue = valueToCheck.trim().toUpperCase();
       hasChanged = newValue !== oldValue;
-    } else if (editingCell.field === "status") {
+    } else if (fieldToUse === "status") {
       // Normalize status values for comparison
       const oldValue = (campaign.status || "Enabled").trim();
       const newValue = valueToCheck.trim();
@@ -699,19 +703,19 @@ export const Campaigns: React.FC = () => {
     let oldValue = "";
     let newValue = valueToCheck;
 
-    if (editingCell.field === "budget") {
+    if (fieldToUse === "budget") {
       oldValue = formatCurrency(campaign.daily_budget || 0);
       newValue = formatCurrency(parseFloat(valueToCheck) || 0);
-    } else if (editingCell.field === "budgetType") {
+    } else if (fieldToUse === "budgetType") {
       oldValue = campaign.budgetType || "—";
       newValue = valueToCheck;
-    } else if (editingCell.field === "status") {
+    } else if (fieldToUse === "status") {
       oldValue = campaign.status || "Enabled";
       newValue = valueToCheck;
     }
 
     setInlineEditCampaign(campaign);
-    setInlineEditField(editingCell.field);
+    setInlineEditField(fieldToUse);
     setInlineEditOldValue(oldValue);
     setInlineEditNewValue(newValue);
     setShowInlineEditModal(true);
@@ -3474,14 +3478,20 @@ export const Campaigns: React.FC = () => {
                                           value={normalizedStatus}
                                           onChange={(val) => {
                                             const newValue = val as string;
-                                            if (editingCell?.campaignId !== campaign.campaignId ||
-                                                editingCell?.field !== "status") {
+                                            const wasEditing = editingCell?.campaignId === campaign.campaignId &&
+                                              editingCell?.field === "status";
+                                            
+                                            if (!wasEditing) {
                                               startInlineEdit(campaign, "status");
+                                              // Pass campaign ID and field directly to avoid state timing issues
+                                              setTimeout(() => {
+                                                handleInlineEditChange(newValue);
+                                                confirmInlineEdit(newValue, String(campaign.campaignId), "status");
+                                              }, 0);
+                                            } else {
+                                              handleInlineEditChange(newValue);
+                                              confirmInlineEdit(newValue, String(campaign.campaignId), "status");
                                             }
-                                            handleInlineEditChange(newValue);
-                                            setTimeout(() => {
-                                              confirmInlineEdit(newValue);
-                                            }, 100);
                                           }}
                                           buttonClassName="inline-edit-dropdown"
                                           width="w-full"
@@ -3555,8 +3565,9 @@ export const Campaigns: React.FC = () => {
                                         campaign.status || "Enabled"
                                       ).toUpperCase();
                                       const isArchived = currentStatus === "ARCHIVED";
+                                      const isSDCampaign = campaign.type === "SD";
                                       
-                                      if (isArchived) {
+                                      if (isArchived || isSDCampaign) {
                                         return (
                                           <span className="table-text leading-[1.26] opacity-60">
                                             {campaign.budgetType || "—"}
@@ -3581,14 +3592,20 @@ export const Campaigns: React.FC = () => {
                                           value={budgetTypeValue}
                                           onChange={(val) => {
                                             const newValue = val as string;
-                                            if (editingCell?.campaignId !== campaign.campaignId ||
-                                                editingCell?.field !== "budgetType") {
+                                            const wasEditing = editingCell?.campaignId === campaign.campaignId &&
+                                              editingCell?.field === "budgetType";
+                                            
+                                            if (!wasEditing) {
                                               startInlineEdit(campaign, "budgetType");
+                                              // Pass campaign ID and field directly to avoid state timing issues
+                                              setTimeout(() => {
+                                                handleInlineEditChange(newValue);
+                                                confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
+                                              }, 0);
+                                            } else {
+                                              handleInlineEditChange(newValue);
+                                              confirmInlineEdit(newValue, String(campaign.campaignId), "budgetType");
                                             }
-                                            handleInlineEditChange(newValue);
-                                            setTimeout(() => {
-                                              confirmInlineEdit(newValue);
-                                            }, 100);
                                           }}
                                           buttonClassName="inline-edit-dropdown"
                                           width="w-full"
