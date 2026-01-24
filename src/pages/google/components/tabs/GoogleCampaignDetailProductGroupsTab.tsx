@@ -305,10 +305,10 @@ export const GoogleCampaignDetailProductGroupsTab: React.FC<GoogleCampaignDetail
                     CTR
                   </th>
                   <th className="table-header hidden md:table-cell">
-                    Spends
+                    Cost
                   </th>
                   <th className="table-header hidden md:table-cell">
-                    Sales
+                    Conv. value
                   </th>
                 </tr>
               </thead>

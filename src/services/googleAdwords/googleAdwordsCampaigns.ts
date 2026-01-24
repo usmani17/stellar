@@ -328,8 +328,9 @@ export const googleAdwordsCampaignsService = {
       page_size?: number;
       start_date?: string;
       end_date?: string;
+      campaign_ids?: Array<string | number>; // For selected campaigns export
     },
-    exportType: "current_view" | "all_data" = "all_data"
+    exportType: "current_view" | "all_data" | "selected" = "all_data"
   ): Promise<{ url: string; filename: string }> => {
     // Send filters array and params directly to backend - let backend handle conversion
     const payload: any = {
@@ -342,6 +343,11 @@ export const googleAdwordsCampaignsService = {
       end_date: params?.end_date,
       export_type: exportType,
     };
+
+    // Add campaign_ids for selected export
+    if (exportType === "selected" && params?.campaign_ids) {
+      payload.campaign_ids = params.campaign_ids;
+    }
 
     const url = `/google-adwords/${accountId}/campaigns/export/`;
     const response = await api.post<{ url: string; filename: string }>(url, payload);

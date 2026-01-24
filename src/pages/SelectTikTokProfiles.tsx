@@ -419,8 +419,8 @@ export const SelectTikTokProfiles: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3 justify-end">
-                  <Button
-                    variant="outline"
+                  <button
+                    type="button"
                     onClick={() => {
                       if (accountId) {
                         navigate(`/accounts/${accountId}/channels`);
@@ -429,13 +429,14 @@ export const SelectTikTokProfiles: React.FC = () => {
                       }
                     }}
                     disabled={saving}
+                    className="cancel-button"
                   >
                     Cancel
-                  </Button>
+                  </button>
                   <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className="rounded-lg"
+                    className="create-entity-button btn-sm"
                   >
                     {saving
                       ? "Saving..."

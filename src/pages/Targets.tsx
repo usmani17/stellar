@@ -1313,7 +1313,7 @@ export const Targets: React.FC = () => {
                           setShowBidPanel(false);
                           setShowBulkActions(false);
                         }}
-                        className="px-4 py-2 text-[#556179] bg-[#FEFEFB] border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-[11.2px]"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
@@ -1432,7 +1432,7 @@ export const Targets: React.FC = () => {
                         setIsBidChange(false);
                       }}
                       disabled={bulkLoading}
-                      className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                      className="cancel-button"
                     >
                       Cancel
                     </button>
@@ -2099,7 +2099,7 @@ export const Targets: React.FC = () => {
                   setInlineEditNewValue("");
                 }}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                className="cancel-button"
               >
                 Cancel
               </button>

@@ -21,6 +21,10 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   isCancelling,
   updatingField,
   summary,
+  visibleColumns,
+  columnOrder,
+  inlineEditSuccess,
+  inlineEditError,
   onSelectAll,
   onSelectCampaign,
   onSort,
@@ -28,6 +32,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   onCancelInlineEdit,
   onInlineEditChange,
   onConfirmInlineEdit,
+  onConfirmInlineEditDirect,
   formatCurrency,
   formatPercentage,
   getStatusBadge,
@@ -47,13 +52,14 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   const sharedUpdatingField = updatingField ? {
     itemId: updatingField.campaignId,
     field: updatingField.field,
+    newValue: updatingField.newValue,
   } : null;
 
   // Map pending changes to shared format (dates now use modal, so no pending changes)
   const pendingChanges = useMemo(() => ({}), []);
 
   // Define columns for campaigns
-  const columns: IColumnDefinition[] = useMemo(() => [
+  const allColumns: IColumnDefinition[] = useMemo(() => [
     {
       key: "campaign_name",
       label: "Campaign Name",
@@ -78,7 +84,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
                   onEditCampaign(row);
                 }}
                 className="table-edit-icon flex-shrink-0"
-                title="Edit campaign"
+                title="Edit Campaign Settings"
                 disabled={editLoadingCampaignId === row.campaign_id}
               >
                 {editLoadingCampaignId === row.campaign_id ? (
@@ -163,7 +169,18 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       label: "Start Date",
       type: "start_date",
       sortable: true,
-      editable: true,
+      editable: (row: IGoogleCampaign) => {
+        // Make start_date non-editable if it's in the past
+        const startDateStr = row.start_date;
+        if (startDateStr) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const startDate = new Date(startDateStr);
+          startDate.setHours(0, 0, 0, 0);
+          return startDate >= today;
+        }
+        return true; // If no start date, allow editing
+      },
       getValue: (row: IGoogleCampaign) => row.start_date,
     },
     {
@@ -171,7 +188,19 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       label: "End Date",
       type: "end_date",
       sortable: true,
-      editable: true,
+      editable: (row: IGoogleCampaign) => {
+        // Make end_date non-editable if it's in the past
+        const endDateStr = row.end_date;
+        if (endDateStr) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const endDate = new Date(endDateStr);
+          endDate.setHours(0, 0, 0, 0);
+          // Allow editing if end date is today or in the future
+          return endDate >= today;
+        }
+        return true; // If no end date, allow editing
+      },
       getValue: (row: IGoogleCampaign) => row.end_date,
     },
     {
@@ -198,30 +227,11 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       },
     },
     {
-      key: "interaction_rate",
-      label: "Interaction rate",
-      type: "percentage",
+      key: "impressions",
+      label: "Impressions",
+      type: "number",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).interaction_rate || 0,
-    },
-    {
-      key: "avg_cost",
-      label: "Avg. cost",
-      type: "currency",
-      sortable: true,
-      getValue: (row: IGoogleCampaign) => {
-        // Avg. cost = cost / interactions (for text ads, interactions = clicks)
-        const interactions = (row as any).interactions || (row as any).clicks || 0;
-        const spends = (row as any).spends || 0;
-        return interactions > 0 ? spends / interactions : 0;
-      },
-    },
-    {
-      key: "spends",
-      label: "Cost",
-      type: "currency",
-      sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).spends || 0,
+      getValue: (row: IGoogleCampaign) => (row as any).impressions || 0,
     },
     {
       key: "clicks",
@@ -231,11 +241,11 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       getValue: (row: IGoogleCampaign) => (row as any).clicks || 0,
     },
     {
-      key: "conversion_rate",
-      label: "Conv. rate",
-      type: "percentage",
+      key: "spends",
+      label: "Cost",
+      type: "currency",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).conversion_rate || 0,
+      getValue: (row: IGoogleCampaign) => (row as any).spends || 0,
     },
     {
       key: "sales",
@@ -259,11 +269,11 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       getValue: (row: IGoogleCampaign) => (row as any).conversions || 0,
     },
     {
-      key: "avg_cpc",
-      label: "Avg. CPC",
-      type: "currency",
+      key: "conversion_rate",
+      label: "Conv. rate",
+      type: "percentage",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).avg_cpc || 0,
+      getValue: (row: IGoogleCampaign) => (row as any).conversion_rate || 0,
     },
     {
       key: "cost_per_conversion",
@@ -273,38 +283,100 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       getValue: (row: IGoogleCampaign) => (row as any).cost_per_conversion || 0,
     },
     {
-      key: "impressions",
-      label: "Impressions",
-      type: "number",
+      key: "avg_cpc",
+      label: "Avg. CPC",
+      type: "currency",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).impressions || 0,
+      getValue: (row: IGoogleCampaign) => (row as any).avg_cpc || 0,
     },
     {
-      key: "acos",
-      label: "ACOS",
+      key: "avg_cost",
+      label: "Avg. cost",
+      type: "currency",
+      sortable: true,
+      getValue: (row: IGoogleCampaign) => {
+        // Avg. cost = cost / interactions (for text ads, interactions = clicks)
+        const interactions = (row as any).interactions || (row as any).clicks || 0;
+        const spends = (row as any).spends || 0;
+        return interactions > 0 ? spends / interactions : 0;
+      },
+    },
+    {
+      key: "interaction_rate",
+      label: "Interaction rate",
       type: "percentage",
       sortable: true,
-      getValue: (row: IGoogleCampaign) => (row as any).acos || 0,
+      getValue: (row: IGoogleCampaign) => (row as any).interaction_rate || 0,
     },
   ], [getChannelTypeLabel, accountId, navigate, onEditCampaign, editLoadingCampaignId]);
 
+  // Filter and sort columns based on visibility and order
+  const columns: IColumnDefinition[] = useMemo(() => {
+    // Create a map for quick column lookup
+    const columnMap = new Map(allColumns.map((col) => [col.key, col]));
+    
+    // If no visibility preference, show all columns
+    const visible = visibleColumns && visibleColumns.size > 0 
+      ? Array.from(visibleColumns)
+      : allColumns.map((col) => col.key);
+    
+    // If columnOrder is provided, use it to sort; otherwise use default order
+    let orderedKeys: string[];
+    if (columnOrder && columnOrder.length > 0) {
+      // Filter columnOrder to only include visible columns, maintaining order
+      orderedKeys = columnOrder.filter((key) => visible.includes(key));
+      // Add any visible columns that weren't in columnOrder (shouldn't happen, but safety check)
+      const missingKeys = visible.filter((key) => !orderedKeys.includes(key));
+      orderedKeys = [...orderedKeys, ...missingKeys];
+    } else {
+      // No order preference, use default order but filter by visibility
+      orderedKeys = allColumns
+        .map((col) => col.key)
+        .filter((key) => visible.includes(key));
+    }
+    
+    // Return columns in the specified order
+    return orderedKeys
+      .map((key) => columnMap.get(key))
+      .filter((col): col is IColumnDefinition => col !== undefined);
+  }, [allColumns, visibleColumns, columnOrder]);
+
   // Handle confirm inline edit - route to appropriate handler
-  const handleConfirmInlineEdit = (value: string, _field: string) => {
-    if (!editingCell) return;
-    onConfirmInlineEdit(value);
-    console.log("", _field, value);
+  const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Use the field parameter if provided, otherwise fall back to editingCell
+    const fieldToUse = field || editingCell?.field;
+    if (!fieldToUse) return;
+    
+    // Use itemIdParam if provided, otherwise fall back to editingCell
+    const campaignIdToUse = itemIdParam || editingCell?.campaignId;
+    
+    // For budget, date, status, and bidding_strategy_type fields, use direct confirmation (skip modal)
+    // For other fields, use regular confirmation (with modal)
+    if (fieldToUse === "budget" || fieldToUse === "start_date" || fieldToUse === "end_date" || fieldToUse === "status" || fieldToUse === "bidding_strategy_type") {
+      // Use direct confirmation for budget/date/status/bidding_strategy_type fields
+      if (onConfirmInlineEditDirect) {
+        // Pass campaign ID and field to ensure it works even if editingCell is cleared
+        onConfirmInlineEditDirect(value, campaignIdToUse, fieldToUse);
+      } else {
+        // Fallback to regular confirmation if direct not available
+        onConfirmInlineEdit(value);
+      }
+    } else {
+      // Use regular confirmation for other fields
+      onConfirmInlineEdit(value);
+    }
   };
 
   // Handle confirm change - route to appropriate handler (dates now use modal)
-  const handleConfirmChange = (itemId: string | number, field: string, newValue: any) => {
+  const handleConfirmChange = (_itemId: string | number, _field: string, _newValue: any) => {
     // Dates are handled via modal, not inline confirmation
-    console.log("", itemId, field, newValue);
+    // This handler is kept for compatibility but dates use modal confirmation
   };
 
   // Handle cancel change (dates now use modal)
-  const handleCancelChange = (field: string) => {
+  const handleCancelChange = (_field: string) => {
     // Dates are handled via modal, not inline confirmation
-    console.log("", field);
+    // This handler is kept for compatibility but dates use modal confirmation
   };
 
   return (
@@ -325,6 +397,15 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       pendingChanges={pendingChanges}
       summary={summary}
       columns={columns}
+      inlineEditSuccess={inlineEditSuccess ? {
+        itemId: inlineEditSuccess.campaignId,
+        field: inlineEditSuccess.field,
+      } : null}
+      inlineEditError={inlineEditError ? {
+        itemId: inlineEditError.campaignId,
+        field: inlineEditError.field,
+        message: inlineEditError.message,
+      } : null}
       getId={(row: IGoogleCampaign) => row.campaign_id}
       getItemName={(row: IGoogleCampaign) => row.campaign_name || "Unnamed Campaign"}
       emptyMessage='No campaigns found. Click "Sync Campaigns from Google Ads" to fetch campaigns.'

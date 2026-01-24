@@ -20,3 +20,5 @@ export { Chip } from "./Chip";
 export { Menu } from "./Menu";
 export type { MenuItem, MenuProps } from "./Menu";
 export { Loader } from "./Loader";
+export { CustomizeColumns } from "./CustomizeColumns";
+export type { ColumnOption } from "./CustomizeColumns";

@@ -2308,7 +2308,7 @@ export const GoogleKeywords: React.FC = () => {
                           }
                         }}
                         disabled={keywordTextEditLoading}
-                        className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>
@@ -2406,7 +2406,7 @@ export const GoogleKeywords: React.FC = () => {
                           }
                         }}
                         disabled={finalUrlEditLoading}
-                        className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cancel-button"
                       >
                         Cancel
                       </button>

@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { Check, X } from "lucide-react";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import { Dropdown } from "../../../components/ui/Dropdown";
 import { Loader } from "../../../components/ui/Loader";
@@ -42,6 +43,8 @@ export function GoogleAdsTable<T = any>({
   getStatusBadge,
   getSortIcon,
   isPanelOpen = false,
+  inlineEditSuccess,
+  inlineEditError,
 }: IGoogleAdsTableProps<T>) {
   const navigate = useNavigate();
   // Ref to track if a status selection was made (matches Amazon pattern)
@@ -53,28 +56,32 @@ export function GoogleAdsTable<T = any>({
     const isUpdating = updatingField?.itemId === itemId && updatingField?.field === column.key;
     const pendingChange = pendingChanges[column.key];
     const hasPendingChange = pendingChange?.itemId === itemId;
+    const isSuccess = inlineEditSuccess?.itemId === itemId && inlineEditSuccess?.field === column.key;
+    const isError = inlineEditError?.itemId === itemId && inlineEditError?.field === column.key;
+    const errorMessage = isError ? inlineEditError?.message : null;
     const value = column.getValue(row);
+    
+    // Check if column is editable (can be boolean or function)
+    const isEditable = typeof column.editable === 'function' 
+      ? column.editable(row) 
+      : column.editable === true;
 
     // For editable fields (status, budget, start_date, end_date, bidding_strategy_type), 
     // always show as editable controls (like Amazon campaigns)
-    if (column.editable && (column.key === "status" || column.key === "budget" || 
+    // Note: Loading and success states are now handled inside renderEditableCell for budget/date/status fields
+    if (isEditable && (column.key === "status" || column.key === "budget" || 
         column.key === "start_date" || column.key === "end_date" || column.key === "bidding_strategy_type")) {
-      // Handle updating state
-      if (isUpdating) {
-        return (
-          <div className="flex items-center gap-2">
-            {renderEditableCell(column, value, row, itemId)}
-            <Loader size="sm" showMessage={false} />
-          </div>
-        );
-      }
-      
-      // Always show editable control (similar to Amazon campaigns)
-      return renderEditableCell(column, value, row, itemId);
+    // For budget, date, status, and bidding_strategy_type fields, renderEditableCell handles loading/success states internally with floating indicators
+    // Always show editable control (similar to Amazon campaigns)
+    // Status, budget, date, and bidding_strategy_type fields will show floating indicators from renderEditableCell
+    return renderEditableCell(column, value, row, itemId);
     }
 
     // Handle editing state for other editable fields (before custom render) so editable cells work properly
-    if (isEditing && column.editable) {
+    const isEditableForRow = typeof column.editable === 'function' 
+      ? column.editable(row) 
+      : column.editable === true;
+    if (isEditing && isEditableForRow) {
       return renderEditableCell(column, value, row, itemId);
     }
 
@@ -84,6 +91,29 @@ export function GoogleAdsTable<T = any>({
         <div className="flex items-center gap-2">
           {column.render ? column.render(value, row) : renderValue(column, value)}
           <Loader size="sm" showMessage={false} />
+        </div>
+      );
+    }
+
+    // Show success indicator if edit was successful
+    if (isSuccess) {
+      return (
+        <div className="flex items-center gap-2">
+          {column.render ? column.render(value, row) : renderValue(column, value)}
+          <svg
+            className="w-4 h-4 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            title="Saved successfully"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
         </div>
       );
     }
@@ -119,7 +149,7 @@ export function GoogleAdsTable<T = any>({
 
     // Default render
     const cellContent = column.render ? column.render(value, row) : renderValue(column, value);
-    const isClickable = column.editable && !isEditing && !isPanelOpen; // Disable editing when panel is open
+    const isClickable = isEditableForRow && !isEditing && !isPanelOpen; // Disable editing when panel is open
 
     // Only wrap in button if no custom render function is provided
     // Custom render functions should handle their own navigation/click handling
@@ -166,7 +196,7 @@ export function GoogleAdsTable<T = any>({
     }
 
     // When panel is open and field is editable, show as read-only (no hover effect)
-    if (column.editable && isPanelOpen && !isEditing) {
+    if (isEditableForRow && isPanelOpen && !isEditing) {
       const whitespaceClass = (column.key === "bidding_strategy_type" || column.key === "advertising_channel_type") ? "whitespace-nowrap" : "";
       return (
         <div className={`cursor-not-allowed opacity-60 rounded px-2 py-1 w-full ${whitespaceClass}`}>
@@ -233,8 +263,53 @@ export function GoogleAdsTable<T = any>({
     }
   };
 
+  // Helper function to format updating message based on field type
+  const getUpdatingMessage = (column: IColumnDefinition, newValue: string | undefined): string => {
+    if (!newValue) return "Updating...";
+    
+    switch (column.key) {
+      case "status": {
+        // Find the label for the status value
+        const statusOption = column.statusOptions?.find(opt => opt.value === newValue);
+        return statusOption ? `Updating to ${statusOption.label}` : `Updating to ${newValue}`;
+      }
+      case "budget": {
+        // Format budget as currency
+        const budgetNum = parseFloat(newValue);
+        if (!isNaN(budgetNum)) {
+          return `Updating to ${formatCurrency(budgetNum)}`;
+        }
+        return `Updating to ${newValue}`;
+      }
+      case "start_date":
+      case "end_date": {
+        // Format date using formatDateString
+        const formattedDate = formatDateString(newValue);
+        return formattedDate !== "—" ? `Updating to ${formattedDate}` : `Updating to ${newValue}`;
+      }
+      case "bidding_strategy_type": {
+        // Find the label for the bidding strategy
+        const strategyOption = column.statusOptions?.find(opt => opt.value === newValue);
+        if (strategyOption) {
+          return `Updating to ${strategyOption.label}`;
+        }
+        // Fallback: format the value (e.g., MAXIMIZE_CONVERSIONS -> Maximize Conversions)
+        const formatted = newValue.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        return `Updating to ${formatted}`;
+      }
+      default:
+        return `Updating to ${newValue}`;
+    }
+  };
+
   const renderEditableCell = (column: IColumnDefinition, value: any, row: T, itemId: string | number): React.ReactNode => {
     const isEditing = editingCell?.itemId === itemId && editingCell?.field === column.key;
+    const isUpdating = updatingField?.itemId === itemId && updatingField?.field === column.key;
+    const isSuccess = inlineEditSuccess?.itemId === itemId && inlineEditSuccess?.field === column.key;
+    const isError = inlineEditError?.itemId === itemId && inlineEditError?.field === column.key;
+    const errorMessage = isError ? inlineEditError?.message : null;
+    const updatingMessage = isUpdating ? getUpdatingMessage(column, updatingField?.newValue) : "Updating...";
+    
     // Use editedValue if actively editing, otherwise use current value from row
     const displayValue = isEditing ? editedValue : (value !== undefined && value !== null ? value : "");
     
@@ -300,7 +375,7 @@ export function GoogleAdsTable<T = any>({
       }
       
       return (
-        <div className="flex items-center gap-2">
+        <div className="relative w-full">
           <Dropdown
             options={options}
             value={dropdownValue}
@@ -310,9 +385,9 @@ export function GoogleAdsTable<T = any>({
                 onStartInlineEdit(row, column.key);
               }
               onInlineEditChange(newValue);
-              setTimeout(() => {
-                onConfirmInlineEdit(newValue, column.key);
-              }, 100);
+              // For status and bidding_strategy_type dropdowns, use direct confirmation immediately (skip modal)
+              // Pass itemId (campaign ID) and field directly to avoid state timing issues
+              onConfirmInlineEdit(newValue, column.key, itemId);
             }}
             defaultOpen={isEditing}
             closeOnSelect={true}
@@ -322,11 +397,35 @@ export function GoogleAdsTable<T = any>({
             className="w-full"
             menuClassName="z-[100000]"
             onClose={() => {
+              // Don't cancel if we're updating or if there's a pending change
+              if (isUpdating) return;
               if (!editedValue || editedValue === value) {
                 onCancelInlineEdit();
               }
             }}
           />
+          {isUpdating && (
+            <div className="absolute top-full left-0 mt-1 z-10">
+              <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
+                <Loader size="sm" />
+                <span className="text-[10px]">{updatingMessage}</span>
+              </div>
+            </div>
+          )}
+          {isSuccess && !isUpdating && (
+            <div className="absolute top-full left-0 mt-1 z-10">
+              <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
+                <Check size={12} /> Updated successfully
+              </div>
+            </div>
+          )}
+          {isError && errorMessage && !isUpdating && (
+            <div className="absolute top-full left-0 mt-1 z-10">
+              <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
+                <X size={12} /> {errorMessage}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -337,7 +436,7 @@ export function GoogleAdsTable<T = any>({
         // This case should only be reached for status columns without statusOptions (shouldn't happen)
         // Use Amazon pattern here too for consistency
         return (
-          <div className="flex items-center gap-2">
+          <div className="relative w-full">
             <Dropdown
               options={column.statusOptions || [
                 { value: "ENABLED", label: "Enabled" },
@@ -352,9 +451,9 @@ export function GoogleAdsTable<T = any>({
                   onStartInlineEdit(row, column.key);
                 }
                 onInlineEditChange(newValue);
-                setTimeout(() => {
-                  onConfirmInlineEdit(newValue, column.key);
-                }, 100);
+                // For status and bidding_strategy_type, use direct confirmation immediately (skip modal)
+                // Pass itemId (campaign ID) and field directly to avoid state timing issues
+                onConfirmInlineEdit(newValue, column.key, itemId);
               }}
               defaultOpen={isEditing}
               closeOnSelect={true}
@@ -363,13 +462,46 @@ export function GoogleAdsTable<T = any>({
               align="left"
               className="w-full"
               menuClassName="z-[100000]"
+              onClose={() => {
+                // Don't cancel if we're updating or if there's a pending change
+                if (isUpdating) return;
+                if (!editedValue || editedValue === value) {
+                  onCancelInlineEdit();
+                }
+              }}
             />
+            {isUpdating && (
+              <div className="absolute top-full left-0 mt-1 z-10">
+                <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
+                  <Loader size="sm" />
+                  <span className="text-[10px]">{updatingMessage}</span>
+                </div>
+              </div>
+            )}
+            {isSuccess && !isUpdating && (
+              <div className="absolute top-full left-0 mt-1 z-10">
+                <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
+                  <Check size={12} /> Updated successfully
+                </div>
+              </div>
+            )}
+            {isError && errorMessage && !isUpdating && (
+              <div className="absolute top-full left-0 mt-1 z-10">
+                <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
+                  <X size={12} /> {errorMessage}
+                </div>
+              </div>
+            )}
           </div>
         );
 
       case "text":
-        // For text fields like adgroup_name, use inline-edit-input class
-        if (column.editable) {
+        // For text fields like adgroup_name, match Amazon's input styling exactly
+        // Check if column is editable for this row
+        const isTextEditable = typeof column.editable === 'function' 
+          ? column.editable(row) 
+          : column.editable === true;
+        if (isTextEditable) {
           return (
             <div className="flex items-center gap-2">
               <input
@@ -380,13 +512,16 @@ export function GoogleAdsTable<T = any>({
                 autoFocus
                 onBlur={() => {
                   if (!isCancelling) {
-                    onConfirmInlineEdit(editedValue, column.key);
+                    // For status, start_date, end_date, and bidding_strategy_type, 
+                    // the confirmation modal is handled by the parent component
+                    // Just call onConfirmInlineEdit which will trigger the modal
+                    onConfirmInlineEdit(editedValue);
                   }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === "Escape") {
                     if (e.key === "Enter") {
-                      onConfirmInlineEdit(editedValue, column.key);
+                      onConfirmInlineEdit(editedValue);
                     } else {
                       onCancelInlineEdit();
                     }
@@ -399,47 +534,96 @@ export function GoogleAdsTable<T = any>({
         return renderValue(column, value);
       case "budget":
       case "bid":
+        // Check if column is editable for this row
+        const isBudgetEditable = typeof column.editable === 'function' 
+          ? column.editable(row) 
+          : column.editable === true;
         const budgetValue = isEditing ? editedValue : (value || 0).toString();
+        const oldBudgetValue = (value || 0).toString();
+        const hasBudgetChanged = isEditing && budgetValue !== oldBudgetValue && budgetValue !== "";
         return (
-          <div className="flex items-center w-full">
+          <div className="relative w-full">
             <input
               type="number"
               step="0.01"
               min="0"
               value={budgetValue}
               onFocus={() => {
-                if (!isEditing) {
+                if (!isEditing && isBudgetEditable) {
                   onStartInlineEdit(row, column.key);
                 }
               }}
               onChange={(e) => {
                 onInlineEditChange(e.target.value);
               }}
-              onBlur={(e) => {
-                if (isCancelling) return;
-                const inputValue = e.target.value;
-                const oldValue = (value || 0).toString();
-                if (inputValue === oldValue || inputValue === "") {
-                  onCancelInlineEdit();
-                } else {
-                  onConfirmInlineEdit(inputValue, column.key);
-                }
-              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.currentTarget.blur();
-                } else if (e.key === "Escape") {
+                if (e.key === "Escape") {
                   onCancelInlineEdit();
                 }
               }}
               autoFocus={isEditing}
-              className="inline-edit-input"
+              className="inline-edit-input w-full min-w-[120px]"
+              disabled={!isBudgetEditable}
             />
+            {(hasBudgetChanged || isUpdating || isSuccess || isError) && (
+              <div className="absolute top-full left-0 mt-1 z-10">
+                {hasBudgetChanged && !isSuccess && !isUpdating && (
+                  <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
+                    <button
+                      onClick={() => {
+                        onConfirmInlineEdit(budgetValue, column.key, itemId);
+                      }}
+                      className="text-green-600 hover:text-green-700 p-1"
+                      title="Save"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        onCancelInlineEdit();
+                      }}
+                      className="text-red-600 hover:text-red-700 p-1"
+                      title="Cancel"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+                {isUpdating && (
+                  <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
+                    <Loader size="sm" />
+                    <span className="text-[10px]">{updatingMessage}</span>
+                  </div>
+                )}
+                {isSuccess && (
+                  <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
+                    <Check size={12} /> Updated successfully
+                  </div>
+                )}
+                {isError && errorMessage && (
+                  <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
+                    <X size={12} /> {errorMessage}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
 
       case "start_date":
       case "end_date":
+        // Check if this date field is editable for this row
+        const isDateEditable = typeof column.editable === 'function' 
+          ? column.editable(row) 
+          : column.editable === true;
+        
+        // If not editable (date is in the past), show as read-only text
+        if (!isDateEditable) {
+          return renderValue(column, value);
+        }
+        
+        // Always show date input field (like Amazon campaigns budget fields)
+        // Match Amazon pattern: always show input, editable on focus
         const isStartDate = column.type === "start_date";
         // For end_date, set min to the campaign's start_date if it exists
         let minDate: string | undefined;
@@ -456,43 +640,82 @@ export function GoogleAdsTable<T = any>({
               minDate = parsedStartDate;
             }
           }
+          // Also ensure end_date cannot be in the past
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+          if (!minDate || todayStr > minDate) {
+            minDate = todayStr;
+          }
         }
         // Format date value for input (YYYY-MM-DD)
         const dateValue = isEditing ? editedValue : (value ? parseDateToYYYYMMDD(value) : "");
+        const oldDateValue = value ? parseDateToYYYYMMDD(value) : "";
+        const hasDateChanged = isEditing && dateValue !== oldDateValue && dateValue !== "";
         return (
-          <div className="flex items-center">
+          <div className="relative w-full">
             <input
               type="date"
               value={dateValue}
               min={minDate}
               onFocus={() => {
-                if (!isEditing) {
+                if (!isEditing && isDateEditable) {
                   onStartInlineEdit(row, column.key);
                 }
               }}
               onChange={(e) => {
                 onInlineEditChange(e.target.value);
               }}
-              onBlur={(e) => {
-                if (isCancelling) return;
-                const inputValue = e.target.value;
-                const oldValue = parseDateToYYYYMMDD(value);
-                if (inputValue === oldValue) {
-                  onCancelInlineEdit();
-                } else {
-                  onConfirmInlineEdit(inputValue, column.key);
-                }
-              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.currentTarget.blur();
-                } else if (e.key === "Escape") {
+                if (e.key === "Escape") {
                   onCancelInlineEdit();
                 }
               }}
               autoFocus={isEditing}
-              className="inline-edit-input"
+              className="inline-edit-input w-full min-w-[140px]"
+              disabled={!isDateEditable}
             />
+            {(hasDateChanged || isUpdating || isSuccess || isError) && (
+              <div className="absolute top-full left-0 mt-1 z-10">
+                {hasDateChanged && !isSuccess && !isUpdating && (
+                  <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
+                    <button
+                      onClick={() => {
+                        onConfirmInlineEdit(dateValue, column.key, itemId);
+                      }}
+                      className="text-green-600 hover:text-green-700 p-1"
+                      title="Save"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        onCancelInlineEdit();
+                      }}
+                      className="text-red-600 hover:text-red-700 p-1"
+                      title="Cancel"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+                {isUpdating && (
+                  <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
+                    <Loader size="sm" />
+                    <span className="text-[10px]">{updatingMessage}</span>
+                  </div>
+                )}
+                {isSuccess && (
+                  <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
+                    <Check size={12} /> Updated successfully
+                  </div>
+                )}
+                {isError && errorMessage && (
+                  <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
+                    <X size={12} /> {errorMessage}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
 
@@ -601,7 +824,7 @@ export function GoogleAdsTable<T = any>({
                       let summaryValue: React.ReactNode = "";
                       // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
                       if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
-                        summaryValue = `Total (${summary?.total_count || summary?.total_campaigns || 0})`;
+                        summaryValue = `Total (${summary?.total_campaigns || 0})`;
                       } else if (column.key === "spends") {
                         summaryValue = formatCurrency(summary?.total_spends || 0);
                       } else if (column.key === "sales") {
@@ -611,10 +834,8 @@ export function GoogleAdsTable<T = any>({
                       } else if (column.key === "clicks") {
                         summaryValue = (summary?.total_clicks || 0).toLocaleString();
                       } else if (column.key === "budget") {
-                        // Use total budget from summary
-                        summaryValue = formatCurrency(summary?.total_budget || 0);
-                      } else if (column.key === "acos") {
-                        summaryValue = `${(summary?.avg_acos || 0).toFixed(2)}%`;
+                        // Budget should be empty in summary row (not summed)
+                        summaryValue = "";
                       } else if (column.key === "roas") {
                         summaryValue = `${(summary?.avg_roas || 0).toFixed(2)}x`;
                       } else if (column.key === "ctr") {
@@ -658,8 +879,8 @@ export function GoogleAdsTable<T = any>({
                         column.key === "advertising_channel_type" ||
                         column.key === "status"
                       ) {
-                        // Show "—" for date, type, bidding strategy, and status columns in total row
-                        summaryValue = "—";
+                        // Show empty for date, type, bidding strategy, and status columns in total row
+                        summaryValue = "";
                       }
                       
                       return (

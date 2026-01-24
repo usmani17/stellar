@@ -84,8 +84,20 @@ export interface IGoogleCampaignsTableProps {
     updatingField: {
         campaignId: string | number;
         field: "budget" | "status" | "start_date" | "end_date" | "bidding_strategy_type";
+        newValue: string;
     } | null;
     summary: IGoogleCampaignsSummary | null;
+    visibleColumns?: Set<string>;
+    columnOrder?: string[];
+    inlineEditSuccess?: {
+        campaignId: string | number;
+        field: string;
+    } | null;
+    inlineEditError?: {
+        campaignId: string | number;
+        field: string;
+        message: string;
+    } | null;
     onSelectAll: (checked: boolean) => void;
     onSelectCampaign: (campaignId: string | number, checked: boolean) => void;
     onSort: (column: string) => void;
@@ -93,6 +105,7 @@ export interface IGoogleCampaignsTableProps {
     onCancelInlineEdit: () => void;
     onInlineEditChange: (value: string) => void;
     onConfirmInlineEdit: (value: string) => void;
+    onConfirmInlineEditDirect?: (value: string, campaignId?: string | number, field?: string) => void;
     formatCurrency: (value: number) => string;
     formatPercentage: (value: number) => string;
     getStatusBadge: (status: string) => React.ReactElement;

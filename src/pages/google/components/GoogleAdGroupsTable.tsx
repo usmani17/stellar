@@ -1,6 +1,7 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import type { IColumnDefinition } from "./GoogleAdsTable";
+import { Loader } from "../../../components/ui/Loader";
+import type { IColumnDefinition } from "../../../types/google";
 
 export interface GoogleAdGroup {
   id: number;
@@ -65,6 +66,8 @@ interface GoogleAdGroupsTableProps {
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
   getSortIcon: (column: string) => React.ReactElement;
+  onEditAdGroup?: (adgroup: GoogleAdGroup) => void;
+  editLoadingAdGroupId?: string | number | null;
 }
 
 export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
@@ -96,6 +99,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   formatPercentage,
   getStatusBadge,
   getSortIcon,
+  onEditAdGroup,
+  editLoadingAdGroupId,
 }) => {
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
@@ -129,18 +134,49 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       sticky: false, // Not sticky in Amazon - scrolls horizontally with table
       // Amazon: header has NO width constraint, only cell has min-w-[150px] max-w-[200px]
       // Don't set minWidth/maxWidth here - header should have no width constraint
-      editable: true,
+      editable: false, // Name is not editable via click - use pencil icon instead
       getValue: (row: GoogleAdGroup) => row.adgroup_name || row.name || "Unnamed Ad Group",
       render: (value: any, row: GoogleAdGroup) => {
-        // Match Amazon ad group table styling exactly: text-[#0b0f16] with cursor-pointer hover:underline
-        // Width constraints are applied on the td element, not here
+        // Match campaigns page pattern: pencil icon + non-clickable name
         const adgroupName = value || "Unnamed Ad Group";
         return (
-          <div
-            className="text-[13.3px] text-[#0b0f16] text-left truncate block w-full whitespace-nowrap cursor-pointer hover:underline"
-            title={adgroupName}
-          >
-            {adgroupName}
+          <div className="group relative flex items-center gap-2">
+            {onEditAdGroup && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditAdGroup(row);
+                }}
+                className="table-edit-icon flex-shrink-0"
+                title="Edit Ad Group Name"
+                disabled={editLoadingAdGroupId === row.adgroup_id}
+              >
+                {editLoadingAdGroupId === row.adgroup_id ? (
+                  <Loader size="sm" showMessage={false} />
+                ) : (
+                  <svg
+                    className="w-4 h-4 text-[#556179]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                )}
+              </button>
+            )}
+            <span
+              className="text-[13.3px] text-[#0b0f16] text-left truncate block w-full whitespace-nowrap"
+              title={adgroupName}
+            >
+              {adgroupName}
+            </span>
           </div>
         );
       },
@@ -196,14 +232,14 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
     {
       key: "spends",
-      label: "Spends",
+      label: "Cost",
       type: "currency",
       sortable: true,
       getValue: (row: GoogleAdGroup) => row.spends || 0,
     },
     {
       key: "sales",
-      label: "Sales",
+      label: "Conv. value",
       type: "currency",
       sortable: true,
       getValue: (row: GoogleAdGroup) => row.sales || 0,
@@ -223,20 +259,13 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       getValue: (row: GoogleAdGroup) => row.clicks || 0,
     },
     {
-      key: "acos",
-      label: "ACOS",
-      type: "percentage",
-      sortable: true,
-      getValue: (row: GoogleAdGroup) => row.acos || 0,
-    },
-    {
       key: "roas",
-      label: "ROAS",
+      label: "Conv. value / Cost",
       type: "roas",
       sortable: true,
       getValue: (row: GoogleAdGroup) => row.roas || 0,
     },
-  ], [accountId]);
+  ], [accountId, onEditAdGroup, editLoadingAdGroupId]);
 
   // Handle confirm inline edit
   const handleConfirmInlineEdit = (value: string, _field: string) => {

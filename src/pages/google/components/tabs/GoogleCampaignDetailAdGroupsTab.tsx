@@ -665,8 +665,8 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                     Default max. CPC
                   </th>
                   <th className="table-header hidden md:table-cell">CTR</th>
-                  <th className="table-header hidden md:table-cell">Spends</th>
-                  <th className="table-header hidden md:table-cell">Sales</th>
+                  <th className="table-header hidden md:table-cell">Cost</th>
+                  <th className="table-header hidden md:table-cell">Conv. value</th>
                 </tr>
               </thead>
               <tbody>

@@ -554,8 +554,9 @@ export const Channels: React.FC = () => {
                                 <Button
                                   size="sm"
                                   className="create-entity-button"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (channel.channel_type === "google") {
+                                      // Navigate directly to selection page (loads from database)
                                       navigate(
                                         `/channels/${channel.id}/select-google-accounts`
                                       );
@@ -573,22 +574,19 @@ export const Channels: React.FC = () => {
                                   }}
                                 >
                                   <span className="text-[14px] font-medium">
-                                    Profiles
+                                    Select Profiles
                                   </span>
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
+                                <button
+                                  type="button"
                                   onClick={() => handleDeleteChannel(channel)}
                                   disabled={deletingChannelId === channel.id}
                                   className="cancel-button"
                                 >
-                                  <span className="text-[14px] font-medium">
-                                    {deletingChannelId === channel.id
-                                      ? "Deleting..."
-                                      : "Delete"}
-                                  </span>
-                                </Button>
+                                  {deletingChannelId === channel.id
+                                    ? "Deleting..."
+                                    : "Delete"}
+                                </button>
                               </div>
                             </td>
                           </tr>

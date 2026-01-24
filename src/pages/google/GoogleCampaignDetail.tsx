@@ -3218,15 +3218,15 @@ export const GoogleCampaignDetail: React.FC = () => {
                       />
                     ))
                   ) : (
-                    // Default KPI cards with zero values if no data available - matching Amazon's 6 stats
+                    // Default KPI cards with zero values if no data available - matching Google Ads terminology
                     <>
                       <KPICard
-                        label="Spends "
+                        label="Cost"
                         value="$0"
                         className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                       />
                       <KPICard
-                        label="Sales "
+                        label="Conv. value"
                         value="$0"
                         className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                       />
@@ -3241,12 +3241,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                         className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                       />
                       <KPICard
-                        label="ACOS"
-                        value="0.0%"
-                        className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
-                      />
-                      <KPICard
-                        label="ROAS"
+                        label="Conv. value / Cost"
                         value="0.00 x"
                         className="w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(25%-1.3125rem)] lg:w-[calc(25%-1.3125rem)]"
                       />
@@ -4332,14 +4327,14 @@ export const GoogleCampaignDetail: React.FC = () => {
               <button
                 onClick={cancelInlineEdit}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="cancel-button"
               >
                 Cancel
               </button>
               <button
                 onClick={runInlineEdit}
                 disabled={inlineEditLoading}
-                className="px-4 py-2 text-sm bg-[#136D6D] text-white rounded hover:bg-[#0f5a5a] disabled:opacity-50"
+                className="create-entity-button btn-sm"
               >
                 {inlineEditLoading ? "Saving..." : "Confirm"}
               </button>
@@ -4399,7 +4394,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={nameEditLoading}
-                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button"
               >
                 Cancel
               </button>
@@ -4481,7 +4476,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={keywordTextEditLoading}
-                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button"
               >
                 Cancel
               </button>
@@ -4586,7 +4581,7 @@ export const GoogleCampaignDetail: React.FC = () => {
                   }
                 }}
                 disabled={finalUrlEditLoading}
-                className="px-4 py-2 text-[#136D6D] bg-transparent rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button"
               >
                 Cancel
               </button>

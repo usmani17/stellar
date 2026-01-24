@@ -130,6 +130,8 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const loadingFieldsRef = useRef(false);
   const fieldsLoadedRef = useRef<string>(""); // Track which accountId+marketplace combo we've loaded
+  const isInitialMountRef = useRef(true); // Track if this is the initial mount
+  const autoApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load filter fields from backend on mount
   useEffect(() => {
@@ -137,6 +139,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
     if (!isOpen) {
       fieldsLoadedRef.current = "";
       loadingFieldsRef.current = false;
+      isInitialMountRef.current = true; // Reset initial mount flag when panel closes
       return;
     }
 
@@ -208,8 +211,34 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   useEffect(() => {
     if (initialFilters.length > 0 && activeFilters.length === 0) {
       setActiveFilters(initialFilters);
+      isInitialMountRef.current = true;
     }
   }, [initialFilters]);
+
+  // Auto-apply filters when they change (with debouncing)
+  useEffect(() => {
+    // Skip auto-apply on initial mount
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    // Clear any existing timeout
+    if (autoApplyTimeoutRef.current) {
+      clearTimeout(autoApplyTimeoutRef.current);
+    }
+
+    // Debounce auto-apply to avoid too many API calls
+    autoApplyTimeoutRef.current = setTimeout(() => {
+      onApply(activeFilters);
+    }, 500); // 500ms debounce delay
+
+    return () => {
+      if (autoApplyTimeoutRef.current) {
+        clearTimeout(autoApplyTimeoutRef.current);
+      }
+    };
+  }, [activeFilters, onApply]);
 
   const getCurrentField = (): FilterField | undefined => {
     return filterFields.find((f) => f.field_name === selectedField);
@@ -373,16 +402,12 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
   const handleRemoveFilter = (filterId: string) => {
     const updatedFilters = activeFilters.filter((f) => f.id !== filterId);
     setActiveFilters(updatedFilters);
-    // Don't auto-apply - let user click "Apply Filters" manually
+    // Filters will auto-apply via useEffect
     // If we were editing this filter, cancel edit mode
     if (editingFilterId === filterId) {
       setEditingFilterId(null);
       resetForm();
     }
-  };
-
-  const handleApply = () => {
-    onApply(activeFilters);
   };
 
   const handleClearAll = () => {
@@ -697,7 +722,7 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
                 </button>
                 <button
                   onClick={resetForm}
-                  className="cancel-button flex-1"
+                  className="cancel-button"
                   type="button"
                 >
                   Cancel
@@ -757,9 +782,6 @@ export const DynamicFilterPanel: React.FC<DynamicFilterPanelProps> = ({
         )}
         <button onClick={handleClearAll} className="cancel-button">
           Clear All
-        </button>
-        <button type="button" onClick={handleApply} className="apply-button">
-          Apply Filters
         </button>
       </div>
     </div>

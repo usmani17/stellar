@@ -26,6 +26,8 @@ interface PerformanceChartProps {
   metrics?: MetricConfig[];
   title?: string;
   maxSelectedMetrics?: number;
+  isCollapsed?: boolean;
+  onCollapseToggle?: () => void;
 }
 
 export const PerformanceChart: React.FC<PerformanceChartProps> = ({
@@ -35,6 +37,8 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
   metrics = [],
   title = "Performance Trends",
   maxSelectedMetrics = 3,
+  isCollapsed = false,
+  onCollapseToggle,
 }) => {
   // Use provided metrics or fallback to default
   const metricOptions =
@@ -55,7 +59,33 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
     <div className="graph-container">
       {/* Title and Metrics Dropdown */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-[12.16px] font-semibold text-black">{title}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-[12.16px] font-semibold text-black">{title}</h3>
+          {onCollapseToggle && (
+            <button
+              type="button"
+              onClick={onCollapseToggle}
+              className="flex items-center justify-center p-0.5 hover:opacity-70 transition-opacity"
+              aria-label={isCollapsed ? "Expand chart" : "Collapse chart"}
+            >
+              <svg
+                className={`w-4 h-4 text-[#072929] transition-transform ${
+                  isCollapsed ? "" : "rotate-90"
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
         <Dropdown
           options={metricOptions.map((m) => ({
             value: m.key,
@@ -139,7 +169,8 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
       </div>
 
       {/* Chart */}
-      <div className="h-[223px] bg-transparent rounded-lg ">
+      {!isCollapsed && (
+        <div className="h-[223px] bg-transparent rounded-lg ">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
@@ -215,6 +246,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
           </LineChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 };
