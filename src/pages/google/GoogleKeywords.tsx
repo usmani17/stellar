@@ -51,16 +51,14 @@ export const GoogleKeywords: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
   const [analyticsSyncMessage, setAnalyticsSyncMessage] = useState<
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -131,13 +129,13 @@ export const GoogleKeywords: React.FC = () => {
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // Keyword text edit modal state
   const [showKeywordTextEditModal, setShowKeywordTextEditModal] = useState(false);
   const [keywordTextEditKeyword, setKeywordTextEditKeyword] = useState<GoogleKeyword | null>(null);
   const [keywordTextEditValue, setKeywordTextEditValue] = useState<string>("");
   const [keywordTextEditLoading, setKeywordTextEditLoading] = useState(false);
-  
+
   // Final URL edit modal state
   const [showFinalUrlModal, setShowFinalUrlModal] = useState(false);
   const [finalUrlKeyword, setFinalUrlKeyword] = useState<GoogleKeyword | null>(null);
@@ -145,7 +143,7 @@ export const GoogleKeywords: React.FC = () => {
   const [mobileFinalUrlValue, setMobileFinalUrlValue] = useState<string>("");
   const [useMobileFinalUrl, setUseMobileFinalUrl] = useState(false);
   const [finalUrlEditLoading, setFinalUrlEditLoading] = useState(false);
-  
+
   // Error modal state
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
@@ -257,7 +255,7 @@ export const GoogleKeywords: React.FC = () => {
       const keywordsArray = Array.isArray(response.keywords)
         ? response.keywords
         : [];
-      
+
       // Debug: Log first keyword to check final URLs
       if (keywordsArray.length > 0 && import.meta.env.DEV) {
         console.log('First keyword from API:', {
@@ -268,7 +266,7 @@ export const GoogleKeywords: React.FC = () => {
           all_keys: Object.keys(keywordsArray[0]),
         });
       }
-      
+
       setKeywords(keywordsArray);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
@@ -294,7 +292,7 @@ export const GoogleKeywords: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString(), filters]);
+  }, [sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate, filters]);
 
   useEffect(() => {
     if (sorting) return;
@@ -309,176 +307,16 @@ export const GoogleKeywords: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadKeywords, sorting]);
-
-  const loadKeywordsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-        filters: filterList, // Pass filters array directly
-      };
-
-      const response = await googleAdwordsKeywordsService.getGoogleKeywords(
-        accountId,
-        undefined,
-        undefined,
-        params
-      );
-      setKeywords(Array.isArray(response.keywords) ? response.keywords : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-      setSelectedKeywords(new Set());
-    } catch (error) {
-      console.error("Failed to load Google keywords:", error);
-      setKeywords([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [accountId, currentPage, filters, startDate, endDate, loadKeywords, sorting]);
 
   // Sync status hook (after loadKeywords is defined)
-  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner, checkSyncStatus: _checkSyncStatus } = useGoogleSyncStatus({
     accountId,
     entityType: "keywords",
     currentData: keywords,
     loadFunction: loadKeywords,
   });
 
-  const handleSync = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncing(true);
-      setSyncMessage(null);
-      const result = await googleAdwordsKeywordsService.syncGoogleKeywords(accountIdNum);
-      let message =
-        result.message || `Successfully synced ${result.synced} keywords`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setSyncMessage(message);
-
-      // Check sync status immediately after triggering sync
-      await checkSyncStatus();
-
-      if (result.synced > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-      await loadKeywords(accountIdNum);
-
-      if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync keywords:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync keywords from Google Ads";
-      setSyncMessage(errorMessage);
-      setTimeout(() => setSyncMessage(null), 8000);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncAnalytics = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncingAnalytics(true);
-      setAnalyticsSyncMessage(null);
-
-      // Always use 1 year date range for analytics sync (365 days)
-      const today = new Date();
-      const oneYearAgo = new Date();
-      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-      
-      const result = await googleAdwordsKeywordsService.syncGoogleKeywordAnalytics(
-        accountIdNum,
-        oneYearAgo.toISOString().split("T")[0],
-        today.toISOString().split("T")[0]
-      );
-
-      let message =
-        result.message ||
-        `Successfully synced analytics: ${
-          result.rows_inserted || 0
-        } inserted, ${result.rows_updated || 0} updated`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setAnalyticsSyncMessage(message);
-
-      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await loadKeywords(accountIdNum);
-      }
-
-      if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync analytics:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync keyword analytics from Google Ads";
-      setAnalyticsSyncMessage(errorMessage);
-      setTimeout(() => setAnalyticsSyncMessage(null), 8000);
-    } finally {
-      setSyncingAnalytics(false);
-    }
-  };
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -634,7 +472,7 @@ export const GoogleKeywords: React.FC = () => {
       setShowKeywordTextEditModal(true);
       return;
     }
-    
+
     setEditingCell({ keywordId: keyword.keyword_id, field });
     if (field === "bid") {
       setEditedValue((keyword.cpc_bid_dollars || 0).toString());
@@ -644,11 +482,11 @@ export const GoogleKeywords: React.FC = () => {
       setEditedValue(keyword.match_type || "EXACT");
     }
   };
-  
+
   // Keyword text edit handler
   const handleKeywordTextEditSave = async () => {
     if (!keywordTextEditKeyword || !accountId) return;
-    
+
     const trimmedText = keywordTextEditValue.trim();
     if (!trimmedText) {
       setErrorModal({
@@ -658,7 +496,7 @@ export const GoogleKeywords: React.FC = () => {
       });
       return;
     }
-    
+
     const oldText = (keywordTextEditKeyword.keyword_text || "").trim();
     if (trimmedText === oldText) {
       setShowKeywordTextEditModal(false);
@@ -666,7 +504,7 @@ export const GoogleKeywords: React.FC = () => {
       setKeywordTextEditValue("");
       return;
     }
-    
+
     setKeywordTextEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -687,14 +525,14 @@ export const GoogleKeywords: React.FC = () => {
         const errorMessage = response.errors[0];
         let title = "Update Failed";
         let message = errorMessage;
-        
+
         if (errorMessage.toLowerCase().includes("already exists") || errorMessage.toLowerCase().includes("duplicate")) {
           title = "Duplicate Keyword";
           message = `The keyword "${trimmedText}" already exists in this ad group with the same match type. Please choose a different keyword text.`;
         } else {
           message = `Failed to update keyword text: ${errorMessage}`;
         }
-        
+
         setErrorModal({
           isOpen: true,
           title,
@@ -709,7 +547,7 @@ export const GoogleKeywords: React.FC = () => {
       setKeywordTextEditValue("");
     } catch (error: any) {
       console.error("Error updating keyword text:", error);
-      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred"; 
+      const errorMessage = error?.message || error?.toString() || "An unexpected error occurred";
       setErrorModal({
         isOpen: true,
         title: "Update Failed",
@@ -719,14 +557,14 @@ export const GoogleKeywords: React.FC = () => {
       setKeywordTextEditLoading(false);
     }
   };
-  
+
   // Final URL edit handlers
   const handleStartFinalUrlEdit = (keyword: GoogleKeyword) => {
     if (!keyword) {
       console.error("Cannot edit final URL: keyword is null");
       return;
     }
-    
+
     setFinalUrlKeyword(keyword);
     // Get first URL from final_urls array if available
     const finalUrls = (keyword as any)?.final_urls || (keyword as any)?.finalUrls || null;
@@ -737,7 +575,7 @@ export const GoogleKeywords: React.FC = () => {
       currentUrl = finalUrls.trim();
     }
     setFinalUrlValue(currentUrl);
-    
+
     const mobileUrls = (keyword as any)?.final_mobile_urls || (keyword as any)?.finalMobileUrls || null;
     let currentMobileUrl = "";
     if (Array.isArray(mobileUrls) && mobileUrls.length > 0) {
@@ -749,10 +587,10 @@ export const GoogleKeywords: React.FC = () => {
     setUseMobileFinalUrl(!!currentMobileUrl);
     setShowFinalUrlModal(true);
   };
-  
+
   const handleFinalUrlEditSave = async () => {
     if (!finalUrlKeyword || !accountId) return;
-    
+
     const trimmedUrl = finalUrlValue.trim();
     if (!trimmedUrl) {
       setErrorModal({
@@ -762,13 +600,13 @@ export const GoogleKeywords: React.FC = () => {
       });
       return;
     }
-    
+
     // Validate URL format
     let finalUrl = trimmedUrl;
     if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
       finalUrl = "https://" + finalUrl;
     }
-    
+
     try {
       new URL(finalUrl);
     } catch {
@@ -779,7 +617,7 @@ export const GoogleKeywords: React.FC = () => {
       });
       return;
     }
-    
+
     let mobileUrl = "";
     if (useMobileFinalUrl) {
       const trimmedMobileUrl = mobileFinalUrlValue.trim();
@@ -806,7 +644,7 @@ export const GoogleKeywords: React.FC = () => {
         return;
       }
     }
-    
+
     setFinalUrlEditLoading(true);
     try {
       const accountIdNum = parseInt(accountId, 10);
@@ -915,7 +753,7 @@ export const GoogleKeywords: React.FC = () => {
     if (editingCell.field === "status") {
       const oldStatusRaw = keyword.status || "ENABLED";
       const newStatusRaw = valueToCheck.trim();
-      
+
       // Format status values for display
       const statusDisplayMap: Record<string, string> = {
         ENABLED: "Enabled",
@@ -925,7 +763,7 @@ export const GoogleKeywords: React.FC = () => {
       };
       const oldValue = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
       const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
-      
+
       setInlineEditKeyword(keyword);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(oldValue);
@@ -939,7 +777,7 @@ export const GoogleKeywords: React.FC = () => {
     if (editingCell.field === "bid") {
       const newBid = parseFloat(valueToCheck) || 0;
       const oldBid = keyword.cpc_bid_dollars || 0;
-      
+
       setInlineEditKeyword(keyword);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(formatCurrency(oldBid));
@@ -954,7 +792,7 @@ export const GoogleKeywords: React.FC = () => {
     if (editingCell.field === "match_type") {
       const oldValue = keyword.match_type || "EXACT";
       const newValue = valueToCheck.trim();
-      
+
       const matchTypeDisplayMap: Record<string, string> = {
         EXACT: "Exact",
         PHRASE: "Phrase",
@@ -965,7 +803,7 @@ export const GoogleKeywords: React.FC = () => {
       };
       const oldDisplayValue = matchTypeDisplayMap[oldValue] || oldValue;
       const newDisplayValue = matchTypeDisplayMap[newValue] || newValue;
-      
+
       setInlineEditKeyword(keyword);
       setInlineEditField(editingCell.field);
       setInlineEditOldValue(oldDisplayValue);
@@ -1038,7 +876,7 @@ export const GoogleKeywords: React.FC = () => {
           action: "match_type",
           match_type: matchTypeValue,
         });
-        
+
         if (response.errors && response.errors.length > 0) {
           throw new Error(response.errors[0]);
         }
@@ -1305,7 +1143,7 @@ export const GoogleKeywords: React.FC = () => {
         params,
         exportType
       );
-      
+
       // Close dropdown after a short delay to show success
       setTimeout(() => {
         setShowExportDropdown(false);
@@ -1381,7 +1219,7 @@ export const GoogleKeywords: React.FC = () => {
                 day: "numeric",
               });
             }
-          } catch (e) {
+          } catch {
             formattedDate = item.date;
           }
         }
@@ -1454,9 +1292,8 @@ export const GoogleKeywords: React.FC = () => {
                     Add Filter
                   </span>
                   <svg
-                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                      isFilterPanelOpen ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -1478,7 +1315,7 @@ export const GoogleKeywords: React.FC = () => {
                 <Banner
                   type={
                     syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
+                      syncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
@@ -1493,7 +1330,7 @@ export const GoogleKeywords: React.FC = () => {
                 <Banner
                   type={
                     analyticsSyncMessage.includes("error") ||
-                    analyticsSyncMessage.includes("Failed")
+                      analyticsSyncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
@@ -1764,36 +1601,34 @@ export const GoogleKeywords: React.FC = () => {
                       </div>
                       {(bidAction === "increase" ||
                         bidAction === "decrease") && (
-                        <div className="w-[140px]">
-                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                            Unit
-                          </label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                bidUnit === "percent"
+                          <div className="w-[140px]">
+                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                              Unit
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "percent"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBidUnit("percent")}
-                            >
-                              %
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
-                                bidUnit === "amount"
+                                  }`}
+                                onClick={() => setBidUnit("percent")}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "amount"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                              }`}
-                              onClick={() => setBidUnit("amount")}
-                            >
-                              $
-                            </button>
+                                  }`}
+                                onClick={() => setBidUnit("amount")}
+                              >
+                                $
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                           Value
@@ -1886,8 +1721,8 @@ export const GoogleKeywords: React.FC = () => {
                       {bulkUpdateResults
                         ? "Update Results"
                         : isBidChange
-                        ? "Confirm Bid Changes"
-                        : "Confirm Status Changes"}
+                          ? "Confirm Bid Changes"
+                          : "Confirm Status Changes"}
                     </h3>
 
                     {/* Results Summary */}
@@ -1982,9 +1817,8 @@ export const GoogleKeywords: React.FC = () => {
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
                                 ? `Showing ${previewCount} of ${selectedKeywordsData.length} selected keywords`
-                                : `${selectedKeywordsData.length} keyword${
-                                    selectedKeywordsData.length !== 1 ? "s" : ""
-                                  } selected`}
+                                : `${selectedKeywordsData.length} keyword${selectedKeywordsData.length !== 1 ? "s" : ""
+                                } selected`}
                             </span>
                           </div>
                           <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -2047,81 +1881,81 @@ export const GoogleKeywords: React.FC = () => {
 
                     {/* Action Details - Only show before update */}
                     {!bulkUpdateResults && (
-                    <div className="space-y-3 mb-6">
-                      {isBidChange ? (
-                        <>
+                      <div className="space-y-3 mb-6">
+                        {isBidChange ? (
+                          <>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Action:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {bidAction === "increase"
+                                  ? "Increase By"
+                                  : bidAction === "decrease"
+                                    ? "Decrease By"
+                                    : "Set To"}
+                              </span>
+                            </div>
+
+                            {(bidAction === "increase" ||
+                              bidAction === "decrease") && (
+                                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                  <span className="text-[12.16px] text-[#556179]">
+                                    Unit:
+                                  </span>
+                                  <span className="text-[12.16px] font-semibold text-[#072929]">
+                                    {bidUnit === "percent"
+                                      ? "Percentage (%)"
+                                      : "Amount ($)"}
+                                  </span>
+                                </div>
+                              )}
+
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Value:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {bidValue} {bidUnit === "percent" ? "%" : "$"}
+                              </span>
+                            </div>
+
+                            {bidAction === "increase" && upperLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Upper Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${upperLimit}
+                                </span>
+                              </div>
+                            )}
+
+                            {bidAction === "decrease" && lowerLimit && (
+                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span className="text-[12.16px] text-[#556179]">
+                                  Lower Limit:
+                                </span>
+                                <span className="text-[12.16px] font-semibold text-[#072929]">
+                                  ${lowerLimit}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
                           <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.16px] text-[#556179]">
-                              Action:
+                              New Status:
                             </span>
                             <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {bidAction === "increase"
-                                ? "Increase By"
-                                : bidAction === "decrease"
-                                ? "Decrease By"
-                                : "Set To"}
-                            </span>
-                          </div>
-
-                          {(bidAction === "increase" ||
-                            bidAction === "decrease") && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Unit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {bidUnit === "percent"
-                                  ? "Percentage (%)"
-                                  : "Amount ($)"}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                            <span className="text-[12.16px] text-[#556179]">
-                              Value:
-                            </span>
-                            <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {bidValue} {bidUnit === "percent" ? "%" : "$"}
-                            </span>
-                          </div>
-
-                          {bidAction === "increase" && upperLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Upper Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${upperLimit}
-                              </span>
-                            </div>
-                          )}
-
-                          {bidAction === "decrease" && lowerLimit && (
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Lower Limit:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                ${lowerLimit}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                          <span className="text-[12.16px] text-[#556179]">
-                            New Status:
-                          </span>
-                          <span className="text-[12.16px] font-semibold text-[#072929]">
-                            {pendingStatusAction
-                              ? pendingStatusAction.charAt(0) +
+                              {pendingStatusAction
+                                ? pendingStatusAction.charAt(0) +
                                 pendingStatusAction.slice(1).toLowerCase()
-                              : ""}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                                : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     <div className="flex justify-end gap-3">
@@ -2193,8 +2027,8 @@ export const GoogleKeywords: React.FC = () => {
                       {inlineEditField === "bid"
                         ? "Bid"
                         : inlineEditField === "status"
-                        ? "Status"
-                        : "Match Type"}{" "}
+                          ? "Status"
+                          : "Match Type"}{" "}
                       Change
                     </h3>
                     <div className="mb-4">
@@ -2211,8 +2045,8 @@ export const GoogleKeywords: React.FC = () => {
                             {inlineEditField === "bid"
                               ? "Bid"
                               : inlineEditField === "status"
-                              ? "Status"
-                              : "Match Type"}
+                                ? "Status"
+                                : "Match Type"}
                             :
                           </span>
                           <div className="flex items-center gap-2">
@@ -2270,7 +2104,7 @@ export const GoogleKeywords: React.FC = () => {
                     }
                   }}
                 >
-                  <div 
+                  <div
                     className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -2279,8 +2113,8 @@ export const GoogleKeywords: React.FC = () => {
                     </h3>
                     <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <p className="text-[12px] text-yellow-800">
-                        <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly. 
-                        This will create a new keyword with the updated text and remove the old one. 
+                        <strong>Note:</strong> Google Ads doesn't allow updating keyword text directly.
+                        This will create a new keyword with the updated text and remove the old one.
                         The keyword will appear with a new ID after the update.
                       </p>
                     </div>
@@ -2347,7 +2181,7 @@ export const GoogleKeywords: React.FC = () => {
                     }
                   }}
                 >
-                  <div 
+                  <div
                     className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6 relative"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -2378,7 +2212,7 @@ export const GoogleKeywords: React.FC = () => {
                           disabled={finalUrlEditLoading}
                           className="w-4 h-4 text-[#136D6D] border-gray-300 rounded focus:ring-[#136D6D] disabled:opacity-50"
                         />
-                        <label 
+                        <label
                           htmlFor="use-mobile-url"
                           className="text-[13.3px] text-[#072929] cursor-pointer"
                         >
@@ -2460,12 +2294,12 @@ export const GoogleKeywords: React.FC = () => {
                     onInlineEditChange={handleInlineEditChange}
                     onConfirmInlineEdit={confirmInlineEdit}
                     onStartFinalUrlEdit={handleStartFinalUrlEdit}
-                    onConfirmBidChange={() => {}}
-                    onCancelBidChange={() => {}}
-                    onConfirmStatusChange={() => {}}
-                    onCancelStatusChange={() => {}}
-                    onConfirmMatchTypeChange={() => {}}
-                    onCancelMatchTypeChange={() => {}}
+                    onConfirmBidChange={() => { }}
+                    onCancelBidChange={() => { }}
+                    onConfirmStatusChange={() => { }}
+                    onCancelStatusChange={() => { }}
+                    onConfirmMatchTypeChange={() => { }}
+                    onCancelMatchTypeChange={() => { }}
                     formatCurrency={formatCurrency}
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadge}
@@ -2505,11 +2339,10 @@ export const GoogleKeywords: React.FC = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                            currentPage === pageNum
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
-                          }`}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -2523,11 +2356,10 @@ export const GoogleKeywords: React.FC = () => {
                     {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => setCurrentPage(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                          currentPage === totalPages
-                            ? "bg-white text-[#136D6D] font-semibold"
-                            : "text-black hover:bg-gray-50"
-                        }`}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
+                          ? "bg-white text-[#136D6D] font-semibold"
+                          : "text-black hover:bg-gray-50"
+                          }`}
                       >
                         {totalPages}
                       </button>
@@ -2548,7 +2380,7 @@ export const GoogleKeywords: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Error Modal */}
       <ErrorModal
         isOpen={errorModal.isOpen}
