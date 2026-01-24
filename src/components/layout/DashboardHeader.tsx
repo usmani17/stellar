@@ -544,48 +544,49 @@ export const DashboardHeader: React.FC = () => {
           )}
           </div>
         )}
+      </div>
 
-        <div className="relative" ref={profileDropdownRef}>
-          <button
-            onClick={() => setIsProfileDropdownOpen((p) => !p)}
-            className="profile-avatar-button"
-          >
-            {user?.first_name?.[0] || "U"}
-          </button>
+      {/* User Settings - Bottom Left (Fixed Position) */}
+      <div className="fixed bottom-6 left-6 z-50" ref={profileDropdownRef}>
+        <button
+          onClick={() => setIsProfileDropdownOpen((p) => !p)}
+          className="profile-avatar-button"
+        >
+          {user?.first_name?.[0] || "U"}
+        </button>
 
-          {isProfileDropdownOpen && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-50">
-              <div className="p-2">
-                <div className="px-3 py-2 text-[12.32px] text-[#313850] border-b border-gray-100">
-                  <div className="font-medium">
-                    {user?.first_name} {user?.last_name}
-                  </div>
-                  <div className="text-[10.56px] text-[#556179] mt-1">
-                    {user?.email}
-                  </div>
+        {isProfileDropdownOpen && (
+          <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#FEFEFB] border border-gray-200 rounded-lg shadow-lg z-50">
+            <div className="p-2">
+              <div className="px-3 py-2 text-[12.32px] text-[#313850] border-b border-gray-100">
+                <div className="font-medium">
+                  {user?.first_name} {user?.last_name}
                 </div>
-                <button
-                  onClick={() => {
-                    setIsProfileDropdownOpen(false);
-                    navigate("/profile");
-                  }}
-                  className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
-                >
-                  Profile
-                </button>
-                <button
-                  onClick={() => {
-                    logout();
-                    navigate("/login");
-                  }}
-                  className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
-                >
-                  Logout
-                </button>
+                <div className="text-[10.56px] text-[#556179] mt-1">
+                  {user?.email}
+                </div>
               </div>
+              <button
+                onClick={() => {
+                  setIsProfileDropdownOpen(false);
+                  navigate("/profile");
+                }}
+                className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
+              >
+                Profile
+              </button>
+              <button
+                onClick={() => {
+                  logout();
+                  navigate("/login");
+                }}
+                className="w-full text-left px-3 py-2 rounded text-[12.32px] text-[#313850] hover:bg-gray-50 transition-colors"
+              >
+                Logout
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
