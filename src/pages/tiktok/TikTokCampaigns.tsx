@@ -20,6 +20,7 @@ import {
   CreateTikTokCampaignPanel,
   type CreateTikTokCampaignData,
 } from "../../components/campaigns/CreateTikTokCampaignPanel";
+import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { Button } from "../../components/ui";
 import { ErrorModal } from "../../components/ui/ErrorModal";
@@ -167,6 +168,11 @@ export const TikTokCampaigns: React.FC = () => {
     ctr: false,
     cpc: false,
   });
+
+  // Chart collapse state with localStorage persistence
+  const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+    "tiktok-campaigns-chart-collapsed"
+  );
 
   // Toggle chart metric
   const toggleChartMetric = (metric: string) => {
@@ -1024,6 +1030,8 @@ export const TikTokCampaigns: React.FC = () => {
                 toggles={chartToggles}
                 onToggle={toggleChartMetric}
                 title="Performance Trends"
+                isCollapsed={isChartCollapsed}
+                onCollapseToggle={toggleChartCollapse}
                 metrics={[
                   { key: "spend", label: "Spend", color: "#506766" },
                   {

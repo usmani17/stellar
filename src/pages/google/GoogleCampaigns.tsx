@@ -18,6 +18,7 @@ import {
 import { campaignsService } from "../../services/campaigns";
 import { googleAdwordsCampaignsService } from "../../services/googleAdwords/googleAdwordsCampaigns";
 import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
+import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleCampaignsTable} from "./components/GoogleCampaignsTable";
 import { CreateGoogleCampaignSection } from "../../components/campaigns/CreateGoogleCampaignSection";
@@ -27,7 +28,7 @@ import {
 } from "../../components/campaigns/CreateGoogleCampaignPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
-import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
+// import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
 import type { IGoogleCampaign, IGoogleCampaignsSummary } from "../../types/google/campaign";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { columnPreferencesService } from "../../services/columnPreferences";
@@ -117,15 +118,9 @@ export const GoogleCampaigns: React.FC = () => {
   });
 
   // Chart collapse state with localStorage persistence
-  const [isChartCollapsed, setIsChartCollapsed] = useState<boolean>(() => {
-    const saved = localStorage.getItem("google-campaigns-chart-collapsed");
-    return saved === "true";
-  });
-
-  // Save chart collapse state to localStorage
-  useEffect(() => {
-    localStorage.setItem("google-campaigns-chart-collapsed", String(isChartCollapsed));
-  }, [isChartCollapsed]);
+  const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+    "google-campaigns-chart-collapsed"
+  );
 
   // Selection and bulk actions
   const [selectedCampaigns, setSelectedCampaigns] = useState<
@@ -209,7 +204,7 @@ export const GoogleCampaigns: React.FC = () => {
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   
   // Column visibility state
-  const [showCustomizeColumns, setShowCustomizeColumns] = useState(false);
+  // const [showCustomizeColumns, setShowCustomizeColumns] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set());
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const queryClient = useQueryClient();
@@ -335,7 +330,7 @@ export const GoogleCampaigns: React.FC = () => {
         queryKey: queryKeys.columnPreferences.detail('google', 'campaigns'),
       });
       // Close modal after successful save
-      setShowCustomizeColumns(false);
+      // setShowCustomizeColumns(false);
     },
   });
 
@@ -520,7 +515,11 @@ export const GoogleCampaigns: React.FC = () => {
 
       const response = await googleAdwordsCampaignsService.createGoogleCampaign(
         accountIdNum,
-        data
+        {
+          // The service type only includes the core campaign types; DISPLAY/VIDEO
+          // are not creatable via this endpoint, so we narrow here for typing.
+          ...(data as any),
+        }
       );
 
       console.log("Create Google campaign response:", response);
@@ -539,12 +538,22 @@ export const GoogleCampaigns: React.FC = () => {
       setCampaignFormMode("create");
       setCampaignId(undefined);
 
+      // Check for language result info
+      const languageResult = response?.language_result;
+      let successMessage = `Campaign "${data.name}" created successfully!`;
+      
+      if (languageResult?.invalid_languages && languageResult.invalid_languages.length > 0) {
+        const invalidCount = languageResult.invalid_languages.length;
+        const invalidList = languageResult.invalid_languages.join(", ");
+        successMessage += `\n\nNote: ${invalidCount} language(s) could not be targeted and were skipped: ${invalidList}`;
+      }
+
       // Show success modal with navigation button if we have campaign ID
       if (newCampaignId) {
         setErrorModal({
           isOpen: true,
           title: "Success",
-          message: `Campaign "${data.name}" created successfully!`,
+          message: successMessage,
           isSuccess: true,
           actionButton: {
             text: "View Campaign",
@@ -562,7 +571,7 @@ export const GoogleCampaigns: React.FC = () => {
         setErrorModal({
           isOpen: true,
           title: "Success",
-          message: `Campaign "${data.name}" created successfully!`,
+          message: successMessage,
           isSuccess: true,
         });
 
@@ -575,49 +584,106 @@ export const GoogleCampaigns: React.FC = () => {
 
       // Extract error message from backend response
       let errorMessage = "Failed to create campaign. Please try again.";
-      let errorDetails = null;
+      let errorDetails: any = null;
+      let fieldErrors: Record<string, string> | null = null;
 
-      if (error?.response?.data) {
+      const responseData = error?.response?.data;
+
+      if (responseData) {
         // Check for validation errors (400 status)
         if (error.response.status === 400) {
-          if (error.response.data.error) {
-            errorMessage = error.response.data.error;
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
+          if (responseData.error) {
+            errorMessage = responseData.error;
+          } else if (responseData.message) {
+            errorMessage = responseData.message;
           }
         } else {
           // Check for error message
-          if (error.response.data.error) {
-            errorMessage = error.response.data.error;
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
+          if (responseData.error) {
+            errorMessage = responseData.error;
+          } else if (responseData.message) {
+            errorMessage = responseData.message;
           }
+        }
 
-          // Check for detailed error information
-          if (error.response.data.details) {
-            errorDetails = error.response.data.details;
-            // If details is an object with errors, format it
-            if (
-              typeof errorDetails === "object" &&
-              !Array.isArray(errorDetails)
-            ) {
-              if (errorDetails.errors) {
-                errorMessage = `Google Ads API errors: ${JSON.stringify(
-                  errorDetails.errors
-                )}`;
-              } else if (errorDetails.message) {
-                errorMessage = `Google Ads API error: ${errorDetails.message}`;
+        // Check for detailed Google Ads error information
+        if (responseData.details) {
+          errorDetails = responseData.details;
+        }
+
+        const googleAdsErrors =
+          responseData.google_ads_errors ||
+          errorDetails?.google_ads_errors ||
+          errorDetails?.errors;
+
+        // Special-case handling: URL custom parameter key/value validation errors
+        if (Array.isArray(googleAdsErrors) && googleAdsErrors.length > 0) {
+          const urlParamErrors = googleAdsErrors.filter((err: any) => {
+            const msg = String(err?.message || "");
+            const loc = String(err?.location || "");
+            return (
+              msg.includes("disallowed characters") &&
+              loc.includes("url_custom_parameters")
+            );
+          });
+
+          if (urlParamErrors.length > 0) {
+            const badParams: string[] = [];
+
+            urlParamErrors.forEach((err: any) => {
+              const loc = String(err?.location || "");
+              const indexMatch = /index:\s*(\d+)/.exec(loc);
+              let label = "";
+
+              if (indexMatch) {
+                const idx = parseInt(indexMatch[1], 10);
+                const params = data.url_custom_parameters || [];
+                if (idx >= 0 && idx < params.length) {
+                  label = params[idx]?.key || `Custom parameter #${idx + 1}`;
+                } else {
+                  label = `Custom parameter #${idx + 1}`;
+                }
               }
+
+              if (label) {
+                badParams.push(label);
+              }
+            });
+
+            const uniqueLabels = Array.from(new Set(badParams));
+
+            if (uniqueLabels.length === 1) {
+              errorMessage = `URL custom parameter key "${uniqueLabels[0]}" contains characters that Google Ads does not allow. Try using letters, numbers, and allowed symbols only.`;
+            } else if (uniqueLabels.length > 1) {
+              errorMessage = `Some URL custom parameter keys contain characters that Google Ads does not allow: ${uniqueLabels.join(
+                ", "
+              )}. Try using letters, numbers, and allowed symbols only.`;
+            } else {
+              errorMessage =
+                "One or more URL custom parameter keys contain characters that Google Ads does not allow. Try using letters, numbers, and allowed symbols only.";
             }
+
+            fieldErrors = {
+              url_custom_parameters: errorMessage,
+            };
           }
         }
       } else if (error?.message) {
         errorMessage = error.message;
       }
 
-      // Store error message as plain string for display
-      // Note: Field errors are handled separately by the panel if needed
-      setCreateCampaignError(errorMessage);
+      // For the panel, send either a structured JSON string (for field errors)
+      // or a plain message. The panel will parse fieldErrors if present.
+      if (fieldErrors) {
+        setCreateCampaignError(
+          JSON.stringify({
+            message: errorMessage,
+            fieldErrors,
+          })
+        );
+      } else {
+        setCreateCampaignError(errorMessage);
+      }
 
       // Don't close panel on error - let user fix and resubmit
       // Re-throw error so the form knows submission failed
@@ -2674,7 +2740,7 @@ export const GoogleCampaigns: React.FC = () => {
                 onToggle={toggleChartMetric}
                 title="Performance Trends"
                 isCollapsed={isChartCollapsed}
-                onCollapseToggle={() => setIsChartCollapsed(!isChartCollapsed)}
+                onCollapseToggle={toggleChartCollapse}
               />
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
@@ -2907,7 +2973,7 @@ export const GoogleCampaigns: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="relative inline-flex justify-end">
+              {/* <div className="relative inline-flex justify-end">
                 <Button
                   type="button"
                   variant="ghost"
@@ -2937,7 +3003,7 @@ export const GoogleCampaigns: React.FC = () => {
                     Customize Columns
                   </span>
                 </Button>
-              </div>
+              </div> */}
               </div>
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[8px] cursor-not-allowed" />
@@ -3628,7 +3694,7 @@ export const GoogleCampaigns: React.FC = () => {
               )}
 
               {/* Customize Columns Modal */}
-              <CustomizeColumns
+              {/* <CustomizeColumns
                 columns={[
                   { key: "campaign_name", label: "Campaign Name", required: true },
                   { key: "account_name", label: "Account Name" },
@@ -3664,7 +3730,7 @@ export const GoogleCampaigns: React.FC = () => {
                 isOpen={showCustomizeColumns}
                 onClose={() => setShowCustomizeColumns(false)}
                 isSaving={savePreferencesMutation.isPending}
-              />
+              /> */}
 
               {/* Table */}
               <div className="table-container">

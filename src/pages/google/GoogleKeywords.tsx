@@ -15,6 +15,7 @@ import {
 } from "../../components/filters/DynamicFilterPanel";
 import { googleAdwordsKeywordsService } from "../../services/googleAdwords/googleAdwordsKeywords";
 import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
+import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import {
   GoogleKeywordsTable,
@@ -75,6 +76,11 @@ export const GoogleKeywords: React.FC = () => {
     acos: false,
     roas: false,
   });
+
+  // Chart collapse state with localStorage persistence
+  const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+    "google-keywords-chart-collapsed"
+  );
 
   // Selection and bulk actions
   const [selectedKeywords, setSelectedKeywords] = useState<
@@ -1542,6 +1548,8 @@ export const GoogleKeywords: React.FC = () => {
               toggles={chartToggles}
               onToggle={toggleChartMetric}
               title="Performance Trends"
+              isCollapsed={isChartCollapsed}
+              onCollapseToggle={toggleChartCollapse}
             />
 
             {/* Edit and Export Buttons - Above Table */}

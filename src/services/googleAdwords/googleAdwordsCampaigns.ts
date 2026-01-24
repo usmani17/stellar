@@ -20,6 +20,10 @@ export const googleAdwordsCampaignsService = {
       target_impression_share_cpc_bid_ceiling_micros?: number; // Maximum CPC bid ceiling in micros (e.g., 1000000 = $1.00)
       // Performance Max fields
       final_url?: string;
+      // URL options
+      tracking_url_template?: string;
+      final_url_suffix?: string;
+      url_custom_parameters?: Array<{ key: string; value: string }>;
       asset_group_name?: string;
       headlines?: string[]; // Min 3, max 15
       descriptions?: string[]; // Min 2, max 4
@@ -44,6 +48,10 @@ export const googleAdwordsCampaignsService = {
     campaign_resource_name: string;
     customer_id: string;
     campaign_id?: string;
+    language_result?: {
+      valid_languages: string[];
+      invalid_languages: string[];
+    };
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/create/`;
     const response = await api.post(url, payload);
@@ -412,6 +420,24 @@ export const googleAdwordsCampaignsService = {
   }> => {
     const url = `/google-adwords/${accountId}/campaigns/${campaignId}/refresh/`;
     const response = await api.post(url);
+    return response.data;
+  },
+
+  getGoogleBudgets: async (
+    accountId: number
+  ): Promise<
+    Array<{
+      id: string | number;
+      name: string;
+      amount_dollars: number;
+      amount_micros: number;
+      resource_name: string;
+      delivery_method: string;
+      explicitly_shared: boolean;
+    }>
+  > => {
+    const url = `/google-adwords/${accountId}/budgets/`;
+    const response = await api.get(url);
     return response.data;
   },
 };

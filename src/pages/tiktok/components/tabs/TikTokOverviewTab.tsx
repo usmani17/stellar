@@ -1,4 +1,5 @@
 import React from "react";
+import { useChartCollapse } from "../../../../hooks/useChartCollapse";
 import { PerformanceChart, type MetricConfig } from "../../../../components/charts/PerformanceChart";
 import { TikTokAdGroupTable } from "./TikTokAdGroupTable";
 import { TikTokAdTable } from "./TikTokAdTable";
@@ -27,6 +28,11 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
     accountId,
     onRefresh,
 }) => {
+    // Chart collapse state with localStorage persistence
+    const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+        "tiktok-overview-chart-collapsed"
+    );
+
     return (
         <div className="space-y-6">
             {/* Chart Section */}
@@ -36,6 +42,8 @@ export const TikTokOverviewTab: React.FC<TikTokOverviewTabProps> = ({
                 onToggle={onToggleChartMetric}
                 title="Performance Trends"
                 metrics={metrics}
+                isCollapsed={isChartCollapsed}
+                onCollapseToggle={toggleChartCollapse}
             />
 
             {/* Top Ad Groups & Top Ads */}

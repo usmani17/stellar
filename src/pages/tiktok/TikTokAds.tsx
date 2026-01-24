@@ -6,6 +6,7 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { useDateRange } from "../../contexts/DateRangeContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { campaignsService } from "../../services/campaigns";
+import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart, type MetricConfig } from "../../components/charts/PerformanceChart";
 import { TikTokAdsTable, type TikTokAd } from "./components/TikTokAdsTable";
 import { Button } from "../../components/ui";
@@ -89,6 +90,11 @@ export const TikTokAds: React.FC = () => {
         ctr: false,
         cpc: false,
     });
+
+    // Chart collapse state with localStorage persistence
+    const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+        "tiktok-ads-chart-collapsed"
+    );
 
     const toggleChartMetric = (metric: string) => {
         setChartToggles(prev => ({
@@ -524,6 +530,8 @@ export const TikTokAds: React.FC = () => {
                             onToggle={toggleChartMetric}
                             title="Performance"
                             metrics={metrics}
+                            isCollapsed={isChartCollapsed}
+                            onCollapseToggle={toggleChartCollapse}
                         />
 
                         {/* Table Header Actions (Edit/Export) */}

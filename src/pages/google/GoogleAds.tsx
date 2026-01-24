@@ -14,6 +14,7 @@ import {
 } from "../../components/filters/DynamicFilterPanel";
 import { googleAdwordsAdsService } from "../../services/googleAdwords/googleAdwordsAds";
 import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
+import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleAdsListTable } from "./components/GoogleAdsListTable";
 import { Loader } from "../../components/ui/Loader";
@@ -71,6 +72,11 @@ export const GoogleAds: React.FC = () => {
     acos: false,
     roas: false,
   });
+
+  // Chart collapse state with localStorage persistence
+  const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+    "google-ads-chart-collapsed"
+  );
 
   // Selection and bulk actions
   const [selectedAds, setSelectedAds] = useState<Set<string | number>>(
@@ -992,6 +998,8 @@ export const GoogleAds: React.FC = () => {
               toggles={chartToggles}
               onToggle={toggleChartMetric}
               title="Performance Trends"
+              isCollapsed={isChartCollapsed}
+              onCollapseToggle={toggleChartCollapse}
             />
 
             {/* Edit and Export Buttons - Above Table */}

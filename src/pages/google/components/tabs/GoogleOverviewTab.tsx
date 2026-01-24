@@ -1,4 +1,5 @@
 import React from "react";
+import { useChartCollapse } from "../../../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../../../components/charts/PerformanceChart";
 
 interface GoogleOverviewTabProps {
@@ -23,6 +24,11 @@ export const GoogleOverviewTab: React.FC<GoogleOverviewTabProps> = ({
   chartToggles,
   onToggleChartMetric,
 }) => {
+  // Chart collapse state with localStorage persistence
+  const [isChartCollapsed, toggleChartCollapse] = useChartCollapse(
+    "google-overview-chart-collapsed"
+  );
+
   // Filter chartToggles to only include the metrics that PerformanceChart expects
   const filteredToggles = {
     sales: chartToggles.sales,
@@ -48,6 +54,8 @@ export const GoogleOverviewTab: React.FC<GoogleOverviewTabProps> = ({
         toggles={filteredToggles}
         onToggle={handleToggle}
         title="Performance Trends"
+        isCollapsed={isChartCollapsed}
+        onCollapseToggle={toggleChartCollapse}
       />
     </>
   );
