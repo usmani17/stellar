@@ -342,7 +342,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   }, [allColumns, visibleColumns, columnOrder]);
 
   // Handle confirm inline edit - route to appropriate handler
-  // All fields (status, budget, end_date, bidding_strategy_type) now use modal confirmation
+  // For budget, date, status, and bidding_strategy_type, use direct confirmation (no modal)
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
     // Use the field parameter if provided, otherwise fall back to editingCell
     const fieldToUse = field || editingCell?.field;
@@ -353,8 +353,20 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
     // Use itemIdParam if provided, otherwise fall back to editingCell
     const campaignIdToUse = itemIdParam || editingCell?.campaignId;
     
-    // All fields now use regular confirmation (with modal) - matches Amazon Campaign pattern
-    onConfirmInlineEdit(value, fieldToUse, campaignIdToUse);
+    // For budget, date, status, and bidding_strategy_type, use direct confirmation (no modal)
+    // This calls confirmInlineEditDirect which makes the API call immediately
+    if (onConfirmInlineEditDirect && (
+      fieldToUse === "budget" || 
+      fieldToUse === "start_date" || 
+      fieldToUse === "end_date" || 
+      fieldToUse === "status" || 
+      fieldToUse === "bidding_strategy_type"
+    )) {
+      onConfirmInlineEditDirect(value, campaignIdToUse, fieldToUse);
+    } else if (onConfirmInlineEdit) {
+      // Fall back to regular confirmation for other fields (with modal)
+      onConfirmInlineEdit(value);
+    }
   };
 
   // Handle confirm change - route to appropriate handler (dates now use modal)
