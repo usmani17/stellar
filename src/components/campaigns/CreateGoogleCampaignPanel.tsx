@@ -60,7 +60,7 @@ export interface CreateGoogleCampaignData {
   location_ids?: string[];  // Array of location criterion IDs to target
   excluded_location_ids?: string[];  // Array of location criterion IDs to exclude
   language_ids?: string[];  // Array of language constant IDs to target
-  device_ids?: string[];  // Array of device type IDs to target (MOBILE, DESKTOP, TABLET, CONNECTED_TV, OTHER)
+  device_ids?: string[];  // Array of device type IDs to target (MOBILE, DESKTOP, TABLET, CONNECTED_TV)
   // Search fields
   adgroup_name?: string;
   keywords?: string[] | string; // Can be array or comma-separated string
@@ -2396,7 +2396,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                         ? merchantAccountsError
                         : "No Merchant Center accounts found. Please link a Merchant Center account to your Google Ads account."
                     }
-                    disabled={loadingMerchantAccounts}
+                    disabled={loadingMerchantAccounts || (mode === "edit" && formData.campaign_type === "SHOPPING")}
                   />
                   {errors.merchant_id && (
                     <p className="text-[10px] text-red-500 mt-1">
@@ -2425,6 +2425,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     value={formData.sales_country || "US"}
                     onChange={(value) => handleChange("sales_country", value)}
                     buttonClassName="edit-button w-full"
+                    disabled={mode === "edit" && formData.campaign_type === "SHOPPING"}
                   />
                 </div>
 
@@ -2794,7 +2795,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                           { value: "DESKTOP", label: "Desktop" },
                           { value: "TABLET", label: "Tablet" },
                           { value: "CONNECTED_TV", label: "Connected TV" },
-                          { value: "OTHER", label: "Other" },
                         ].map((device) => (
                           <div key={device.value} className="flex items-center gap-2">
                             <input
@@ -2841,7 +2841,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                         { value: "DESKTOP", label: "Desktop" },
                         { value: "TABLET", label: "Tablet" },
                         { value: "CONNECTED_TV", label: "Connected TV" },
-                        { value: "OTHER", label: "Other" },
                       ].map((device) => (
                         <div key={device.value} className="flex items-center gap-2">
                           <input

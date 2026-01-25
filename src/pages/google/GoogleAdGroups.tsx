@@ -39,6 +39,12 @@ export const GoogleAdGroups: React.FC = () => {
     total_clicks: number;
     avg_acos: number;
     avg_roas: number;
+    total_conversions?: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_cpc?: number;
+    avg_cost?: number;
+    avg_interaction_rate?: number;
   } | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
     Array<{
@@ -120,6 +126,16 @@ export const GoogleAdGroups: React.FC = () => {
   const [updatingField, setUpdatingField] = useState<{
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
+    newValue?: string;
+  } | null>(null);
+  const [inlineEditSuccess, setInlineEditSuccess] = useState<{
+    adgroupId: string | number;
+    field: "bid" | "status" | "name" | "adgroup_name";
+  } | null>(null);
+  const [inlineEditError, setInlineEditError] = useState<{
+    adgroupId: string | number;
+    field: "bid" | "status" | "name" | "adgroup_name";
+    message: string;
   } | null>(null);
   // Pending changes - match Amazon pattern (no modal, show confirm/cancel buttons inline)
   const [pendingChanges, setPendingChanges] = useState<Record<string, {
@@ -139,11 +155,9 @@ export const GoogleAdGroups: React.FC = () => {
   const [nameEditAdgroup, setNameEditAdgroup] = useState<GoogleAdGroup | null>(null);
   const [nameEditValue, setNameEditValue] = useState<string>("");
   const [nameEditLoading, setNameEditLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportType, setExportType] = useState<"current_view" | "all_data">(
-    "current_view"
-  );
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -154,16 +168,22 @@ export const GoogleAdGroups: React.FC = () => {
       ) {
         setShowBulkActions(false);
       }
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    if (showBulkActions) {
+    if (showBulkActions || showExportDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showBulkActions]);
+  }, [showBulkActions, showExportDropdown]);
 
   // Cancel inline edit when clicking outside
   useEffect(() => {
@@ -627,8 +647,15 @@ export const GoogleAdGroups: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    fieldKey?: string
+    fieldKey?: string,
+    adgroupIdParam?: string | number
   ) => {
+    // If adgroupIdParam and fieldKey are provided, use direct confirmation
+    if (adgroupIdParam && fieldKey && (fieldKey === "bid" || fieldKey === "adgroup_name" || fieldKey === "status")) {
+      confirmInlineEditDirect(newValueOverride || editedValue, adgroupIdParam, fieldKey);
+      return;
+    }
+
     if (!editingCell || !accountId || isCancelling) return;
 
     const adgroup = adgroups.find(
@@ -699,6 +726,133 @@ export const GoogleAdGroups: React.FC = () => {
     }));
     setEditingCell(null);
     setEditedValue("");
+  };
+
+  // Direct confirmation handler for bid and adgroup_name (no pending changes, immediate update)
+  const confirmInlineEditDirect = async (newValue: string, adgroupIdParam: string | number, fieldParam: string) => {
+    if (!accountId || isCancelling) return;
+
+    const adgroupIdToUse = adgroupIdParam;
+    const fieldToUse = fieldParam;
+
+    if (!adgroupIdToUse || !fieldToUse) return;
+
+    const adgroup = adgroups.find((a) => a.adgroup_id === adgroupIdToUse);
+    if (!adgroup) return;
+
+    // Only allow direct confirmation for bid, adgroup_name, and status fields
+    if (fieldToUse !== "bid" && fieldToUse !== "adgroup_name" && fieldToUse !== "status") {
+      // Fall back to regular confirmation for other fields
+      confirmInlineEdit(newValue, fieldToUse);
+      return;
+    }
+
+    // Set updating field immediately to show loading
+    setUpdatingField({
+      adgroupId: adgroupIdToUse,
+      field: fieldToUse as any,
+      newValue: newValue.trim(),
+    });
+
+    // Clear editingCell if it matches
+    if (!editingCell || (editingCell.adgroupId === adgroupIdToUse && editingCell.field === fieldToUse)) {
+      setEditingCell(null);
+      setEditedValue("");
+    }
+
+    // Directly call handleConfirmChange
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (fieldToUse === "bid") {
+        const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+        if (isNaN(bidValue) || bidValue <= 0) {
+          throw new Error("Invalid bid value");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [adgroupIdToUse],
+          action: "bid",
+          bid: bidValue,
+        });
+      } else if (fieldToUse === "adgroup_name") {
+        const trimmedName = newValue.trim();
+        if (!trimmedName) {
+          throw new Error("Ad group name cannot be empty");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [adgroupIdToUse],
+          action: "name",
+          name: trimmedName,
+        });
+      } else if (fieldToUse === "status") {
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+        };
+        const statusValue = statusMap[newValue] || "ENABLED";
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [adgroupIdToUse],
+          action: "status",
+          status: statusValue,
+        });
+      }
+
+      await loadAdgroups(accountIdNum);
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback
+      setInlineEditSuccess({
+        adgroupId: adgroupIdToUse,
+        field: fieldToUse as any,
+      });
+      // Clear success feedback after 3 seconds
+      setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 3000);
+    } catch (error: any) {
+      console.error("Failed to update adgroup:", error);
+      
+      // Clear any previous success
+      setInlineEditSuccess(null);
+      
+      // Set error state for inline feedback
+      let errorMessage = "Failed to update adgroup. Please try again.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          // Clean up error messages - remove "AdGroup {id}:" prefix if present
+          errorMessage = error.response.data.errors[0].replace(/^AdGroup\s+\d+:\s*/i, "");
+        }
+      }
+      
+      setInlineEditError({
+        adgroupId: adgroupIdToUse,
+        field: fieldToUse as any,
+        message: errorMessage,
+      });
+      
+      // Auto-dismiss error after 5 seconds
+      setTimeout(() => {
+        setInlineEditError(null);
+      }, 5000);
+    } finally {
+      setUpdatingField(null);
+    }
   };
 
   // Handler for confirming a pending change (clicking the checkmark)
@@ -971,13 +1125,21 @@ export const GoogleAdGroups: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (exportType: "all_data" | "current_view" | "selected") => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    // Validate selected adgroups for selected export
+    if (exportType === "selected" && selectedAdgroups.size === 0) {
+      alert("Please select at least one ad group to export.");
+      return;
+    }
+
+    // Keep dropdown open and show loading
+    setShowExportDropdown(true);
+    setExportLoading(true);
     try {
-      setExporting(true);
       const params: any = {
         filters: filters, // Pass filters array directly
         sort_by: sortBy,
@@ -994,17 +1156,30 @@ export const GoogleAdGroups: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
+      // Add adgroup IDs for selected export
+      if (exportType === "selected") {
+        params.adgroup_ids = Array.from(selectedAdgroups);
+      }
+
       await googleAdwordsAdGroupsService.exportGoogleAdGroups(
         accountIdNum,
         params,
         exportType
       );
-      setShowExportModal(false);
+      // Close dropdown after a short delay to show success
+      setTimeout(() => {
+        setShowExportDropdown(false);
+      }, 500);
     } catch (error: any) {
       console.error("Failed to export adgroups:", error);
-      alert("Failed to export adgroups. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to export adgroups. Please try again.";
+      alert(errorMessage);
+      setShowExportDropdown(false);
     } finally {
-      setExporting(false);
+      setExportLoading(false);
     }
   };
 
@@ -1035,6 +1210,20 @@ export const GoogleAdGroups: React.FC = () => {
     adgroups.length > 0 && selectedAdgroups.size === adgroups.length;
   const someSelected =
     selectedAdgroups.size > 0 && selectedAdgroups.size < adgroups.length;
+
+  // Memoize export options to prevent hooks order issues
+  const exportOptions = useMemo(() => [
+    { value: "bulk_export", label: "Export All" },
+    {
+      value: "current_view",
+      label: "Export Current View",
+    },
+    {
+      value: "selected",
+      label: "Export Selected",
+      disabled: selectedAdgroups.size === 0,
+    },
+  ], [selectedAdgroups.size]);
 
   const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
@@ -1266,7 +1455,7 @@ export const GoogleAdGroups: React.FC = () => {
                     />
                   </svg>
                   <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
+                    Bulk Actions
                   </span>
                 </Button>
                 {showBulkActions && (
@@ -1307,45 +1496,112 @@ export const GoogleAdGroups: React.FC = () => {
               </div>
               <div
                 className="relative inline-flex justify-end"
-                ref={dropdownRef}
+                ref={exportDropdownRef}
               >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="edit-button"
-                  onClick={() => setShowExportModal(true)}
-                  disabled={exporting || loading || adgroups.length === 0}
-                >
-                  {exporting ? (
-                    <>
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="edit-button"
+                    onClick={(e) => {
+                      if (exportLoading) return;
+                      e.stopPropagation();
+                      setShowExportDropdown((prev) => !prev);
+                      setShowBulkActions(false);
+                      setShowBidPanel(false);
+                    }}
+                    disabled={
+                      exportLoading || loading || adgroups.length === 0
+                    }
+                  >
+                    {exportLoading ? (
                       <div className="flex items-center justify-center">
                         <Loader size="sm" showMessage={false} />
                       </div>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Exporting...
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Export
-                      </span>
-                    </>
-                  )}
-                </Button>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5 text-[#072929]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">
+                          Export
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {(showExportDropdown || exportLoading) && (
+                  <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    {exportLoading ? (
+                      <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                        <Loader size="md" message="Exporting..." />
+                        <p className="text-[11px] text-[#556179] text-center px-2">
+                          Please wait while we prepare your file
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-y-auto">
+                        {exportOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={`w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3 ${
+                              opt.disabled ? "opacity-50 cursor-not-allowed" : ""
+                            }`}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              if (opt.disabled) return;
+                              const exportType =
+                                opt.value === "bulk_export"
+                                  ? "all_data"
+                                  : opt.value === "current_view"
+                                  ? "current_view"
+                                  : "selected";
+                              // Keep dropdown open during export
+                              await handleExport(exportType);
+                            }}
+                            disabled={exportLoading || opt.disabled}
+                          >
+                            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <rect
+                                  width="20"
+                                  height="20"
+                                  rx="3.2"
+                                  fill="#072929"
+                                />
+                                <path
+                                  d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                  stroke="#F9F9F6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <span className="font-normal">{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1790,92 +2046,6 @@ export const GoogleAdGroups: React.FC = () => {
                 </div>
               )}
 
-              {/* Export Modal */}
-              {showExportModal && (
-                <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowExportModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Export Ad Groups
-                    </h3>
-                    <div className="mb-6">
-                      <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
-                        Export Type
-                      </label>
-                      <Dropdown
-                        options={[
-                          { value: "current_view", label: "Current View" },
-                          { value: "all_data", label: "All Data" },
-                        ]}
-                        value={exportType}
-                        onChange={(val) => {
-                          setExportType(val as "current_view" | "all_data");
-                        }}
-                        buttonClassName="w-full"
-                        width="w-full"
-                      />
-                      <p className="text-[10.64px] text-[#727272] mt-2">
-                        {exportType === "current_view"
-                          ? `Exporting ${adgroups.length} adgroup${
-                              adgroups.length !== 1 ? "s" : ""
-                            } from the current page (${total} total available)`
-                          : `Exporting all ${total} adgroup${
-                              total !== 1 ? "s" : ""
-                            } matching your filters`}
-                      </p>
-                    </div>
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowExportModal(false);
-                          setExportType("current_view");
-                        }}
-                        disabled={exporting}
-                        className="cancel-button"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExport}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        {exporting ? (
-                          <>
-                            <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            Download
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Status Edit Confirmation Modal - Match TikTok/Amazon pattern */}
               {showStatusEditModal && statusEditData && (
@@ -2073,6 +2243,8 @@ export const GoogleAdGroups: React.FC = () => {
                     editedValue={editedValue}
                     isCancelling={isCancelling}
                     updatingField={updatingField}
+                    inlineEditSuccess={inlineEditSuccess}
+                    inlineEditError={inlineEditError}
                     summary={summary}
                     onSelectAll={handleSelectAll}
                     onSelectAdgroup={handleSelectAdgroup}
@@ -2088,8 +2260,6 @@ export const GoogleAdGroups: React.FC = () => {
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadge}
                     getSortIcon={getSortIcon}
-                    onEditAdGroup={handleEditAdGroup}
-                    editLoadingAdGroupId={nameEditLoading ? nameEditAdgroup?.adgroup_id : null}
                   />
                 </div>
               </div>

@@ -46,21 +46,17 @@ interface GoogleKeywordsTableProps {
   updatingField: {
     keywordId: string | number;
     field: "bid" | "status" | "match_type" | "keyword_text";
+    newValue?: string;
   } | null;
-  pendingBidChange: {
+  pendingChanges?: Record<string, { itemId: string | number; newValue: string }>;
+  inlineEditSuccess?: {
     keywordId: string | number;
-    newBid: number;
-    oldBid: number;
+    field: string;
   } | null;
-  pendingStatusChange: {
+  inlineEditError?: {
     keywordId: string | number;
-    newStatus: string;
-    oldStatus: string;
-  } | null;
-  pendingMatchTypeChange: {
-    keywordId: string | number;
-    newMatchType: string;
-    oldMatchType: string;
+    field: string;
+    message: string;
   } | null;
   summary: {
     total_keywords: number;
@@ -70,6 +66,12 @@ interface GoogleKeywordsTableProps {
     total_clicks: number;
     avg_acos: number;
     avg_roas: number;
+    total_conversions?: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_cpc?: number;
+    avg_cost?: number;
+    avg_interaction_rate?: number;
   } | null;
   onSelectAll: (checked: boolean) => void;
   onSelectKeyword: (keywordId: string | number, checked: boolean) => void;
@@ -77,14 +79,10 @@ interface GoogleKeywordsTableProps {
   onStartInlineEdit: (keyword: GoogleKeyword, field: "bid" | "status" | "match_type" | "keyword_text") => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
-  onConfirmInlineEdit: (value: string) => void;
+  onConfirmInlineEdit: (value: string, fieldKey?: string, itemId?: string | number) => void;
   onStartFinalUrlEdit?: (keyword: GoogleKeyword) => void;
-  onConfirmBidChange: (keywordId: string | number, newBid: number) => void;
-  onCancelBidChange: () => void;
-  onConfirmStatusChange: (keywordId: string | number, newStatus: string) => void;
-  onCancelStatusChange: () => void;
-  onConfirmMatchTypeChange: (keywordId: string | number, newMatchType: string) => void;
-  onCancelMatchTypeChange: () => void;
+  onConfirmChange?: (itemId: string | number, fieldKey: string, newValue: string) => void;
+  onCancelChange?: (fieldKey: string) => void;
   formatCurrency: (value: number) => string;
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
@@ -106,9 +104,9 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   editedValue,
   isCancelling,
   updatingField,
-  pendingBidChange,
-  pendingStatusChange,
-  pendingMatchTypeChange,
+  pendingChanges = {},
+  inlineEditSuccess,
+  inlineEditError,
   summary,
   onSelectAll,
   onSelectKeyword,
@@ -118,12 +116,8 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   onInlineEditChange,
   onConfirmInlineEdit,
   onStartFinalUrlEdit,
-  onConfirmBidChange,
-  onCancelBidChange,
-  onConfirmStatusChange,
-  onCancelStatusChange,
-  onConfirmMatchTypeChange,
-  onCancelMatchTypeChange,
+  onConfirmChange,
+  onCancelChange,
   formatCurrency,
   formatPercentage,
   getStatusBadge,
@@ -141,44 +135,45 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   const sharedUpdatingField = updatingField ? {
     itemId: updatingField.keywordId,
     field: updatingField.field,
+    newValue: (updatingField as any).newValue || undefined,
   } : null;
 
-  // Map pending changes to shared format
-  const pendingChanges = useMemo(() => ({
-    bid: pendingBidChange ? {
-      itemId: pendingBidChange.keywordId,
-      newValue: pendingBidChange.newBid,
-      oldValue: pendingBidChange.oldBid,
-    } : null,
-    status: pendingStatusChange ? {
-      itemId: pendingStatusChange.keywordId,
-      newValue: pendingStatusChange.newStatus,
-      oldValue: pendingStatusChange.oldStatus,
-    } : null,
-    match_type: pendingMatchTypeChange ? {
-      itemId: pendingMatchTypeChange.keywordId,
-      newValue: pendingMatchTypeChange.newMatchType,
-      oldValue: pendingMatchTypeChange.oldMatchType,
-    } : null,
-  }), [pendingBidChange, pendingStatusChange, pendingMatchTypeChange]);
+  // Map inline success/error to shared format
+  const sharedInlineEditSuccess = inlineEditSuccess ? {
+    itemId: inlineEditSuccess.keywordId,
+    field: inlineEditSuccess.field,
+  } : null;
+
+  const sharedInlineEditError = inlineEditError ? {
+    itemId: inlineEditError.keywordId,
+    field: inlineEditError.field,
+    message: inlineEditError.message,
+  } : null;
 
   // Map summary to shared format
   const sharedSummary = summary ? {
     total_campaigns: summary.total_keywords, // Map total_keywords to total_campaigns for compatibility
     total_count: summary.total_keywords,
+    total_keywords: summary.total_keywords,
     total_spends: summary.total_spends,
     total_sales: summary.total_sales,
     total_impressions: summary.total_impressions,
     total_clicks: summary.total_clicks,
     avg_acos: summary.avg_acos,
     avg_roas: summary.avg_roas,
+    total_conversions: summary.total_conversions,
+    avg_conversion_rate: summary.avg_conversion_rate,
+    avg_cost_per_conversion: summary.avg_cost_per_conversion,
+    avg_cpc: summary.avg_cpc,
+    avg_cost: summary.avg_cost,
+    avg_interaction_rate: summary.avg_interaction_rate,
   } : null;
 
-  // Define columns for keywords - matching Amazon keyword table structure
+  // Define columns for keywords - matching Google AdWords UI
   const columns: IColumnDefinition[] = useMemo(() => [
     {
       key: "keyword_text",
-      label: "Keyword Name",
+      label: "Keywords",
       type: "text",
       sortable: true,
       sticky: false,
@@ -188,25 +183,14 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       getValue: (row: GoogleKeyword) => row.keyword_text || "—",
     },
     {
-      key: "status",
-      label: "State",
-      type: "status",
+      key: "adgroup_name",
+      label: "Ad Group Name",
+      type: "text",
       sortable: true,
-      minWidth: "min-w-[115px]",
-      editable: true,
-      statusOptions: [
-        { value: "ENABLED", label: "Enabled" },
-        { value: "PAUSED", label: "Paused" },
-      ],
-      getValue: (row: GoogleKeyword) => row.status || "",
-    },
-    {
-      key: "bid",
-      label: "Keyword Bid",
-      type: "budget",
-      sortable: true,
-      editable: true,
-      getValue: (row: GoogleKeyword) => row.cpc_bid_dollars || 0,
+      minWidth: "min-w-[150px]",
+      maxWidth: "max-w-[200px]",
+      editable: false, // Not editable, just plain text
+      getValue: (row: GoogleKeyword) => row.adgroup_name || "—",
     },
     {
       key: "campaign_name",
@@ -240,36 +224,25 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       },
     },
     {
-      key: "adgroup_name",
-      label: "Ad Group Name",
-      type: "text",
+      key: "status",
+      label: "Status",
+      type: "status",
       sortable: true,
-      minWidth: "min-w-[150px]",
-      maxWidth: "max-w-[200px]",
-      getValue: (row: GoogleKeyword) => row.adgroup_name || "—",
-      render: (value: any, row: GoogleKeyword) => {
-        const adgroupName = value === "—" ? "—" : value;
-        const campaignId = row.campaign_id;
-        
-        if (adgroupName === "—" || !campaignId || !currentAccountId) {
-          return <span className="table-text leading-[1.26]">{adgroupName}</span>;
-        }
-        
-        return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Navigate to campaign detail page with adgroups tab
-              navigate(`/accounts/${currentAccountId}/google/campaigns/${campaignId}?tab=Ad Groups`);
-            }}
-            className="table-edit-link text-left truncate block w-full"
-            title={`View ad group: ${adgroupName}`}
-          >
-            {adgroupName}
-          </button>
-        );
-      },
+      minWidth: "min-w-[115px]",
+      editable: true,
+      statusOptions: [
+        { value: "ENABLED", label: "Enabled" },
+        { value: "PAUSED", label: "Paused" },
+      ],
+      getValue: (row: GoogleKeyword) => row.status || "",
+    },
+    {
+      key: "bid",
+      label: "Max. CPC",
+      type: "budget",
+      sortable: true,
+      editable: true,
+      getValue: (row: GoogleKeyword) => row.cpc_bid_dollars || 0,
     },
     {
       key: "match_type",
@@ -418,38 +391,77 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
     },
     {
       key: "roas",
-      label: "Conv. value / Cost",
+      label: "Conv. value / cost",
       type: "roas",
       sortable: true,
       getValue: (row: GoogleKeyword) => (row as any).roas || 0,
     },
+    {
+      key: "avg_cpc",
+      label: "Avg. CPC",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => (row as any).avg_cpc || (row as any).cpc || 0,
+    },
+    {
+      key: "conversions",
+      label: "Conversions",
+      type: "number",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => (row as any).conversions || 0,
+    },
+    {
+      key: "conversion_rate",
+      label: "Conv. rate",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => (row as any).conversion_rate || 0,
+    },
+    {
+      key: "cost_per_conversion",
+      label: "Cost / conv.",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => (row as any).cost_per_conversion || 0,
+    },
+    {
+      key: "avg_cost",
+      label: "Avg. cost",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => {
+        // Avg. cost = cost / interactions (for text ads, interactions = clicks)
+        const interactions = (row as any).interactions || row.clicks || 0;
+        const spends = row.spends || 0;
+        return interactions > 0 ? spends / interactions : ((row as any).avg_cost || 0);
+      },
+    },
+    {
+      key: "interaction_rate",
+      label: "Interaction rate",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleKeyword) => (row as any).interaction_rate || 0,
+    },
   ], [currentAccountId, navigate, onStartFinalUrlEdit]);
 
   // Handle confirm inline edit - route to appropriate handler
-  const handleConfirmInlineEdit = (value: string, _field: string) => {
-    if (!editingCell) return;
-    onConfirmInlineEdit(value);
+  const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Pass all parameters to parent handler
+    onConfirmInlineEdit(value, field, itemIdParam);
   };
 
-  // Handle confirm change - route to appropriate handler
+  // Handle confirm change - route to parent handler
   const handleConfirmChange = (itemId: string | number, field: string, newValue: any) => {
-    if (field === "status") {
-      onConfirmStatusChange(itemId, newValue);
-    } else if (field === "bid") {
-      onConfirmBidChange(itemId, newValue);
-    } else if (field === "match_type") {
-      onConfirmMatchTypeChange(itemId, newValue);
+    if (onConfirmChange) {
+      onConfirmChange(itemId, field, newValue);
     }
   };
 
-  // Handle cancel change
+  // Handle cancel change - route to parent handler
   const handleCancelChange = (field: string) => {
-    if (field === "status") {
-      onCancelStatusChange();
-    } else if (field === "bid") {
-      onCancelBidChange();
-    } else if (field === "match_type") {
-      onCancelMatchTypeChange();
+    if (onCancelChange) {
+      onCancelChange(field);
     }
   };
 
@@ -468,8 +480,10 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
       editedValue={editedValue}
       isCancelling={isCancelling}
       updatingField={sharedUpdatingField}
-      pendingChanges={pendingChanges}
+      pendingChanges={pendingChanges as any}
       summary={sharedSummary}
+      inlineEditSuccess={sharedInlineEditSuccess}
+      inlineEditError={sharedInlineEditError}
       columns={columns}
       getId={(row: GoogleKeyword) => row.keyword_id}
       getItemName={(row: GoogleKeyword) => row.keyword_text || "Unnamed Keyword"}

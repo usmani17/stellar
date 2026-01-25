@@ -33,6 +33,12 @@ export const GoogleAds: React.FC = () => {
     total_clicks: number;
     avg_acos: number;
     avg_roas: number;
+    total_conversions?: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_cpc?: number;
+    avg_cost?: number;
+    avg_interaction_rate?: number;
   } | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
     Array<{
@@ -105,6 +111,7 @@ export const GoogleAds: React.FC = () => {
   const [updatingField, setUpdatingField] = useState<{
     adId: string | number;
     field: "status";
+    newValue: string;
   } | null>(null);
   const [showInlineEditModal, setShowInlineEditModal] = useState(false);
   const [inlineEditLoading, setInlineEditLoading] = useState(false);
@@ -112,6 +119,15 @@ export const GoogleAds: React.FC = () => {
   const [inlineEditField, setInlineEditField] = useState<"status" | null>(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  const [inlineEditSuccess, setInlineEditSuccess] = useState<{
+    adId: string | number;
+    field: string;
+  } | null>(null);
+  const [inlineEditError, setInlineEditError] = useState<{
+    adId: string | number;
+    field: string;
+    message: string;
+  } | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
@@ -610,11 +626,16 @@ export const GoogleAds: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    skipModal: boolean = false
+    field?: string,
+    adIdOverride?: string | number
   ) => {
-    if (!editingCell || !accountId || isCancelling) return;
+    // If called from dropdown with direct values, use those
+    const adIdToUse = adIdOverride || editingCell?.adId;
+    const fieldToUse = (field || editingCell?.field) as "status" | undefined;
+    
+    if (!adIdToUse || !fieldToUse || fieldToUse !== "status" || !accountId || isCancelling) return;
 
-    const ad = ads.find((a) => (a.ad_id || a.id) === editingCell.adId);
+    const ad = ads.find((a) => (a.ad_id || a.id) === adIdToUse);
     if (!ad) return;
 
     const valueToCheck =
@@ -628,36 +649,111 @@ export const GoogleAds: React.FC = () => {
       return;
     }
 
-    // If skipModal is true (e.g., when canceling), just cancel without showing modal
-    if (skipModal) {
-      cancelInlineEdit();
-      return;
+    // Clear any previous errors
+    setInlineEditError(null);
+
+    // Set updating field immediately to show loading in the correct row
+    setUpdatingField({
+      adId: adIdToUse,
+      field: "status",
+      newValue: newValue,
+    });
+
+    // Clear editingCell if it matches the current update
+    if (!editingCell || (editingCell.adId === adIdToUse && editingCell.field === fieldToUse)) {
+      setEditingCell(null);
     }
 
-    // For status changes, show modal
-    const oldStatusRaw = ad.status || "ENABLED";
-    const newStatusRaw = newValue.trim();
-    
-    // Format status values for display
-    const statusDisplayMap: Record<string, string> = {
-      ENABLED: "Enabled",
-      PAUSED: "Paused",
-      REMOVED: "Removed",
-      Enabled: "Enabled",
-      Paused: "Paused",
-      Removed: "Removed",
-    };
-    const oldValueDisplay = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
-    const newValueDisplay = statusDisplayMap[newStatusRaw] || newStatusRaw;
-    
-    setInlineEditAd(ad);
-    setInlineEditField(editingCell.field);
-    setInlineEditOldValue(oldValueDisplay);
-    setInlineEditNewValue(newValueDisplay);
-    setShowInlineEditModal(true);
-    setEditingCell(null);
+    // Directly call runInlineEditDirect for status updates (skip modal)
+    runInlineEditDirect(ad, "status", newValue);
   };
 
+  // Direct version that accepts parameters to avoid state timing issues
+  const runInlineEditDirect = async (ad: GoogleAd, field: string, newValue: string) => {
+    if (!ad || !field || !accountId) return;
+
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (field === "status") {
+        // Map status values: Google API uses "ENABLED" | "PAUSED" | "REMOVED" (uppercase)
+        const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          REMOVED: "REMOVED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+          Removed: "REMOVED",
+        };
+        const statusValue = statusMap[newValue] || "ENABLED";
+
+        const response = await googleAdwordsAdsService.bulkUpdateGoogleAds(accountIdNum, {
+          adIds: [ad.ad_id || ad.id],
+          action: "status",
+          status: statusValue,
+        });
+
+        if (response.errors && response.errors.length > 0) {
+          throw new Error(response.errors[0]);
+        }
+      }
+
+      await loadAds(accountIdNum);
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback
+      setInlineEditSuccess({
+        adId: ad.ad_id || ad.id,
+        field: field,
+      });
+      // Clear success feedback after 3 seconds
+      setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 3000);
+    } catch (error: any) {
+      console.error("Error updating ad:", error);
+
+      // Clear any previous success
+      setInlineEditSuccess(null);
+
+      // Set error state for inline feedback
+      let errorMessage = "Failed to update ad. Please try again.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          errorMessage = error.response.data.errors[0];
+        }
+      }
+
+      setInlineEditError({
+        adId: ad.ad_id || ad.id,
+        field: field,
+        message: errorMessage,
+      });
+
+      // Auto-dismiss error after 5 seconds
+      setTimeout(() => {
+        setInlineEditError(null);
+      }, 5000);
+    } finally {
+      setUpdatingField(null);
+    }
+  };
+
+  // Original runInlineEdit for modal-based updates (if needed in future)
   const runInlineEdit = async () => {
     if (!inlineEditAd || !inlineEditField || !accountId) return;
 
@@ -753,10 +849,16 @@ export const GoogleAds: React.FC = () => {
     return ads.filter((ad) => selectedAds.has(ad.ad_id || ad.id));
   };
 
-  const handleExport = async (exportType: "all_data" | "current_view") => {
+  const handleExport = async (exportType: "all_data" | "current_view" | "selected") => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
+
+    // Validate selected ads for selected export
+    if (exportType === "selected" && selectedAds.size === 0) {
+      alert("Please select at least one ad to export.");
+      return;
+    }
 
     // Keep dropdown open and show loading
     setShowExportDropdown(true);
@@ -778,7 +880,22 @@ export const GoogleAds: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
-      await googleAdwordsAdsService.exportGoogleAds(accountIdNum, params, exportType);
+      // Add ad IDs for selected export
+      if (exportType === "selected") {
+        params.ad_ids = Array.from(selectedAds);
+      }
+
+      const result = await googleAdwordsAdsService.exportGoogleAds(accountIdNum, params, exportType);
+      
+      // Automatically download the file if result has url
+      if (result?.url) {
+        const link = document.createElement("a");
+        link.href = result.url;
+        link.download = result.filename || "ads_export.csv";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
       
       // Close dropdown after a short delay to show success
       setTimeout(() => {
@@ -786,7 +903,11 @@ export const GoogleAds: React.FC = () => {
       }, 500);
     } catch (error: any) {
       console.error("Failed to export ads:", error);
-      alert("Failed to export ads. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to export ads. Please try again.";
+      alert(errorMessage);
       setShowExportDropdown(false);
     } finally {
       setExportLoading(false);
@@ -805,6 +926,20 @@ export const GoogleAds: React.FC = () => {
   const formatPercentage = (value: number) => {
     return `${value.toFixed(2)}%`;
   };
+
+  // Memoize export options to prevent hooks order issues
+  const exportOptions = useMemo(() => [
+    { value: "bulk_export", label: "Export All" },
+    {
+      value: "current_view",
+      label: "Export Current View",
+    },
+    {
+      value: "selected",
+      label: "Export Selected",
+      disabled: selectedAds.size === 0,
+    },
+  ], [selectedAds.size]);
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, string> = {
@@ -1032,7 +1167,7 @@ export const GoogleAds: React.FC = () => {
                     />
                   </svg>
                   <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
+                    Bulk Actions
                   </span>
                 </Button>
                 {showBulkActions && (
@@ -1119,28 +1254,27 @@ export const GoogleAds: React.FC = () => {
                       </div>
                     ) : (
                       <div className="overflow-y-auto">
-                        {[
-                          { value: "bulk_export", label: "Export All" },
-                          {
-                            value: "current_view",
-                            label: "Export Current View",
-                          },
-                        ].map((opt) => (
+                        {exportOptions.map((opt) => (
                           <button
                             key={opt.value}
                             type="button"
-                            className="w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3"
+                            className={`w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3 ${
+                              opt.disabled ? "opacity-50 cursor-not-allowed" : ""
+                            }`}
                             onClick={async (e) => {
                               e.stopPropagation();
                               e.preventDefault();
+                              if (opt.disabled) return;
                               const exportType =
                                 opt.value === "bulk_export"
                                   ? "all_data"
-                                  : "current_view";
+                                  : opt.value === "current_view"
+                                  ? "current_view"
+                                  : "selected";
                               // Keep dropdown open during export
                               await handleExport(exportType);
                             }}
-                            disabled={exportLoading}
+                            disabled={exportLoading || opt.disabled}
                           >
                             <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
                               <svg
@@ -1492,6 +1626,8 @@ export const GoogleAds: React.FC = () => {
                     updatingField={updatingField}
                     pendingStatusChange={null}
                     summary={summary}
+                    inlineEditSuccess={inlineEditSuccess}
+                    inlineEditError={inlineEditError}
                     onSelectAll={handleSelectAll}
                     onSelectAd={handleSelectAd}
                     onSort={handleSort}

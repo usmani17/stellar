@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import { Loader } from "../../../components/ui/Loader";
 import type { IColumnDefinition } from "../../../types/google";
 
 export interface GoogleAdGroup {
@@ -42,6 +41,16 @@ interface GoogleAdGroupsTableProps {
   updatingField: {
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
+    newValue?: string;
+  } | null;
+  inlineEditSuccess?: {
+    adgroupId: string | number;
+    field: "bid" | "status" | "name" | "adgroup_name";
+  } | null;
+  inlineEditError?: {
+    adgroupId: string | number;
+    field: "bid" | "status" | "name" | "adgroup_name";
+    message: string;
   } | null;
   summary: {
     total_adgroups: number;
@@ -51,6 +60,12 @@ interface GoogleAdGroupsTableProps {
     total_clicks: number;
     avg_acos: number;
     avg_roas: number;
+    total_conversions?: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_cpc?: number;
+    avg_cost?: number;
+    avg_interaction_rate?: number;
   } | null;
   onSelectAll: (checked: boolean) => void;
   onSelectAdgroup: (adgroupId: string | number, checked: boolean) => void;
@@ -58,7 +73,7 @@ interface GoogleAdGroupsTableProps {
   onStartInlineEdit: (adgroup: GoogleAdGroup, field: "bid" | "status" | "name" | "adgroup_name") => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
-  onConfirmInlineEdit: (value: string, fieldKey?: string) => void;
+  onConfirmInlineEdit: (value: string, fieldKey?: string, itemId?: string | number) => void;
   pendingChanges?: Record<string, { itemId: string | number; newValue: string }>;
   onConfirmChange?: (itemId: string | number, fieldKey: string, newValue: string) => void;
   onCancelChange?: (fieldKey: string) => void;
@@ -66,8 +81,6 @@ interface GoogleAdGroupsTableProps {
   formatPercentage: (value: number) => string;
   getStatusBadge: (status: string) => React.ReactElement;
   getSortIcon: (column: string) => React.ReactElement;
-  onEditAdGroup?: (adgroup: GoogleAdGroup) => void;
-  editLoadingAdGroupId?: string | number | null;
 }
 
 export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
@@ -84,6 +97,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   editedValue,
   isCancelling,
   updatingField,
+  inlineEditSuccess,
+  inlineEditError,
   summary,
   onSelectAll,
   onSelectAdgroup,
@@ -99,8 +114,6 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   formatPercentage,
   getStatusBadge,
   getSortIcon,
-  onEditAdGroup,
-  editLoadingAdGroupId,
 }) => {
   // Map editingCell to shared component format
   const sharedEditingCell = editingCell ? {
@@ -111,18 +124,27 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
   const sharedUpdatingField = updatingField ? {
     itemId: updatingField.adgroupId,
     field: updatingField.field,
+    newValue: updatingField.newValue || undefined,
   } : null;
 
   // Map summary to shared format
   const sharedSummary = summary ? {
+    total_campaigns: summary.total_adgroups, // Map to total_campaigns for compatibility
     total_count: summary.total_adgroups,
+    total_adgroups: summary.total_adgroups,
     total_spends: summary.total_spends,
     total_sales: summary.total_sales,
     total_impressions: summary.total_impressions,
     total_clicks: summary.total_clicks,
     avg_acos: summary.avg_acos,
     avg_roas: summary.avg_roas,
-  } : null;
+    total_conversions: summary.total_conversions,
+    avg_conversion_rate: summary.avg_conversion_rate,
+    avg_cost_per_conversion: summary.avg_cost_per_conversion,
+    avg_cpc: summary.avg_cpc,
+    avg_cost: summary.avg_cost,
+    avg_interaction_rate: summary.avg_interaction_rate,
+  } as any : null;
 
   // Define columns for adgroups - match Amazon column sizes exactly
   const columns: IColumnDefinition[] = useMemo(() => [
@@ -132,63 +154,19 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       type: "text",
       sortable: true,
       sticky: false, // Not sticky in Amazon - scrolls horizontally with table
-      // Amazon: header has NO width constraint, only cell has min-w-[150px] max-w-[200px]
-      // Don't set minWidth/maxWidth here - header should have no width constraint
-      editable: false, // Name is not editable via click - use pencil icon instead
+      // Set minWidth to ensure column doesn't get too narrow, but no maxWidth to allow dynamic expansion
+      // Use a larger minWidth to accommodate longer ad group names
+      minWidth: "min-w-[250px]",
+      editable: true, // Make editable inline (same pattern as bid editing)
       getValue: (row: GoogleAdGroup) => row.adgroup_name || row.name || "Unnamed Ad Group",
-      render: (value: any, row: GoogleAdGroup) => {
-        // Match campaigns page pattern: pencil icon + non-clickable name
-        const adgroupName = value || "Unnamed Ad Group";
-        return (
-          <div className="group relative flex items-center gap-2">
-            {onEditAdGroup && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEditAdGroup(row);
-                }}
-                className="table-edit-icon flex-shrink-0"
-                title="Edit Ad Group Name"
-                disabled={editLoadingAdGroupId === row.adgroup_id}
-              >
-                {editLoadingAdGroupId === row.adgroup_id ? (
-                  <Loader size="sm" showMessage={false} />
-                ) : (
-                  <svg
-                    className="w-4 h-4 text-[#556179]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                )}
-              </button>
-            )}
-            <span
-              className="text-[13.3px] text-[#0b0f16] text-left truncate block w-full whitespace-nowrap"
-              title={adgroupName}
-            >
-              {adgroupName}
-            </span>
-          </div>
-        );
-      },
     },
     {
       key: "campaign_name",
       label: "Campaign Name",
       type: "text",
       sortable: true,
-      // Amazon: min-w-[150px] max-w-[200px]
-      minWidth: "min-w-[150px]",
-      maxWidth: "max-w-[200px]",
+      // Set minWidth but no maxWidth to allow dynamic expansion
+      minWidth: "min-w-[200px]",
       getValue: (row: GoogleAdGroup) => row.campaign_name || "—",
       navigateTo: (row: GoogleAdGroup, accountId: string) => {
         if (row.campaign_id) {
@@ -260,17 +238,71 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
     {
       key: "roas",
-      label: "Conv. value / Cost",
+      label: "Conv. value / cost",
       type: "roas",
       sortable: true,
       getValue: (row: GoogleAdGroup) => row.roas || 0,
     },
-  ], [accountId, onEditAdGroup, editLoadingAdGroupId]);
+    {
+      key: "ctr",
+      label: "CTR",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => (row as any).ctr || 0,
+    },
+    {
+      key: "avg_cpc",
+      label: "Avg. CPC",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => (row as any).avg_cpc || (row as any).cpc || 0,
+    },
+    {
+      key: "conversions",
+      label: "Conversions",
+      type: "number",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => (row as any).conversions || 0,
+    },
+    {
+      key: "conversion_rate",
+      label: "Conv. rate",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => (row as any).conversion_rate || 0,
+    },
+    {
+      key: "cost_per_conversion",
+      label: "Cost / conv.",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => (row as any).cost_per_conversion || 0,
+    },
+    {
+      key: "avg_cost",
+      label: "Avg. cost",
+      type: "currency",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => {
+        // Avg. cost = cost / interactions (for text ads, interactions = clicks)
+        const interactions = (row as any).interactions || row.clicks || 0;
+        const spends = row.spends || 0;
+        return interactions > 0 ? spends / interactions : ((row as any).avg_cost || 0);
+      },
+    },
+    {
+      key: "interaction_rate",
+      label: "Interaction rate",
+      type: "percentage",
+      sortable: true,
+      getValue: (row: GoogleAdGroup) => (row as any).interaction_rate || 0,
+    },
+  ], [accountId]);
 
-  // Handle confirm inline edit
-  const handleConfirmInlineEdit = (value: string, _field: string) => {
-    if (!editingCell) return;
-    onConfirmInlineEdit(value);
+  // Handle confirm inline edit - route to appropriate handler
+  const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Pass all parameters to parent handler
+    onConfirmInlineEdit(value, field, itemIdParam);
   };
 
   // pendingChanges is now passed as a prop
@@ -290,8 +322,17 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       editedValue={editedValue}
       isCancelling={isCancelling}
       updatingField={sharedUpdatingField}
-      pendingChanges={pendingChanges}
+      pendingChanges={pendingChanges as any}
       summary={sharedSummary}
+      inlineEditSuccess={inlineEditSuccess ? {
+        itemId: inlineEditSuccess.adgroupId,
+        field: inlineEditSuccess.field,
+      } : null}
+      inlineEditError={inlineEditError ? {
+        itemId: inlineEditError.adgroupId,
+        field: inlineEditError.field,
+        message: inlineEditError.message,
+      } : null}
       columns={columns}
       getId={(row: GoogleAdGroup) => row.adgroup_id}
       getItemName={(row: GoogleAdGroup) => row.adgroup_name || row.name || "Unnamed Ad Group"}

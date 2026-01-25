@@ -66,14 +66,15 @@ export function GoogleAdsTable<T = any>({
       ? column.editable(row) 
       : column.editable === true;
 
-    // For editable fields (status, budget, start_date, end_date, bidding_strategy_type), 
+    // For editable fields (status, budget, bid, start_date, end_date, bidding_strategy_type, match_type, adgroup_name, keyword_text), 
     // always show as editable controls (like Amazon campaigns)
     // Note: Loading and success states are now handled inside renderEditableCell for budget/date/status fields
-    if (isEditable && (column.key === "status" || column.key === "budget" || 
-        column.key === "start_date" || column.key === "end_date" || column.key === "bidding_strategy_type")) {
-    // For budget, date, status, and bidding_strategy_type fields, renderEditableCell handles loading/success states internally with floating indicators
+    if (isEditable && (column.key === "status" || column.key === "budget" || column.key === "bid" ||
+        column.key === "start_date" || column.key === "end_date" || column.key === "bidding_strategy_type" ||
+        column.key === "match_type" || column.key === "adgroup_name" || column.key === "keyword_text")) {
+    // For budget, bid, date, status, bidding_strategy_type, match_type, adgroup_name, and keyword_text fields, renderEditableCell handles loading/success states internally with floating indicators
     // Always show editable control (similar to Amazon campaigns)
-    // Status, budget, date, and bidding_strategy_type fields will show floating indicators from renderEditableCell
+    // Status, budget, bid, date, bidding_strategy_type, match_type, adgroup_name, and keyword_text fields will show floating indicators from renderEditableCell
     return renderEditableCell(column, value, row, itemId);
     }
 
@@ -105,7 +106,7 @@ export function GoogleAdsTable<T = any>({
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            title="Saved successfully"
+
           >
             <path
               strokeLinecap="round"
@@ -257,6 +258,10 @@ export function GoogleAdsTable<T = any>({
         if (column.key === "bidding_strategy_type") {
           return <span className="table-text leading-[1.26] whitespace-nowrap">{value || "—"}</span>;
         }
+        // For adgroup_name and campaign_name, prevent wrapping to allow column to expand dynamically
+        if (column.key === "adgroup_name" || column.key === "campaign_name") {
+          return <span className="table-text leading-[1.26] whitespace-nowrap">{value || "—"}</span>;
+        }
         return <span className="table-text leading-[1.26]">{value || "—"}</span>;
       default:
         return <span className="table-text leading-[1.26]">{value || "—"}</span>;
@@ -268,13 +273,15 @@ export function GoogleAdsTable<T = any>({
     if (!newValue) return "Updating...";
     
     switch (column.key) {
-      case "status": {
-        // Find the label for the status value
+      case "status":
+      case "match_type": {
+        // Find the label for the status/match_type value
         const statusOption = column.statusOptions?.find(opt => opt.value === newValue);
         return statusOption ? `Updating to ${statusOption.label}` : `Updating to ${newValue}`;
       }
-      case "budget": {
-        // Format budget as currency
+      case "budget":
+      case "bid": {
+        // Format budget/bid as currency
         const budgetNum = parseFloat(newValue);
         if (!isNaN(budgetNum)) {
           return `Updating to ${formatCurrency(budgetNum)}`;
@@ -297,6 +304,14 @@ export function GoogleAdsTable<T = any>({
         const formatted = newValue.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
         return `Updating to ${formatted}`;
       }
+      case "name":
+      case "ad_name":
+      case "campaign_name":
+      case "adgroup_name":
+      case "keyword_text": {
+        // Show full name in update message
+        return `Updating to ${newValue}`;
+      }
       default:
         return `Updating to ${newValue}`;
     }
@@ -315,8 +330,12 @@ export function GoogleAdsTable<T = any>({
     
     // If column has statusOptions, show dropdown (for status, bidding_strategy_type, etc.)
     if (column.statusOptions && column.statusOptions.length > 0) {
-      // Use wider width for bidding strategy (longer labels)
-      const dropdownWidth = column.key === "bidding_strategy_type" ? "w-[220px]" : "w-[120px]";
+      // Use wider width for bidding strategy (longer labels), and match column width for match_type
+      const dropdownWidth = column.key === "bidding_strategy_type" 
+        ? "w-[220px]" 
+        : column.key === "match_type" 
+        ? "w-[140px]" 
+        : "w-[120px]";
       
       // Filter bidding strategy options based on campaign type
       let options = column.statusOptions;
@@ -354,6 +373,7 @@ export function GoogleAdsTable<T = any>({
       }
       
       // For bidding_strategy_type, convert formatted value back to enum value
+      // For match_type, normalize to uppercase to match option values
       let dropdownValue = displayValue;
       if (column.key === "bidding_strategy_type" && dropdownValue && typeof dropdownValue === "string") {
         // The getValue function returns formatted string (e.g., "Maximize Conversions")
@@ -371,6 +391,18 @@ export function GoogleAdsTable<T = any>({
           if (rawValue) {
             dropdownValue = rawValue;
           }
+        }
+      } else if (column.key === "match_type" && dropdownValue && typeof dropdownValue === "string") {
+        // Normalize to uppercase to match option values
+        const normalizedValue = dropdownValue.toUpperCase().trim();
+        // Find matching option
+        const matchedOption = options.find(opt => 
+          opt.value === normalizedValue || 
+          opt.value === dropdownValue ||
+          opt.label === dropdownValue
+        );
+        if (matchedOption) {
+          dropdownValue = matchedOption.value;
         }
       }
       
@@ -496,38 +528,81 @@ export function GoogleAdsTable<T = any>({
         );
 
       case "text":
-        // For text fields like adgroup_name, match Amazon's input styling exactly
+        // For text fields like adgroup_name, keyword_text - use inline editing with tick/cross (same as bid)
+        // Always show input field when editable (like budget/bid fields)
         // Check if column is editable for this row
         const isTextEditable = typeof column.editable === 'function' 
           ? column.editable(row) 
           : column.editable === true;
         if (isTextEditable) {
+          // Always show input field, use editedValue when editing, otherwise use current value
+          const textValue = isEditing ? editedValue : (value !== undefined && value !== null ? value : "");
+          const oldTextValue = (value !== undefined && value !== null ? value : "").toString();
+          const hasTextChanged = isEditing && textValue !== oldTextValue && textValue !== "";
           return (
-            <div className="flex items-center gap-2">
+            <div className="relative w-full">
               <input
                 type="text"
-                value={editedValue}
-                onChange={(e) => onInlineEditChange(e.target.value)}
-                className="inline-edit-input"
-                autoFocus
-                onBlur={() => {
-                  if (!isCancelling) {
-                    // For status, start_date, end_date, and bidding_strategy_type, 
-                    // the confirmation modal is handled by the parent component
-                    // Just call onConfirmInlineEdit which will trigger the modal
-                    onConfirmInlineEdit(editedValue);
+                value={textValue}
+                onFocus={() => {
+                  if (!isEditing && isTextEditable) {
+                    onStartInlineEdit(row, column.key);
                   }
+                }}
+                onChange={(e) => {
+                  onInlineEditChange(e.target.value);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === "Escape") {
-                    if (e.key === "Enter") {
-                      onConfirmInlineEdit(editedValue);
-                    } else {
-                      onCancelInlineEdit();
-                    }
+                  if (e.key === "Escape") {
+                    onCancelInlineEdit();
                   }
                 }}
+                autoFocus={isEditing}
+                className="inline-edit-input w-full min-w-[150px]"
+                disabled={!isTextEditable}
               />
+              {(hasTextChanged || isUpdating || isSuccess || isError) && (
+                <div className="absolute top-full left-0 mt-1 z-10">
+                  {hasTextChanged && !isSuccess && !isUpdating && (
+                    <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
+                      <button
+                        onClick={() => {
+                          onConfirmInlineEdit(textValue, column.key, itemId);
+                        }}
+                        className="text-green-600 hover:text-green-700 p-1"
+                        title="Save"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          onCancelInlineEdit();
+                        }}
+                        className="text-red-600 hover:text-red-700 p-1"
+                        title="Cancel"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+                  {isUpdating && (
+                    <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
+                      <Loader size="sm" />
+                      <span className="text-[10px]">{updatingMessage}</span>
+                    </div>
+                  )}
+                  {isSuccess && (
+                    <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
+                      <Check size={12} /> Updated successfully
+                    </div>
+                  )}
+                  {isError && errorMessage && (
+                    <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
+                      <X size={12} /> {errorMessage}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         }
@@ -750,7 +825,7 @@ export function GoogleAdsTable<T = any>({
     <div>
       <div className="overflow-x-auto overflow-y-visible w-full">
         <div className="relative">
-          <table className="min-w-[1200px] w-full">
+          <table className="min-w-[1200px] w-full" style={{ tableLayout: 'auto' }}>
             <thead className="sticky top-0 z-[90] bg-[#fefefb]">
               <tr className="border-b border-[#e8e8e3]">
                 {/* Checkbox Header */}
@@ -824,7 +899,25 @@ export function GoogleAdsTable<T = any>({
                       let summaryValue: React.ReactNode = "";
                       // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
                       if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
-                        summaryValue = `Total (${summary?.total_campaigns || 0})`;
+                        // Use appropriate total based on column key
+                        // Summary can have different properties depending on the table type
+                        const summaryAny = summary as any;
+                        let totalCount = 0;
+                        if (column.key === "ad_id") {
+                          totalCount = summaryAny?.total_count || summaryAny?.total_ads || summaryAny?.total_campaigns || 0;
+                        } else if (column.key === "adgroup_name") {
+                          totalCount = summaryAny?.total_count || summaryAny?.total_adgroups || summaryAny?.total_campaigns || 0;
+                        } else if (column.key === "keyword_text") {
+                          totalCount = summaryAny?.total_count || summaryAny?.total_keywords || summaryAny?.total_campaigns || 0;
+                        } else if (column.key === "campaign_name") {
+                          totalCount = summaryAny?.total_campaigns || summaryAny?.total_count || 0;
+                        } else {
+                          totalCount = summaryAny?.total_count || summaryAny?.total_campaigns || 0;
+                        }
+                        summaryValue = `Total (${totalCount})`;
+                      } else if (index !== 0 && (column.key === "campaign_name" || column.key === "adgroup_name" || column.key === "account_name")) {
+                        // Navigation columns (except first column) should be empty
+                        summaryValue = "";
                       } else if (column.key === "spends") {
                         summaryValue = formatCurrency(summary?.total_spends || 0);
                       } else if (column.key === "sales") {
@@ -877,9 +970,17 @@ export function GoogleAdsTable<T = any>({
                         column.key === "end_date" ||
                         column.key === "bidding_strategy_type" ||
                         column.key === "advertising_channel_type" ||
-                        column.key === "status"
+                        column.key === "status" ||
+                        column.key === "bid" ||
+                        column.key === "ad_type" ||
+                        column.key === "match_type" ||
+                        column.key === "final_url" ||
+                        column.key === "account_name"
                       ) {
-                        // Show empty for date, type, bidding strategy, and status columns in total row
+                        // Show empty for date, type, bidding strategy, status, bid, ad_type, match_type, final_url, and account_name in total row
+                        summaryValue = "";
+                      } else if (index !== 0 && (column.key === "campaign_name" || column.key === "adgroup_name")) {
+                        // Navigation columns (campaign_name, adgroup_name) are empty except for the first column
                         summaryValue = "";
                       }
                       

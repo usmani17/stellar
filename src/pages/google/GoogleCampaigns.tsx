@@ -1116,6 +1116,7 @@ export const GoogleCampaigns: React.FC = () => {
           campaignData.daily_budget ||
           row.daily_budget ||
           0,
+        budget_name: campaignData.budget_name || undefined,
         status:
           (campaignData.status?.toUpperCase() as any) ||
           (row.status?.toUpperCase() as any) ||
@@ -1128,6 +1129,22 @@ export const GoogleCampaigns: React.FC = () => {
           parseDateToYYYYMMDD(campaignData.end_date) ||
           parseDateToYYYYMMDD(row.end_date) ||
           undefined,
+        // Bidding strategy fields
+        bidding_strategy_type: campaignData.bidding_strategy_type || undefined,
+        target_cpa_micros: campaignData.target_cpa_micros,
+        target_roas: campaignData.target_roas,
+        target_impression_share_location: campaignData.target_impression_share_location,
+        target_impression_share_location_fraction_micros: campaignData.target_impression_share_location_fraction_micros,
+        target_impression_share_cpc_bid_ceiling_micros: campaignData.target_impression_share_cpc_bid_ceiling_micros,
+        // UTM parameters
+        tracking_url_template: campaignData.tracking_url_template || undefined,
+        final_url_suffix: campaignData.final_url_suffix || undefined,
+        url_custom_parameters: campaignData.url_custom_parameters || undefined,
+        // Targeting fields
+        location_ids: campaignData.location_ids || [],
+        excluded_location_ids: campaignData.excluded_location_ids || [],
+        language_ids: campaignData.language_ids || [],
+        device_ids: campaignData.device_ids || [],
         // Shopping-specific fields from extra_data or direct fields
         merchant_id: campaignData.merchant_id || shopping_setting.merchant_id,
         sales_country:
@@ -1138,6 +1155,8 @@ export const GoogleCampaigns: React.FC = () => {
           0,
         enable_local:
           campaignData.enable_local ?? shopping_setting.enable_local ?? false,
+        // SEARCH specific fields
+        network_settings: campaignData.network_settings || undefined,
       };
 
       // For Performance Max campaigns, use data from refreshed extra_data
