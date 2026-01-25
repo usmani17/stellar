@@ -159,12 +159,12 @@ export const Keywords: React.FC = () => {
   // Inline edit state (matching adgroups pattern)
   const [editingKeywordField, setEditingKeywordField] = useState<{
     id: number;
-    field: "status" | "bid";
+    field: "state" | "bid";
   } | null>(null);
   const [editedKeywordValue, setEditedKeywordValue] = useState<string>("");
   const [pendingKeywordChange, setPendingKeywordChange] = useState<{
     id: number;
-    field: "status" | "bid";
+    field: "state" | "bid";
     newValue: string;
     oldValue: string;
   } | null>(null);
@@ -175,14 +175,14 @@ export const Keywords: React.FC = () => {
   // Additional inline edit state for the confirmation modal flow
   const [editingCell, setEditingCell] = useState<{
     keywordId: string | number;
-    field: "status" | "bid";
+    field: "state" | "bid";
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [inlineEditKeyword, setInlineEditKeyword] = useState<Keyword | null>(
     null
   );
   const [inlineEditField, setInlineEditField] = useState<
-    "status" | "bid" | null
+    "state" | "bid" | null
   >(null);
   const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
   const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
@@ -582,7 +582,7 @@ export const Keywords: React.FC = () => {
   };
 
   // Inline edit handlers
-  const startInlineEdit = (keyword: Keyword, field: "bid" | "status") => {
+  const startInlineEdit = (keyword: Keyword, field: "bid" | "state") => {
     setEditingCell({ keywordId: keyword.keywordId || keyword.id, field });
     if (field === "bid") {
       // Extract numeric value from formatted string
@@ -590,9 +590,9 @@ export const Keywords: React.FC = () => {
         (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
       );
       setEditedValue(bidValue.toString());
-    } else if (field === "status") {
-      // Normalize status to match dropdown options
-      const statusLower = (keyword.status || "Enabled").toLowerCase();
+    } else if (field === "state") {
+      // Normalize state to match dropdown options
+      const statusLower = (keyword.state || "Enabled").toLowerCase();
       const normalizedStatus =
         statusLower === "enable" || statusLower === "enabled"
           ? "Enabled"
@@ -614,7 +614,7 @@ export const Keywords: React.FC = () => {
     setEditedValue(value);
   };
 
-  const confirmInlineEdit = (newValueOverride?: string, keywordIdOverride?: string | number, fieldOverride?: "bid" | "status") => {
+  const confirmInlineEdit = (newValueOverride?: string, keywordIdOverride?: string | number, fieldOverride?: "bid" | "state") => {
     // Use override parameters if provided, otherwise fall back to editingCell state
     const keywordIdToUse = keywordIdOverride || editingCell?.keywordId;
     const fieldToUse = fieldOverride || editingCell?.field;
@@ -647,11 +647,21 @@ export const Keywords: React.FC = () => {
         return;
       }
       hasChanged = Math.abs(newBid - oldBid) > 0.01;
-    } else if (fieldToUse === "status") {
-      // Normalize status values for comparison
-      const oldValue = (keyword.status || "Enabled").trim();
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
+    } else if (fieldToUse === "state") {
+      // Normalize state values for comparison
+      // Backend may return "enable", "pause", "archive" (lowercase)
+      // Dropdown uses "Enabled", "Paused", "Archived" (capitalized)
+      const oldStatusLower = (keyword.state || "Enabled").trim().toLowerCase();
+      const normalizedOldStatus =
+        oldStatusLower === "enable" || oldStatusLower === "enabled"
+          ? "Enabled"
+          : oldStatusLower === "paused"
+          ? "Paused"
+          : oldStatusLower === "archived"
+          ? "Archived"
+          : "Enabled";
+      const normalizedNewValue = valueToCheck.trim();
+      hasChanged = normalizedNewValue !== normalizedOldStatus;
     }
 
     if (!hasChanged) {
@@ -667,8 +677,17 @@ export const Keywords: React.FC = () => {
         parseFloat((keyword.bid || "$0.00").replace(/[^0-9.]/g, ""))
       );
       newValue = formatCurrency(parseFloat(valueToCheck) || 0);
-    } else if (fieldToUse === "status") {
-      oldValue = keyword.status || "Enabled";
+    } else if (fieldToUse === "state") {
+      // Normalize old state for display to match dropdown format
+      const oldStatusLower = (keyword.state || "Enabled").trim().toLowerCase();
+      oldValue =
+        oldStatusLower === "enable" || oldStatusLower === "enabled"
+          ? "Enabled"
+          : oldStatusLower === "paused"
+          ? "Paused"
+          : oldStatusLower === "archived"
+          ? "Archived"
+          : "Enabled";
       newValue = valueToCheck;
     }
 
@@ -690,7 +709,7 @@ export const Keywords: React.FC = () => {
         throw new Error("Invalid account ID");
       }
 
-      if (inlineEditField === "status") {
+      if (inlineEditField === "state") {
         // Map status values
         const statusMap: Record<string, "enable" | "pause" | "archive"> = {
           Enabled: "enable",
@@ -777,8 +796,9 @@ export const Keywords: React.FC = () => {
           target.closest('button[type="button"]');
         const isInput = target.closest("input");
         const isModal = target.closest('[class*="fixed"]');
+        const isDropdownContainer = target.closest(".dropdown-container");
 
-        if (!isInput && !isDropdownMenu && !isModal) {
+        if (!isInput && !isDropdownMenu && !isModal && !isDropdownContainer) {
           setTimeout(() => {
             if (editingCell && !showInlineEditModal) {
               cancelInlineEdit();
@@ -1640,7 +1660,7 @@ export const Keywords: React.FC = () => {
                                     <td className="px-4 py-2 text-[10.64px] text-[#072929]">
                                       {isBidChange
                                         ? keyword.bid || "$0.00"
-                                        : keyword.status || "Enabled"}
+                                        : keyword.state || "Enabled"}
                                     </td>
                                   </tr>
                                 ))}
@@ -1772,11 +1792,11 @@ export const Keywords: React.FC = () => {
                         {/* State */}
                         <th
                           className={`table-header min-w-[115px]`}
-                          onClick={() => handleSort("status")}
+                          onClick={() => handleSort("state")}
                         >
                           <div className="flex items-center gap-1">
                             State
-                            {getSortIcon("status")}
+                            {getSortIcon("state")}
                           </div>
                         </th>
 
@@ -1940,7 +1960,7 @@ export const Keywords: React.FC = () => {
                           {keywords.map((keyword, index) => {
                             const isLastRow = index === keywords.length - 1;
                             const isArchived =
-                              keyword.status?.toLowerCase() === "archived";
+                              keyword.state?.toLowerCase() === "archived";
                             return (
                               <tr
                                 key={keyword.id}
@@ -1992,7 +2012,7 @@ export const Keywords: React.FC = () => {
                                 <td className="table-cell min-w-[115px]">
                                   {(() => {
                                     const currentStatus = (
-                                      keyword.status || "Enabled"
+                                      keyword.state || "Enabled"
                                     ).toLowerCase();
                                     const isArchived = currentStatus === "archived";
                                     
@@ -2000,14 +2020,14 @@ export const Keywords: React.FC = () => {
                                       return (
                                         <div className="opacity-60">
                                           <StatusBadge
-                                            status={keyword.status || "Enabled"}
+                                            status={keyword.state || "Enabled"}
                                           />
                                         </div>
                                       );
                                     }
                                     
                                     const statusLower = (
-                                      keyword.status || "Enabled"
+                                      keyword.state || "Enabled"
                                     ).toLowerCase();
                                     const normalizedStatus =
                                       statusLower === "enable" ||
@@ -2015,13 +2035,9 @@ export const Keywords: React.FC = () => {
                                         ? "Enabled"
                                         : statusLower === "paused"
                                         ? "Paused"
+                                        : statusLower === "archived"
+                                        ? "Archived"
                                         : "Enabled";
-                                    
-                                    const keywordId = keyword.keywordId || keyword.id;
-                                    const statusValue = editingCell?.keywordId === keywordId &&
-                                      editingCell?.field === "status"
-                                      ? editedValue
-                                      : normalizedStatus;
                                     
                                     return (
                                       <Dropdown
@@ -2033,23 +2049,23 @@ export const Keywords: React.FC = () => {
                                             label: "Archived",
                                           },
                                         ]}
-                                        value={statusValue}
+                                        value={normalizedStatus}
                                         onChange={(val) => {
                                           const newValue = val as string;
                                           const keywordId = keyword.keywordId || keyword.id;
                                           const wasEditing = editingCell?.keywordId === keywordId &&
-                                            editingCell?.field === "status";
+                                            editingCell?.field === "state";
                                           
                                           if (!wasEditing) {
-                                            startInlineEdit(keyword, "status");
+                                            startInlineEdit(keyword, "state");
                                             // Pass keyword ID and field directly to avoid state timing issues
                                             setTimeout(() => {
                                               handleInlineEditChange(newValue);
-                                              confirmInlineEdit(newValue, keywordId, "status");
+                                              confirmInlineEdit(newValue, keywordId, "state");
                                             }, 0);
                                           } else {
                                             handleInlineEditChange(newValue);
-                                            confirmInlineEdit(newValue, keywordId, "status");
+                                            confirmInlineEdit(newValue, keywordId, "state");
                                           }
                                         }}
                                         buttonClassName="inline-edit-dropdown"
@@ -2064,7 +2080,7 @@ export const Keywords: React.FC = () => {
                                 <td className="table-cell whitespace-nowrap">
                                   {(() => {
                                     const currentStatus = (
-                                      keyword.status || "Enabled"
+                                      keyword.state || "Enabled"
                                     ).toLowerCase();
                                     const isArchived = currentStatus === "archived";
                                     
@@ -2379,7 +2395,7 @@ export const Keywords: React.FC = () => {
           >
             <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
               Confirm{" "}
-              {pendingKeywordChange.field === "status" ? "Status" : "Bid"}{" "}
+              {pendingKeywordChange.field === "state" ? "Status" : "Bid"}{" "}
               Change
             </h3>
 
@@ -2390,7 +2406,7 @@ export const Keywords: React.FC = () => {
                 );
                 const keywordName = keyword?.name || "Unnamed Keyword";
                 const fieldLabel =
-                  pendingKeywordChange.field === "status" ? "Status" : "Bid";
+                  pendingKeywordChange.field === "state" ? "Status" : "Bid";
 
                 // Format old value
                 let oldValueDisplay = "";
@@ -2405,7 +2421,7 @@ export const Keywords: React.FC = () => {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}`;
-                } else if (pendingKeywordChange.field === "status") {
+                } else if (pendingKeywordChange.field === "state") {
                   oldValueDisplay =
                     pendingKeywordChange.oldValue === "enabled"
                       ? "Enabled"
@@ -2423,7 +2439,7 @@ export const Keywords: React.FC = () => {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}`;
-                } else if (pendingKeywordChange.field === "status") {
+                } else if (pendingKeywordChange.field === "state") {
                   newValueDisplay =
                     pendingKeywordChange.newValue === "enabled"
                       ? "Enabled"
