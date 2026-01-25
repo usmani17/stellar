@@ -27,6 +27,9 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   const [exportLoading, setExportLoading] = useState(false);
   const isLoadingRef = useRef(false);
 
+  const startDateStr = startDate?.toISOString();
+  const endDateStr = endDate?.toISOString();
+
   // Load logs - memoized with useCallback
   const loadLogs = useCallback(async () => {
     // Prevent duplicate concurrent calls
@@ -53,10 +56,8 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
         page: currentPage,
         page_size: pageSize,
         search: search || undefined,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+        start_date: startDateStr ? startDateStr.split("T")[0] : undefined,
+        end_date: endDateStr ? endDateStr.split("T")[0] : undefined,
       });
 
       setLogs(response.logs);
@@ -76,7 +77,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
     } finally {
       isLoadingRef.current = false;
     }
-  }, [accountId, campaignId, startDate?.toISOString(), endDate?.toISOString(), currentPage, pageSize, search]);
+  }, [accountId, campaignId, startDateStr, endDateStr, currentPage, pageSize, search]);
 
   // Initial load and reload when filters or page change
   useEffect(() => {
@@ -86,7 +87,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
   // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, startDate?.toISOString(), endDate?.toISOString()]);
+  }, [search, startDateStr, endDateStr]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -179,7 +180,7 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
       const hours = String(date.getHours()).padStart(2, "0");
       const minutes = String(date.getMinutes()).padStart(2, "0");
       return `${month}/${day}/${year} ${hours}:${minutes}`;
-    } catch (e) {
+    } catch {
       return timestamp || "";
     }
   };
@@ -552,13 +553,12 @@ export const GoogleCampaignDetailLogsTab: React.FC<GoogleCampaignDetailLogsTabPr
                     className="self-stretch h-10 px-2 py-1.5 border-b border-[#e8e8e3] flex flex-col justify-center items-start"
                   >
                     <div
-                      className={`justify-center text-xs font-normal ${
-                        log.status === "success"
-                          ? "text-green-600"
-                          : log.status === "error"
+                      className={`justify-center text-xs font-normal ${log.status === "success"
+                        ? "text-green-600"
+                        : log.status === "error"
                           ? "text-red-600"
                           : "text-teal-950"
-                      }`}
+                        }`}
                     >
                       {log.status}
                     </div>

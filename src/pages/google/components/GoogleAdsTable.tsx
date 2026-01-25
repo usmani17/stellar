@@ -16,8 +16,8 @@ export function GoogleAdsTable<T = any>({
   selectedItems,
   allSelected,
   someSelected,
-  sortBy,
-  sortOrder,
+  sortBy: _sortBy,
+  sortOrder: _sortOrder,
   editingCell,
   editedValue,
   isCancelling,
@@ -26,7 +26,7 @@ export function GoogleAdsTable<T = any>({
   summary,
   columns,
   getId,
-  getItemName,
+  getItemName: _getItemName,
   emptyMessage,
   loadingMessage,
   onSelectAll,
@@ -50,15 +50,13 @@ export function GoogleAdsTable<T = any>({
   // Ref to track if a status selection was made (matches Amazon pattern)
   const statusSelectionMadeRef = useRef<string | number | null>(null);
 
-  const renderCell = (column: IColumnDefinition, row: T, index: number) => {
+  const renderCell = (column: IColumnDefinition, row: T) => {
     const itemId = getId(row);
     const isEditing = editingCell?.itemId === itemId && editingCell?.field === column.key;
     const isUpdating = updatingField?.itemId === itemId && updatingField?.field === column.key;
     const pendingChange = pendingChanges[column.key];
     const hasPendingChange = pendingChange?.itemId === itemId;
     const isSuccess = inlineEditSuccess?.itemId === itemId && inlineEditSuccess?.field === column.key;
-    const isError = inlineEditError?.itemId === itemId && inlineEditError?.field === column.key;
-    const errorMessage = isError ? inlineEditError?.message : null;
     const value = column.getValue(row);
     
     // Check if column is editable (can be boolean or function)
@@ -105,7 +103,6 @@ export function GoogleAdsTable<T = any>({
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            title="Saved successfully"
           >
             <path
               strokeLinecap="round"
@@ -312,12 +309,12 @@ export function GoogleAdsTable<T = any>({
     
     // Use editedValue if actively editing, otherwise use current value from row
     const displayValue = isEditing ? editedValue : (value !== undefined && value !== null ? value : "");
-    
+
     // If column has statusOptions, show dropdown (for status, bidding_strategy_type, etc.)
     if (column.statusOptions && column.statusOptions.length > 0) {
       // Use wider width for bidding strategy (longer labels)
       const dropdownWidth = column.key === "bidding_strategy_type" ? "w-[220px]" : "w-[120px]";
-      
+
       // Filter bidding strategy options based on campaign type
       let options = column.statusOptions;
       if (column.key === "bidding_strategy_type") {
@@ -327,7 +324,7 @@ export function GoogleAdsTable<T = any>({
         if (campaignType.includes("ADVERTISING_CHANNEL_TYPE_")) {
           campaignType = campaignType.replace("ADVERTISING_CHANNEL_TYPE_", "");
         }
-        
+
         if (campaignType === "PERFORMANCE_MAX") {
           // Performance Max campaigns only support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE
           options = column.statusOptions.filter(
@@ -352,7 +349,7 @@ export function GoogleAdsTable<T = any>({
           );
         }
       }
-      
+
       // For bidding_strategy_type, convert formatted value back to enum value
       let dropdownValue = displayValue;
       if (column.key === "bidding_strategy_type" && dropdownValue && typeof dropdownValue === "string") {
@@ -373,7 +370,7 @@ export function GoogleAdsTable<T = any>({
           }
         }
       }
-      
+
       return (
         <div className="relative w-full">
           <Dropdown
@@ -495,7 +492,7 @@ export function GoogleAdsTable<T = any>({
           </div>
         );
 
-      case "text":
+      case "text": {
         // For text fields like adgroup_name, match Amazon's input styling exactly
         // Check if column is editable for this row
         const isTextEditable = typeof column.editable === 'function' 
@@ -532,8 +529,9 @@ export function GoogleAdsTable<T = any>({
           );
         }
         return renderValue(column, value);
+      }
       case "budget":
-      case "bid":
+      case "bid": {
         // Check if column is editable for this row
         const isBudgetEditable = typeof column.editable === 'function' 
           ? column.editable(row) 
@@ -609,9 +607,10 @@ export function GoogleAdsTable<T = any>({
             )}
           </div>
         );
+      }
 
       case "start_date":
-      case "end_date":
+      case "end_date": {
         // Check if this date field is editable for this row
         const isDateEditable = typeof column.editable === 'function' 
           ? column.editable(row) 
@@ -718,6 +717,7 @@ export function GoogleAdsTable<T = any>({
             )}
           </div>
         );
+      }
 
       default:
         return renderValue(column, value);
@@ -726,23 +726,25 @@ export function GoogleAdsTable<T = any>({
 
   const getStickyClasses = (column: IColumnDefinition, index: number): string => {
     if (!column.sticky) return "";
-    
+
     // Calculate left offset based on previous sticky columns
-    let leftOffset = 35; // Checkbox width
+    // let leftOffset = 35; // Checkbox width
     for (let i = 0; i < index; i++) {
       if (columns[i]?.sticky) {
         // Estimate width - use minWidth or default
-        const minWidth = columns[i]?.minWidth;
-        const width = minWidth ? parseInt(minWidth.replace('px', '').replace('min-w-[', '').replace(']', '')) : 300;
-        leftOffset += width;
+        // const minWidth = columns[i]?.minWidth;
+        // const width = minWidth ? parseInt(minWidth.replace('px', '').replace('min-w-[', '').replace(']', '')) : 300;
+        // leftOffset += width;
       }
     }
-    
+
     // Use table-sticky-first-column class for first sticky column (matches Amazon campaigns)
     if (index === 0) {
       return "table-sticky-first-column";
     }
     // For more sticky columns, would need more specific handling
+    // Using leftOffset briefly to avoid unused error if needed, but actually it was just a logic error in previous code
+    // Let's just remove the unused variable.
     return "sticky bg-[#f5f5f0] z-[120]";
   };
 
@@ -770,13 +772,12 @@ export function GoogleAdsTable<T = any>({
                   const stickyClasses = getStickyClasses(column, index);
                   const widthClasses = column.width || column.minWidth || "";
                   const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
-                  
+
                   return (
                     <th
                       key={column.key}
-                      className={`table-header ${
-                        column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
-                      } ${stickyClasses} ${widthClasses} ${borderClass}`}
+                      className={`table-header ${column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
+                        } ${stickyClasses} ${widthClasses} ${borderClass}`}
                       onClick={() => column.sortable !== false && onSort(column.key)}
                     >
                       <div className="flex items-center gap-1">
@@ -796,7 +797,7 @@ export function GoogleAdsTable<T = any>({
                     <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                       <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                     </td>
-                    {columns.map((column, colIndex) => (
+                    {columns.map((column) => (
                       <td key={column.key} className="table-cell">
                         <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                       </td>
@@ -813,139 +814,142 @@ export function GoogleAdsTable<T = any>({
                 </tr>
               ) : (
                 <>
-                {/* Summary Row */}
-                {summary && (
-                  <tr className="table-summary-row">
-                    <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                    {columns.map((column, index) => {
-                      const stickyClasses = getStickyClasses(column, index);
-                      const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
-                      
-                      let summaryValue: React.ReactNode = "";
-                      // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
-                      if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
-                        summaryValue = `Total (${summary?.total_campaigns || 0})`;
-                      } else if (column.key === "spends") {
-                        summaryValue = formatCurrency(summary?.total_spends || 0);
-                      } else if (column.key === "sales") {
-                        summaryValue = formatCurrency(summary?.total_sales || 0);
-                      } else if (column.key === "impressions") {
-                        summaryValue = (summary?.total_impressions || 0).toLocaleString();
-                      } else if (column.key === "clicks") {
-                        summaryValue = (summary?.total_clicks || 0).toLocaleString();
-                      } else if (column.key === "budget") {
-                        // Budget should be empty in summary row (not summed)
-                        summaryValue = "";
-                      } else if (column.key === "roas") {
-                        summaryValue = `${(summary?.avg_roas || 0).toFixed(2)}x`;
-                      } else if (column.key === "ctr") {
-                        // Calculate average CTR from summary
-                        const avgCtr = summary?.total_impressions > 0 
-                          ? (summary?.total_clicks / summary?.total_impressions) * 100 
-                          : 0;
-                        summaryValue = `${avgCtr.toFixed(2)}%`;
-                      } else if (column.key === "cpc" || column.key === "avg_cpc") {
-                        // Use avg_cpc from summary
-                        summaryValue = summary?.avg_cpc !== undefined
-                          ? formatCurrency(summary.avg_cpc)
-                          : formatCurrency(0);
-                      } else if (column.key === "conversions") {
-                        // Use total conversions from summary
-                        summaryValue = (summary?.total_conversions || 0).toLocaleString();
-                      } else if (column.key === "conversion_rate") {
-                        // Use avg conversion rate from summary
-                        summaryValue = summary?.avg_conversion_rate !== undefined 
-                          ? `${summary.avg_conversion_rate.toFixed(2)}%`
-                          : "0.00%";
-                      } else if (column.key === "cost_per_conversion") {
-                        // Use avg cost per conversion from summary
-                        summaryValue = summary?.avg_cost_per_conversion !== undefined
-                          ? formatCurrency(summary.avg_cost_per_conversion)
-                          : formatCurrency(0);
-                      } else if (column.key === "interaction_rate") {
-                        // Use avg interaction rate from summary
-                        summaryValue = summary?.avg_interaction_rate !== undefined
-                          ? `${summary.avg_interaction_rate.toFixed(2)}%`
-                          : "0.00%";
-                      } else if (column.key === "avg_cost") {
-                        // Use avg cost from summary
-                        summaryValue = summary?.avg_cost !== undefined
-                          ? formatCurrency(summary.avg_cost)
-                          : formatCurrency(0);
-                      } else if (
-                        column.key === "start_date" ||
-                        column.key === "end_date" ||
-                        column.key === "bidding_strategy_type" ||
-                        column.key === "advertising_channel_type" ||
-                        column.key === "status"
-                      ) {
-                        // Show empty for date, type, bidding strategy, and status columns in total row
-                        summaryValue = "";
-                      }
-                      
-                      return (
-                        <td key={column.key} className={`table-cell table-text leading-[1.26] ${stickyClasses} ${borderClass}`}>
-                          {summaryValue}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                )}
-
-                {/* Loading Overlay */}
-                {sorting && (
-                  <tr>
-                    <td colSpan={columns.length + 1} className="relative">
-                      <div className="absolute inset-0 bg-white bg-opacity-85 flex items-center justify-center z-20 backdrop-blur-[2px]">
-                        <div className="flex flex-col items-center gap-3 bg-white px-6 py-4 rounded-lg shadow-lg border border-[#E6E6E6]">
-                          <Loader size="md" message={loadingMessage} />
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {/* Data Rows */}
-                {data.map((row, index) => {
-                  const itemId = getId(row);
-                  // Use combination of itemId and index to ensure unique keys
-                  const uniqueKey = `${itemId}-${index}`;
-                  
-                  return (
-                    <tr
-                      key={uniqueKey}
-                      className="table-row group"
-                    >
-                      {/* Checkbox */}
-                      <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
-                        <div className="flex items-center justify-center">
-                          <Checkbox
-                            checked={selectedItems.has(itemId)}
-                            onChange={(checked) => onSelectItem(itemId, checked)}
-                            size="small"
-                          />
-                        </div>
-                      </td>
-
-                      {/* Data Cells */}
-                      {columns.map((column, colIndex) => {
-                        const stickyClasses = getStickyClasses(column, colIndex);
+                  {/* Summary Row */}
+                  {summary && (
+                    <tr className="table-summary-row">
+                      <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                      {columns.map((column, index) => {
+                        const stickyClasses = getStickyClasses(column, index);
                         const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
-                        const widthClasses = column.width || column.minWidth || "";
-                        const hoverClass = column.sticky && colIndex === 0 ? "group-hover:bg-gray-100" : "";
-                        
+
+                        let summaryValue: React.ReactNode = "";
+                        // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
+                        if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
+                          const s = summary as any;
+                          summaryValue = `Total (${s?.total_count || s?.total_campaigns || s?.total_adgroups || s?.total_ads || s?.total_keywords || 0})`;
+                        } else if (column.key === "spends") {
+                          summaryValue = formatCurrency(summary?.total_spends || 0);
+                        } else if (column.key === "sales") {
+                          summaryValue = formatCurrency(summary?.total_sales || 0);
+                        } else if (column.key === "impressions") {
+                          summaryValue = (summary?.total_impressions || 0).toLocaleString();
+                        } else if (column.key === "clicks") {
+                          summaryValue = (summary?.total_clicks || 0).toLocaleString();
+                        } else if (column.key === "budget") {
+                          // Use total budget from summary
+                          summaryValue = formatCurrency(summary?.total_budget || 0);
+                        } else if (column.key === "acos") {
+                          summaryValue = `${(summary?.avg_acos || 0).toFixed(2)}%`;
+                        } else if (column.key === "roas") {
+                          summaryValue = `${(summary?.avg_roas || 0).toFixed(2)}x`;
+                        } else if (column.key === "ctr") {
+                          // Calculate average CTR from summary
+                          const avgCtr = summary?.total_impressions > 0
+                            ? (summary?.total_clicks / summary?.total_impressions) * 100
+                            : 0;
+                          summaryValue = `${avgCtr.toFixed(2)}%`;
+                        } else if (column.key === "cpc" || column.key === "avg_cpc") {
+                          // Use avg_cpc from summary
+                          summaryValue = summary?.avg_cpc !== undefined
+                            ? formatCurrency(summary.avg_cpc)
+                            : formatCurrency(0);
+                        } else if (column.key === "conversions") {
+                          // Use total conversions from summary
+                          summaryValue = (summary?.total_conversions || 0).toLocaleString();
+                        } else if (column.key === "conversion_rate") {
+                          // Use avg conversion rate from summary
+                          summaryValue = summary?.avg_conversion_rate !== undefined
+                            ? `${summary.avg_conversion_rate.toFixed(2)}%`
+                            : "0.00%";
+                        } else if (column.key === "cost_per_conversion") {
+                          // Use avg cost per conversion from summary
+                          summaryValue = summary?.avg_cost_per_conversion !== undefined
+                            ? formatCurrency(summary.avg_cost_per_conversion)
+                            : formatCurrency(0);
+                        } else if (column.key === "interaction_rate") {
+                          // Use avg interaction rate from summary
+                          summaryValue = summary?.avg_interaction_rate !== undefined
+                            ? `${summary.avg_interaction_rate.toFixed(2)}%`
+                            : "0.00%";
+                        } else if (column.key === "avg_cost") {
+                          // Use avg cost from summary
+                          summaryValue = summary?.avg_cost !== undefined
+                            ? formatCurrency(summary.avg_cost)
+                            : formatCurrency(0);
+                        } else if (
+                          column.key === "start_date" ||
+                          column.key === "end_date" ||
+                          column.key === "bidding_strategy_type" ||
+                          column.key === "advertising_channel_type" ||
+                          column.key === "status"
+                        ) {
+                          // Show "—" for date, type, bidding strategy, and status columns in total row
+                          summaryValue = "—";
+                        }
+
                         return (
-                          <td
-                            key={column.key}
-                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
-                          >
-                            {renderCell(column, row, index)}
+                          <td key={column.key} className={`table-cell table-text leading-[1.26] ${stickyClasses} ${borderClass}`}>
+                            {summaryValue}
                           </td>
                         );
                       })}
                     </tr>
-                  );
-                })}
+                  )}
+
+                  {/* Loading Overlay */}
+                  {sorting && (
+                    <tr>
+                      <td colSpan={columns.length + 1} className="relative">
+                        <div className="absolute inset-0 bg-white bg-opacity-85 flex items-center justify-center z-20 backdrop-blur-[2px]">
+                          <div className="flex flex-col items-center gap-3 bg-white px-6 py-4 rounded-lg shadow-lg border border-[#E6E6E6]">
+                            <Loader size="md" message={loadingMessage} />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* Data Rows */}
+                  {data.map((row, index) => {
+                    const itemId = getId(row);
+                    // Use combination of itemId and index to ensure unique keys
+                    const uniqueKey = `${itemId}-${index}`;
+
+                    return (
+                      <tr
+                        key={uniqueKey}
+                        className="table-row group"
+                      >
+                        {/* Checkbox */}
+                        <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                          <div className="flex items-center justify-center">
+                            <Checkbox
+                              checked={selectedItems.has(itemId)}
+                              onChange={(checked) => onSelectItem(itemId, checked)}
+                              size="small"
+                            />
+                          </div>
+                        </td>
+
+                        {/* Data Cells */}
+                        {columns.map((column, colIndex) => {
+                          const stickyClasses = getStickyClasses(column, colIndex);
+                          const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                          const widthClasses = column.width || column.minWidth || "";
+                          const hoverClass = column.sticky && colIndex === 0 ? "group-hover:bg-gray-100" : "";
+
+                          return (
+                            <td
+                              key={column.key}
+                              className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
+                            >
+                              {renderCell(column, row, index)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </>
               )}
             </tbody>

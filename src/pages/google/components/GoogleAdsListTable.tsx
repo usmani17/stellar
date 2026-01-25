@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
-import type { IColumnDefinition } from "./GoogleAdsTable";
 import type { GoogleAd } from "./tabs/GoogleTypes";
+import type { IGoogleCampaignsSummary } from "../../../types/google/campaign";
+import type { IColumnDefinition } from "../../../types/google";
 
 export interface GoogleAdsListTableProps {
   ads: GoogleAd[];
@@ -28,15 +29,7 @@ export interface GoogleAdsListTableProps {
     newStatus: string;
     oldStatus: string;
   } | null;
-  summary: {
-    total_ads: number;
-    total_spends: number;
-    total_sales: number;
-    total_impressions: number;
-    total_clicks: number;
-    avg_acos: number;
-    avg_roas: number;
-  } | null;
+  summary: IGoogleCampaignsSummary | null;
   onSelectAll: (checked: boolean) => void;
   onSelectAd: (adId: string | number, checked: boolean) => void;
   onSort: (column: string) => void;
@@ -101,17 +94,6 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       oldValue: pendingStatusChange.oldStatus,
     } : null,
   }), [pendingStatusChange]);
-
-  // Map summary to shared format
-  const sharedSummary = summary ? {
-    total_count: summary.total_ads,
-    total_spends: summary.total_spends,
-    total_sales: summary.total_sales,
-    total_impressions: summary.total_impressions,
-    total_clicks: summary.total_clicks,
-    avg_acos: summary.avg_acos,
-    avg_roas: summary.avg_roas,
-  } : null;
 
   // Define columns for ads
   const columns: IColumnDefinition[] = useMemo(() => [
@@ -254,7 +236,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       isCancelling={isCancelling}
       updatingField={sharedUpdatingField}
       pendingChanges={pendingChanges}
-      summary={sharedSummary}
+      summary={summary}
       columns={columns}
       getId={(row: GoogleAd) => row.ad_id || row.id}
       getItemName={(row: GoogleAd) => `Ad ${row.ad_id || row.id}`}

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { GoogleAdsTable } from "./GoogleAdsTable";
 import { Loader } from "../../../components/ui/Loader";
 import type { IColumnDefinition } from "../../../types/google";
+import type { IGoogleCampaignsSummary } from "../../../types/google/campaign";
 
 export interface GoogleAdGroup {
   id: number;
@@ -43,15 +44,7 @@ interface GoogleAdGroupsTableProps {
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
   } | null;
-  summary: {
-    total_adgroups: number;
-    total_spends: number;
-    total_sales: number;
-    total_impressions: number;
-    total_clicks: number;
-    avg_acos: number;
-    avg_roas: number;
-  } | null;
+  summary: IGoogleCampaignsSummary | null;
   onSelectAll: (checked: boolean) => void;
   onSelectAdgroup: (adgroupId: string | number, checked: boolean) => void;
   onSort: (column: string) => void;
@@ -59,7 +52,7 @@ interface GoogleAdGroupsTableProps {
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
   onConfirmInlineEdit: (value: string, fieldKey?: string) => void;
-  pendingChanges?: Record<string, { itemId: string | number; newValue: string }>;
+  pendingChanges?: Record<string, { itemId: string | number; newValue: string; oldValue: any } | null>;
   onConfirmChange?: (itemId: string | number, fieldKey: string, newValue: string) => void;
   onCancelChange?: (fieldKey: string) => void;
   formatCurrency: (value: number) => string;
@@ -291,7 +284,7 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       isCancelling={isCancelling}
       updatingField={sharedUpdatingField}
       pendingChanges={pendingChanges}
-      summary={sharedSummary}
+      summary={summary}
       columns={columns}
       getId={(row: GoogleAdGroup) => row.adgroup_id}
       getItemName={(row: GoogleAdGroup) => row.adgroup_name || row.name || "Unnamed Ad Group"}
@@ -306,8 +299,8 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
       onCancelInlineEdit={onCancelInlineEdit}
       onInlineEditChange={onInlineEditChange}
       onConfirmInlineEdit={handleConfirmInlineEdit}
-      onConfirmChange={onConfirmChange || (() => {})}
-      onCancelChange={onCancelChange || (() => {})}
+      onConfirmChange={onConfirmChange || (() => { })}
+      onCancelChange={onCancelChange || (() => { })}
       formatCurrency={formatCurrency}
       formatPercentage={formatPercentage}
       getStatusBadge={getStatusBadge}

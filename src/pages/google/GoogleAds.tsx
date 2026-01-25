@@ -47,16 +47,14 @@ export const GoogleAds: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
   const [analyticsSyncMessage, setAnalyticsSyncMessage] = useState<
     string | null
   >(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<string>("sales");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -102,7 +100,7 @@ export const GoogleAds: React.FC = () => {
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [isCancelling, setIsCancelling] = useState(false);
-  const [updatingField, setUpdatingField] = useState<{
+  const [updatingField] = useState<{
     adId: string | number;
     field: "status";
   } | null>(null);
@@ -218,7 +216,7 @@ export const GoogleAds: React.FC = () => {
       setAds(adsArray);
       setTotalPages(response.total_pages || 0);
       setTotal(response.total || 0);
-      
+
       // Store chart data from API if available
       const responseWithChart = response as any;
       console.log("🔍 [CHART DEBUG] Checking for chart_data in response:", {
@@ -263,10 +261,10 @@ export const GoogleAds: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
+  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate]);
 
   // Sync status hook (after loadAds is defined)
-  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner, checkSyncStatus: _checkSyncStatus } = useGoogleSyncStatus({
     accountId,
     entityType: "ads",
     currentData: ads,
@@ -286,171 +284,8 @@ export const GoogleAds: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAds, sorting]);
+  }, [accountId, currentPage, filters, startDate, endDate, loadAds, sorting]);
 
-  const loadAdsWithFilters = async (
-    accountId: number,
-    filterList: FilterValues
-  ) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        filters: filterList, // Pass filters array directly
-        sort_by: sortBy,
-        order: sortOrder,
-        page: 1,
-        page_size: itemsPerPage,
-        start_date: startDate
-          ? startDate.toISOString().split("T")[0]
-          : undefined,
-        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
-      };
-
-      const response = await googleAdwordsAdsService.getGoogleAds(
-        accountId,
-        undefined,
-        undefined,
-        params
-      );
-      setAds(Array.isArray(response.ads) ? response.ads : []);
-      setTotalPages(response.total_pages || 0);
-      setTotal(response.total || 0);
-      // Store chart data from API if available
-      const responseWithChart = response as any;
-      if (
-        responseWithChart.chart_data &&
-        Array.isArray(responseWithChart.chart_data)
-      ) {
-        setChartDataFromApi(responseWithChart.chart_data);
-      } else {
-        setChartDataFromApi([]);
-      }
-          if (responseWithChart.summary) {
-            setSummary(responseWithChart.summary);
-          } else {
-            setSummary(null);
-          }
-          setSelectedAds(new Set());
-    } catch (error) {
-      console.error("Failed to load Google ads:", error);
-      setAds([]);
-      setTotalPages(0);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSync = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncing(true);
-      setSyncMessage(null);
-      const result = await googleAdwordsAdsService.syncGoogleAds(accountIdNum);
-      let message =
-        result.message || `Successfully synced ${result.synced} ads`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setSyncMessage(message);
-
-      // Check sync status immediately after triggering sync
-      await checkSyncStatus();
-
-      if (result.synced > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-      await loadAds(accountIdNum);
-
-      if (result.synced > 0 && !result.errors) {
-        setTimeout(() => setSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync ads:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync ads from Google Ads";
-      setSyncMessage(errorMessage);
-      setTimeout(() => setSyncMessage(null), 8000);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncAnalytics = async () => {
-    if (!accountId) return;
-    const accountIdNum = parseInt(accountId, 10);
-    if (isNaN(accountIdNum)) return;
-
-    try {
-      setSyncingAnalytics(true);
-      setAnalyticsSyncMessage(null);
-
-      // Always use 1 year date range for analytics sync (365 days)
-      const today = new Date();
-      const oneYearAgo = new Date();
-      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-      
-      const result = await googleAdwordsAdsService.syncGoogleAdAnalytics(
-        accountIdNum,
-        oneYearAgo.toISOString().split("T")[0],
-        today.toISOString().split("T")[0]
-      );
-
-      let message =
-        result.message ||
-        `Successfully synced analytics: ${
-          result.rows_inserted || 0
-        } inserted, ${result.rows_updated || 0} updated`;
-
-      if (result.errors && result.errors.length > 0) {
-        const errorDetails = (result as any).error_details || result.errors;
-        const errorText = errorDetails.slice(0, 3).join("; ");
-        message += ` Errors: ${errorText}`;
-        if (result.errors.length > 3) {
-          message += ` (and ${result.errors.length - 3} more)`;
-        }
-      }
-
-      setAnalyticsSyncMessage(message);
-
-      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
-        setCurrentPage(1);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        await loadAds(accountIdNum);
-      }
-
-      if ((result.rows_inserted || 0) > 0 && !result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 5000);
-      } else if (result.errors) {
-        setTimeout(() => setAnalyticsSyncMessage(null), 15000);
-      }
-    } catch (error: any) {
-      console.error("Failed to sync analytics:", error);
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Failed to sync ad analytics from Google Ads";
-      setAnalyticsSyncMessage(errorMessage);
-      setTimeout(() => setAnalyticsSyncMessage(null), 8000);
-    } finally {
-      setSyncingAnalytics(false);
-    }
-  };
 
   const handleSort = async (column: string) => {
     if (sorting) return;
@@ -637,7 +472,7 @@ export const GoogleAds: React.FC = () => {
     // For status changes, show modal
     const oldStatusRaw = ad.status || "ENABLED";
     const newStatusRaw = newValue.trim();
-    
+
     // Format status values for display
     const statusDisplayMap: Record<string, string> = {
       ENABLED: "Enabled",
@@ -649,7 +484,7 @@ export const GoogleAds: React.FC = () => {
     };
     const oldValueDisplay = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
     const newValueDisplay = statusDisplayMap[newStatusRaw] || newStatusRaw;
-    
+
     setInlineEditAd(ad);
     setInlineEditField(editingCell.field);
     setInlineEditOldValue(oldValueDisplay);
@@ -779,7 +614,7 @@ export const GoogleAds: React.FC = () => {
       }
 
       await googleAdwordsAdsService.exportGoogleAds(accountIdNum, params, exportType);
-      
+
       // Close dropdown after a short delay to show success
       setTimeout(() => {
         setShowExportDropdown(false);
@@ -841,7 +676,7 @@ export const GoogleAds: React.FC = () => {
                 day: "numeric",
               });
             }
-          } catch (e) {
+          } catch {
             formattedDate = item.date;
           }
         }
@@ -904,9 +739,8 @@ export const GoogleAds: React.FC = () => {
                     Add Filter
                   </span>
                   <svg
-                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
-                      isFilterPanelOpen ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -928,7 +762,7 @@ export const GoogleAds: React.FC = () => {
                 <Banner
                   type={
                     syncMessage.includes("error") ||
-                    syncMessage.includes("Failed")
+                      syncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
@@ -943,7 +777,7 @@ export const GoogleAds: React.FC = () => {
                 <Banner
                   type={
                     analyticsSyncMessage.includes("error") ||
-                    analyticsSyncMessage.includes("Failed")
+                      analyticsSyncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
@@ -1287,9 +1121,8 @@ export const GoogleAds: React.FC = () => {
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
                                 ? `Showing ${previewCount} of ${selectedAdsData.length} selected ads`
-                                : `${selectedAdsData.length} ad${
-                                    selectedAdsData.length !== 1 ? "s" : ""
-                                  } selected`}
+                                : `${selectedAdsData.length} ad${selectedAdsData.length !== 1 ? "s" : ""
+                                } selected`}
                             </span>
                           </div>
                           <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1340,17 +1173,17 @@ export const GoogleAds: React.FC = () => {
 
                     {/* Action Details - Only show before update */}
                     {!bulkUpdateResults && (
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 mb-6">
-                      <span className="text-[12.16px] text-[#556179]">
-                        New Status:
-                      </span>
-                      <span className="text-[12.16px] font-semibold text-[#072929]">
-                        {pendingStatusAction
-                          ? pendingStatusAction.charAt(0) +
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 mb-6">
+                        <span className="text-[12.16px] text-[#556179]">
+                          New Status:
+                        </span>
+                        <span className="text-[12.16px] font-semibold text-[#072929]">
+                          {pendingStatusAction
+                            ? pendingStatusAction.charAt(0) +
                             pendingStatusAction.slice(1).toLowerCase()
-                          : ""}
-                      </span>
-                    </div>
+                            : ""}
+                        </span>
+                      </div>
                     )}
 
                     <div className="flex justify-end gap-3">
@@ -1499,8 +1332,8 @@ export const GoogleAds: React.FC = () => {
                     onCancelInlineEdit={cancelInlineEdit}
                     onInlineEditChange={handleInlineEditChange}
                     onConfirmInlineEdit={confirmInlineEdit}
-                    onConfirmStatusChange={() => {}}
-                    onCancelStatusChange={() => {}}
+                    onConfirmStatusChange={() => { }}
+                    onCancelStatusChange={() => { }}
                     formatCurrency={formatCurrency}
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadge}
@@ -1539,11 +1372,10 @@ export const GoogleAds: React.FC = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
-                            currentPage === pageNum
-                              ? "bg-white text-[#136D6D] font-semibold"
-                              : "text-black hover:bg-gray-50"
-                          }`}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -1557,11 +1389,10 @@ export const GoogleAds: React.FC = () => {
                     {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => setCurrentPage(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
-                          currentPage === totalPages
-                            ? "bg-white text-[#136D6D] font-semibold"
-                            : "text-black hover:bg-gray-50"
-                        }`}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
+                          ? "bg-white text-[#136D6D] font-semibold"
+                          : "text-black hover:bg-gray-50"
+                          }`}
                       >
                         {totalPages}
                       </button>
