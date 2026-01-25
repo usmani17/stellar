@@ -899,20 +899,20 @@ export function GoogleAdsTable<T = any>({
                       let summaryValue: React.ReactNode = "";
                       // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
                       if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
-                        // Use appropriate total based on column key
-                        // Summary can have different properties depending on the table type
+                        // Use the specific field from backend based on column key (no fallback hierarchy)
                         const summaryAny = summary as any;
                         let totalCount = 0;
-                        if (column.key === "ad_id") {
-                          totalCount = summaryAny?.total_count || summaryAny?.total_ads || summaryAny?.total_campaigns || 0;
+                        if (column.key === "campaign_name") {
+                          totalCount = summaryAny?.total_campaigns || 0;
                         } else if (column.key === "adgroup_name") {
-                          totalCount = summaryAny?.total_count || summaryAny?.total_adgroups || summaryAny?.total_campaigns || 0;
+                          totalCount = summaryAny?.total_adgroups || 0;
                         } else if (column.key === "keyword_text") {
-                          totalCount = summaryAny?.total_count || summaryAny?.total_keywords || summaryAny?.total_campaigns || 0;
-                        } else if (column.key === "campaign_name") {
-                          totalCount = summaryAny?.total_campaigns || summaryAny?.total_count || 0;
+                          totalCount = summaryAny?.total_keywords || 0;
+                        } else if (column.key === "ad_id") {
+                          totalCount = summaryAny?.total_ads || 0;
                         } else {
-                          totalCount = summaryAny?.total_count || summaryAny?.total_campaigns || 0;
+                          // Generic fallback for "name" or other first columns
+                          totalCount = summaryAny?.total_count || 0;
                         }
                         summaryValue = `Total (${totalCount})`;
                       } else if (index !== 0 && (column.key === "campaign_name" || column.key === "adgroup_name" || column.key === "account_name")) {

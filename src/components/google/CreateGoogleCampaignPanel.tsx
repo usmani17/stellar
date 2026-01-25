@@ -57,7 +57,7 @@ export interface CreateGoogleCampaignData {
   sales_country?: string;
   campaign_priority?: number;
   enable_local?: boolean;
-  location_ids?: string[];  // Array of location criterion IDs to target
+  location_ids?: number[];  // Array of location criterion IDs to target
   excluded_location_ids?: string[];  // Array of location criterion IDs to exclude
   language_ids?: string[];  // Array of language constant IDs to target
   device_ids?: string[];  // Array of device type IDs to target (MOBILE, DESKTOP, TABLET, CONNECTED_TV)
@@ -65,7 +65,6 @@ export interface CreateGoogleCampaignData {
   adgroup_name?: string;
   keywords?: string[] | string; // Can be array or comma-separated string
   match_type?: "BROAD" | "PHRASE" | "EXACT";
-  location_ids?: number[]; // Google Ads location IDs for geo-targeting
   language_codes?: string[]; // Language codes for language targeting
   conversion_action_ids?: string[]; // Conversion action IDs for selective optimization
   // Demand Gen fields
@@ -144,43 +143,6 @@ const BIDDING_STRATEGY_OPTIONS = [
   { value: "MANUAL_CPC", label: "Manual CPC" },
 ];
 
-const LOCATION_OPTIONS = [
-  { id: 2840, name: "United States", code: "US" },
-  { id: 2124, name: "Canada", code: "CA" },
-  { id: 2826, name: "United Kingdom", code: "UK" },
-  { id: 2392, name: "Japan", code: "JP" },
-  { id: 2036, name: "India", code: "IN" },
-  { id: 2276, name: "Brazil", code: "BR" },
-  { id: 2250, name: "Argentina", code: "AR" },
-  { id: 2380, name: "Italy", code: "IT" },
-  { id: 2191, name: "France", code: "FR" },
-  { id: 2287, name: "Germany", code: "DE" },
-  { id: 2414, name: "South Korea", code: "KR" },
-  { id: 2156, name: "China", code: "CN" },
-  { id: 2344, name: "Mexico", code: "MX" },
-  { id: 2234, name: "Australia", code: "AU" },
-  { id: 2376, name: "Spain", code: "ES" },
-];
-
-const LANGUAGE_OPTIONS = [
-  { code: "en", name: "English", languageConstantId: "1000" },
-  { code: "es", name: "Spanish", languageConstantId: "1003" },
-  { code: "fr", name: "French", languageConstantId: "1002" },
-  { code: "de", name: "German", languageConstantId: "1001" },
-  { code: "ja", name: "Japanese", languageConstantId: "1041" },
-  { code: "zh", name: "Chinese (Simplified)", languageConstantId: "1017" },
-  { code: "it", name: "Italian", languageConstantId: "1004" },
-  { code: "pt", name: "Portuguese", languageConstantId: "1005" },
-  { code: "ru", name: "Russian", languageConstantId: "1006" },
-  { code: "ko", name: "Korean", languageConstantId: "1040" },
-];
-
-const MATCH_TYPE_OPTIONS = [
-  { value: "BROAD", label: "Broad Match" },
-  { value: "PHRASE", label: "Phrase Match" },
-  { value: "EXACT", label: "Exact Match" },
-];
-
 export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps> = ({
   isOpen,
   onClose,
@@ -220,12 +182,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   const [selectedBudgetId, setSelectedBudgetId] = useState<string>("");
   const [useCustomBudgetName, setUseCustomBudgetName] = useState(false);
   const [formData, setFormData] = useState<CreateGoogleCampaignData>({
-    campaign_type: "PERFORMANCE_MAX",
+    campaign_type: "SEARCH",
     name: "",
     budget_amount: 0,
     budget_name: "",
     status: "PAUSED",
-    bidding_strategy_type: "MAXIMIZE_CONVERSIONS", // Default for Performance Max
+    bidding_strategy_type: "MANUAL_CPC", // Default for Search
     // Performance Max defaults
     final_url: "",
     headlines: [""],
@@ -332,7 +294,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
     };
 
     fetchProfiles();
-  }, [isOpen, accountId]);
+  }, [isOpen, accountId, selectedProfileId]);
 
   // Function to fetch budgets
   const fetchBudgets = useCallback(async () => {
@@ -619,12 +581,12 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
 
   const resetForm = () => {
     setFormData({
-      campaign_type: "PERFORMANCE_MAX",
+      campaign_type: "SEARCH",
       name: "",
       budget_amount: 0,
       budget_name: "",
       status: "PAUSED",
-      bidding_strategy_type: "MAXIMIZE_CONVERSIONS", // Default for Performance Max
+      bidding_strategy_type: "MANUAL_CPC", // Default for Search
       final_url: "",
       headlines: [""],
       descriptions: [""],
@@ -1003,9 +965,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       }
     } else if (formData.campaign_type === "SEARCH") {
       // Search campaign validation
-      if (!formData.location_ids || formData.location_ids.length === 0) {
-        newErrors.location_ids = "At least one target location is required";
-      }
       if (!formData.language_codes || formData.language_codes.length === 0) {
         newErrors.language_codes = "At least one target language is required";
       }
@@ -1269,7 +1228,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       sales_country: "US",
       campaign_priority: 0,
       enable_local: false,
-      location_ids: [2840], // United States
+      location_ids: undefined,
       language_codes: ["en"], // English
       conversion_action_ids: [],
     });
@@ -2466,12 +2425,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                     value=""
                     onChange={(value) => {
                       const currentIds = formData.location_ids || [];
-                      if (!currentIds.includes(value)) {
+                      const valueNum = parseInt(value, 10);
+                      if (!isNaN(valueNum) && !currentIds.includes(valueNum)) {
                         // Remove from excluded locations if it exists there
                         const excludedIds = (formData.excluded_location_ids || []).filter(id => id !== value);
                         handleChange("excluded_location_ids", excludedIds.length > 0 ? excludedIds : undefined);
                         // Add to target locations
-                        handleChange("location_ids", [...currentIds, value]);
+                        handleChange("location_ids", [...currentIds, valueNum]);
                       }
                     }}
                     placeholder={
@@ -2494,7 +2454,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   {formData.location_ids && formData.location_ids.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {formData.location_ids.map((locId) => {
-                        const location = locationOptions.find(l => l.value === locId);
+                        const location = locationOptions.find(l => l.value === String(locId));
                         return (
                           <span
                             key={locId}
@@ -2525,14 +2485,20 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   </label>
                   <Dropdown<string>
                     options={locationOptions.filter(
-                      (opt) => !formData.location_ids?.includes(opt.value)
+                      (opt) => {
+                        const optValueNum = parseInt(opt.value, 10);
+                        return !isNaN(optValueNum) && !formData.location_ids?.includes(optValueNum);
+                      }
                     )}
                     value=""
                     onChange={(value) => {
                       const currentIds = formData.excluded_location_ids || [];
                       if (!currentIds.includes(value)) {
                         // Remove from target locations if it exists there
-                        const targetIds = (formData.location_ids || []).filter(id => id !== value);
+                        const valueNum = parseInt(value, 10);
+                        const targetIds = !isNaN(valueNum) 
+                          ? (formData.location_ids || []).filter(id => id !== valueNum)
+                          : (formData.location_ids || []);
                         handleChange("location_ids", targetIds.length > 0 ? targetIds : undefined);
                         // Add to excluded locations
                         handleChange("excluded_location_ids", [...currentIds, value]);
@@ -2956,166 +2922,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 >
                   + Add parameter
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* Search Specific Fields */}
-          {formData.campaign_type === "SEARCH" && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
-                Search Campaign Settings
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Ad Group Name */}
-                <div>
-                  <label className="form-label">
-                    Ad Group Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.adgroup_name || ""}
-                    onChange={(e) => handleChange("adgroup_name", e.target.value)}
-                    className={`campaign-input w-full ${
-                      errors.adgroup_name ? "border-red-500" : ""
-                    }`}
-                    placeholder="Optional ad group name"
-                  />
-                  <p className="text-[10px] text-[#556179] mt-1">
-                    The ad group organizes your keywords and ads
-                  </p>
-                </div>
-
-                {/* Match Type */}
-                <div>
-                  <label className="form-label">
-                    Default Match Type
-                  </label>
-                  <Dropdown<string>
-                    options={MATCH_TYPE_OPTIONS}
-                    value={formData.match_type || "BROAD"}
-                    onChange={(value) => handleChange("match_type", value)}
-                    buttonClassName="edit-button w-full"
-                  />
-                  <p className="text-[10px] text-[#556179] mt-1">
-                    Controls how closely keywords must match user searches
-                  </p>
-                </div>
-              </div>
-
-              {/* Keywords */}
-              <div>
-                <label className="form-label">
-                  Keywords (comma-separated or one per line)
-                </label>
-                <textarea
-                  value={Array.isArray(formData.keywords) ? formData.keywords.join("\n") : formData.keywords || ""}
-                  onChange={(e) => {
-                    const lines = e.target.value.split("\n").filter(line => line.trim());
-                    handleChange("keywords", lines);
-                  }}
-                  className={`campaign-input w-full h-24 resize-none ${
-                    errors.keywords ? "border-red-500" : ""
-                  }`}
-                  placeholder="e.g., blue running shoes&#10;best athletic shoes&#10;women's sports shoes"
-                />
-                {errors.keywords && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.keywords}
-                  </p>
-                )}
-                <p className="text-[10px] text-[#556179] mt-1">
-                  Enter one keyword per line
-                </p>
-              </div>
-
-              {/* Location Targeting */}
-              <div>
-                <label className="form-label">
-                  Target Locations
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded">
-                  {LOCATION_OPTIONS.map((location) => (
-                    <div key={location.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id={`location-${location.id}`}
-                        checked={formData.location_ids?.includes(location.id) || false}
-                        onChange={(e) => {
-                          const newLocationIds = e.target.checked
-                            ? [...(formData.location_ids || []), location.id]
-                            : (formData.location_ids || []).filter(id => id !== location.id);
-                          handleChange("location_ids", newLocationIds);
-                        }}
-                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                      />
-                      <label htmlFor={`location-${location.id}`} className="text-[12px] text-[#556179] cursor-pointer">
-                        {location.name}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#556179] mt-2">
-                  Select one or more countries/regions where your ads will be shown
-                </p>
-              </div>
-
-              {/* Language Targeting */}
-              <div>
-                <label className="form-label">
-                  Target Languages
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded">
-                  {LANGUAGE_OPTIONS.map((language) => (
-                    <div key={language.code} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id={`language-${language.code}`}
-                        checked={formData.language_codes?.includes(language.code) || false}
-                        onChange={(e) => {
-                          const newLanguageCodes = e.target.checked
-                            ? [...(formData.language_codes || []), language.code]
-                            : (formData.language_codes || []).filter(code => code !== language.code);
-                          handleChange("language_codes", newLanguageCodes);
-                        }}
-                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
-                      />
-                      <label htmlFor={`language-${language.code}`} className="text-[12px] text-[#556179] cursor-pointer">
-                        {language.name}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#556179] mt-2">
-                  Select one or more languages for your target audience
-                </p>
-              </div>
-
-              {/* Conversion Action IDs */}
-              <div>
-                <label className="form-label">
-                  Conversion Actions (optional)
-                </label>
-                <textarea
-                  value={formData.conversion_action_ids?.join("\n") || ""}
-                  onChange={(e) => {
-                    const lines = e.target.value.split("\n").filter(line => line.trim());
-                    handleChange("conversion_action_ids", lines);
-                  }}
-                  className={`campaign-input w-full h-20 resize-none ${
-                    errors.conversion_action_ids ? "border-red-500" : ""
-                  }`}
-                  placeholder="Enter conversion action IDs (one per line)&#10;e.g., 123456789&#10;987654321"
-                />
-                {errors.conversion_action_ids && (
-                  <p className="text-[10px] text-red-500 mt-1">
-                    {errors.conversion_action_ids}
-                  </p>
-                )}
-                <p className="text-[10px] text-[#556179] mt-1">
-                  Optional: Specify which conversions to optimize for. Leave empty to optimize for all conversions.
-                </p>
               </div>
             </div>
           )}

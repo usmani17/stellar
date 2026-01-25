@@ -21,11 +21,11 @@ import { useGoogleSyncStatus } from "../../hooks/useGoogleSyncStatus";
 import { useChartCollapse } from "../../hooks/useChartCollapse";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { GoogleCampaignsTable} from "./components/GoogleCampaignsTable";
-import { CreateGoogleCampaignSection } from "../../components/campaigns/CreateGoogleCampaignSection";
+import { CreateGoogleCampaignSection } from "../../components/google/CreateGoogleCampaignSection";
 import {
   CreateGoogleCampaignPanel,
   type CreateGoogleCampaignData,
-} from "../../components/campaigns/CreateGoogleCampaignPanel";
+} from "../../components/google/CreateGoogleCampaignPanel";
 import { ErrorModal } from "../../components/ui/ErrorModal";
 import { Loader } from "../../components/ui/Loader";
 // import { CustomizeColumns } from "../../components/ui/CustomizeColumns";
