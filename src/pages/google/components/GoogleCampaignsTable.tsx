@@ -342,7 +342,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   }, [allColumns, visibleColumns, columnOrder]);
 
   // Handle confirm inline edit - route to appropriate handler
-  // For budget, date, status, and bidding_strategy_type, use direct confirmation (no modal)
+  // For budget, date, status, and bidding_strategy_type, use direct confirmation
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
     // Use the field parameter if provided, otherwise fall back to editingCell
     const fieldToUse = field || editingCell?.field;
@@ -353,7 +353,7 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
     // Use itemIdParam if provided, otherwise fall back to editingCell
     const campaignIdToUse = itemIdParam || editingCell?.campaignId;
     
-    // For budget, date, status, and bidding_strategy_type, use direct confirmation (no modal)
+    // For budget, date, status, and bidding_strategy_type, use direct confirmation
     // This calls confirmInlineEditDirect which makes the API call immediately
     if (onConfirmInlineEditDirect && (
       fieldToUse === "budget" || 
@@ -369,16 +369,16 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
     }
   };
 
-  // Handle confirm change - route to appropriate handler (dates now use modal)
+  // Handle confirm change - route to appropriate handler
   const handleConfirmChange = (_itemId: string | number, _field: string, _newValue: any) => {
-    // Dates are handled via modal, not inline confirmation
-    // This handler is kept for compatibility but dates use modal confirmation
+    // This handler is kept for compatibility but is not currently used
+    // All inline edits use handleConfirmInlineEdit which routes to direct confirmation
   };
 
-  // Handle cancel change (dates now use modal)
+  // Handle cancel change
   const handleCancelChange = (_field: string) => {
-    // Dates are handled via modal, not inline confirmation
-    // This handler is kept for compatibility but dates use modal confirmation
+    // This handler is kept for compatibility but is not currently used
+    // All inline edits use onCancelInlineEdit for cancellation
   };
 
   return (
