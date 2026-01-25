@@ -3272,8 +3272,6 @@ export const Campaigns: React.FC = () => {
                                 <td className="table-cell"></td>
                                 <td className="table-cell"></td>
                                 <td className="table-cell"></td>
-                                <td className="table-cell"></td>
-                                <td className="table-cell"></td>
                                 <td className="table-cell table-text leading-[1.26]">
                                   {formatCurrency(summary.total_spends)}
                                 </td>

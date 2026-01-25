@@ -176,6 +176,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
   const [activeBiddingTab, setActiveBiddingTab] = useState<
     "strategy" | "placements" | "audiences"
   >("placements");
+  const [isAdvancedSettingsExpanded, setIsAdvancedSettingsExpanded] =
+    useState<boolean>(false);
   const [increaseBidsForAudiences, setIncreaseBidsForAudiences] =
     useState<boolean>(false);
   const [selectedAudience, setSelectedAudience] = useState<string>("");
@@ -1979,60 +1981,57 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </div>
                 )}
 
-                {/* Row 4: Portfolio ID */}
-                {formData.type === "SP" && (
-                  <div className="grid grid-cols-4 gap-6">
-                    <div>
-                      <label className="form-label">
-                        Portfolio
-                      </label>
-                      <Dropdown<string>
-                        options={portfolioOptions}
-                        value={formData.portfolioId || undefined}
-                        onChange={(value) => handleChange("portfolioId", value)}
-                        placeholder={
-                          !formData.profileId
-                            ? "Select profile first"
-                            : loadingPortfolios
-                            ? "Loading portfolios..."
-                            : "Select portfolio (optional)"
-                        }
-                        buttonClassName="edit-button w-full"
-                        disabled={
-                          !formData.profileId ||
-                          loadingPortfolios ||
-                          portfolioOptions.length === 0
-                        }
-                      />
-                      {errors.portfolioId && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.portfolioId}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* SP Dynamic Bidding Section */}
+                {/* SP Advanced Settings Section (Optional) */}
                 {formData.type === "SP" && (
                   <div className="mt-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAdvancedSettingsExpanded(!isAdvancedSettingsExpanded);
+                      }}
+                      className="flex items-center justify-between  mb-4 hover:opacity-80 transition-opacity cursor-pointer"
+                    >
                       <h3 className="text-[14px] font-semibold text-[#072929]">
-                        Dynamic Bidding
+                        Advanced Settings <span className="text-[#556179] font-normal">(Optional)</span>
                       </h3>
-                    </div>
+                      <svg
+                        className={`w-5 h-5 text-[#072929] transition-transform ${
+                          isAdvancedSettingsExpanded ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+
+                    {isAdvancedSettingsExpanded && (
+                      <div className="space-y-6">
+                              {/* Dynamic Bidding Section */}
+                              <div>
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="text-[13px] font-semibold text-[#072929]">
+                                    Dynamic Bidding
+                                  </h4>
+                                </div>
 
                     {/* Placement Bid Adjustments - Always visible and enabled */}
-                    <div className="mb-6">
+                    <div className="mb-6 border border-[#e8e8e3] rounded-lg overflow-hidden">
                       {/* Tabs */}
-                      <div className="flex border-b border-gray-200 mb-4">
+                      <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
                         <button
                           type="button"
                           onClick={() => setActiveBiddingTab("strategy")}
                           className={`px-4 py-2 text-[14px] transition-colors ${
                             activeBiddingTab === "strategy"
-                              ? "text-[#072929] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929]"
+                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
                           }`}
                         >
                           Strategy
@@ -2042,8 +2041,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onClick={() => setActiveBiddingTab("placements")}
                           className={`px-4 py-2 text-[14px] transition-colors ${
                             activeBiddingTab === "placements"
-                              ? "text-[#072929] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929]"
+                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
                           }`}
                         >
                           Placements
@@ -2053,8 +2052,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onClick={() => setActiveBiddingTab("audiences")}
                           className={`px-4 py-2 text-[14px] transition-colors ${
                             activeBiddingTab === "audiences"
-                              ? "text-[#072929] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929]"
+                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
                           }`}
                         >
                           Audiences
@@ -2063,7 +2062,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                       {/* Strategy Tab Content */}
                       {activeBiddingTab === "strategy" && (
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                        <div className="bg-[#FEFEFB] p-4 space-y-4">
                           <div className="grid grid-cols-4 gap-6">
                             <div>
                               <label className="form-label">
@@ -2131,7 +2130,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       {activeBiddingTab === "placements" && (
                         <>
                           {/* Placement Inputs */}
-                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                          <div className="bg-[#FEFEFB] p-4 space-y-4">
                             {/* Instructions */}
                             <div className="flex items-center gap-2">
                               <p className="text-[13px] text-[#072929]">
@@ -2480,7 +2479,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                       {/* Audiences Tab Content */}
                       {activeBiddingTab === "audiences" && (
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                        <div className="bg-[#FEFEFB] p-4 space-y-4">
                           {/* Radio Buttons */}
                           <div className="space-y-3">
                             <label
@@ -2619,121 +2618,150 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                              </div>
 
-                {/* SP Site Restrictions and Tags Section */}
-                {formData.type === "SP" && (
-                  <>
-                    {/* Site Restrictions */}
-                    <div className="grid grid-cols-4 gap-6">
-                      <div>
-                        <label className="form-label">
-                          Site Restrictions
-                        </label>
-                        {mode === "edit" && (
-                          <p className="text-[10px] text-[#556179] mb-2 italic">
-                            Read-only: Site restrictions cannot be changed after
-                            campaign creation
-                          </p>
-                        )}
-                        <Dropdown<string>
-                          options={[
-                            {
-                              value: "",
-                              label: "Select Site Restrictions",
-                            },
-                            {
-                              value: "AMAZON_BUSINESS",
-                              label: "AMAZON_BUSINESS",
-                            },
-                          ]}
-                          value={formData.siteRestrictions || ""}
-                          onChange={(value) =>
-                            handleChange("siteRestrictions", value || undefined)
-                          }
-                          placeholder="Select site restrictions (optional)"
-                          buttonClassName={`w-full h-[38px] text-[14px] text-[#072929] ${
-                            mode === "edit"
-                              ? "bg-gray-50 cursor-not-allowed"
-                              : "bg-[#FEFEFB]"
-                          }`}
-                          disabled={mode === "edit"}
-                        />
-                      </div>
-                    </div>
+                              {/* Portfolio Section */}
+                                <div className="grid grid-cols-4 gap-6">
+                                  <div>
+                                    <label className="form-label">
+                                      Portfolio
+                                    </label>
+                                    <Dropdown<string>
+                                      options={portfolioOptions}
+                                      value={formData.portfolioId || undefined}
+                                      onChange={(value) => handleChange("portfolioId", value)}
+                                      placeholder={
+                                        !formData.profileId
+                                          ? "Select profile first"
+                                          : loadingPortfolios
+                                          ? "Loading portfolios..."
+                                          : "Select portfolio (optional)"
+                                      }
+                                      buttonClassName="edit-button w-full"
+                                      disabled={
+                                        !formData.profileId ||
+                                        loadingPortfolios ||
+                                        portfolioOptions.length === 0
+                                      }
+                                    />
+                                    {errors.portfolioId && (
+                                      <p className="text-[10px] text-red-500 mt-1">
+                                        {errors.portfolioId}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="form-label">
+                                      Site Restrictions
+                                    </label>
+                                    {mode === "edit" && (
+                                      <p className="text-[10px] text-[#556179] mb-2 italic">
+                                        Read-only: Site restrictions cannot be changed after
+                                        campaign creation
+                                      </p>
+                                    )}
+                                    <Dropdown<string>
+                                      options={[
+                                        {
+                                          value: "",
+                                          label: "Select Site Restrictions",
+                                        },
+                                        {
+                                          value: "AMAZON_BUSINESS",
+                                          label: "AMAZON_BUSINESS",
+                                        },
+                                      ]}
+                                      value={formData.siteRestrictions || ""}
+                                      onChange={(value) =>
+                                        handleChange("siteRestrictions", value || undefined)
+                                      }
+                                      placeholder="Select site restrictions (optional)"
+                                      buttonClassName={`w-full edit-button  ${
+                                        mode === "edit"
+                                          ? "bg-gray-50 cursor-not-allowed"
+                                          : "bg-[#FEFEFB]"
+                                      }`}
+                                      disabled={mode === "edit"}
+                                    />
+                                  </div>
 
-                    {/* Tags */}
-                    <div>
-                      <label className="form-label">
-                        Tags - Max 50
-                      </label>
-                      <div className="space-y-2">
-                        {(formData.tags || []).map((tag, index) => (
-                          <div key={index} className="flex gap-2 items-center">
-                            <input
-                              type="text"
-                              value={tag.key || ""}
-                              onChange={(e) => {
-                                const newTags = [...(formData.tags || [])];
-                                newTags[index] = {
-                                  ...newTags[index],
-                                  key: e.target.value,
-                                };
-                                handleChange("tags", newTags);
-                              }}
-                              placeholder="Key"
-                              className="campaign-input w-full"
-                            />
-                            <input
-                              type="text"
-                              value={tag.value || ""}
-                              onChange={(e) => {
-                                const newTags = [...(formData.tags || [])];
-                                newTags[index] = {
-                                  ...newTags[index],
-                                  value: e.target.value,
-                                };
-                                handleChange("tags", newTags);
-                              }}
-                              placeholder="Value"
-                              className="campaign-input w-full"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newTags = [...(formData.tags || [])];
-                                newTags.splice(index, 1);
-                                handleChange("tags", newTags);
-                              }}
-                              className="px-3 py-2 text-red-500 hover:text-red-700 transition-colors"
-                              title="Remove"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                        {(!formData.tags || formData.tags.length < 50) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newTags = [...(formData.tags || [])];
-                              newTags.push({ key: "", value: "" });
-                              handleChange("tags", newTags);
-                            }}
-                            className="px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px]"
-                          >
-                            + Add Tag
-                          </button>
-                        )}
-                        {formData.tags && formData.tags.length >= 50 && (
-                          <p className="text-[11px] text-[#556179]">
-                            Maximum of 50 tags reached
-                          </p>
-                        )}
-                      </div>
+                                </div>
+
+                              {/* Tags Section */}
+                              <div>
+                                <div>
+                                  <label className="form-label">
+                                    Tags - Max 50
+                                  </label>
+                                  <div className="space-y-2">
+                                    {(formData.tags || []).map((tag, index) => (
+                                      <div key={index} className="flex gap-2 items-center">
+                                        <input
+                                          type="text"
+                                          value={tag.key || ""}
+                                          onChange={(e) => {
+                                            const newTags = [...(formData.tags || [])];
+                                            newTags[index] = {
+                                              ...newTags[index],
+                                              key: e.target.value,
+                                            };
+                                            handleChange("tags", newTags);
+                                          }}
+                                          placeholder="Key"
+                                          className="campaign-input w-full"
+                                        />
+                                        <input
+                                          type="text"
+                                          value={tag.value || ""}
+                                          onChange={(e) => {
+                                            const newTags = [...(formData.tags || [])];
+                                            newTags[index] = {
+                                              ...newTags[index],
+                                              value: e.target.value,
+                                            };
+                                            handleChange("tags", newTags);
+                                          }}
+                                          placeholder="Value"
+                                          className="campaign-input w-full"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newTags = [...(formData.tags || [])];
+                                            newTags.splice(index, 1);
+                                            handleChange("tags", newTags);
+                                          }}
+                                          className="px-3 py-2 text-red-500 hover:text-red-700 transition-colors"
+                                          title="Remove"
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+                                    ))}
+                                    {(!formData.tags || formData.tags.length < 50) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newTags = [...(formData.tags || [])];
+                                          newTags.push({ key: "", value: "" });
+                                          handleChange("tags", newTags);
+                                        }}
+                                        className="px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px]"
+                                      >
+                                        + Add Tag
+                                      </button>
+                                    )}
+                                    {formData.tags && formData.tags.length >= 50 && (
+                                      <p className="text-[11px] text-[#556179]">
+                                        Maximum of 50 tags reached
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                     </div>
-                  </>
                 )}
 
                 {/* SD (Sponsored Display) Specific Fields */}
@@ -2741,7 +2769,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   <div className="grid grid-cols-4 gap-6">
                     {/* Tactic */}
                     <div>
-                      <label className="form-label-small">
+                      <label className="form-label">
                         Tactic *
                       </label>
                       <Dropdown<string>
@@ -2777,7 +2805,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Cost Type */}
                     <div>
-                      <label className="form-label-small">
+                      <label className="form-label">
                         Cost Type
                       </label>
                       <Dropdown<string>
@@ -2803,7 +2831,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                     {/* Portfolio ID */}
                     <div>
-                      <label className="form-label-small">
+                      <label className="form-label">
                         Portfolio
                       </label>
                       <Dropdown<string>
@@ -2833,7 +2861,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </div>
                 )}
 
-                {/* Row 4: Brand Entity ID | Targeted PG Deal ID (for SB campaigns) */}
+                {/* Row 4: Brand Entity ID | Cost Type (for SB campaigns) */}
                 {formData.type === "SB" && (
                   <div className="grid grid-cols-4 gap-6">
                     {/* Brand Entity ID */}
@@ -2877,33 +2905,48 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       )}
                     </div>
 
-                    {/* Targeted PG Deal ID */}
+                    {/* Cost Type */}
                     <div>
                       <label className="form-label">
-                        Targeted PG Deal ID
+                        Cost Type <span>*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={formData.targetedPGDealId || ""}
-                        onChange={(e) =>
-                          handleChange("targetedPGDealId", e.target.value)
-                        }
-                        placeholder="Enter DealId"
+                      <Dropdown<string>
+                        options={[
+                          {
+                            value: "CPC",
+                            label: "CPC - Cost per click (Default)",
+                          },
+                          {
+                            value: "VCPM",
+                            label: "VCPM - Cost per 1000 viewable impressions",
+                          },
+                          {
+                            value: "FIXED_PRICE",
+                            label:
+                              "FIXED_PRICE - Sale price for a specific ad placement (requires targetedPGDealId)",
+                          },
+                        ]}
+                        value={formData.costType || "cpc"}
+                        onChange={(value) => handleChange("costType", value)}
+                        placeholder="Select cost type"
+                        buttonClassName="edit-button w-full"
                         disabled={mode === "edit"}
-                        className={`campaign-input w-full ${
-                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                        }`}
                       />
                       {mode === "edit" && (
                         <p className="text-[10px] text-[#556179] mt-1 italic">
                           Read-only in edit mode
                         </p>
                       )}
+                      {errors.costType && (
+                        <p className="text-[11px] text-red-600 mt-1">
+                          {errors.costType}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* Row 5: Product Location | Cost Type | Portfolio ID (for SB campaigns) */}
+                {/* Row 5: Product Location | Targeted PG Deal ID | Portfolio ID (for SB campaigns) */}
                 {formData.type === "SB" && (
                   <div className="grid grid-cols-4 gap-6">
                     {/* Product Location */}
@@ -2948,41 +2991,26 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       )}
                     </div>
 
-                    {/* Cost Type */}
+                    {/* Targeted PG Deal ID */}
                     <div>
                       <label className="form-label">
-                        Cost Type <span>*</span>
+                        Targeted PG Deal ID
                       </label>
-                      <Dropdown<string>
-                        options={[
-                          {
-                            value: "CPC",
-                            label: "CPC - Cost per click (Default)",
-                          },
-                          {
-                            value: "VCPM",
-                            label: "VCPM - Cost per 1000 viewable impressions",
-                          },
-                          {
-                            value: "FIXED_PRICE",
-                            label:
-                              "FIXED_PRICE - Sale price for a specific ad placement (requires targetedPGDealId)",
-                          },
-                        ]}
-                        value={formData.costType || "cpc"}
-                        onChange={(value) => handleChange("costType", value)}
-                        placeholder="Select cost type"
-                        buttonClassName="edit-button w-full"
+                      <input
+                        type="text"
+                        value={formData.targetedPGDealId || ""}
+                        onChange={(e) =>
+                          handleChange("targetedPGDealId", e.target.value)
+                        }
+                        placeholder="Enter DealId"
                         disabled={mode === "edit"}
+                        className={`campaign-input w-full ${
+                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                        }`}
                       />
                       {mode === "edit" && (
                         <p className="text-[10px] text-[#556179] mt-1 italic">
                           Read-only in edit mode
-                        </p>
-                      )}
-                      {errors.costType && (
-                        <p className="text-[11px] text-red-600 mt-1">
-                          {errors.costType}
                         </p>
                       )}
                     </div>
@@ -3102,16 +3130,16 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                     </div>
 
                     {/* Placement Bid Adjustments - Always visible and enabled */}
-                    <div className="mb-6">
+                    <div className="mb-6 border border-[#e8e8e3] rounded-lg overflow-hidden">
                       {/* Tabs */}
-                      <div className="flex border-b border-gray-200 mb-4">
+                      <div className="flex bg-[#FEFEFB] border-b border-[#e8e8e3]">
                         <button
                           type="button"
                           onClick={() => setActiveBiddingTab("placements")}
                           className={`px-4 py-2 text-[14px] transition-colors ${
                             activeBiddingTab === "placements"
-                              ? "text-[#072929] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929]"
+                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
                           }`}
                         >
                           Placements
@@ -3121,8 +3149,8 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                           onClick={() => setActiveBiddingTab("audiences")}
                           className={`px-4 py-2 text-[14px] transition-colors ${
                             activeBiddingTab === "audiences"
-                              ? "text-[#072929] border-b-2 border-[#136D6D]"
-                              : "text-[#556179] hover:text-[#072929]"
+                              ? "text-[#072929] bg-[#FEFEFB] border-b-2 border-[#136D6D]"
+                              : "text-[#556179] hover:text-[#072929] hover:bg-[#f5f5f0]"
                           }`}
                         >
                           Audiences
@@ -3133,27 +3161,14 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                       {activeBiddingTab === "placements" && (
                         <>
                           {/* Instructions */}
-                          <div className="flex items-center gap-2 mb-4">
+                          <div className="flex items-center gap-2 mb-4 px-4 pt-4">
                             <p className="text-[13px] text-[#072929]">
                               Increase your bid for specific Amazon placements.
                             </p>
-                            <svg
-                              className="w-4 h-4 text-[#556179] cursor-help"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
                           </div>
 
                           {/* Placement Inputs */}
-                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <div className="bg-[#FEFEFB] px-4 pb-4">
                             {/* Placement Fields - 2 per row */}
                             <div className="grid grid-cols-2 gap-4">
                               {/* Top of search (PLACEMENT_TOP) */}
@@ -3436,7 +3451,7 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
 
                       {/* Audiences Tab Content */}
                       {activeBiddingTab === "audiences" && (
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                        <div className="bg-[#FEFEFB] p-4 space-y-4">
                           {/* Radio Buttons */}
                           <div className="space-y-3">
                             <label
