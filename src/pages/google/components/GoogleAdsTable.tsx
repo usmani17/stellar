@@ -16,8 +16,8 @@ export function GoogleAdsTable<T = any>({
   selectedItems,
   allSelected,
   someSelected,
-  sortBy: _sortBy,
-  sortOrder: _sortOrder,
+  sortBy,
+  sortOrder,
   editingCell,
   editedValue,
   isCancelling,
@@ -26,7 +26,7 @@ export function GoogleAdsTable<T = any>({
   summary,
   columns,
   getId,
-  getItemName: _getItemName,
+  getItemName,
   emptyMessage,
   loadingMessage,
   onSelectAll,
@@ -50,13 +50,15 @@ export function GoogleAdsTable<T = any>({
   // Ref to track if a status selection was made (matches Amazon pattern)
   const statusSelectionMadeRef = useRef<string | number | null>(null);
 
-  const renderCell = (column: IColumnDefinition, row: T) => {
+  const renderCell = (column: IColumnDefinition, row: T, index: number) => {
     const itemId = getId(row);
     const isEditing = editingCell?.itemId === itemId && editingCell?.field === column.key;
     const isUpdating = updatingField?.itemId === itemId && updatingField?.field === column.key;
     const pendingChange = pendingChanges[column.key];
     const hasPendingChange = pendingChange?.itemId === itemId;
     const isSuccess = inlineEditSuccess?.itemId === itemId && inlineEditSuccess?.field === column.key;
+    const isError = inlineEditError?.itemId === itemId && inlineEditError?.field === column.key;
+    const errorMessage = isError ? inlineEditError?.message : null;
     const value = column.getValue(row);
     
     // Check if column is editable (can be boolean or function)
@@ -64,14 +66,15 @@ export function GoogleAdsTable<T = any>({
       ? column.editable(row) 
       : column.editable === true;
 
-    // For editable fields (status, budget, start_date, end_date, bidding_strategy_type), 
+    // For editable fields (status, budget, bid, start_date, end_date, bidding_strategy_type, match_type, adgroup_name, keyword_text), 
     // always show as editable controls (like Amazon campaigns)
     // Note: Loading and success states are now handled inside renderEditableCell for budget/date/status fields
-    if (isEditable && (column.key === "status" || column.key === "budget" || 
-        column.key === "start_date" || column.key === "end_date" || column.key === "bidding_strategy_type")) {
-    // For budget, date, status, and bidding_strategy_type fields, renderEditableCell handles loading/success states internally with floating indicators
+    if (isEditable && (column.key === "status" || column.key === "budget" || column.key === "bid" ||
+        column.key === "start_date" || column.key === "end_date" || column.key === "bidding_strategy_type" ||
+        column.key === "match_type" || column.key === "adgroup_name" || column.key === "keyword_text")) {
+    // For budget, bid, date, status, bidding_strategy_type, match_type, adgroup_name, and keyword_text fields, renderEditableCell handles loading/success states internally with floating indicators
     // Always show editable control (similar to Amazon campaigns)
-    // Status, budget, date, and bidding_strategy_type fields will show floating indicators from renderEditableCell
+    // Status, budget, bid, date, bidding_strategy_type, match_type, adgroup_name, and keyword_text fields will show floating indicators from renderEditableCell
     return renderEditableCell(column, value, row, itemId);
     }
 
@@ -103,6 +106,7 @@ export function GoogleAdsTable<T = any>({
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+
           >
             <path
               strokeLinecap="round"
@@ -254,6 +258,10 @@ export function GoogleAdsTable<T = any>({
         if (column.key === "bidding_strategy_type") {
           return <span className="table-text leading-[1.26] whitespace-nowrap">{value || "—"}</span>;
         }
+        // For adgroup_name and campaign_name, prevent wrapping to allow column to expand dynamically
+        if (column.key === "adgroup_name" || column.key === "campaign_name") {
+          return <span className="table-text leading-[1.26] whitespace-nowrap">{value || "—"}</span>;
+        }
         return <span className="table-text leading-[1.26]">{value || "—"}</span>;
       default:
         return <span className="table-text leading-[1.26]">{value || "—"}</span>;
@@ -265,13 +273,15 @@ export function GoogleAdsTable<T = any>({
     if (!newValue) return "Updating...";
     
     switch (column.key) {
-      case "status": {
-        // Find the label for the status value
+      case "status":
+      case "match_type": {
+        // Find the label for the status/match_type value
         const statusOption = column.statusOptions?.find(opt => opt.value === newValue);
         return statusOption ? `Updating to ${statusOption.label}` : `Updating to ${newValue}`;
       }
-      case "budget": {
-        // Format budget as currency
+      case "budget":
+      case "bid": {
+        // Format budget/bid as currency
         const budgetNum = parseFloat(newValue);
         if (!isNaN(budgetNum)) {
           return `Updating to ${formatCurrency(budgetNum)}`;
@@ -294,6 +304,14 @@ export function GoogleAdsTable<T = any>({
         const formatted = newValue.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
         return `Updating to ${formatted}`;
       }
+      case "name":
+      case "ad_name":
+      case "campaign_name":
+      case "adgroup_name":
+      case "keyword_text": {
+        // Show full name in update message
+        return `Updating to ${newValue}`;
+      }
       default:
         return `Updating to ${newValue}`;
     }
@@ -309,12 +327,16 @@ export function GoogleAdsTable<T = any>({
     
     // Use editedValue if actively editing, otherwise use current value from row
     const displayValue = isEditing ? editedValue : (value !== undefined && value !== null ? value : "");
-
+    
     // If column has statusOptions, show dropdown (for status, bidding_strategy_type, etc.)
     if (column.statusOptions && column.statusOptions.length > 0) {
-      // Use wider width for bidding strategy (longer labels)
-      const dropdownWidth = column.key === "bidding_strategy_type" ? "w-[220px]" : "w-[120px]";
-
+      // Use wider width for bidding strategy (longer labels), and match column width for match_type
+      const dropdownWidth = column.key === "bidding_strategy_type" 
+        ? "w-[220px]" 
+        : column.key === "match_type" 
+        ? "w-[140px]" 
+        : "w-[120px]";
+      
       // Filter bidding strategy options based on campaign type
       let options = column.statusOptions;
       if (column.key === "bidding_strategy_type") {
@@ -324,7 +346,7 @@ export function GoogleAdsTable<T = any>({
         if (campaignType.includes("ADVERTISING_CHANNEL_TYPE_")) {
           campaignType = campaignType.replace("ADVERTISING_CHANNEL_TYPE_", "");
         }
-
+        
         if (campaignType === "PERFORMANCE_MAX") {
           // Performance Max campaigns only support: MAXIMIZE_CONVERSIONS, MAXIMIZE_CONVERSION_VALUE
           options = column.statusOptions.filter(
@@ -349,8 +371,9 @@ export function GoogleAdsTable<T = any>({
           );
         }
       }
-
+      
       // For bidding_strategy_type, convert formatted value back to enum value
+      // For match_type, normalize to uppercase to match option values
       let dropdownValue = displayValue;
       if (column.key === "bidding_strategy_type" && dropdownValue && typeof dropdownValue === "string") {
         // The getValue function returns formatted string (e.g., "Maximize Conversions")
@@ -369,30 +392,37 @@ export function GoogleAdsTable<T = any>({
             dropdownValue = rawValue;
           }
         }
+      } else if (column.key === "match_type" && dropdownValue && typeof dropdownValue === "string") {
+        // Normalize to uppercase to match option values
+        const normalizedValue = dropdownValue.toUpperCase().trim();
+        // Find matching option
+        const matchedOption = options.find(opt => 
+          opt.value === normalizedValue || 
+          opt.value === dropdownValue ||
+          opt.label === dropdownValue
+        );
+        if (matchedOption) {
+          dropdownValue = matchedOption.value;
+        }
       }
-
+      
       return (
         <div className="relative w-full">
           <Dropdown
             options={options}
             value={dropdownValue}
             onChange={(val) => {
-              // Mark that a selection was made for this item (matches Amazon pattern)
-              statusSelectionMadeRef.current = itemId;
               const newValue = val as string;
-              
               if (!isEditing) {
                 onStartInlineEdit(row, column.key);
               }
               onInlineEditChange(newValue);
-              
-              // Pass itemId and field directly to trigger confirmation popup immediately
-              // Override parameters ensure it works even if editingCell state hasn't updated yet
+              // For status and bidding_strategy_type dropdowns, use direct confirmation immediately (skip modal)
+              // Pass itemId (campaign ID) and field directly to avoid state timing issues
               onConfirmInlineEdit(newValue, column.key, itemId);
             }}
-            defaultOpen={false}
+            defaultOpen={isEditing}
             closeOnSelect={true}
-            showCheckmark={false}
             buttonClassName="inline-edit-dropdown min-w-0"
             width={dropdownWidth}
             align="left"
@@ -401,9 +431,7 @@ export function GoogleAdsTable<T = any>({
             onClose={() => {
               // Don't cancel if we're updating or if there's a pending change
               if (isUpdating) return;
-              // Only cancel if no selection was made (clicked outside)
-              // If a selection was made, statusSelectionMadeRef will be set
-              if (statusSelectionMadeRef.current !== itemId && isEditing) {
+              if (!editedValue || editedValue === value) {
                 onCancelInlineEdit();
               }
             }}
@@ -451,19 +479,16 @@ export function GoogleAdsTable<T = any>({
                 // Mark that a selection was made for this item (matches Amazon pattern)
                 statusSelectionMadeRef.current = itemId;
                 const newValue = val as string;
-                
                 if (!isEditing) {
                   onStartInlineEdit(row, column.key);
                 }
                 onInlineEditChange(newValue);
-                
-                // Pass itemId and field directly to trigger confirmation popup immediately
-                // Override parameters ensure it works even if editingCell state hasn't updated yet
+                // For status and bidding_strategy_type, use direct confirmation immediately (skip modal)
+                // Pass itemId (campaign ID) and field directly to avoid state timing issues
                 onConfirmInlineEdit(newValue, column.key, itemId);
               }}
-              defaultOpen={false}
+              defaultOpen={isEditing}
               closeOnSelect={true}
-              showCheckmark={false}
               buttonClassName="inline-edit-dropdown min-w-0"
               width="w-[120px]"
               align="left"
@@ -472,9 +497,7 @@ export function GoogleAdsTable<T = any>({
               onClose={() => {
                 // Don't cancel if we're updating or if there's a pending change
                 if (isUpdating) return;
-                // Only cancel if no selection was made (clicked outside)
-                // If a selection was made, statusSelectionMadeRef will be set
-                if (statusSelectionMadeRef.current !== itemId && isEditing) {
+                if (!editedValue || editedValue === value) {
                   onCancelInlineEdit();
                 }
               }}
@@ -504,52 +527,95 @@ export function GoogleAdsTable<T = any>({
           </div>
         );
 
-      case "text": {
-        // For text fields like adgroup_name, match Amazon's input styling exactly
+      case "text":
+        // For text fields like adgroup_name, keyword_text - use inline editing with tick/cross (same as bid)
+        // Always show input field when editable (like budget/bid fields)
         // Check if column is editable for this row
         const isTextEditable = typeof column.editable === 'function' 
           ? column.editable(row) 
           : column.editable === true;
         if (isTextEditable) {
+          // Always show input field, use editedValue when editing, otherwise use current value
+          const textValue = isEditing ? editedValue : (value !== undefined && value !== null ? value : "");
+          const oldTextValue = (value !== undefined && value !== null ? value : "").toString();
+          const hasTextChanged = isEditing && textValue !== oldTextValue && textValue !== "";
           return (
-            <div className="flex items-center gap-2">
+            <div className="relative w-full">
               <input
                 type="text"
-                value={editedValue}
-                onChange={(e) => onInlineEditChange(e.target.value)}
-                className="inline-edit-input"
-                autoFocus
-                onBlur={() => {
-                  if (!isCancelling) {
-                    // For status, start_date, end_date, and bidding_strategy_type, 
-                    // the confirmation modal is handled by the parent component
-                    // Just call onConfirmInlineEdit which will trigger the modal
-                    onConfirmInlineEdit(editedValue);
+                value={textValue}
+                onFocus={() => {
+                  if (!isEditing && isTextEditable) {
+                    onStartInlineEdit(row, column.key);
                   }
+                }}
+                onChange={(e) => {
+                  onInlineEditChange(e.target.value);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === "Escape") {
-                    if (e.key === "Enter") {
-                      onConfirmInlineEdit(editedValue);
-                    } else {
-                      onCancelInlineEdit();
-                    }
+                  if (e.key === "Escape") {
+                    onCancelInlineEdit();
                   }
                 }}
+                autoFocus={isEditing}
+                className="inline-edit-input w-full min-w-[150px]"
+                disabled={!isTextEditable}
               />
+              {(hasTextChanged || isUpdating || isSuccess || isError) && (
+                <div className="absolute top-full left-0 mt-1 z-10">
+                  {hasTextChanged && !isSuccess && !isUpdating && (
+                    <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
+                      <button
+                        onClick={() => {
+                          onConfirmInlineEdit(textValue, column.key, itemId);
+                        }}
+                        className="text-green-600 hover:text-green-700 p-1"
+                        title="Save"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          onCancelInlineEdit();
+                        }}
+                        className="text-red-600 hover:text-red-700 p-1"
+                        title="Cancel"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+                  {isUpdating && (
+                    <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
+                      <Loader size="sm" />
+                      <span className="text-[10px]">{updatingMessage}</span>
+                    </div>
+                  )}
+                  {isSuccess && (
+                    <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
+                      <Check size={12} /> Updated successfully
+                    </div>
+                  )}
+                  {isError && errorMessage && (
+                    <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
+                      <X size={12} /> {errorMessage}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         }
         return renderValue(column, value);
-      }
       case "budget":
-      case "bid": {
+      case "bid":
         // Check if column is editable for this row
         const isBudgetEditable = typeof column.editable === 'function' 
           ? column.editable(row) 
           : column.editable === true;
         const budgetValue = isEditing ? editedValue : (value || 0).toString();
-        
+        const oldBudgetValue = (value || 0).toString();
+        const hasBudgetChanged = isEditing && budgetValue !== oldBudgetValue && budgetValue !== "";
         return (
           <div className="relative w-full">
             <input
@@ -565,18 +631,8 @@ export function GoogleAdsTable<T = any>({
               onChange={(e) => {
                 onInlineEditChange(e.target.value);
               }}
-              onBlur={(e) => {
-                if (!isCancelling && isEditing) {
-                  const inputValue = e.target.value;
-                  // Trigger confirmation popup on blur - matches Amazon Campaign pattern
-                  onConfirmInlineEdit(inputValue, column.key, itemId);
-                }
-              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  // Blur triggers onBlur which shows confirmation popup - matches Amazon Campaign pattern
-                  e.currentTarget.blur();
-                } else if (e.key === "Escape") {
+                if (e.key === "Escape") {
                   onCancelInlineEdit();
                 }
               }}
@@ -584,20 +640,42 @@ export function GoogleAdsTable<T = any>({
               className="inline-edit-input w-full min-w-[120px]"
               disabled={!isBudgetEditable}
             />
-            {(isUpdating || isSuccess || isError) && (
+            {(hasBudgetChanged || isUpdating || isSuccess || isError) && (
               <div className="absolute top-full left-0 mt-1 z-10">
+                {hasBudgetChanged && !isSuccess && !isUpdating && (
+                  <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
+                    <button
+                      onClick={() => {
+                        onConfirmInlineEdit(budgetValue, column.key, itemId);
+                      }}
+                      className="text-green-600 hover:text-green-700 p-1"
+                      title="Save"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        onCancelInlineEdit();
+                      }}
+                      className="text-red-600 hover:text-red-700 p-1"
+                      title="Cancel"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
                 {isUpdating && (
                   <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
                     <Loader size="sm" />
                     <span className="text-[10px]">{updatingMessage}</span>
                   </div>
                 )}
-                {isSuccess && !isUpdating && (
+                {isSuccess && (
                   <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
                     <Check size={12} /> Updated successfully
                   </div>
                 )}
-                {isError && errorMessage && !isUpdating && (
+                {isError && errorMessage && (
                   <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
                     <X size={12} /> {errorMessage}
                   </div>
@@ -606,10 +684,9 @@ export function GoogleAdsTable<T = any>({
             )}
           </div>
         );
-      }
 
       case "start_date":
-      case "end_date": {
+      case "end_date":
         // Check if this date field is editable for this row
         const isDateEditable = typeof column.editable === 'function' 
           ? column.editable(row) 
@@ -647,7 +724,8 @@ export function GoogleAdsTable<T = any>({
         }
         // Format date value for input (YYYY-MM-DD)
         const dateValue = isEditing ? editedValue : (value ? parseDateToYYYYMMDD(value) : "");
-        
+        const oldDateValue = value ? parseDateToYYYYMMDD(value) : "";
+        const hasDateChanged = isEditing && dateValue !== oldDateValue && dateValue !== "";
         return (
           <div className="relative w-full">
             <input
@@ -660,32 +738,10 @@ export function GoogleAdsTable<T = any>({
                 }
               }}
               onChange={(e) => {
-                const newValue = e.target.value;
-                // Start inline edit if not already editing
-                if (!isEditing && isDateEditable) {
-                  onStartInlineEdit(row, column.key);
-                }
-                onInlineEditChange(newValue);
-                // Trigger confirmation popup immediately when date changes - matches dropdown pattern
-                onConfirmInlineEdit(newValue, column.key, itemId);
-              }}
-              onBlur={(e) => {
-                // Keep onBlur as fallback in case date picker closes without triggering onChange
-                if (!isCancelling && isEditing) {
-                  const inputValue = e.target.value;
-                  // Only trigger if we haven't already triggered from onChange
-                  // This prevents double-triggering
-                  const currentValue = isEditing ? editedValue : (value ? parseDateToYYYYMMDD(value) : "");
-                  if (inputValue !== currentValue) {
-                    onConfirmInlineEdit(inputValue, column.key, itemId);
-                  }
-                }
+                onInlineEditChange(e.target.value);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  // Blur triggers onBlur which may show confirmation popup as fallback
-                  e.currentTarget.blur();
-                } else if (e.key === "Escape") {
+                if (e.key === "Escape") {
                   onCancelInlineEdit();
                 }
               }}
@@ -693,20 +749,42 @@ export function GoogleAdsTable<T = any>({
               className="inline-edit-input w-full min-w-[140px]"
               disabled={!isDateEditable}
             />
-            {(isUpdating || isSuccess || isError) && (
+            {(hasDateChanged || isUpdating || isSuccess || isError) && (
               <div className="absolute top-full left-0 mt-1 z-10">
+                {hasDateChanged && !isSuccess && !isUpdating && (
+                  <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
+                    <button
+                      onClick={() => {
+                        onConfirmInlineEdit(dateValue, column.key, itemId);
+                      }}
+                      className="text-green-600 hover:text-green-700 p-1"
+                      title="Save"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        onCancelInlineEdit();
+                      }}
+                      className="text-red-600 hover:text-red-700 p-1"
+                      title="Cancel"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
                 {isUpdating && (
                   <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
                     <Loader size="sm" />
                     <span className="text-[10px]">{updatingMessage}</span>
                   </div>
                 )}
-                {isSuccess && !isUpdating && (
+                {isSuccess && (
                   <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
                     <Check size={12} /> Updated successfully
                   </div>
                 )}
-                {isError && errorMessage && !isUpdating && (
+                {isError && errorMessage && (
                   <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
                     <X size={12} /> {errorMessage}
                   </div>
@@ -715,7 +793,6 @@ export function GoogleAdsTable<T = any>({
             )}
           </div>
         );
-      }
 
       default:
         return renderValue(column, value);
@@ -724,25 +801,23 @@ export function GoogleAdsTable<T = any>({
 
   const getStickyClasses = (column: IColumnDefinition, index: number): string => {
     if (!column.sticky) return "";
-
+    
     // Calculate left offset based on previous sticky columns
-    // let leftOffset = 35; // Checkbox width
+    let leftOffset = 35; // Checkbox width
     for (let i = 0; i < index; i++) {
       if (columns[i]?.sticky) {
         // Estimate width - use minWidth or default
-        // const minWidth = columns[i]?.minWidth;
-        // const width = minWidth ? parseInt(minWidth.replace('px', '').replace('min-w-[', '').replace(']', '')) : 300;
-        // leftOffset += width;
+        const minWidth = columns[i]?.minWidth;
+        const width = minWidth ? parseInt(minWidth.replace('px', '').replace('min-w-[', '').replace(']', '')) : 300;
+        leftOffset += width;
       }
     }
-
+    
     // Use table-sticky-first-column class for first sticky column (matches Amazon campaigns)
     if (index === 0) {
       return "table-sticky-first-column";
     }
     // For more sticky columns, would need more specific handling
-    // Using leftOffset briefly to avoid unused error if needed, but actually it was just a logic error in previous code
-    // Let's just remove the unused variable.
     return "sticky bg-[#f5f5f0] z-[120]";
   };
 
@@ -750,7 +825,7 @@ export function GoogleAdsTable<T = any>({
     <div>
       <div className="overflow-x-auto overflow-y-visible w-full">
         <div className="relative">
-          <table className="min-w-[1200px] w-full">
+          <table className="min-w-[1200px] w-full" style={{ tableLayout: 'auto' }}>
             <thead className="sticky top-0 z-[90] bg-[#fefefb]">
               <tr className="border-b border-[#e8e8e3]">
                 {/* Checkbox Header */}
@@ -770,12 +845,13 @@ export function GoogleAdsTable<T = any>({
                   const stickyClasses = getStickyClasses(column, index);
                   const widthClasses = column.width || column.minWidth || "";
                   const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
-
+                  
                   return (
                     <th
                       key={column.key}
-                      className={`table-header ${column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
-                        } ${stickyClasses} ${widthClasses} ${borderClass}`}
+                      className={`table-header ${
+                        column.sortable !== false ? "cursor-pointer hover:bg-gray-50" : ""
+                      } ${stickyClasses} ${widthClasses} ${borderClass}`}
                       onClick={() => column.sortable !== false && onSort(column.key)}
                     >
                       <div className="flex items-center gap-1">
@@ -795,7 +871,7 @@ export function GoogleAdsTable<T = any>({
                     <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
                       <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                     </td>
-                    {columns.map((column) => (
+                    {columns.map((column, colIndex) => (
                       <td key={column.key} className="table-cell">
                         <div className="h-5 bg-gray-200 rounded animate-pulse w-full"></div>
                       </td>
@@ -812,142 +888,165 @@ export function GoogleAdsTable<T = any>({
                 </tr>
               ) : (
                 <>
-                  {/* Summary Row */}
-                  {summary && (
-                    <tr className="table-summary-row">
-                      <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
-                      {columns.map((column, index) => {
-                        const stickyClasses = getStickyClasses(column, index);
-                        const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
-
-                        let summaryValue: React.ReactNode = "";
-                        // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
-                        if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
-                          const s = summary as any;
-                          summaryValue = `Total (${s?.total_count || s?.total_campaigns || s?.total_adgroups || s?.total_ads || s?.total_keywords || 0})`;
-                        } else if (column.key === "spends") {
-                          summaryValue = formatCurrency(summary?.total_spends || 0);
-                        } else if (column.key === "sales") {
-                          summaryValue = formatCurrency(summary?.total_sales || 0);
-                        } else if (column.key === "impressions") {
-                          summaryValue = (summary?.total_impressions || 0).toLocaleString();
-                        } else if (column.key === "clicks") {
-                          summaryValue = (summary?.total_clicks || 0).toLocaleString();
-                        } else if (column.key === "budget") {
-                          // Use total budget from summary
-                          summaryValue = formatCurrency(summary?.total_budget || 0);
-                        } else if (column.key === "acos") {
-                          summaryValue = `${(summary?.avg_acos || 0).toFixed(2)}%`;
-                        } else if (column.key === "roas") {
-                          summaryValue = `${(summary?.avg_roas || 0).toFixed(2)}x`;
-                        } else if (column.key === "ctr") {
-                          // Calculate average CTR from summary
-                          const avgCtr = summary?.total_impressions > 0
-                            ? (summary?.total_clicks / summary?.total_impressions) * 100
-                            : 0;
-                          summaryValue = `${avgCtr.toFixed(2)}%`;
-                        } else if (column.key === "cpc" || column.key === "avg_cpc") {
-                          // Use avg_cpc from summary
-                          summaryValue = summary?.avg_cpc !== undefined
-                            ? formatCurrency(summary.avg_cpc)
-                            : formatCurrency(0);
-                        } else if (column.key === "conversions") {
-                          // Use total conversions from summary
-                          summaryValue = (summary?.total_conversions || 0).toLocaleString();
-                        } else if (column.key === "conversion_rate") {
-                          // Use avg conversion rate from summary
-                          summaryValue = summary?.avg_conversion_rate !== undefined
-                            ? `${summary.avg_conversion_rate.toFixed(2)}%`
-                            : "0.00%";
-                        } else if (column.key === "cost_per_conversion") {
-                          // Use avg cost per conversion from summary
-                          summaryValue = summary?.avg_cost_per_conversion !== undefined
-                            ? formatCurrency(summary.avg_cost_per_conversion)
-                            : formatCurrency(0);
-                        } else if (column.key === "interaction_rate") {
-                          // Use avg interaction rate from summary
-                          summaryValue = summary?.avg_interaction_rate !== undefined
-                            ? `${summary.avg_interaction_rate.toFixed(2)}%`
-                            : "0.00%";
-                        } else if (column.key === "avg_cost") {
-                          // Use avg cost from summary
-                          summaryValue = summary?.avg_cost !== undefined
-                            ? formatCurrency(summary.avg_cost)
-                            : formatCurrency(0);
-                        } else if (
-                          column.key === "start_date" ||
-                          column.key === "end_date" ||
-                          column.key === "bidding_strategy_type" ||
-                          column.key === "advertising_channel_type" ||
-                          column.key === "status"
-                        ) {
-                          // Show "—" for date, type, bidding strategy, and status columns in total row
-                          summaryValue = "—";
+                {/* Summary Row */}
+                {summary && (
+                  <tr className="table-summary-row">
+                    <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]"></td>
+                    {columns.map((column, index) => {
+                      const stickyClasses = getStickyClasses(column, index);
+                      const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                      
+                      let summaryValue: React.ReactNode = "";
+                      // Only show Total in the first column (index 0), which is typically name/adgroup_name/campaign_name/ad_id/keyword_text
+                      if (index === 0 && (column.key === "name" || column.key === "adgroup_name" || column.key === "campaign_name" || column.key === "ad_id" || column.key === "keyword_text")) {
+                        // Use the specific field from backend based on column key (no fallback hierarchy)
+                        const summaryAny = summary as any;
+                        let totalCount = 0;
+                        if (column.key === "campaign_name") {
+                          totalCount = summaryAny?.total_campaigns || 0;
+                        } else if (column.key === "adgroup_name") {
+                          totalCount = summaryAny?.total_adgroups || 0;
+                        } else if (column.key === "keyword_text") {
+                          totalCount = summaryAny?.total_keywords || 0;
+                        } else if (column.key === "ad_id") {
+                          totalCount = summaryAny?.total_ads || 0;
+                        } else {
+                          // Generic fallback for "name" or other first columns
+                          totalCount = summaryAny?.total_count || 0;
                         }
+                        summaryValue = `Total (${totalCount})`;
+                      } else if (index !== 0 && (column.key === "campaign_name" || column.key === "adgroup_name" || column.key === "account_name")) {
+                        // Navigation columns (except first column) should be empty
+                        summaryValue = "";
+                      } else if (column.key === "spends") {
+                        summaryValue = formatCurrency(summary?.total_spends || 0);
+                      } else if (column.key === "sales") {
+                        summaryValue = formatCurrency(summary?.total_sales || 0);
+                      } else if (column.key === "impressions") {
+                        summaryValue = (summary?.total_impressions || 0).toLocaleString();
+                      } else if (column.key === "clicks") {
+                        summaryValue = (summary?.total_clicks || 0).toLocaleString();
+                      } else if (column.key === "budget") {
+                        // Budget should be empty in summary row (not summed)
+                        summaryValue = "";
+                      } else if (column.key === "roas") {
+                        summaryValue = `${(summary?.avg_roas || 0).toFixed(2)}x`;
+                      } else if (column.key === "ctr") {
+                        // Calculate average CTR from summary
+                        const avgCtr = summary?.total_impressions > 0 
+                          ? (summary?.total_clicks / summary?.total_impressions) * 100 
+                          : 0;
+                        summaryValue = `${avgCtr.toFixed(2)}%`;
+                      } else if (column.key === "cpc" || column.key === "avg_cpc") {
+                        // Use avg_cpc from summary
+                        summaryValue = summary?.avg_cpc !== undefined
+                          ? formatCurrency(summary.avg_cpc)
+                          : formatCurrency(0);
+                      } else if (column.key === "conversions") {
+                        // Use total conversions from summary
+                        summaryValue = (summary?.total_conversions || 0).toLocaleString();
+                      } else if (column.key === "conversion_rate") {
+                        // Use avg conversion rate from summary
+                        summaryValue = summary?.avg_conversion_rate !== undefined 
+                          ? `${summary.avg_conversion_rate.toFixed(2)}%`
+                          : "0.00%";
+                      } else if (column.key === "cost_per_conversion") {
+                        // Use avg cost per conversion from summary
+                        summaryValue = summary?.avg_cost_per_conversion !== undefined
+                          ? formatCurrency(summary.avg_cost_per_conversion)
+                          : formatCurrency(0);
+                      } else if (column.key === "interaction_rate") {
+                        // Use avg interaction rate from summary
+                        summaryValue = summary?.avg_interaction_rate !== undefined
+                          ? `${summary.avg_interaction_rate.toFixed(2)}%`
+                          : "0.00%";
+                      } else if (column.key === "avg_cost") {
+                        // Use avg cost from summary
+                        summaryValue = summary?.avg_cost !== undefined
+                          ? formatCurrency(summary.avg_cost)
+                          : formatCurrency(0);
+                      } else if (
+                        column.key === "start_date" ||
+                        column.key === "end_date" ||
+                        column.key === "bidding_strategy_type" ||
+                        column.key === "advertising_channel_type" ||
+                        column.key === "status" ||
+                        column.key === "bid" ||
+                        column.key === "ad_type" ||
+                        column.key === "match_type" ||
+                        column.key === "final_url" ||
+                        column.key === "account_name"
+                      ) {
+                        // Show empty for date, type, bidding strategy, status, bid, ad_type, match_type, final_url, and account_name in total row
+                        summaryValue = "";
+                      } else if (index !== 0 && (column.key === "campaign_name" || column.key === "adgroup_name")) {
+                        // Navigation columns (campaign_name, adgroup_name) are empty except for the first column
+                        summaryValue = "";
+                      }
+                      
+                      return (
+                        <td key={column.key} className={`table-cell table-text leading-[1.26] ${stickyClasses} ${borderClass}`}>
+                          {summaryValue}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
 
+                {/* Loading Overlay */}
+                {sorting && (
+                  <tr>
+                    <td colSpan={columns.length + 1} className="relative">
+                      <div className="absolute inset-0 bg-white bg-opacity-85 flex items-center justify-center z-20 backdrop-blur-[2px]">
+                        <div className="flex flex-col items-center gap-3 bg-white px-6 py-4 rounded-lg shadow-lg border border-[#E6E6E6]">
+                          <Loader size="md" message={loadingMessage} />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {/* Data Rows */}
+                {data.map((row, index) => {
+                  const itemId = getId(row);
+                  // Use combination of itemId and index to ensure unique keys
+                  const uniqueKey = `${itemId}-${index}`;
+                  
+                  return (
+                    <tr
+                      key={uniqueKey}
+                      className="table-row group"
+                    >
+                      {/* Checkbox */}
+                      <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            checked={selectedItems.has(itemId)}
+                            onChange={(checked) => onSelectItem(itemId, checked)}
+                            size="small"
+                          />
+                        </div>
+                      </td>
+
+                      {/* Data Cells */}
+                      {columns.map((column, colIndex) => {
+                        const stickyClasses = getStickyClasses(column, colIndex);
+                        const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
+                        const widthClasses = column.width || column.minWidth || "";
+                        const hoverClass = column.sticky && colIndex === 0 ? "group-hover:bg-gray-100" : "";
+                        
                         return (
-                          <td key={column.key} className={`table-cell table-text leading-[1.26] ${stickyClasses} ${borderClass}`}>
-                            {summaryValue}
+                          <td
+                            key={column.key}
+                            className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
+                          >
+                            {renderCell(column, row, index)}
                           </td>
                         );
                       })}
                     </tr>
-                  )}
-
-                  {/* Loading Overlay */}
-                  {sorting && (
-                    <tr>
-                      <td colSpan={columns.length + 1} className="relative">
-                        <div className="absolute inset-0 bg-white bg-opacity-85 flex items-center justify-center z-20 backdrop-blur-[2px]">
-                          <div className="flex flex-col items-center gap-3 bg-white px-6 py-4 rounded-lg shadow-lg border border-[#E6E6E6]">
-                            <Loader size="md" message={loadingMessage} />
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-
-                  {/* Data Rows */}
-                  {data.map((row, index) => {
-                    const itemId = getId(row);
-                    // Use combination of itemId and index to ensure unique keys
-                    const uniqueKey = `${itemId}-${index}`;
-
-                    return (
-                      <tr
-                        key={uniqueKey}
-                        className="table-row group"
-                      >
-                        {/* Checkbox */}
-                        <td className="table-cell sticky left-0 z-[120] bg-[#f5f5f0] group-hover:bg-gray-100 border-r border-[#e8e8e3]">
-                          <div className="flex items-center justify-center">
-                            <Checkbox
-                              checked={selectedItems.has(itemId)}
-                              onChange={(checked) => onSelectItem(itemId, checked)}
-                              size="small"
-                            />
-                          </div>
-                        </td>
-
-                        {/* Data Cells */}
-                        {columns.map((column, colIndex) => {
-                          const stickyClasses = getStickyClasses(column, colIndex);
-                          const borderClass = column.sticky ? "border-r border-[#e8e8e3]" : "";
-                          const widthClasses = column.width || column.minWidth || "";
-                          const hoverClass = column.sticky && colIndex === 0 ? "group-hover:bg-gray-100" : "";
-
-                          return (
-                            <td
-                              key={column.key}
-                              className={`table-cell ${stickyClasses} ${borderClass} ${widthClasses} ${hoverClass}`}
-                            >
-                              {renderCell(column, row, index)}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
+                  );
+                })}
                 </>
               )}
             </tbody>

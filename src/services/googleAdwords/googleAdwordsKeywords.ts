@@ -98,8 +98,9 @@ export const googleAdwordsKeywordsService = {
       end_date?: string;
       campaign_id?: string | number;
       adgroup_id?: string | number;
+      keyword_ids?: Array<string | number>; // For selected keywords export
     },
-    exportType: "current_view" | "all_data" = "all_data"
+    exportType: "current_view" | "all_data" | "selected" = "all_data"
   ): Promise<void> => {
     // Send filters array and params directly to backend - let backend handle conversion
     const payload: any = {
@@ -116,6 +117,11 @@ export const googleAdwordsKeywordsService = {
     // Add campaign_id and adgroup_id if provided
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
+
+    // Add keyword_ids for selected export
+    if (exportType === "selected" && params?.keyword_ids) {
+      payload.keyword_ids = params.keyword_ids;
+    }
 
     // Make request with responseType blob to handle CSV file
     const response = await api.post(

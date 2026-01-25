@@ -96,9 +96,10 @@ export const googleAdwordsAdsService = {
       end_date?: string;
       campaign_id?: string | number;
       adgroup_id?: string | number;
+      ad_ids?: Array<string | number>; // For selected ads export
     },
-    exportType: "current_view" | "all_data" = "all_data"
-  ): Promise<void> => {
+    exportType: "current_view" | "all_data" | "selected" = "all_data"
+  ): Promise<{ url: string; filename: string }> => {
     // Send filters array and params directly to backend - let backend handle conversion
     const payload: any = {
       filters: params?.filters || [],
@@ -115,28 +116,14 @@ export const googleAdwordsAdsService = {
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
     if (params?.adgroup_id) payload.adgroup_id = params.adgroup_id;
 
-    // Make request with responseType blob to handle CSV file
-    const response = await api.post(
-      `/google-adwords/${accountId}/ads/export/`,
-      payload,
-      {
-        responseType: "blob",
-      }
-    );
+    // Add ad_ids for selected export
+    if (exportType === "selected" && params?.ad_ids) {
+      payload.ad_ids = params.ad_ids;
+    }
 
-    // Create blob URL and trigger download
-    const blob = new Blob([response.data], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute(
-      "download",
-      `google-ads-${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    const url = `/google-adwords/${accountId}/ads/export/`;
+    const response = await api.post<{ url: string; filename: string }>(url, payload);
+    return response.data;
   },
 
   syncGoogleAds: async (

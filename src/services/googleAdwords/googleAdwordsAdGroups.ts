@@ -84,8 +84,9 @@ export const googleAdwordsAdGroupsService = {
       start_date?: string;
       end_date?: string;
       campaign_id?: string | number;
+      adgroup_ids?: Array<string | number>; // For selected adgroups export
     },
-    exportType: "current_view" | "all_data" = "all_data"
+    exportType: "current_view" | "all_data" | "selected" = "all_data"
   ): Promise<void> => {
     // Send filters array and params directly to backend - let backend handle conversion
     const payload: any = {
@@ -101,6 +102,11 @@ export const googleAdwordsAdGroupsService = {
     
     // Add campaign_id if provided
     if (params?.campaign_id) payload.campaign_id = params.campaign_id;
+
+    // Add adgroup_ids for selected export
+    if (exportType === "selected" && params?.adgroup_ids) {
+      payload.adgroup_ids = params.adgroup_ids;
+    }
 
     // Make request with responseType blob to handle CSV file
     const response = await api.post(

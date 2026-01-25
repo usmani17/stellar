@@ -1,5 +1,6 @@
 import { setPageTitle, resetPageTitle } from "../../utils/pageTitle";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
@@ -22,8 +23,6 @@ import {
   type GoogleAdGroup,
 } from "./components/GoogleAdGroupsTable";
 import { Loader } from "../../components/ui/Loader";
-import type { IGoogleCampaignsSummary } from "../../types/google/campaign";
-import { createPortal } from "react-dom";
 
 // GoogleAdGroup interface is now imported from GoogleAdGroupsTable
 
@@ -32,9 +31,23 @@ export const GoogleAdGroups: React.FC = () => {
   const { sidebarWidth } = useSidebar();
   const { startDate, endDate } = useDateRange();
   const [adgroups, setAdgroups] = useState<GoogleAdGroup[]>([]);
-  const [summary, setSummary] = useState<IGoogleCampaignsSummary | null>(null);
+  const [summary, setSummary] = useState<{
+    total_adgroups: number;
+    total_spends: number;
+    total_sales: number;
+    total_impressions: number;
+    total_clicks: number;
+    avg_acos: number;
+    avg_roas: number;
+    total_conversions?: number;
+    avg_conversion_rate?: number;
+    avg_cost_per_conversion?: number;
+    avg_cpc?: number;
+    avg_cost?: number;
+    avg_interaction_rate?: number;
+  } | null>(null);
   const [chartDataFromApi, setChartDataFromApi] = useState<
-    Array<{ 
+    Array<{
       date: string;
       spend: number;
       sales: number;
@@ -46,7 +59,9 @@ export const GoogleAdGroups: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
   const [analyticsSyncMessage, setAnalyticsSyncMessage] = useState<
     string | null
   >(null);
@@ -111,18 +126,26 @@ export const GoogleAdGroups: React.FC = () => {
   const [updatingField, setUpdatingField] = useState<{
     adgroupId: string | number;
     field: "bid" | "status" | "name" | "adgroup_name";
+    newValue?: string;
+  } | null>(null);
+  const [inlineEditSuccess, setInlineEditSuccess] = useState<{
+    adgroupId: string | number;
+    field: "bid" | "status" | "name" | "adgroup_name";
+  } | null>(null);
+  const [inlineEditError, setInlineEditError] = useState<{
+    adgroupId: string | number;
+    field: "bid" | "status" | "name" | "adgroup_name";
+    message: string;
   } | null>(null);
   // Pending changes - match Amazon pattern (no modal, show confirm/cancel buttons inline)
   const [pendingChanges, setPendingChanges] = useState<Record<string, {
     itemId: string | number;
     newValue: string;
-    oldValue: any;
-  } | null>>({});
-  // Status/Bid edit modal - match TikTok/Amazon pattern (show modal for status and bid confirmation)
+  }>>({});
+  // Status edit modal - match TikTok/Amazon pattern (show modal for status confirmation)
   const [showStatusEditModal, setShowStatusEditModal] = useState(false);
   const [statusEditData, setStatusEditData] = useState<{
     adgroup: GoogleAdGroup;
-    field: "status" | "bid";
     oldValue: string;
     newValue: string;
   } | null>(null);
@@ -132,11 +155,9 @@ export const GoogleAdGroups: React.FC = () => {
   const [nameEditAdgroup, setNameEditAdgroup] = useState<GoogleAdGroup | null>(null);
   const [nameEditValue, setNameEditValue] = useState<string>("");
   const [nameEditLoading, setNameEditLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportType, setExportType] = useState<"current_view" | "all_data">(
-    "current_view"
-  );
+  const [exportLoading, setExportLoading] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -147,16 +168,22 @@ export const GoogleAdGroups: React.FC = () => {
       ) {
         setShowBulkActions(false);
       }
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowExportDropdown(false);
+      }
     };
 
-    if (showBulkActions) {
+    if (showBulkActions || showExportDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showBulkActions]);
+  }, [showBulkActions, showExportDropdown]);
 
   // Cancel inline edit when clicking outside
   useEffect(() => {
@@ -258,7 +285,7 @@ export const GoogleAdGroups: React.FC = () => {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate, endDate]);
+  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage, startDate?.toISOString(), endDate?.toISOString()]);
 
   useEffect(() => {
     // Don't reload if we're currently sorting (handleSort will handle the reload)
@@ -275,18 +302,179 @@ export const GoogleAdGroups: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [accountId, currentPage, filters, startDate, endDate, loadAdgroups, sorting]);
+  }, [accountId, currentPage, filters, startDate?.toISOString(), endDate?.toISOString(), loadAdgroups, sorting]);
 
+  const loadAdgroupsWithFilters = async (
+    accountId: number,
+    filterList: FilterValues
+  ) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        filters: filterList, // Pass filters array directly
+        sort_by: sortBy,
+        order: sortOrder,
+        page: 1,
+        page_size: itemsPerPage,
+        start_date: startDate
+          ? startDate.toISOString().split("T")[0]
+          : undefined,
+        end_date: endDate ? endDate.toISOString().split("T")[0] : undefined,
+      };
+
+      const response = await googleAdwordsAdGroupsService.getGoogleAdGroups(
+        accountId,
+        undefined,
+        params
+      );
+      setAdgroups(Array.isArray(response.adgroups) ? response.adgroups : []);
+      setTotalPages(response.total_pages || 0);
+      setTotal(response.total || 0);
+      if (response.summary) {
+        setSummary(response.summary);
+      }
+      // Store chart data from API if available
+      const responseWithChart = response as any;
+      if (
+        responseWithChart.chart_data &&
+        Array.isArray(responseWithChart.chart_data)
+      ) {
+        setChartDataFromApi(responseWithChart.chart_data);
+      } else {
+        setChartDataFromApi([]);
+      }
+      setSelectedAdgroups(new Set());
+    } catch (error) {
+      console.error("Failed to load Google adgroups:", error);
+      setAdgroups([]);
+      setTotalPages(0);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Sync status hook (after loadAdgroups is defined)
-  const { SyncStatusBanner, checkSyncStatus: _checkSyncStatus } = useGoogleSyncStatus({
+  const { SyncStatusBanner, checkSyncStatus } = useGoogleSyncStatus({
     accountId,
     entityType: "adgroups",
     currentData: adgroups,
     loadFunction: loadAdgroups,
   });
 
+  const handleSync = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
 
+    try {
+      setSyncing(true);
+      setSyncMessage(null);
+      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroups(accountIdNum);
+      let message =
+        result.message || `Successfully synced ${result.synced} adgroups`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorDetails = (result as any).error_details || result.errors;
+        const errorText = errorDetails.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setSyncMessage(message);
+
+      // Check sync status immediately after triggering sync
+      await checkSyncStatus();
+
+      // Reset to first page and reload adgroups after sync
+      if (result.synced > 0) {
+        setCurrentPage(1);
+        // Small delay to ensure database is updated
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      await loadAdgroups(accountIdNum);
+
+      if (result.synced > 0 && !result.errors) {
+        setTimeout(() => setSyncMessage(null), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setSyncMessage(null), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync campaigns:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync adgroups from Google Ads";
+      setSyncMessage(errorMessage);
+      setTimeout(() => setSyncMessage(null), 8000);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleSyncAnalytics = async () => {
+    if (!accountId) return;
+    const accountIdNum = parseInt(accountId, 10);
+    if (isNaN(accountIdNum)) return;
+
+    try {
+      setSyncingAnalytics(true);
+      setAnalyticsSyncMessage(null);
+
+      // Always use 1 year date range for analytics sync (365 days)
+      const today = new Date();
+      const oneYearAgo = new Date();
+      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+      
+      const result = await googleAdwordsAdGroupsService.syncGoogleAdGroupAnalytics(
+        accountIdNum,
+        oneYearAgo.toISOString().split("T")[0],
+        today.toISOString().split("T")[0]
+      );
+
+      let message =
+        result.message ||
+        `Successfully synced analytics: ${
+          result.rows_inserted || 0
+        } inserted, ${result.rows_updated || 0} updated`;
+
+      if (result.errors && result.errors.length > 0) {
+        const errorDetails = (result as any).error_details || result.errors;
+        const errorText = errorDetails.slice(0, 3).join("; ");
+        message += ` Errors: ${errorText}`;
+        if (result.errors.length > 3) {
+          message += ` (and ${result.errors.length - 3} more)`;
+        }
+      }
+
+      setAnalyticsSyncMessage(message);
+
+      // Reload adgroups to show updated analytics
+      if ((result.rows_inserted || 0) > 0 || (result.rows_updated || 0) > 0) {
+        setCurrentPage(1);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await loadAdgroups(accountIdNum);
+      }
+
+      if ((result.rows_inserted || 0) > 0 && !result.errors) {
+        setTimeout(() => setAnalyticsSyncMessage(null), 5000);
+      } else if (result.errors) {
+        setTimeout(() => setAnalyticsSyncMessage(null), 15000);
+      }
+    } catch (error: any) {
+      console.error("Failed to sync analytics:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to sync adgroup analytics from Google Ads";
+      setAnalyticsSyncMessage(errorMessage);
+      setTimeout(() => setAnalyticsSyncMessage(null), 8000);
+    } finally {
+      setSyncingAnalytics(false);
+    }
+  };
 
   const handleSort = async (column: string) => {
     if (sorting) return; // Prevent multiple simultaneous sorts
@@ -459,27 +647,28 @@ export const GoogleAdGroups: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    fieldOverride?: string,
-    adgroupIdOverride?: string | number
+    fieldKey?: string,
+    adgroupIdParam?: string | number
   ) => {
-    // Use override parameters if provided, otherwise fall back to editingCell state
-    const adgroupIdToUse = adgroupIdOverride || editingCell?.adgroupId;
-    const fieldToUse = fieldOverride || editingCell?.field;
-    
-    if (!adgroupIdToUse || !fieldToUse || !accountId || isCancelling) {
+    // If adgroupIdParam and fieldKey are provided, use direct confirmation
+    if (adgroupIdParam && fieldKey && (fieldKey === "bid" || fieldKey === "adgroup_name" || fieldKey === "status")) {
+      confirmInlineEditDirect(newValueOverride || editedValue, adgroupIdParam, fieldKey);
       return;
     }
 
+    if (!editingCell || !accountId || isCancelling) return;
+
     const adgroup = adgroups.find(
-      (a) => a.adgroup_id === adgroupIdToUse
+      (a) => a.adgroup_id === editingCell.adgroupId
     );
     if (!adgroup) return;
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
+    const field = fieldKey || editingCell.field;
     let hasChanged = false;
 
-    if (fieldToUse === "bid") {
+    if (editingCell.field === "bid") {
       const newBidStr = valueToCheck.trim();
       const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
       const oldBid = adgroup.cpc_bid_dollars || 0;
@@ -489,25 +678,11 @@ export const GoogleAdGroups: React.FC = () => {
       }
       // Use a smaller threshold (0.001) to detect small bid changes like 0.02 to 0.03
       hasChanged = Math.abs(newBid - oldBid) > 0.001;
-
-      // For bid changes, show confirmation modal - matches Amazon Campaign pattern
-      if (hasChanged) {
-        setStatusEditData({
-          adgroup,
-          field: "bid",
-          oldValue: formatCurrency(oldBid),
-          newValue: formatCurrency(newBid),
-        });
-        setShowStatusEditModal(true);
-        // Don't clear editingCell here - keep it set so input shows editedValue
-        // It will be cleared when user confirms or cancels the edit
-        return;
-      }
-    } else if (fieldToUse === "status") {
+    } else if (editingCell.field === "status") {
       const oldValue = (adgroup.status || "ENABLED").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-
+      
       // For status changes, show confirmation modal (match TikTok/Amazon pattern)
       if (hasChanged) {
         // Format status values for display
@@ -519,19 +694,18 @@ export const GoogleAdGroups: React.FC = () => {
         };
         const oldValueDisplay = statusDisplayMap[oldValue] || oldValue;
         const newValueDisplay = statusDisplayMap[newValue] || newValue;
-
+        
         setStatusEditData({
           adgroup,
-          field: "status",
           oldValue: oldValueDisplay,
           newValue: newValueDisplay,
         });
         setShowStatusEditModal(true);
-        // Don't clear editingCell here - keep it set so dropdown shows editedValue
-        // It will be cleared when user confirms or cancels the edit
+        setEditingCell(null);
+        setEditedValue("");
         return;
       }
-    } else if (fieldToUse === "name" || fieldToUse === "adgroup_name") {
+    } else if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
       const oldValue = (adgroup.adgroup_name || adgroup.name || "").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue && newValue !== "";
@@ -542,20 +716,143 @@ export const GoogleAdGroups: React.FC = () => {
       return;
     }
 
-    // For name fields, create pending change (inline confirm/cancel buttons)
-    const oldNameValue = fieldToUse === "name" || fieldToUse === "adgroup_name" 
-      ? (adgroup.adgroup_name || adgroup.name || "")
-      : "";
+    // For non-status fields, create pending change (inline confirm/cancel buttons)
     setPendingChanges((prev) => ({
       ...prev,
-      [fieldToUse]: {
+      [field]: {
         itemId: adgroup.adgroup_id,
         newValue: valueToCheck.trim(),
-        oldValue: oldNameValue,
       },
     }));
     setEditingCell(null);
     setEditedValue("");
+  };
+
+  // Direct confirmation handler for bid and adgroup_name (no pending changes, immediate update)
+  const confirmInlineEditDirect = async (newValue: string, adgroupIdParam: string | number, fieldParam: string) => {
+    if (!accountId || isCancelling) return;
+
+    const adgroupIdToUse = adgroupIdParam;
+    const fieldToUse = fieldParam;
+
+    if (!adgroupIdToUse || !fieldToUse) return;
+
+    const adgroup = adgroups.find((a) => a.adgroup_id === adgroupIdToUse);
+    if (!adgroup) return;
+
+    // Only allow direct confirmation for bid, adgroup_name, and status fields
+    if (fieldToUse !== "bid" && fieldToUse !== "adgroup_name" && fieldToUse !== "status") {
+      // Fall back to regular confirmation for other fields
+      confirmInlineEdit(newValue, fieldToUse);
+      return;
+    }
+
+    // Set updating field immediately to show loading
+    setUpdatingField({
+      adgroupId: adgroupIdToUse,
+      field: fieldToUse as any,
+      newValue: newValue.trim(),
+    });
+
+    // Clear editingCell if it matches
+    if (!editingCell || (editingCell.adgroupId === adgroupIdToUse && editingCell.field === fieldToUse)) {
+      setEditingCell(null);
+      setEditedValue("");
+    }
+
+    // Directly call handleConfirmChange
+    try {
+      const accountIdNum = parseInt(accountId, 10);
+      if (isNaN(accountIdNum)) {
+        throw new Error("Invalid account ID");
+      }
+
+      if (fieldToUse === "bid") {
+        const bidValue = parseFloat(newValue.replace(/[^0-9.]/g, ""));
+        if (isNaN(bidValue) || bidValue <= 0) {
+          throw new Error("Invalid bid value");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [adgroupIdToUse],
+          action: "bid",
+          bid: bidValue,
+        });
+      } else if (fieldToUse === "adgroup_name") {
+        const trimmedName = newValue.trim();
+        if (!trimmedName) {
+          throw new Error("Ad group name cannot be empty");
+        }
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [adgroupIdToUse],
+          action: "name",
+          name: trimmedName,
+        });
+      } else if (fieldToUse === "status") {
+        const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+          ENABLED: "ENABLED",
+          PAUSED: "PAUSED",
+          Enabled: "ENABLED",
+          Paused: "PAUSED",
+        };
+        const statusValue = statusMap[newValue] || "ENABLED";
+        await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+          adgroupIds: [adgroupIdToUse],
+          action: "status",
+          status: statusValue,
+        });
+      }
+
+      await loadAdgroups(accountIdNum);
+      
+      // Clear any previous errors
+      setInlineEditError(null);
+      
+      // Show success feedback
+      setInlineEditSuccess({
+        adgroupId: adgroupIdToUse,
+        field: fieldToUse as any,
+      });
+      // Clear success feedback after 3 seconds
+      setTimeout(() => {
+        setInlineEditSuccess(null);
+      }, 3000);
+    } catch (error: any) {
+      console.error("Failed to update adgroup:", error);
+      
+      // Clear any previous success
+      setInlineEditSuccess(null);
+      
+      // Set error state for inline feedback
+      let errorMessage = "Failed to update adgroup. Please try again.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (
+          error.response.data.errors &&
+          Array.isArray(error.response.data.errors) &&
+          error.response.data.errors.length > 0
+        ) {
+          // Clean up error messages - remove "AdGroup {id}:" prefix if present
+          errorMessage = error.response.data.errors[0].replace(/^AdGroup\s+\d+:\s*/i, "");
+        }
+      }
+      
+      setInlineEditError({
+        adgroupId: adgroupIdToUse,
+        field: fieldToUse as any,
+        message: errorMessage,
+      });
+      
+      // Auto-dismiss error after 5 seconds
+      setTimeout(() => {
+        setInlineEditError(null);
+      }, 5000);
+    } finally {
+      setUpdatingField(null);
+    }
   };
 
   // Handler for confirming a pending change (clicking the checkmark)
@@ -566,7 +863,7 @@ export const GoogleAdGroups: React.FC = () => {
     if (!adgroup) return;
 
     setUpdatingField({ adgroupId: itemId, field: fieldKey as any });
-
+    
     try {
       const accountIdNum = parseInt(accountId, 10);
       if (isNaN(accountIdNum)) {
@@ -828,13 +1125,21 @@ export const GoogleAdGroups: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (exportType: "all_data" | "current_view" | "selected") => {
     if (!accountId) return;
     const accountIdNum = parseInt(accountId, 10);
     if (isNaN(accountIdNum)) return;
 
+    // Validate selected adgroups for selected export
+    if (exportType === "selected" && selectedAdgroups.size === 0) {
+      alert("Please select at least one ad group to export.");
+      return;
+    }
+
+    // Keep dropdown open and show loading
+    setShowExportDropdown(true);
+    setExportLoading(true);
     try {
-      setExporting(true);
       const params: any = {
         filters: filters, // Pass filters array directly
         sort_by: sortBy,
@@ -851,17 +1156,30 @@ export const GoogleAdGroups: React.FC = () => {
         params.page_size = itemsPerPage;
       }
 
+      // Add adgroup IDs for selected export
+      if (exportType === "selected") {
+        params.adgroup_ids = Array.from(selectedAdgroups);
+      }
+
       await googleAdwordsAdGroupsService.exportGoogleAdGroups(
         accountIdNum,
         params,
         exportType
       );
-      setShowExportModal(false);
+      // Close dropdown after a short delay to show success
+      setTimeout(() => {
+        setShowExportDropdown(false);
+      }, 500);
     } catch (error: any) {
       console.error("Failed to export adgroups:", error);
-      alert("Failed to export adgroups. Please try again.");
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to export adgroups. Please try again.";
+      alert(errorMessage);
+      setShowExportDropdown(false);
     } finally {
-      setExporting(false);
+      setExportLoading(false);
     }
   };
 
@@ -893,6 +1211,20 @@ export const GoogleAdGroups: React.FC = () => {
   const someSelected =
     selectedAdgroups.size > 0 && selectedAdgroups.size < adgroups.length;
 
+  // Memoize export options to prevent hooks order issues
+  const exportOptions = useMemo(() => [
+    { value: "bulk_export", label: "Export All" },
+    {
+      value: "current_view",
+      label: "Export Current View",
+    },
+    {
+      value: "selected",
+      label: "Export Selected",
+      disabled: selectedAdgroups.size === 0,
+    },
+  ], [selectedAdgroups.size]);
+
   const toggleChartMetric = (metric: string) => {
     setChartToggles((prev) => ({
       ...prev,
@@ -920,7 +1252,7 @@ export const GoogleAdGroups: React.FC = () => {
                 day: "numeric",
               });
             }
-          } catch {
+          } catch (e) {
             // Keep original date if parsing fails
             formattedDate = item.date;
           }
@@ -995,8 +1327,9 @@ export const GoogleAdGroups: React.FC = () => {
                     Add Filter
                   </span>
                   <svg
-                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${isFilterPanelOpen ? "rotate-180" : ""
-                      }`}
+                    className={`w-5 h-5 text-[#E3E3E3] transition-transform ${
+                      isFilterPanelOpen ? "rotate-180" : ""
+                    }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -1018,7 +1351,7 @@ export const GoogleAdGroups: React.FC = () => {
                 <Banner
                   type={
                     syncMessage.includes("error") ||
-                      syncMessage.includes("Failed")
+                    syncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
@@ -1033,7 +1366,7 @@ export const GoogleAdGroups: React.FC = () => {
                 <Banner
                   type={
                     analyticsSyncMessage.includes("error") ||
-                      analyticsSyncMessage.includes("Failed")
+                    analyticsSyncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
@@ -1122,7 +1455,7 @@ export const GoogleAdGroups: React.FC = () => {
                     />
                   </svg>
                   <span className="text-[10.64px] text-[#072929] font-normal">
-                    Edit
+                    Bulk Actions
                   </span>
                 </Button>
                 {showBulkActions && (
@@ -1163,45 +1496,112 @@ export const GoogleAdGroups: React.FC = () => {
               </div>
               <div
                 className="relative inline-flex justify-end"
-                ref={dropdownRef}
+                ref={exportDropdownRef}
               >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="edit-button"
-                  onClick={() => setShowExportModal(true)}
-                  disabled={exporting || loading || adgroups.length === 0}
-                >
-                  {exporting ? (
-                    <>
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="edit-button"
+                    onClick={(e) => {
+                      if (exportLoading) return;
+                      e.stopPropagation();
+                      setShowExportDropdown((prev) => !prev);
+                      setShowBulkActions(false);
+                      setShowBidPanel(false);
+                    }}
+                    disabled={
+                      exportLoading || loading || adgroups.length === 0
+                    }
+                  >
+                    {exportLoading ? (
                       <div className="flex items-center justify-center">
                         <Loader size="sm" showMessage={false} />
                       </div>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Exporting...
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5 text-[#072929]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      <span className="text-[10.64px] text-[#072929] font-normal">
-                        Export
-                      </span>
-                    </>
-                  )}
-                </Button>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5 text-[#072929]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <span className="text-[10.64px] text-[#072929] font-normal">
+                          Export
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {(showExportDropdown || exportLoading) && (
+                  <div className="absolute top-[42px] right-0 w-56 bg-[#FEFEFB] border border-[#E3E3E3] rounded-[12px] shadow-lg z-[100] pointer-events-auto overflow-hidden">
+                    {exportLoading ? (
+                      <div className="px-3 py-6 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                        <Loader size="md" message="Exporting..." />
+                        <p className="text-[11px] text-[#556179] text-center px-2">
+                          Please wait while we prepare your file
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-y-auto">
+                        {exportOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={`w-full text-left px-3 py-2 text-[12px] text-[#072929] hover:bg-[#f9f9f6] transition-colors cursor-pointer flex items-center gap-3 ${
+                              opt.disabled ? "opacity-50 cursor-not-allowed" : ""
+                            }`}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              if (opt.disabled) return;
+                              const exportType =
+                                opt.value === "bulk_export"
+                                  ? "all_data"
+                                  : opt.value === "current_view"
+                                  ? "current_view"
+                                  : "selected";
+                              // Keep dropdown open during export
+                              await handleExport(exportType);
+                            }}
+                            disabled={exportLoading || opt.disabled}
+                          >
+                            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <rect
+                                  width="20"
+                                  height="20"
+                                  rx="3.2"
+                                  fill="#072929"
+                                />
+                                <path
+                                  d="M15 11.2V9.1942C15 8.7034 15 8.4586 14.9145 8.2378C14.829 8.0176 14.6664 7.8436 14.3407 7.4968L11.6768 4.6552C11.3961 4.3558 11.256 4.2064 11.0816 4.1176C11.0455 4.09911 11.0085 4.08269 10.9708 4.0684C10.7891 4 10.5906 4 10.194 4C8.36869 4 7.45575 4 6.83756 4.5316C6.71274 4.63896 6.59903 4.76025 6.49838 4.8934C6 5.554 6 6.5266 6 8.4736V11.2C6 13.4626 6 14.5942 6.65925 15.2968C7.3185 15.9994 8.37881 16 10.5 16M11.0625 4.3V4.6C11.0625 6.2968 11.0625 7.1458 11.5569 7.6726C12.0508 8.2 12.8467 8.2 14.4375 8.2H14.7188M13.3125 16C13.6539 15.646 15 14.704 15 14.2C15 13.696 13.6539 12.754 13.3125 12.4M14.4375 14.2H10.5"
+                                  stroke="#F9F9F6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <span className="font-normal">{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1237,34 +1637,36 @@ export const GoogleAdGroups: React.FC = () => {
                       </div>
                       {(bidAction === "increase" ||
                         bidAction === "decrease") && (
-                          <div className="w-[140px]">
-                            <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
-                              Unit
-                            </label>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "percent"
+                        <div className="w-[140px]">
+                          <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
+                            Unit
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                bidUnit === "percent"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                  }`}
-                                onClick={() => setBidUnit("percent")}
-                              >
-                                %
-                              </button>
-                              <button
-                                type="button"
-                                className={`flex-1 px-3 py-2 rounded-lg border items-center ${bidUnit === "amount"
+                              }`}
+                              onClick={() => setBidUnit("percent")}
+                            >
+                              %
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex-1 px-3 py-2 rounded-lg border items-center ${
+                                bidUnit === "amount"
                                   ? "bg-forest-f40  border-forest-f40"
                                   : "bg-[#FEFEFB] text-forest-f60 border-gray-200 hover:bg-gray-50"
-                                  }`}
-                                onClick={() => setBidUnit("amount")}
-                              >
-                                $
-                              </button>
-                            </div>
+                              }`}
+                              onClick={() => setBidUnit("amount")}
+                            >
+                              $
+                            </button>
                           </div>
-                        )}
+                        </div>
+                      )}
                       <div className="w-[160px]">
                         <label className="block text-[10.64px] font-semibold text-[#556179] mb-1 uppercase">
                           Value
@@ -1357,8 +1759,8 @@ export const GoogleAdGroups: React.FC = () => {
                       {bulkUpdateResults
                         ? "Update Results"
                         : isBidChange
-                          ? "Confirm Bid Changes"
-                          : "Confirm Status Changes"}
+                        ? "Confirm Bid Changes"
+                        : "Confirm Status Changes"}
                     </h3>
 
                     {/* Results Summary */}
@@ -1453,8 +1855,9 @@ export const GoogleAdGroups: React.FC = () => {
                             <span className="text-[10.64px] text-[#556179]">
                               {hasMore
                                 ? `Showing ${previewCount} of ${selectedAdgroupsData.length} selected adgroups`
-                                : `${selectedAdgroupsData.length} adgroup${selectedAdgroupsData.length !== 1 ? "s" : ""
-                                } selected`}
+                                : `${selectedAdgroupsData.length} adgroup${
+                                    selectedAdgroupsData.length !== 1 ? "s" : ""
+                                  } selected`}
                             </span>
                           </div>
                           <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1518,81 +1921,81 @@ export const GoogleAdGroups: React.FC = () => {
 
                     {/* Action Details - Only show before update */}
                     {!bulkUpdateResults && (
-                      <div className="space-y-3 mb-6">
-                        {isBidChange ? (
-                          <>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Action:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {bidAction === "increase"
-                                  ? "Increase By"
-                                  : bidAction === "decrease"
-                                    ? "Decrease By"
-                                    : "Set To"}
-                              </span>
-                            </div>
-
-                            {(bidAction === "increase" ||
-                              bidAction === "decrease") && (
-                                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                                  <span className="text-[12.16px] text-[#556179]">
-                                    Unit:
-                                  </span>
-                                  <span className="text-[12.16px] font-semibold text-[#072929]">
-                                    {bidUnit === "percent"
-                                      ? "Percentage (%)"
-                                      : "Amount ($)"}
-                                  </span>
-                                </div>
-                              )}
-
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                              <span className="text-[12.16px] text-[#556179]">
-                                Value:
-                              </span>
-                              <span className="text-[12.16px] font-semibold text-[#072929]">
-                                {bidValue} {bidUnit === "percent" ? "%" : "$"}
-                              </span>
-                            </div>
-
-                            {bidAction === "increase" && upperLimit && (
-                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                                <span className="text-[12.16px] text-[#556179]">
-                                  Upper Limit:
-                                </span>
-                                <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  ${upperLimit}
-                                </span>
-                              </div>
-                            )}
-
-                            {bidAction === "decrease" && lowerLimit && (
-                              <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                                <span className="text-[12.16px] text-[#556179]">
-                                  Lower Limit:
-                                </span>
-                                <span className="text-[12.16px] font-semibold text-[#072929]">
-                                  ${lowerLimit}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
+                    <div className="space-y-3 mb-6">
+                      {isBidChange ? (
+                        <>
                           <div className="flex justify-between items-center py-2 border-b border-gray-200">
                             <span className="text-[12.16px] text-[#556179]">
-                              New Status:
+                              Action:
                             </span>
                             <span className="text-[12.16px] font-semibold text-[#072929]">
-                              {pendingStatusAction
-                                ? pendingStatusAction.charAt(0) +
-                                pendingStatusAction.slice(1).toLowerCase()
-                                : ""}
+                              {bidAction === "increase"
+                                ? "Increase By"
+                                : bidAction === "decrease"
+                                ? "Decrease By"
+                                : "Set To"}
                             </span>
                           </div>
-                        )}
-                      </div>
+
+                          {(bidAction === "increase" ||
+                            bidAction === "decrease") && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Unit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                {bidUnit === "percent"
+                                  ? "Percentage (%)"
+                                  : "Amount ($)"}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                            <span className="text-[12.16px] text-[#556179]">
+                              Value:
+                            </span>
+                            <span className="text-[12.16px] font-semibold text-[#072929]">
+                              {bidValue} {bidUnit === "percent" ? "%" : "$"}
+                            </span>
+                          </div>
+
+                          {bidAction === "increase" && upperLimit && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Upper Limit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                ${upperLimit}
+                              </span>
+                            </div>
+                          )}
+
+                          {bidAction === "decrease" && lowerLimit && (
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                              <span className="text-[12.16px] text-[#556179]">
+                                Lower Limit:
+                              </span>
+                              <span className="text-[12.16px] font-semibold text-[#072929]">
+                                ${lowerLimit}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-[12.16px] text-[#556179]">
+                            New Status:
+                          </span>
+                          <span className="text-[12.16px] font-semibold text-[#072929]">
+                            {pendingStatusAction
+                              ? pendingStatusAction.charAt(0) +
+                                pendingStatusAction.slice(1).toLowerCase()
+                              : ""}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     )}
 
                     <div className="flex justify-end gap-3">
@@ -1643,90 +2046,6 @@ export const GoogleAdGroups: React.FC = () => {
                 </div>
               )}
 
-              {/* Export Modal */}
-              {showExportModal && (
-                <div
-                  className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) {
-                      setShowExportModal(false);
-                    }
-                  }}
-                >
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
-                    <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Export Ad Groups
-                    </h3>
-                    <div className="mb-6">
-                      <label className="block text-[12.8px] font-semibold text-[#556179] mb-2 uppercase">
-                        Export Type
-                      </label>
-                      <Dropdown
-                        options={[
-                          { value: "current_view", label: "Current View" },
-                          { value: "all_data", label: "All Data" },
-                        ]}
-                        value={exportType}
-                        onChange={(val) => {
-                          setExportType(val as "current_view" | "all_data");
-                        }}
-                        buttonClassName="w-full"
-                        width="w-full"
-                      />
-                      <p className="text-[10.64px] text-[#727272] mt-2">
-                        {exportType === "current_view"
-                          ? `Exporting ${adgroups.length} adgroup${adgroups.length !== 1 ? "s" : ""
-                          } from the current page (${total} total available)`
-                          : `Exporting all ${total} adgroup${total !== 1 ? "s" : ""
-                          } matching your filters`}
-                      </p>
-                    </div>
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowExportModal(false);
-                          setExportType("current_view");
-                        }}
-                        disabled={exporting}
-                        className="cancel-button"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExport}
-                        disabled={exporting}
-                        className="px-4 py-2 bg-[#136D6D] text-white text-[11.2px] font-semibold rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        {exporting ? (
-                          <>
-                            <Loader size="sm" variant="white" showMessage={false} className="!flex-row" />
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                            Download
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Status Edit Confirmation Modal - Match TikTok/Amazon pattern */}
               {showStatusEditModal && statusEditData && (
@@ -1736,13 +2055,12 @@ export const GoogleAdGroups: React.FC = () => {
                     if (e.target === e.currentTarget && !statusEditLoading) {
                       setShowStatusEditModal(false);
                       setStatusEditData(null);
-                      cancelInlineEdit();
                     }
                   }}
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
                     <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Confirm {statusEditData.field === "status" ? "Status" : "Bid"} Change
+                      Confirm Status Change
                     </h3>
                     <div className="mb-4">
                       <p className="text-[12.8px] text-[#556179] mb-2">
@@ -1756,7 +2074,7 @@ export const GoogleAdGroups: React.FC = () => {
                       <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                         <div className="flex justify-between items-center">
                           <span className="text-[12.8px] text-[#556179]">
-                            {statusEditData.field === "status" ? "Status" : "Default max. CPC"}:
+                            Status:
                           </span>
                           <div className="flex items-center gap-2">
                             <span className="text-[12.8px] text-[#556179]">
@@ -1779,7 +2097,6 @@ export const GoogleAdGroups: React.FC = () => {
                           if (!statusEditLoading) {
                             setShowStatusEditModal(false);
                             setStatusEditData(null);
-                            cancelInlineEdit();
                           }
                         }}
                         disabled={statusEditLoading}
@@ -1791,7 +2108,7 @@ export const GoogleAdGroups: React.FC = () => {
                         type="button"
                         onClick={async () => {
                           if (!statusEditData || !accountId || statusEditLoading) return;
-
+                          
                           setStatusEditLoading(true);
                           try {
                             const accountIdNum = parseInt(accountId, 10);
@@ -1799,51 +2116,31 @@ export const GoogleAdGroups: React.FC = () => {
                               throw new Error("Invalid account ID");
                             }
 
-                            if (statusEditData.field === "status") {
-                              // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
-                              const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-                                ENABLED: "ENABLED",
-                                PAUSED: "PAUSED",
-                                Enabled: "ENABLED",
-                                Paused: "PAUSED",
-                              };
-                              const statusValue = statusMap[statusEditData.newValue] || "ENABLED";
+                            // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
+                            const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+                              ENABLED: "ENABLED",
+                              PAUSED: "PAUSED",
+                              Enabled: "ENABLED",
+                              Paused: "PAUSED",
+                            };
+                            const statusValue = statusMap[statusEditData.newValue] || "ENABLED";
 
-                              const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-                                adgroupIds: [statusEditData.adgroup.adgroup_id],
-                                action: "status",
-                                status: statusValue,
-                              });
+                            const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+                              adgroupIds: [statusEditData.adgroup.adgroup_id],
+                              action: "status",
+                              status: statusValue,
+                            });
 
-                              if (response.errors && response.errors.length > 0) {
-                                throw new Error(response.errors[0]);
-                              }
-                            } else if (statusEditData.field === "bid") {
-                              // Parse the formatted currency value back to number
-                              const newBidStr = statusEditData.newValue.replace(/[^0-9.]/g, "");
-                              const newBid = parseFloat(newBidStr);
-                              if (isNaN(newBid)) {
-                                throw new Error("Invalid bid value");
-                              }
-
-                              const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-                                adgroupIds: [statusEditData.adgroup.adgroup_id],
-                                action: "bid",
-                                bid: newBid,
-                              });
-
-                              if (response.errors && response.errors.length > 0) {
-                                throw new Error(response.errors[0]);
-                              }
+                            if (response.errors && response.errors.length > 0) {
+                              throw new Error(response.errors[0]);
                             }
 
                             await loadAdgroups(accountIdNum);
                             setShowStatusEditModal(false);
                             setStatusEditData(null);
-                            cancelInlineEdit();
                           } catch (error) {
-                            console.error(`Failed to update adgroup ${statusEditData.field}:`, error);
-                            alert(`Failed to update adgroup ${statusEditData.field}. Please try again.`);
+                            console.error("Failed to update adgroup status:", error);
+                            alert("Failed to update adgroup status. Please try again.");
                           } finally {
                             setStatusEditLoading(false);
                           }
@@ -1946,6 +2243,8 @@ export const GoogleAdGroups: React.FC = () => {
                     editedValue={editedValue}
                     isCancelling={isCancelling}
                     updatingField={updatingField}
+                    inlineEditSuccess={inlineEditSuccess}
+                    inlineEditError={inlineEditError}
                     summary={summary}
                     onSelectAll={handleSelectAll}
                     onSelectAdgroup={handleSelectAdgroup}
@@ -1953,7 +2252,7 @@ export const GoogleAdGroups: React.FC = () => {
                     onStartInlineEdit={startInlineEdit}
                     onCancelInlineEdit={cancelInlineEdit}
                     onInlineEditChange={handleInlineEditChange}
-                    onConfirmInlineEdit={(value, field, adgroupId) => confirmInlineEdit(value, field, adgroupId)}
+                    onConfirmInlineEdit={confirmInlineEdit}
                     pendingChanges={pendingChanges}
                     onConfirmChange={handleConfirmChange}
                     onCancelChange={handleCancelChange}
@@ -1961,8 +2260,6 @@ export const GoogleAdGroups: React.FC = () => {
                     formatPercentage={formatPercentage}
                     getStatusBadge={getStatusBadge}
                     getSortIcon={getSortIcon}
-                    onEditAdGroup={handleEditAdGroup}
-                    editLoadingAdGroupId={nameEditLoading ? nameEditAdgroup?.adgroup_id : null}
                   />
                 </div>
               </div>
@@ -1997,10 +2294,11 @@ export const GoogleAdGroups: React.FC = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${currentPage === pageNum
-                            ? "bg-white text-[#136D6D] font-semibold"
-                            : "text-black hover:bg-gray-50"
-                            }`}
+                          className={`px-3 py-2 border-r border-gray-200 text-[10.64px] min-w-[40px] cursor-pointer ${
+                            currentPage === pageNum
+                              ? "bg-white text-[#136D6D] font-semibold"
+                              : "text-black hover:bg-gray-50"
+                          }`}
                         >
                           {pageNum}
                         </button>
@@ -2014,10 +2312,11 @@ export const GoogleAdGroups: React.FC = () => {
                     {totalPages > 5 && currentPage < totalPages - 2 && (
                       <button
                         onClick={() => setCurrentPage(totalPages)}
-                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${currentPage === totalPages
-                          ? "bg-white text-[#136D6D] font-semibold"
-                          : "text-black hover:bg-gray-50"
-                          }`}
+                        className={`px-3 py-2 border-r border-gray-200 text-[10.64px] cursor-pointer ${
+                          currentPage === totalPages
+                            ? "bg-white text-[#136D6D] font-semibold"
+                            : "text-black hover:bg-gray-50"
+                        }`}
                       >
                         {totalPages}
                       </button>
@@ -2042,7 +2341,7 @@ export const GoogleAdGroups: React.FC = () => {
                 <Banner
                   type={
                     syncMessage.includes("error") ||
-                      syncMessage.includes("Failed")
+                    syncMessage.includes("Failed")
                       ? "error"
                       : "success"
                   }
