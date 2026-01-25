@@ -103,6 +103,13 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
     const [updatingKeywordId, setUpdatingKeywordId] = useState<number | null>(
       null
     );
+    // Modal state for status and match_type changes - matches Amazon pattern
+    const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+    const [inlineEditKeyword, setInlineEditKeyword] = useState<GoogleKeyword | null>(null);
+    const [inlineEditField, setInlineEditField] = useState<"status" | "match_type" | null>(null);
+    const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+    const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+    const [inlineEditLoading, setInlineEditLoading] = useState(false);
 
     const handleStatusClick = (keyword: GoogleKeyword) => {
       if (onUpdateKeywordStatus) {
@@ -172,12 +179,20 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       const newStatusUpper = newStatus.toUpperCase();
 
       if (newStatusUpper !== oldStatus) {
-        setPendingChange({
-          id: keywordId,
-          field: "status",
-          newValue: newStatusUpper,
-          oldValue: oldStatus,
-        });
+        // Show confirmation modal immediately - matches Amazon pattern
+        const statusDisplayMap: Record<string, string> = {
+          ENABLED: "Enabled",
+          PAUSED: "Paused",
+          REMOVED: "Removed",
+          Enabled: "Enabled",
+          Paused: "Paused",
+          Removed: "Removed",
+        };
+        setInlineEditKeyword(keyword);
+        setInlineEditField("status");
+        setInlineEditOldValue(statusDisplayMap[oldStatus] || oldStatus);
+        setInlineEditNewValue(statusDisplayMap[newStatusUpper] || newStatusUpper);
+        setShowInlineEditModal(true);
       }
       setEditingKeywordId(null);
       setEditingField(null);
@@ -192,16 +207,76 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
       const newMatchTypeUpper = newMatchType.toUpperCase();
 
       if (newMatchTypeUpper !== oldMatchType) {
-        setPendingChange({
-          id: keywordId,
-          field: "match_type",
-          newValue: newMatchTypeUpper,
-          oldValue: oldMatchType,
-        });
+        // Show confirmation modal immediately - matches Amazon pattern
+        const matchTypeDisplayMap: Record<string, string> = {
+          EXACT: "Exact",
+          PHRASE: "Phrase",
+          BROAD: "Broad",
+          Exact: "Exact",
+          Phrase: "Phrase",
+          Broad: "Broad",
+        };
+        setInlineEditKeyword(keyword);
+        setInlineEditField("match_type");
+        setInlineEditOldValue(matchTypeDisplayMap[oldMatchType] || oldMatchType);
+        setInlineEditNewValue(matchTypeDisplayMap[newMatchTypeUpper] || newMatchTypeUpper);
+        setShowInlineEditModal(true);
       }
       setEditingKeywordId(null);
       setEditingField(null);
       setEditingMatchType("");
+    };
+
+    const runInlineEdit = async () => {
+      if (!inlineEditKeyword || !inlineEditField || !onUpdateKeywordStatus || !onUpdateKeywordMatchType) return;
+
+      setInlineEditLoading(true);
+      try {
+        if (inlineEditField === "status" && onUpdateKeywordStatus) {
+          // Map display values back to API values
+          const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+            Enabled: "ENABLED",
+            ENABLED: "ENABLED",
+            Paused: "PAUSED",
+            PAUSED: "PAUSED",
+          };
+          const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+          await onUpdateKeywordStatus(inlineEditKeyword.id, statusValue);
+        } else if (inlineEditField === "match_type" && onUpdateKeywordMatchType) {
+          // Map display values back to API values
+          const matchTypeMap: Record<string, "EXACT" | "PHRASE" | "BROAD"> = {
+            Exact: "EXACT",
+            EXACT: "EXACT",
+            Phrase: "PHRASE",
+            PHRASE: "PHRASE",
+            Broad: "BROAD",
+            BROAD: "BROAD",
+          };
+          const matchTypeValue = matchTypeMap[inlineEditNewValue] || "EXACT";
+          await onUpdateKeywordMatchType(inlineEditKeyword.id, matchTypeValue);
+        }
+
+        setShowInlineEditModal(false);
+        setInlineEditKeyword(null);
+        setInlineEditField(null);
+        setInlineEditOldValue("");
+        setInlineEditNewValue("");
+      } catch (error) {
+        console.error("Failed to update keyword:", error);
+        alert(
+          `Failed to update keyword ${inlineEditField}. Please try again.`
+        );
+      } finally {
+        setInlineEditLoading(false);
+      }
+    };
+
+    const cancelInlineEditModal = () => {
+      setShowInlineEditModal(false);
+      setInlineEditKeyword(null);
+      setInlineEditField(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
     };
 
     const confirmChange = async () => {
@@ -209,16 +284,8 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
 
       setUpdatingKeywordId(pendingChange.id);
       try {
-        if (pendingChange.field === "status" && onUpdateKeywordStatus) {
-          await onUpdateKeywordStatus(pendingChange.id, pendingChange.newValue);
-        } else if (
-          pendingChange.field === "match_type" &&
-          onUpdateKeywordMatchType
-        ) {
-          await onUpdateKeywordMatchType(
-            pendingChange.id,
-            pendingChange.newValue
-          );
+        if (pendingChange.field === "bid" && onUpdateKeywordBid) {
+          await onUpdateKeywordBid(pendingChange.id, parseFloat(pendingChange.newValue));
         }
         setPendingChange(null);
       } catch (error) {
@@ -518,8 +585,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               onChange={(val) =>
                                 handleMatchTypeChange(keyword.id, val as string)
                               }
-                              defaultOpen={true}
+                              defaultOpen={false}
                               closeOnSelect={true}
+                              showCheckmark={false}
                               buttonClassName="text-[13.3px] px-2 py-1"
                               width="w-40"
                             />
@@ -608,8 +676,9 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
                               onChange={(val) =>
                                 handleStatusChange(keyword.id, val as string)
                               }
-                              defaultOpen={true}
+                              defaultOpen={false}
                               closeOnSelect={true}
+                              showCheckmark={false}
                               buttonClassName="text-[13.3px] px-2 py-1"
                               width="w-32"
                             />
@@ -852,6 +921,70 @@ export const GoogleCampaignDetailKeywordsTab: React.FC<
               >
                 Next
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Inline Edit Modal for Status and Match Type */}
+        {showInlineEditModal && inlineEditKeyword && inlineEditField && (
+          <div
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !inlineEditLoading) {
+                cancelInlineEditModal();
+              }
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                Confirm {inlineEditField === "status" ? "Status" : "Match Type"} Change
+              </h3>
+
+              <div className="mb-4">
+                <p className="text-[12.16px] text-[#556179] mb-2">
+                  Keyword:{" "}
+                  <span className="font-semibold text-[#072929]">
+                    {inlineEditKeyword.keyword_text || "Unnamed Keyword"}
+                  </span>
+                </p>
+                <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[12.16px] text-[#556179]">
+                      {inlineEditField === "status" ? "Status" : "Match Type"}:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {inlineEditOldValue}
+                      </span>
+                      <span className="text-[12.16px] text-[#556179]">→</span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {inlineEditNewValue}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={cancelInlineEditModal}
+                  className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={runInlineEdit}
+                  disabled={inlineEditLoading}
+                  className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {inlineEditLoading ? "Updating..." : "Confirm"}
+                </button>
+              </div>
             </div>
           </div>
         )}

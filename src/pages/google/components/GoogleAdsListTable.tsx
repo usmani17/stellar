@@ -36,7 +36,7 @@ export interface GoogleAdsListTableProps {
   onStartInlineEdit: (ad: GoogleAd, field: "status") => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
-  onConfirmInlineEdit: (value: string) => void;
+  onConfirmInlineEdit: (value: string, fieldOverride?: string, adIdOverride?: string | number) => void;
   onConfirmStatusChange: (adId: string | number, newStatus: string) => void;
   onCancelStatusChange: () => void;
   formatCurrency: (value: number) => string;
@@ -202,10 +202,17 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
     },
   ], []);
 
-  const handleConfirmInlineEdit = (value: string, field: string) => {
-    if (field === "status") {
-      onConfirmInlineEdit(value);
+  const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Use override parameters if provided, otherwise fall back to editingCell
+    const adIdToUse = itemIdParam || editingCell?.adId;
+    const fieldToUse = field || editingCell?.field;
+    
+    if (!adIdToUse || !fieldToUse) {
+      return;
     }
+    
+    // Pass all parameters to parent handler
+    onConfirmInlineEdit(value, fieldToUse, adIdToUse);
   };
 
   const handleConfirmChange = (itemId: string | number, field: string, newValue: any) => {

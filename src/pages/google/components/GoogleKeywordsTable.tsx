@@ -77,7 +77,7 @@ interface GoogleKeywordsTableProps {
   onStartInlineEdit: (keyword: GoogleKeyword, field: "bid" | "status" | "match_type" | "keyword_text") => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
-  onConfirmInlineEdit: (value: string) => void;
+  onConfirmInlineEdit: (value: string, fieldOverride?: string, keywordIdOverride?: string | number) => void;
   onStartFinalUrlEdit?: (keyword: GoogleKeyword) => void;
   onConfirmBidChange: (keywordId: string | number, newBid: number) => void;
   onCancelBidChange: () => void;
@@ -426,9 +426,19 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
   ], [currentAccountId, navigate, onStartFinalUrlEdit, keywords]);
 
   // Handle confirm inline edit - route to appropriate handler
-  const handleConfirmInlineEdit = (value: string, _field: string) => {
-    if (!editingCell) return;
-    onConfirmInlineEdit(value);
+  // Handle confirm inline edit - route all fields to modal confirmation
+  const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Use the field parameter if provided, otherwise fall back to editingCell
+    const fieldToUse = field || editingCell?.field;
+    if (!fieldToUse) {
+      return;
+    }
+    
+    // Use itemIdParam if provided, otherwise fall back to editingCell
+    const keywordIdToUse = itemIdParam || editingCell?.keywordId;
+    
+    // All fields now use regular confirmation (with modal) - matches Amazon Campaign pattern
+    onConfirmInlineEdit(value, fieldToUse, keywordIdToUse);
   };
 
   // Handle confirm change - route to appropriate handler

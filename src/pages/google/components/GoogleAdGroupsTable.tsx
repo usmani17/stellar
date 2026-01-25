@@ -51,7 +51,7 @@ interface GoogleAdGroupsTableProps {
   onStartInlineEdit: (adgroup: GoogleAdGroup, field: "bid" | "status" | "name" | "adgroup_name") => void;
   onCancelInlineEdit: () => void;
   onInlineEditChange: (value: string) => void;
-  onConfirmInlineEdit: (value: string, fieldKey?: string) => void;
+  onConfirmInlineEdit: (value: string, fieldKey?: string, adgroupIdOverride?: string | number) => void;
   pendingChanges?: Record<string, { itemId: string | number; newValue: string; oldValue: any } | null>;
   onConfirmChange?: (itemId: string | number, fieldKey: string, newValue: string) => void;
   onCancelChange?: (fieldKey: string) => void;
@@ -260,10 +260,19 @@ export const GoogleAdGroupsTable: React.FC<GoogleAdGroupsTableProps> = ({
     },
   ], [accountId, onEditAdGroup, editLoadingAdGroupId]);
 
-  // Handle confirm inline edit
-  const handleConfirmInlineEdit = (value: string, _field: string) => {
-    if (!editingCell) return;
-    onConfirmInlineEdit(value);
+  // Handle confirm inline edit - route all fields to modal confirmation
+  const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
+    // Use the field parameter if provided, otherwise fall back to editingCell
+    const fieldToUse = field || editingCell?.field;
+    if (!fieldToUse) {
+      return;
+    }
+    
+    // Use itemIdParam if provided, otherwise fall back to editingCell
+    const adgroupIdToUse = itemIdParam || editingCell?.adgroupId;
+    
+    // All fields now use regular confirmation (with modal) - matches Amazon Campaign pattern
+    onConfirmInlineEdit(value, fieldToUse, adgroupIdToUse);
   };
 
   // pendingChanges is now passed as a prop

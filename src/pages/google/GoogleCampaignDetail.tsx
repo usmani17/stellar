@@ -2915,8 +2915,9 @@ export const GoogleCampaignDetail: React.FC = () => {
                               setEditedValue("");
                             }
                           }}
-                          defaultOpen={true}
+                          defaultOpen={false}
                           closeOnSelect={true}
+                          showCheckmark={false}
                           buttonClassName="inline-edit-dropdown"
                           width="w-full"
                         />

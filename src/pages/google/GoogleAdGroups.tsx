@@ -116,11 +116,13 @@ export const GoogleAdGroups: React.FC = () => {
   const [pendingChanges, setPendingChanges] = useState<Record<string, {
     itemId: string | number;
     newValue: string;
-  }>>({});
-  // Status edit modal - match TikTok/Amazon pattern (show modal for status confirmation)
+    oldValue: any;
+  } | null>>({});
+  // Status/Bid edit modal - match TikTok/Amazon pattern (show modal for status and bid confirmation)
   const [showStatusEditModal, setShowStatusEditModal] = useState(false);
   const [statusEditData, setStatusEditData] = useState<{
     adgroup: GoogleAdGroup;
+    field: "status" | "bid";
     oldValue: string;
     newValue: string;
   } | null>(null);
@@ -457,21 +459,27 @@ export const GoogleAdGroups: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    fieldKey?: string
+    fieldOverride?: string,
+    adgroupIdOverride?: string | number
   ) => {
-    if (!editingCell || !accountId || isCancelling) return;
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const adgroupIdToUse = adgroupIdOverride || editingCell?.adgroupId;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!adgroupIdToUse || !fieldToUse || !accountId || isCancelling) {
+      return;
+    }
 
     const adgroup = adgroups.find(
-      (a) => a.adgroup_id === editingCell.adgroupId
+      (a) => a.adgroup_id === adgroupIdToUse
     );
     if (!adgroup) return;
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
-    const field = fieldKey || editingCell.field;
     let hasChanged = false;
 
-    if (editingCell.field === "bid") {
+    if (fieldToUse === "bid") {
       const newBidStr = valueToCheck.trim();
       const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
       const oldBid = adgroup.cpc_bid_dollars || 0;
@@ -481,7 +489,21 @@ export const GoogleAdGroups: React.FC = () => {
       }
       // Use a smaller threshold (0.001) to detect small bid changes like 0.02 to 0.03
       hasChanged = Math.abs(newBid - oldBid) > 0.001;
-    } else if (editingCell.field === "status") {
+
+      // For bid changes, show confirmation modal - matches Amazon Campaign pattern
+      if (hasChanged) {
+        setStatusEditData({
+          adgroup,
+          field: "bid",
+          oldValue: formatCurrency(oldBid),
+          newValue: formatCurrency(newBid),
+        });
+        setShowStatusEditModal(true);
+        // Don't clear editingCell here - keep it set so input shows editedValue
+        // It will be cleared when user confirms or cancels the edit
+        return;
+      }
+    } else if (fieldToUse === "status") {
       const oldValue = (adgroup.status || "ENABLED").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
@@ -500,15 +522,16 @@ export const GoogleAdGroups: React.FC = () => {
 
         setStatusEditData({
           adgroup,
+          field: "status",
           oldValue: oldValueDisplay,
           newValue: newValueDisplay,
         });
         setShowStatusEditModal(true);
-        setEditingCell(null);
-        setEditedValue("");
+        // Don't clear editingCell here - keep it set so dropdown shows editedValue
+        // It will be cleared when user confirms or cancels the edit
         return;
       }
-    } else if (editingCell.field === "name" || editingCell.field === "adgroup_name") {
+    } else if (fieldToUse === "name" || fieldToUse === "adgroup_name") {
       const oldValue = (adgroup.adgroup_name || adgroup.name || "").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue && newValue !== "";
@@ -519,12 +542,16 @@ export const GoogleAdGroups: React.FC = () => {
       return;
     }
 
-    // For non-status fields, create pending change (inline confirm/cancel buttons)
+    // For name fields, create pending change (inline confirm/cancel buttons)
+    const oldNameValue = fieldToUse === "name" || fieldToUse === "adgroup_name" 
+      ? (adgroup.adgroup_name || adgroup.name || "")
+      : "";
     setPendingChanges((prev) => ({
       ...prev,
-      [field]: {
+      [fieldToUse]: {
         itemId: adgroup.adgroup_id,
         newValue: valueToCheck.trim(),
+        oldValue: oldNameValue,
       },
     }));
     setEditingCell(null);
@@ -1709,12 +1736,13 @@ export const GoogleAdGroups: React.FC = () => {
                     if (e.target === e.currentTarget && !statusEditLoading) {
                       setShowStatusEditModal(false);
                       setStatusEditData(null);
+                      cancelInlineEdit();
                     }
                   }}
                 >
                   <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
                     <h3 className="text-[18px] font-semibold text-[#072929] mb-4">
-                      Confirm Status Change
+                      Confirm {statusEditData.field === "status" ? "Status" : "Bid"} Change
                     </h3>
                     <div className="mb-4">
                       <p className="text-[12.8px] text-[#556179] mb-2">
@@ -1728,7 +1756,7 @@ export const GoogleAdGroups: React.FC = () => {
                       <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
                         <div className="flex justify-between items-center">
                           <span className="text-[12.8px] text-[#556179]">
-                            Status:
+                            {statusEditData.field === "status" ? "Status" : "Default max. CPC"}:
                           </span>
                           <div className="flex items-center gap-2">
                             <span className="text-[12.8px] text-[#556179]">
@@ -1751,6 +1779,7 @@ export const GoogleAdGroups: React.FC = () => {
                           if (!statusEditLoading) {
                             setShowStatusEditModal(false);
                             setStatusEditData(null);
+                            cancelInlineEdit();
                           }
                         }}
                         disabled={statusEditLoading}
@@ -1770,31 +1799,51 @@ export const GoogleAdGroups: React.FC = () => {
                               throw new Error("Invalid account ID");
                             }
 
-                            // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
-                            const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
-                              ENABLED: "ENABLED",
-                              PAUSED: "PAUSED",
-                              Enabled: "ENABLED",
-                              Paused: "PAUSED",
-                            };
-                            const statusValue = statusMap[statusEditData.newValue] || "ENABLED";
+                            if (statusEditData.field === "status") {
+                              // Map status values: Google API uses "ENABLED" | "PAUSED" (uppercase)
+                              const statusMap: Record<string, "ENABLED" | "PAUSED"> = {
+                                ENABLED: "ENABLED",
+                                PAUSED: "PAUSED",
+                                Enabled: "ENABLED",
+                                Paused: "PAUSED",
+                              };
+                              const statusValue = statusMap[statusEditData.newValue] || "ENABLED";
 
-                            const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
-                              adgroupIds: [statusEditData.adgroup.adgroup_id],
-                              action: "status",
-                              status: statusValue,
-                            });
+                              const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+                                adgroupIds: [statusEditData.adgroup.adgroup_id],
+                                action: "status",
+                                status: statusValue,
+                              });
 
-                            if (response.errors && response.errors.length > 0) {
-                              throw new Error(response.errors[0]);
+                              if (response.errors && response.errors.length > 0) {
+                                throw new Error(response.errors[0]);
+                              }
+                            } else if (statusEditData.field === "bid") {
+                              // Parse the formatted currency value back to number
+                              const newBidStr = statusEditData.newValue.replace(/[^0-9.]/g, "");
+                              const newBid = parseFloat(newBidStr);
+                              if (isNaN(newBid)) {
+                                throw new Error("Invalid bid value");
+                              }
+
+                              const response = await googleAdwordsAdGroupsService.bulkUpdateGoogleAdGroups(accountIdNum, {
+                                adgroupIds: [statusEditData.adgroup.adgroup_id],
+                                action: "bid",
+                                bid: newBid,
+                              });
+
+                              if (response.errors && response.errors.length > 0) {
+                                throw new Error(response.errors[0]);
+                              }
                             }
 
                             await loadAdgroups(accountIdNum);
                             setShowStatusEditModal(false);
                             setStatusEditData(null);
+                            cancelInlineEdit();
                           } catch (error) {
-                            console.error("Failed to update adgroup status:", error);
-                            alert("Failed to update adgroup status. Please try again.");
+                            console.error(`Failed to update adgroup ${statusEditData.field}:`, error);
+                            alert(`Failed to update adgroup ${statusEditData.field}. Please try again.`);
                           } finally {
                             setStatusEditLoading(false);
                           }
@@ -1904,7 +1953,7 @@ export const GoogleAdGroups: React.FC = () => {
                     onStartInlineEdit={startInlineEdit}
                     onCancelInlineEdit={cancelInlineEdit}
                     onInlineEditChange={handleInlineEditChange}
-                    onConfirmInlineEdit={confirmInlineEdit}
+                    onConfirmInlineEdit={(value, field, adgroupId) => confirmInlineEdit(value, field, adgroupId)}
                     pendingChanges={pendingChanges}
                     onConfirmChange={handleConfirmChange}
                     onCancelChange={handleCancelChange}

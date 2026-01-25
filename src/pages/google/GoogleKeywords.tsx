@@ -705,12 +705,19 @@ export const GoogleKeywords: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    skipModal: boolean = false
+    fieldOverride?: string,
+    keywordIdOverride?: string | number
   ) => {
-    if (!editingCell || !accountId || isCancelling) return;
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const keywordIdToUse = keywordIdOverride || editingCell?.keywordId;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!keywordIdToUse || !fieldToUse || !accountId || isCancelling) {
+      return;
+    }
 
     const keyword = keywords.find(
-      (k) => k.keyword_id === editingCell.keywordId
+      (k) => k.keyword_id === keywordIdToUse
     );
     if (!keyword) return;
 
@@ -718,7 +725,7 @@ export const GoogleKeywords: React.FC = () => {
       newValueOverride !== undefined ? newValueOverride : editedValue;
     let hasChanged = false;
 
-    if (editingCell.field === "bid") {
+    if (fieldToUse === "bid") {
       const newBidStr = valueToCheck.trim();
       const newBid = newBidStr === "" ? 0 : parseFloat(newBidStr);
       const oldBid = keyword.cpc_bid_dollars || 0;
@@ -728,11 +735,11 @@ export const GoogleKeywords: React.FC = () => {
       }
       // Use a smaller threshold (0.001) to detect small bid changes like 0.02 to 0.03
       hasChanged = Math.abs(newBid - oldBid) > 0.001;
-    } else if (editingCell.field === "status") {
+    } else if (fieldToUse === "status") {
       const oldValue = (keyword.status || "ENABLED").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
-    } else if (editingCell.field === "match_type") {
+    } else if (fieldToUse === "match_type") {
       const oldValue = (keyword.match_type || "EXACT").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
@@ -743,14 +750,8 @@ export const GoogleKeywords: React.FC = () => {
       return;
     }
 
-    // If skipModal is true (e.g., when canceling), just cancel without showing modal
-    if (skipModal) {
-      cancelInlineEdit();
-      return;
-    }
-
     // For all fields, show modal
-    if (editingCell.field === "status") {
+    if (fieldToUse === "status") {
       const oldStatusRaw = keyword.status || "ENABLED";
       const newStatusRaw = valueToCheck.trim();
 
@@ -765,31 +766,33 @@ export const GoogleKeywords: React.FC = () => {
       const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
 
       setInlineEditKeyword(keyword);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(oldValue);
       setInlineEditNewValue(newValue);
       setShowInlineEditModal(true);
-      setEditingCell(null);
+      // Don't clear editingCell here - keep it set so dropdown shows editedValue
+      // It will be cleared when user confirms or cancels the edit
       return;
     }
 
     // For bid, show modal
-    if (editingCell.field === "bid") {
+    if (fieldToUse === "bid") {
       const newBid = parseFloat(valueToCheck) || 0;
       const oldBid = keyword.cpc_bid_dollars || 0;
 
       setInlineEditKeyword(keyword);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(formatCurrency(oldBid));
       // Store raw numeric value for API call, but format for display in modal
       setInlineEditNewValue(newBid.toString());
       setShowInlineEditModal(true);
-      setEditingCell(null);
+      // Don't clear editingCell here - keep it set so input shows editedValue
+      // It will be cleared when user confirms or cancels the edit
       return;
     }
 
     // For match_type, show modal
-    if (editingCell.field === "match_type") {
+    if (fieldToUse === "match_type") {
       const oldValue = keyword.match_type || "EXACT";
       const newValue = valueToCheck.trim();
 
@@ -805,11 +808,12 @@ export const GoogleKeywords: React.FC = () => {
       const newDisplayValue = matchTypeDisplayMap[newValue] || newValue;
 
       setInlineEditKeyword(keyword);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(oldDisplayValue);
       setInlineEditNewValue(newDisplayValue);
       setShowInlineEditModal(true);
-      setEditingCell(null);
+      // Don't clear editingCell here - keep it set so dropdown shows editedValue
+      // It will be cleared when user confirms or cancels the edit
       return;
     }
   };
@@ -2292,7 +2296,7 @@ export const GoogleKeywords: React.FC = () => {
                     onStartInlineEdit={startInlineEdit}
                     onCancelInlineEdit={cancelInlineEdit}
                     onInlineEditChange={handleInlineEditChange}
-                    onConfirmInlineEdit={confirmInlineEdit}
+                    onConfirmInlineEdit={(value, field, keywordId) => confirmInlineEdit(value, field, keywordId)}
                     onStartFinalUrlEdit={handleStartFinalUrlEdit}
                     onConfirmBidChange={() => { }}
                     onCancelBidChange={() => { }}

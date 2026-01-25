@@ -153,22 +153,17 @@ export const GoogleAds: React.FC = () => {
         const isModal = target.closest('[class*="fixed"]');
 
         if (!isInput && !isDropdownMenu && !isModal) {
-          setTimeout(() => {
-            if (editingCell && !showInlineEditModal) {
-              cancelInlineEdit();
-            }
-          }, 150);
+          if (editingCell && !showInlineEditModal) {
+            cancelInlineEdit();
+          }
         }
       }
     };
 
     if (editingCell && !showInlineEditModal) {
-      const timeout = setTimeout(() => {
-        document.addEventListener("mousedown", handleClickOutside);
-      }, 200);
+      document.addEventListener("mousedown", handleClickOutside);
 
       return () => {
-        clearTimeout(timeout);
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
@@ -434,9 +429,7 @@ export const GoogleAds: React.FC = () => {
     setIsCancelling(true);
     setEditingCell(null);
     setEditedValue("");
-    setTimeout(() => {
-      setIsCancelling(false);
-    }, 100);
+    setIsCancelling(false);
   };
 
   const handleInlineEditChange = (value: string) => {
@@ -491,7 +484,7 @@ export const GoogleAds: React.FC = () => {
     const newValueDisplay = statusDisplayMap[newStatusForDisplay] || newStatusForDisplay;
 
     setInlineEditAd(ad);
-    setInlineEditField(fieldToUse);
+    setInlineEditField(fieldToUse as "status");
     setInlineEditOldValue(oldValueDisplay);
     setInlineEditNewValue(newValueDisplay);
     setShowInlineEditModal(true);
@@ -1250,6 +1243,11 @@ export const GoogleAds: React.FC = () => {
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setShowInlineEditModal(false);
+                      // Reset dropdown to original value
+                      if (inlineEditAd) {
+                        setEditedValue(inlineEditAd.status || "ENABLED");
+                      }
+                      cancelInlineEdit();
                       setInlineEditAd(null);
                       setInlineEditField(null);
                       setInlineEditOldValue("");
@@ -1296,6 +1294,11 @@ export const GoogleAds: React.FC = () => {
                           setInlineEditField(null);
                           setInlineEditOldValue("");
                           setInlineEditNewValue("");
+                          // Reset dropdown to original value
+                          if (inlineEditAd) {
+                            setEditedValue(inlineEditAd.status || "ENABLED");
+                          }
+                          cancelInlineEdit();
                         }}
                         className="cancel-button"
                       >

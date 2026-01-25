@@ -377,17 +377,22 @@ export function GoogleAdsTable<T = any>({
             options={options}
             value={dropdownValue}
             onChange={(val) => {
+              // Mark that a selection was made for this item (matches Amazon pattern)
+              statusSelectionMadeRef.current = itemId;
               const newValue = val as string;
+              
               if (!isEditing) {
                 onStartInlineEdit(row, column.key);
               }
               onInlineEditChange(newValue);
-              // For status and bidding_strategy_type dropdowns, use direct confirmation immediately (skip modal)
-              // Pass itemId (campaign ID) and field directly to avoid state timing issues
+              
+              // Pass itemId and field directly to trigger confirmation popup immediately
+              // Override parameters ensure it works even if editingCell state hasn't updated yet
               onConfirmInlineEdit(newValue, column.key, itemId);
             }}
-            defaultOpen={isEditing}
+            defaultOpen={false}
             closeOnSelect={true}
+            showCheckmark={false}
             buttonClassName="inline-edit-dropdown min-w-0"
             width={dropdownWidth}
             align="left"
@@ -396,7 +401,9 @@ export function GoogleAdsTable<T = any>({
             onClose={() => {
               // Don't cancel if we're updating or if there's a pending change
               if (isUpdating) return;
-              if (!editedValue || editedValue === value) {
+              // Only cancel if no selection was made (clicked outside)
+              // If a selection was made, statusSelectionMadeRef will be set
+              if (statusSelectionMadeRef.current !== itemId && isEditing) {
                 onCancelInlineEdit();
               }
             }}
@@ -444,30 +451,19 @@ export function GoogleAdsTable<T = any>({
                 // Mark that a selection was made for this item (matches Amazon pattern)
                 statusSelectionMadeRef.current = itemId;
                 const newValue = val as string;
-                const wasEditing = isEditing;
                 
-                if (!wasEditing) {
+                if (!isEditing) {
                   onStartInlineEdit(row, column.key);
                 }
                 onInlineEditChange(newValue);
                 
-                // Always pass itemId and field directly to avoid state timing issues
-                // Use requestAnimationFrame + setTimeout for initial edits to ensure editingCell state is set before confirmInlineEdit
-                if (!wasEditing) {
-                  // Use requestAnimationFrame to ensure state update is processed
-                  requestAnimationFrame(() => {
-                    setTimeout(() => {
-                      // Pass itemId (ad ID) and field directly to avoid state timing issues
-                      onConfirmInlineEdit(newValue, column.key, itemId);
-                    }, 0);
-                  });
-                } else {
-                  // Pass itemId (ad ID) and field directly to avoid state timing issues
-                  onConfirmInlineEdit(newValue, column.key, itemId);
-                }
+                // Pass itemId and field directly to trigger confirmation popup immediately
+                // Override parameters ensure it works even if editingCell state hasn't updated yet
+                onConfirmInlineEdit(newValue, column.key, itemId);
               }}
-              defaultOpen={isEditing}
+              defaultOpen={false}
               closeOnSelect={true}
+              showCheckmark={false}
               buttonClassName="inline-edit-dropdown min-w-0"
               width="w-[120px]"
               align="left"
@@ -476,7 +472,9 @@ export function GoogleAdsTable<T = any>({
               onClose={() => {
                 // Don't cancel if we're updating or if there's a pending change
                 if (isUpdating) return;
-                if (!editedValue || editedValue === value) {
+                // Only cancel if no selection was made (clicked outside)
+                // If a selection was made, statusSelectionMadeRef will be set
+                if (statusSelectionMadeRef.current !== itemId && isEditing) {
                   onCancelInlineEdit();
                 }
               }}
@@ -551,8 +549,7 @@ export function GoogleAdsTable<T = any>({
           ? column.editable(row) 
           : column.editable === true;
         const budgetValue = isEditing ? editedValue : (value || 0).toString();
-        const oldBudgetValue = (value || 0).toString();
-        const hasBudgetChanged = isEditing && budgetValue !== oldBudgetValue && budgetValue !== "";
+        
         return (
           <div className="relative w-full">
             <input
@@ -568,8 +565,18 @@ export function GoogleAdsTable<T = any>({
               onChange={(e) => {
                 onInlineEditChange(e.target.value);
               }}
+              onBlur={(e) => {
+                if (!isCancelling && isEditing) {
+                  const inputValue = e.target.value;
+                  // Trigger confirmation popup on blur - matches Amazon Campaign pattern
+                  onConfirmInlineEdit(inputValue, column.key, itemId);
+                }
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
+                if (e.key === "Enter") {
+                  // Blur triggers onBlur which shows confirmation popup - matches Amazon Campaign pattern
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
                   onCancelInlineEdit();
                 }
               }}
@@ -577,42 +584,20 @@ export function GoogleAdsTable<T = any>({
               className="inline-edit-input w-full min-w-[120px]"
               disabled={!isBudgetEditable}
             />
-            {(hasBudgetChanged || isUpdating || isSuccess || isError) && (
+            {(isUpdating || isSuccess || isError) && (
               <div className="absolute top-full left-0 mt-1 z-10">
-                {hasBudgetChanged && !isSuccess && !isUpdating && (
-                  <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
-                    <button
-                      onClick={() => {
-                        onConfirmInlineEdit(budgetValue, column.key, itemId);
-                      }}
-                      className="text-green-600 hover:text-green-700 p-1"
-                      title="Save"
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        onCancelInlineEdit();
-                      }}
-                      className="text-red-600 hover:text-red-700 p-1"
-                      title="Cancel"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
                 {isUpdating && (
                   <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
                     <Loader size="sm" />
                     <span className="text-[10px]">{updatingMessage}</span>
                   </div>
                 )}
-                {isSuccess && (
+                {isSuccess && !isUpdating && (
                   <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
                     <Check size={12} /> Updated successfully
                   </div>
                 )}
-                {isError && errorMessage && (
+                {isError && errorMessage && !isUpdating && (
                   <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
                     <X size={12} /> {errorMessage}
                   </div>
@@ -662,8 +647,7 @@ export function GoogleAdsTable<T = any>({
         }
         // Format date value for input (YYYY-MM-DD)
         const dateValue = isEditing ? editedValue : (value ? parseDateToYYYYMMDD(value) : "");
-        const oldDateValue = value ? parseDateToYYYYMMDD(value) : "";
-        const hasDateChanged = isEditing && dateValue !== oldDateValue && dateValue !== "";
+        
         return (
           <div className="relative w-full">
             <input
@@ -676,10 +660,32 @@ export function GoogleAdsTable<T = any>({
                 }
               }}
               onChange={(e) => {
-                onInlineEditChange(e.target.value);
+                const newValue = e.target.value;
+                // Start inline edit if not already editing
+                if (!isEditing && isDateEditable) {
+                  onStartInlineEdit(row, column.key);
+                }
+                onInlineEditChange(newValue);
+                // Trigger confirmation popup immediately when date changes - matches dropdown pattern
+                onConfirmInlineEdit(newValue, column.key, itemId);
+              }}
+              onBlur={(e) => {
+                // Keep onBlur as fallback in case date picker closes without triggering onChange
+                if (!isCancelling && isEditing) {
+                  const inputValue = e.target.value;
+                  // Only trigger if we haven't already triggered from onChange
+                  // This prevents double-triggering
+                  const currentValue = isEditing ? editedValue : (value ? parseDateToYYYYMMDD(value) : "");
+                  if (inputValue !== currentValue) {
+                    onConfirmInlineEdit(inputValue, column.key, itemId);
+                  }
+                }
               }}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
+                if (e.key === "Enter") {
+                  // Blur triggers onBlur which may show confirmation popup as fallback
+                  e.currentTarget.blur();
+                } else if (e.key === "Escape") {
                   onCancelInlineEdit();
                 }
               }}
@@ -687,42 +693,20 @@ export function GoogleAdsTable<T = any>({
               className="inline-edit-input w-full min-w-[140px]"
               disabled={!isDateEditable}
             />
-            {(hasDateChanged || isUpdating || isSuccess || isError) && (
+            {(isUpdating || isSuccess || isError) && (
               <div className="absolute top-full left-0 mt-1 z-10">
-                {hasDateChanged && !isSuccess && !isUpdating && (
-                  <div className="flex items-center gap-2 bg-white rounded shadow-sm border border-gray-200 p-1">
-                    <button
-                      onClick={() => {
-                        onConfirmInlineEdit(dateValue, column.key, itemId);
-                      }}
-                      className="text-green-600 hover:text-green-700 p-1"
-                      title="Save"
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        onCancelInlineEdit();
-                      }}
-                      className="text-red-600 hover:text-red-700 p-1"
-                      title="Cancel"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
                 {isUpdating && (
                   <div className="flex items-center gap-1 text-gray-600 bg-white rounded shadow-sm border border-gray-200 px-2 py-1">
                     <Loader size="sm" />
                     <span className="text-[10px]">{updatingMessage}</span>
                   </div>
                 )}
-                {isSuccess && (
+                {isSuccess && !isUpdating && (
                   <div className="text-green-600 text-xs flex items-center gap-1 animate-fade-in bg-white rounded shadow-sm border border-green-200 px-2 py-1">
                     <Check size={12} /> Updated successfully
                   </div>
                 )}
-                {isError && errorMessage && (
+                {isError && errorMessage && !isUpdating && (
                   <div className="text-red-600 text-xs flex items-center gap-1 bg-white rounded shadow-sm border border-red-200 px-2 py-1">
                     <X size={12} /> {errorMessage}
                   </div>

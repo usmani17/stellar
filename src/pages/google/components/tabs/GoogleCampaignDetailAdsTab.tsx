@@ -67,6 +67,12 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     oldValue: string;
   } | null>(null);
   const [updatingAdId, setUpdatingAdId] = useState<number | null>(null);
+  // Modal state for status changes - matches Amazon pattern
+  const [showInlineEditModal, setShowInlineEditModal] = useState(false);
+  const [inlineEditAd, setInlineEditAd] = useState<GoogleAd | null>(null);
+  const [inlineEditOldValue, setInlineEditOldValue] = useState<string>("");
+  const [inlineEditNewValue, setInlineEditNewValue] = useState<string>("");
+  const [inlineEditLoading, setInlineEditLoading] = useState(false);
 
   const handleStatusClick = (ad: GoogleAd) => {
     if (onUpdateAdStatus) {
@@ -83,14 +89,58 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
     const newStatusUpper = newStatus.toUpperCase();
 
     if (newStatusUpper !== oldStatus) {
-      setPendingChange({
-        id: adId,
-        newValue: newStatusUpper,
-        oldValue: oldStatus,
-      });
+      // Show confirmation modal immediately - matches Amazon pattern
+      const statusDisplayMap: Record<string, string> = {
+        ENABLED: "Enabled",
+        PAUSED: "Paused",
+        REMOVED: "Removed",
+        Enabled: "Enabled",
+        Paused: "Paused",
+        Removed: "Removed",
+      };
+      setInlineEditAd(ad);
+      setInlineEditOldValue(statusDisplayMap[oldStatus] || oldStatus);
+      setInlineEditNewValue(statusDisplayMap[newStatusUpper] || newStatusUpper);
+      setShowInlineEditModal(true);
     }
     setEditingAdId(null);
     setEditingStatus("");
+  };
+
+  const runInlineEdit = async () => {
+    if (!inlineEditAd || !onUpdateAdStatus) return;
+
+    setInlineEditLoading(true);
+    try {
+      // Map display values back to API values
+      const statusMap: Record<string, "ENABLED" | "PAUSED" | "REMOVED"> = {
+        Enabled: "ENABLED",
+        ENABLED: "ENABLED",
+        Paused: "PAUSED",
+        PAUSED: "PAUSED",
+        Removed: "REMOVED",
+        REMOVED: "REMOVED",
+      };
+      const statusValue = statusMap[inlineEditNewValue] || "ENABLED";
+      await onUpdateAdStatus(inlineEditAd.id, statusValue);
+
+      setShowInlineEditModal(false);
+      setInlineEditAd(null);
+      setInlineEditOldValue("");
+      setInlineEditNewValue("");
+    } catch (error) {
+      console.error("Failed to update ad status:", error);
+      alert("Failed to update ad status. Please try again.");
+    } finally {
+      setInlineEditLoading(false);
+    }
+  };
+
+  const cancelInlineEditModal = () => {
+    setShowInlineEditModal(false);
+    setInlineEditAd(null);
+    setInlineEditOldValue("");
+    setInlineEditNewValue("");
   };
 
   const confirmChange = async () => {
@@ -297,54 +347,10 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                         </span>
                       </td>
                       <td className="table-cell hidden md:table-cell">
-                        {updatingAdId === ad.id && pendingChange ? (
+                        {updatingAdId === ad.id ? (
                           <div className="flex items-center gap-2">
-                            <StatusBadge status={pendingChange.newValue} />
+                            <StatusBadge status={ad.status || "ENABLED"} />
                             <Loader size="sm" showMessage={false} />
-                          </div>
-                        ) : pendingChange?.id === ad.id ? (
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={pendingChange.newValue} />
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={confirmChange}
-                                className="p-1 hover:bg-green-50 rounded transition-colors"
-                                title="Confirm"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-green-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={cancelChange}
-                                className="p-1 hover:bg-red-50 rounded transition-colors"
-                                title="Cancel"
-                              >
-                                <svg
-                                  className="w-4 h-4 text-red-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
                           </div>
                         ) : editingAdId === ad.id && onUpdateAdStatus ? (
                           <Dropdown
@@ -355,8 +361,9 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
                             ]}
                             value={editingStatus}
                             onChange={(val) => handleStatusChange(ad.id, val as string)}
-                            defaultOpen={true}
+                            defaultOpen={false}
                             closeOnSelect={true}
+                            showCheckmark={false}
                             buttonClassName="text-[13.3px] px-2 py-1"
                             width="w-32"
                           />
@@ -459,9 +466,73 @@ export const GoogleCampaignDetailAdsTab: React.FC<GoogleCampaignDetailAdsTabProp
               Next
             </button>
           </div>
-        </div>
-      )}
-    </>
-  );
-};
+          </div>
+        )}
+
+        {/* Inline Edit Modal for Status */}
+        {showInlineEditModal && inlineEditAd && (
+          <div
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !inlineEditLoading) {
+                cancelInlineEditModal();
+              }
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+                Confirm Status Change
+              </h3>
+
+              <div className="mb-4">
+                <p className="text-[12.16px] text-[#556179] mb-2">
+                  Ad:{" "}
+                  <span className="font-semibold text-[#072929]">
+                    {inlineEditAd.ad_type || "Unnamed Ad"}
+                  </span>
+                </p>
+                <div className="bg-sandstorm-s10 border border-sandstorm-s40 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[12.16px] text-[#556179]">
+                      Status:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12.16px] text-[#556179]">
+                        {inlineEditOldValue}
+                      </span>
+                      <span className="text-[12.16px] text-[#556179]">→</span>
+                      <span className="text-[12.16px] font-semibold text-[#072929]">
+                        {inlineEditNewValue}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={cancelInlineEditModal}
+                  className="px-4 py-2 bg-[#FEFEFB] border border-gray-200 text-button-text text-text-primary rounded-lg items-center hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={runInlineEdit}
+                  disabled={inlineEditLoading}
+                  className="px-4 py-2 bg-[#136D6D] text-white text-[10.64px] rounded-lg hover:bg-[#0e5a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {inlineEditLoading ? "Updating..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
 
