@@ -526,7 +526,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
           Upload Asset
         </h2>
 
-        <div className="space-y-4">
+        <div className="space-y-4 grid grid-cols-4 gap-6">
           {/* Asset Name - Required */}
           <div>
             <label className="form-label-small">
@@ -537,7 +537,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               value={assetData.assetName}
               onChange={(e) => handleChange("assetName", e.target.value)}
               placeholder="Enter asset display name"
-              className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+              className={`w-full campaign-input px-4 py-2.5   ${
                 errors.assetName ? "border-red-500" : "border-gray-200"
               }`}
             />
@@ -670,7 +670,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               </>
             )}
           </div>
-
+</div>
+<div className="grid grid-cols-4 gap-6">
           {/* ASIN List - Optional */}
           <div>
             <label className="form-label-small">
@@ -689,7 +690,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                     }
                   }}
                   placeholder="Enter ASIN (uppercase alphanumeric)"
-                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="flex-1 w-full campaign-input px-4 py-2.5   "
                 />
                 <button
                   type="button"
@@ -728,7 +729,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               )}
             </div>
           </div>
-
+      </div>
+<div className="grid grid-cols-4 gap-6">
           {/* Tags - Optional */}
           <div>
             <label className="form-label-small">
@@ -747,7 +749,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                     }
                   }}
                   placeholder="Enter tag"
-                  className="flex-1 w-full campaign-input px-4 py-2.5 border border-gray-200 rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                  className="flex-1 w-full campaign-input px-4 py-2.5   "
                 />
                 <button
                   type="button"
@@ -778,7 +780,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               )}
             </div>
           </div>
-
+</div>
+    <div className="grid grid-cols-4 gap-6">
           {/* File Upload - Required (unless URL provided) */}
           <div>
             <label className="form-label-small">
@@ -793,7 +796,7 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
                     : "video/mp4,video/quicktime,video/x-msvideo"
                 }
                 onChange={handleFileChange}
-                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                className={`w-full campaign-input px-4 py-2.5   ${
                   errors.file ? "border-red-500" : "border-gray-200"
                 }`}
               />
@@ -840,7 +843,8 @@ export const CreateAssetPanel: React.FC<CreateAssetPanelProps> = ({
               </div>
             )}
           </div>
-
+</div>
+        <div className="grid grid-cols-4 gap-6">
           {/* Advanced Options - Expandable */}
           <div>
             <button

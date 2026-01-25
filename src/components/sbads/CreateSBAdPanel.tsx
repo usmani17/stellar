@@ -813,7 +813,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
         </div>
 
         {/* Brand Name, Brand Logo Asset ID, Headline - Required fields right after Ad Type */}
-        <div className="mb-4">
+        <div className="mb-4 grid grid-cols-4 gap-6">
           {/* Brand Name */}
           <div className="mb-4">
             <label className="form-label-small">
@@ -834,7 +834,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
           </div>
 
           {/* Brand Logo Asset ID and Headline - In one line, both required */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="mb-4">
             <div>
               <label className="form-label-small">
                 Brand Logo Asset ID *
@@ -862,7 +862,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                   handleChange("creative.brandLogoAssetID", value);
                 }}
                 placeholder={assetsLoading ? "Loading..." : "Select Asset"}
-                buttonClassName={`edit-button w-full px-4 py-2.5 border rounded-lg text-[11.2px] bg-white hover:bg-gray-50 ${
+                buttonClassName={`edit-button w-full px-4 py-2.5   ${
                   errors.brandLogoAssetID ? "border-red-500" : "border-gray-200"
                 }`}
                 menuClassName="max-w-full"
@@ -891,7 +891,9 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 <p className="text-[10px] text-red-500 mt-1">{errors.brandLogoAssetID}</p>
               )}
             </div>
-            <div>
+            
+          </div>
+          <div>
               <label className="form-label-small">
                 Headline *
               </label>
@@ -900,7 +902,7 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 value={currentAd.creative?.headline || ""}
                 onChange={(e) => handleChange("creative.headline", e.target.value)}
                 placeholder="Shop Our Best Products"
-                className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                className={`w-full campaign-input    ${
                   errors.headline ? "border-red-500" : "border-gray-200"
                 }`}
               />
@@ -908,38 +910,40 @@ export const CreateSBAdPanel: React.FC<CreateSBAdPanelProps> = ({
                 <p className="text-[10px] text-red-500 mt-1">{errors.headline}</p>
               )}
             </div>
-          </div>
         </div>
 
         {/* ASINs - Show exactly 3 text fields (max 3 ASINs) */}
-        <div className="mb-4">
+        <div className="mb-4 ">
           <label className="form-label-small">
             ASINs * (Maximum 3)
           </label>
-          <div className="space-y-2">
-            {[0, 1, 2].map((index) => {
-              const asins = currentAd.creative?.asins || [];
-              return (
-                <input
-                  key={index}
-                  type="text"
-                  value={asins[index] || ""}
-                  onChange={(e) => {
-                    const newAsins = [...asins];
-                    newAsins[index] = e.target.value;
-                    // Ensure array has exactly 3 elements
-                    while (newAsins.length < 3) {
-                      newAsins.push("");
-                    }
-                    handleChange("creative.asins", newAsins.slice(0, 3));
-                  }}
-                  placeholder={`ASIN ${index + 1} (e.g., B01EXAMPLE)`}
-                  className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
-                    errors.creativeAsins ? "border-red-500" : "border-gray-200"
-                  }`}
-                />
-              );
-            })}
+          <div className="grid grid-cols-3 gap-6">
+              {[0, 1, 2].map((index) => {
+                const asins = currentAd.creative?.asins || [];
+                return (
+                  <div className="space-y-2">
+
+                  <input
+                    key={index}
+                    type="text"
+                    value={asins[index] || ""}
+                    onChange={(e) => {
+                      const newAsins = [...asins];
+                      newAsins[index] = e.target.value;
+                      // Ensure array has exactly 3 elements
+                      while (newAsins.length < 3) {
+                        newAsins.push("");
+                      }
+                      handleChange("creative.asins", newAsins.slice(0, 3));
+                    }}
+                    placeholder={`ASIN ${index + 1} (e.g., B01EXAMPLE)`}
+                    className={`w-full campaign-input px-4 py-2.5 border rounded-lg text-[11.2px] text-black focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D] ${
+                      errors.creativeAsins ? "border-red-500" : "border-gray-200"
+                    }`}
+                  />
+                  </div>
+                );
+              })}
           </div>
           {errors.creativeAsins && (
             <p className="text-[10px] text-red-500 mt-1">{errors.creativeAsins}</p>

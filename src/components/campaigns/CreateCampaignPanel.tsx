@@ -2946,148 +2946,174 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                   </div>
                 )}
 
-                {/* Row 5: Product Location | Targeted PG Deal ID | Portfolio ID (for SB campaigns) */}
-                {formData.type === "SB" && (
-                  <div className="grid grid-cols-4 gap-6">
-                    {/* Product Location */}
-                    <div>
-                      <label className="form-label">
-                        Product Location
-                      </label>
-                      <Dropdown<string>
-                        options={[
-                          {
-                            value: "",
-                            label: "Select Product Location",
-                          },
-                          {
-                            value: "SOLD_ON_AMAZON",
-                            label:
-                              "SOLD_ON_AMAZON - For products sold on Amazon websites",
-                          },
-                          {
-                            value: "NOT_SOLD_ON_AMAZON",
-                            label:
-                              "NOT_SOLD_ON_AMAZON - For products not sold on Amazon websites",
-                          },
-                          {
-                            value: "SOLD_ON_DTC",
-                            label:
-                              "SOLD_ON_DTC - Deprecated (For products sold on DTC websites)",
-                          },
-                        ]}
-                        value={formData.productLocation || ""}
-                        onChange={(value) =>
-                          handleChange("productLocation", value as any)
-                        }
-                        placeholder="Select Product Location"
-                        buttonClassName="edit-button w-full"
-                        disabled={mode === "edit"}
-                      />
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Targeted PG Deal ID */}
-                    <div>
-                      <label className="form-label">
-                        Targeted PG Deal ID
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.targetedPGDealId || ""}
-                        onChange={(e) =>
-                          handleChange("targetedPGDealId", e.target.value)
-                        }
-                        placeholder="Enter DealId"
-                        disabled={mode === "edit"}
-                        className={`campaign-input w-full ${
-                          mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
-                        }`}
-                      />
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Portfolio ID - Editable for SB campaigns in edit mode */}
-                    <div>
-                      <label className="form-label">
-                        Portfolio
-                      </label>
-                      <Dropdown<string>
-                        options={portfolioOptions}
-                        value={formData.portfolioId || undefined}
-                        onChange={(value) => handleChange("portfolioId", value)}
-                        placeholder={
-                          !formData.profileId
-                            ? "Select profile first"
-                            : loadingPortfolios
-                            ? "Loading portfolios..."
-                            : "Select portfolio (optional)"
-                        }
-                        buttonClassName="edit-button w-full"
-                        disabled={
-                          !formData.profileId ||
-                          loadingPortfolios ||
-                          portfolioOptions.length === 0
-                        }
-                      />
-                      {errors.portfolioId && (
-                        <p className="text-[10px] text-red-500 mt-1">
-                          {errors.portfolioId}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Row 6: Smart Default (for SB campaigns) */}
-                {formData.type === "SB" && (
-                  <div className="grid grid-cols-4 gap-6">
-                    {/* Smart Default */}
-                    <div>
-                      <label className="form-label">
-                        Smart Default
-                      </label>
-                      <Dropdown<string>
-                        options={[
-                          { value: "MANUAL", label: "MANUAL" },
-                          { value: "TARGETING", label: "TARGETING" },
-                        ]}
-                        value={formData.smartDefault || ""}
-                        onChange={(value) =>
-                          handleChange("smartDefault", value as any)
-                        }
-                        placeholder="Select smart default (optional)"
-                        buttonClassName="edit-button w-full"
-                        disabled={mode === "edit"}
-                      />
-                      {mode === "edit" && (
-                        <p className="text-[10px] text-[#556179] mt-1 italic">
-                          Read-only in edit mode
-                        </p>
-                      )}
-                    </div>
-                    {/* Empty columns for spacing */}
-                    <div></div>
-                    <div></div>
-                  </div>
-                )}
-
-                {/* SB Dynamic Bidding Section (editable in edit mode) */}
+                {/* SB Advanced Settings Section (Optional) */}
                 {formData.type === "SB" && (
                   <div className="mt-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAdvancedSettingsExpanded(!isAdvancedSettingsExpanded);
+                      }}
+                      className="flex items-center justify-between mb-4 hover:opacity-80 transition-opacity cursor-pointer"
+                    >
                       <h3 className="text-[14px] font-semibold text-[#072929]">
-                        Dynamic Bidding
+                        Advanced Settings <span className="text-[#556179] font-normal">(Optional)</span>
                       </h3>
-                    </div>
+                      <svg
+                        className={`w-5 h-5 text-[#072929] transition-transform ${
+                          isAdvancedSettingsExpanded ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+
+                    {isAdvancedSettingsExpanded && (
+                      <div className="space-y-6">
+                        {/* Product Location, Targeted PG Deal ID, Portfolio Section */}
+                        <div>
+                          <div className="grid grid-cols-4 gap-6">
+                            {/* Product Location */}
+                            <div>
+                              <label className="form-label">
+                                Product Location
+                              </label>
+                              <Dropdown<string>
+                                options={[
+                                  {
+                                    value: "",
+                                    label: "Select Product Location",
+                                  },
+                                  {
+                                    value: "SOLD_ON_AMAZON",
+                                    label:
+                                      "SOLD_ON_AMAZON - For products sold on Amazon websites",
+                                  },
+                                  {
+                                    value: "NOT_SOLD_ON_AMAZON",
+                                    label:
+                                      "NOT_SOLD_ON_AMAZON - For products not sold on Amazon websites",
+                                  },
+                                  {
+                                    value: "SOLD_ON_DTC",
+                                    label:
+                                      "SOLD_ON_DTC - Deprecated (For products sold on DTC websites)",
+                                  },
+                                ]}
+                                value={formData.productLocation || ""}
+                                onChange={(value) =>
+                                  handleChange("productLocation", value as any)
+                                }
+                                placeholder="Select Product Location"
+                                buttonClassName="edit-button w-full"
+                                disabled={mode === "edit"}
+                              />
+                              {mode === "edit" && (
+                                <p className="text-[10px] text-[#556179] mt-1 italic">
+                                  Read-only in edit mode
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Targeted PG Deal ID */}
+                            <div>
+                              <label className="form-label">
+                                Targeted PG Deal ID
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.targetedPGDealId || ""}
+                                onChange={(e) =>
+                                  handleChange("targetedPGDealId", e.target.value)
+                                }
+                                placeholder="Enter DealId"
+                                disabled={mode === "edit"}
+                                className={`campaign-input w-full ${
+                                  mode === "edit" ? "bg-gray-50 cursor-not-allowed" : ""
+                                }`}
+                              />
+                              {mode === "edit" && (
+                                <p className="text-[10px] text-[#556179] mt-1 italic">
+                                  Read-only in edit mode
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Portfolio ID */}
+                            <div>
+                              <label className="form-label">
+                                Portfolio
+                              </label>
+                              <Dropdown<string>
+                                options={portfolioOptions}
+                                value={formData.portfolioId || undefined}
+                                onChange={(value) => handleChange("portfolioId", value)}
+                                placeholder={
+                                  !formData.profileId
+                                    ? "Select profile first"
+                                    : loadingPortfolios
+                                    ? "Loading portfolios..."
+                                    : "Select portfolio (optional)"
+                                }
+                                buttonClassName="edit-button w-full"
+                                disabled={
+                                  !formData.profileId ||
+                                  loadingPortfolios ||
+                                  portfolioOptions.length === 0
+                                }
+                              />
+                              {errors.portfolioId && (
+                                <p className="text-[10px] text-red-500 mt-1">
+                                  {errors.portfolioId}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Smart Default Section */}
+                        <div>
+                          <div className="grid grid-cols-4 gap-6">
+                            {/* Smart Default */}
+                            <div>
+                              <label className="form-label">
+                                Smart Default
+                              </label>
+                              <Dropdown<string>
+                                options={[
+                                  { value: "MANUAL", label: "MANUAL" },
+                                  { value: "TARGETING", label: "TARGETING" },
+                                ]}
+                                value={formData.smartDefault || ""}
+                                onChange={(value) =>
+                                  handleChange("smartDefault", value as any)
+                                }
+                                placeholder="Select smart default (optional)"
+                                buttonClassName="edit-button w-full"
+                                disabled={mode === "edit"}
+                              />
+                              {mode === "edit" && (
+                                <p className="text-[10px] text-[#556179] mt-1 italic">
+                                  Read-only in edit mode
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dynamic Bidding Section */}
+                        <div>
+                          <h4 className="text-[13px] font-semibold text-[#072929] mb-4">
+                            Dynamic Bidding
+                          </h4>
 
                     {/* Bid Optimization Field */}
                     <div className="mb-6">
@@ -3590,79 +3616,82 @@ export const CreateCampaignPanel: React.FC<CreateCampaignPanelProps> = ({
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {/* Tags Section - For SB campaigns (editable in edit mode) */}
-                {formData.type === "SB" && (
-                  <div className="mt-4">
-                    <label className="form-label">
-                      Tags  - Max 50
-                    </label>
-                    <div className="space-y-2">
-                      {(formData.tags || []).map((tag, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <input
-                            type="text"
-                            value={tag.key || ""}
-                            onChange={(e) => {
-                              const newTags = [...(formData.tags || [])];
-                              newTags[index] = {
-                                ...newTags[index],
-                                key: e.target.value,
-                              };
-                              handleChange("tags", newTags);
-                            }}
-                            placeholder="Key"
-                            className="bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                          />
-                          <input
-                            type="text"
-                            value={tag.value || ""}
-                            onChange={(e) => {
-                              const newTags = [...(formData.tags || [])];
-                              newTags[index] = {
-                                ...newTags[index],
-                                value: e.target.value,
-                              };
-                              handleChange("tags", newTags);
-                            }}
-                            placeholder="Value"
-                            className="bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newTags = [...(formData.tags || [])];
-                              newTags.splice(index, 1);
-                              handleChange("tags", newTags);
-                            }}
-                            className="px-3 py-2 text-red-500 hover:text-red-700 transition-colors"
-                            title="Remove"
-                          >
-                            ×
-                          </button>
                         </div>
-                      ))}
-                      {(!formData.tags || formData.tags.length < 50) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newTags = [...(formData.tags || [])];
-                            newTags.push({ key: "", value: "" });
-                            handleChange("tags", newTags);
-                          }}
-                          className="px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px]"
-                        >
-                          + Add Tag
-                        </button>
-                      )}
-                      {formData.tags && formData.tags.length >= 50 && (
-                        <p className="text-[11px] text-[#556179]">
-                          Maximum of 50 tags reached
-                        </p>
-                      )}
-                    </div>
+
+                        {/* Tags Section */}
+                        <div>
+                          <div>
+                            <label className="form-label">
+                              Tags - Max 50
+                            </label>
+                            <div className="space-y-2">
+                              {(formData.tags || []).map((tag, index) => (
+                                <div key={index} className="flex gap-2 items-center">
+                                  <input
+                                    type="text"
+                                    value={tag.key || ""}
+                                    onChange={(e) => {
+                                      const newTags = [...(formData.tags || [])];
+                                      newTags[index] = {
+                                        ...newTags[index],
+                                        key: e.target.value,
+                                      };
+                                      handleChange("tags", newTags);
+                                    }}
+                                    placeholder="Key"
+                                    className="bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={tag.value || ""}
+                                    onChange={(e) => {
+                                      const newTags = [...(formData.tags || [])];
+                                      newTags[index] = {
+                                        ...newTags[index],
+                                        value: e.target.value,
+                                      };
+                                      handleChange("tags", newTags);
+                                    }}
+                                    placeholder="Value"
+                                    className="bg-[#FEFEFB] flex-1 px-3 py-2 h-[38px] border border-gray-200 rounded-lg text-[14px] text-[#072929] focus:outline-none focus:ring-2 focus:ring-[#136D6D] focus:border-[#136D6D]"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newTags = [...(formData.tags || [])];
+                                      newTags.splice(index, 1);
+                                      handleChange("tags", newTags);
+                                    }}
+                                    className="px-3 py-2 text-red-500 hover:text-red-700 transition-colors"
+                                    title="Remove"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              {(!formData.tags || formData.tags.length < 50) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newTags = [...(formData.tags || [])];
+                                    newTags.push({ key: "", value: "" });
+                                    handleChange("tags", newTags);
+                                  }}
+                                  className="px-4 py-2 text-[#136D6D] border border-[#136D6D] rounded-lg hover:bg-[#f0f9f9] transition-colors text-[14px]"
+                                >
+                                  + Add Tag
+                                </button>
+                              )}
+                              {formData.tags && formData.tags.length >= 50 && (
+                                <p className="text-[11px] text-[#556179]">
+                                  Maximum of 50 tags reached
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
