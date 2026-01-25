@@ -943,7 +943,7 @@ body input[type="submit"]:disabled {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  z-index: 10;
+  z-index: 9999;
 }
 
 .loading-overlay-content {

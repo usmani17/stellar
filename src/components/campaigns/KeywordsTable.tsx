@@ -3,6 +3,8 @@ import { Checkbox } from "../ui/Checkbox";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Dropdown } from "../ui/Dropdown";
 import { Loader } from "../ui/Loader";
+
+
 import type { Keyword } from "../../services/campaigns";
 
 interface KeywordsTableProps {
@@ -116,7 +118,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
   };
 
   return (
-    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full">
+    <div className="bg-[#fefefb] border border-[#e8e8e3] rounded-[12px] overflow-hidden w-full" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
       <div className="overflow-x-auto w-full">
         {keywords.length === 0 && !loading ? (
           <div className="text-center py-8">
@@ -466,11 +468,11 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
           </div>
         )}
       </div>
-      {/* Loading overlay for table */}
+      {/* Loading overlay for table */}   
       {loading && (
         <div className="loading-overlay">
           <div className="loading-overlay-content">
-            <Loader size="lg" message="Loading keywords..." />
+            <Loader size="md" message="Loading keywords..." />
           </div>
         </div>
       )}

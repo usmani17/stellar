@@ -171,7 +171,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
   };
 
   return (
-    <div className="table-container">
+    <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
       <div className="overflow-x-auto w-full">
         {adgroups.length === 0 && !loading ? (
           <div className="text-center py-8">
@@ -845,11 +845,12 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
           </table>
         )}
       </div>
-      {/* Loading overlay for table */}
+
+      {/* Loading overlay for table - scoped to table container */}
       {loading && (
         <div className="loading-overlay">
           <div className="loading-overlay-content">
-            <Loader size="lg" message="Loading ad groups..." />
+            <Loader size="md" message="Loading adgroups..." />
           </div>
         </div>
       )}

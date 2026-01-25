@@ -1279,11 +1279,11 @@ export const AdGroups: React.FC = () => {
                 isCollapsed={isChartCollapsed}
                 onCollapseToggle={toggleChartCollapse}
               />
-              {/* Loading overlay for chart */}
+
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <Loader size="lg" message="Loading chart data..." />
+                    <Loader size="md" message="Loading chart data..." />
                   </div>
                 </div>
               )}

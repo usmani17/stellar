@@ -1269,7 +1269,7 @@ export const Keywords: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <Loader size="lg" message="Loading chart data..." />
+                    <Loader size="md" message="Loading chart data..." />  
                   </div>
                 </div>
               )}
@@ -1678,6 +1678,8 @@ export const Keywords: React.FC = () => {
                             </tbody>
                           </table>
                         </div>
+
+                        
                       </div>
                     );
                   })()}
@@ -1765,8 +1767,8 @@ export const Keywords: React.FC = () => {
             )}
 
             {/* Table */}
-            <div className="table-container">
-              <div className="overflow-x-auto w-full">
+            <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+            <div className="overflow-x-auto w-full">
                 {keywords.length === 0 && !loading ? (
                   <div className="text-center py-8">
                     <p className="text-[13.3px] text-[#556179] mb-4">
@@ -2318,7 +2320,7 @@ export const Keywords: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <Loader size="lg" message="Loading keywords..." />
+                    <Loader size="md" message="Loading keywords..." />
                   </div>
                 </div>
               )}

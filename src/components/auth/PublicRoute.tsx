@@ -17,7 +17,7 @@ export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-sandstorm-s0">
-        <div className="text-forest-f60 text-h900">Loading...</div>
+        {/* <Loader size="md" message="Loading..." /> */}
       </div>
     );
   }

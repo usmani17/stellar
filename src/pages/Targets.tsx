@@ -1031,7 +1031,7 @@ export const Targets: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <Loader size="lg" message="Loading chart data..." />
+                    <Loader size="md" message="Loading chart data..." />
                   </div>
                 </div>
               )}
@@ -1989,7 +1989,7 @@ export const Targets: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <Loader size="lg" message="Loading targets..." />
+                    <Loader size="md" message="Loading targets..." />
                   </div>
                 </div>
               )}

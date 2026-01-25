@@ -2316,7 +2316,7 @@ export const Campaigns: React.FC = () => {
               {loading && (
                 <div className="loading-overlay">
                   <div className="loading-overlay-content">
-                    <Loader size="lg" message="Loading chart data..." />
+                    <Loader size="md" message="Loading chart data..." />
                   </div>
                 </div>
               )}
@@ -3048,8 +3048,8 @@ export const Campaigns: React.FC = () => {
               )}
 
               {/* Table */}
-              <div className="table-container">
-                <div className="overflow-x-auto w-full">
+              <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
+              <div className="overflow-x-auto w-full">
                   {campaigns.length === 0 && !loading ? (
                     <div className="text-center py-8">
                       <p className="text-[13.3px] text-[#556179] mb-4">
@@ -3059,10 +3059,10 @@ export const Campaigns: React.FC = () => {
                   ) : (
                     <table className="min-w-[1200px] w-full">
                       {/* Always render table header to maintain height */}
-                      <thead className="sticky top-0 z-[90] bg-[#fefefb]">
+                      <thead className="">
                         <tr className="border-b border-[#e8e8e3]">
                           {/* Checkbox Header */}
-                          <th className="table-header w-[35px] sticky left-0 z-[120] bg-[#f5f5f0] border-r border-[#e8e8e3]">
+                          <th className="table-header w-[35px] sticky left-0 z-[1] bg-[#f5f5f0] border-r border-[#e8e8e3]">
                             <div className="flex items-center justify-center">
                               <Checkbox
                                 checked={
@@ -3092,7 +3092,7 @@ export const Campaigns: React.FC = () => {
 
                           {/* Campaign Name Header */}
                           <th
-                            className="table-header min-w-[300px] max-w-[400px] table-sticky-first-column"
+                            className="table-header min-w-[300px] max-w-[400px] table-sticky-first-column z-[1]"
                             onClick={() => handleSort("campaign_name")}
                           >
                             <div className="flex items-center gap-1">
@@ -3688,7 +3688,7 @@ export const Campaigns: React.FC = () => {
                 {loading && (
                   <div className="loading-overlay">
                     <div className="loading-overlay-content">
-                      <Loader size="lg" message="Loading campaigns..." />
+                      <Loader size="md" message="Loading campaigns..." />
                     </div>
                   </div>
                 )}
