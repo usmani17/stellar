@@ -213,7 +213,7 @@ export const GoogleKeywordsTable: React.FC<GoogleKeywordsTableProps> = ({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/accounts/${currentAccountId}/google/campaigns/${campaignId}`);
+              navigate(`/brands/${currentAccountId}/google-campaigns/${campaignId}`);
             }}
             className="table-edit-link text-left truncate"
             title={`View campaign: ${campaignName}`}
