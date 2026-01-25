@@ -1415,6 +1415,7 @@ export const GoogleAdGroups: React.FC = () => {
               />
             )}
 
+            <div className="relative">
             {/* Performance Trends Chart */}
             <PerformanceChart
               data={chartData}
@@ -1424,6 +1425,14 @@ export const GoogleAdGroups: React.FC = () => {
               isCollapsed={isChartCollapsed}
               onCollapseToggle={toggleChartCollapse}
             />
+            {loading && (
+                  <div className="loading-overlay">
+                    <div className="loading-overlay-content">
+                      <Loader size="md" message="Loading chart data..." />
+                    </div>
+                  </div>
+                )}
+            </div>
 
             {/* Edit and Export Buttons - Above Table */}
             <div className="flex items-center justify-end gap-2">
@@ -2227,7 +2236,7 @@ export const GoogleAdGroups: React.FC = () => {
               )}
 
               {/* Table */}
-              <div className="table-container">
+              <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
                 <div className="overflow-x-auto w-full">
                   <GoogleAdGroupsTable
                     adgroups={adgroups}
@@ -2262,6 +2271,13 @@ export const GoogleAdGroups: React.FC = () => {
                     getSortIcon={getSortIcon}
                   />
                 </div>
+                {loading && (
+                  <div className="loading-overlay">
+                    <div className="loading-overlay-content">
+                      <Loader size="md" message="Loading adgroups..." />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Pagination - Match Amazon style exactly */}

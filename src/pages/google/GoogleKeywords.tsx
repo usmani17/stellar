@@ -1847,6 +1847,7 @@ export const GoogleKeywords: React.FC = () => {
             )}
 
             {/* Performance Trends Chart */}
+            <div className="relative">
             <PerformanceChart
               data={chartData}
               toggles={chartToggles}
@@ -1855,7 +1856,15 @@ export const GoogleKeywords: React.FC = () => {
               isCollapsed={isChartCollapsed}
               onCollapseToggle={toggleChartCollapse}
             />
-
+            {loading && (
+                  <div className="loading-overlay">
+                    <div className="loading-overlay-content">
+                      <Loader size="md" message="Loading chart data..." />
+                    </div>
+                  </div>
+                )}
+            </div>
+                
             {/* Edit and Export Buttons - Above Table */}
             <div className="flex items-center justify-end gap-2">
               <div
@@ -2735,7 +2744,7 @@ export const GoogleKeywords: React.FC = () => {
               )}
 
               {/* Table */}
-              <div className="table-container">
+              <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
                 <div className="overflow-x-auto w-full">
                   <GoogleKeywordsTable
                     keywords={keywords}
@@ -2772,6 +2781,13 @@ export const GoogleKeywords: React.FC = () => {
                     getSortIcon={getSortIcon}
                   />
                 </div>
+                {loading && (
+                  <div className="loading-overlay">
+                    <div className="loading-overlay-content">
+                      <Loader size="md" message="Loading keywords..." />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Pagination */}

@@ -2764,6 +2764,13 @@ export const GoogleCampaigns: React.FC = () => {
               {isCreateCampaignPanelOpen && (
                 <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] z-40 rounded-[12px] cursor-not-allowed" />
               )}
+              {loading && (
+                <div className="loading-overlay">
+                  <div className="loading-overlay-content">
+                    <Loader size="md" message="Loading chart data..." />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Search, Edit and Export Buttons - Above Table */}
@@ -3752,7 +3759,7 @@ export const GoogleCampaigns: React.FC = () => {
               /> */}
 
               {/* Table */}
-              <div className="table-container">
+              <div className="table-container" style={{ position: 'relative', minHeight: loading ? '400px' : 'auto' }}>
                 <div className="overflow-x-auto w-full">
                   <GoogleCampaignsTable
                     campaigns={filteredCampaigns}
@@ -3791,6 +3798,13 @@ export const GoogleCampaigns: React.FC = () => {
                     isPanelOpen={isCreateCampaignPanelOpen}
                   />
                 </div>
+                {loading && (
+                  <div className="loading-overlay">
+                    <div className="loading-overlay-content">
+                      <Loader size="md" message="Loading campaigns..." />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Pagination */}
