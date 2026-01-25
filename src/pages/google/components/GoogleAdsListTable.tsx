@@ -170,7 +170,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       sortable: true,
       minWidth: "min-w-[200px]",
       navigateTo: (row: GoogleAd, accountId: string) => 
-        row.adgroup_id ? `/accounts/${accountId}/google/adgroups?adgroup_id=${row.adgroup_id}` : null,
+        row.adgroup_id ? `/brands/${accountId}/google-adgroups?adgroup_id=${row.adgroup_id}` : null,
       getValue: (row: GoogleAd) => row.adgroup_name || "—",
     },
     {
@@ -180,7 +180,7 @@ export const GoogleAdsListTable: React.FC<GoogleAdsListTableProps> = ({
       sortable: true,
       minWidth: "min-w-[200px]",
       navigateTo: (row: GoogleAd, accountId: string) => 
-        row.campaign_id ? `/accounts/${accountId}/google/campaigns/${row.campaign_id}` : null,
+        row.campaign_id ? `/brands/${accountId}/google-campaigns/${row.campaign_id}` : null,
       getValue: (row: GoogleAd) => row.campaign_name || "—",
     },
     {
