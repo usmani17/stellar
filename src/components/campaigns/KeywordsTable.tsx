@@ -16,12 +16,12 @@ interface KeywordsTableProps {
   onSort?: (column: string) => void;
   editingField?: {
     id: number;
-    field: "status" | "bid";
+    field: "state" | "bid";
   } | null;
   editedValue?: string;
   onEditStart?: (
     id: number,
-    field: "status" | "bid",
+    field: "state" | "bid",
     currentValue: string
   ) => void;
   onEditChange?: (value: string) => void;
@@ -30,7 +30,7 @@ interface KeywordsTableProps {
   inlineEditLoading?: Set<number>;
   pendingChange?: {
     id: number;
-    field: "status" | "bid";
+    field: "state" | "bid";
     newValue: string;
     oldValue: string;
   } | null;
@@ -216,7 +216,9 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
               <tbody>
                 {keywords.map((keyword, index) => {
                   const isLastRow = index === keywords.length - 1;
-                  const isArchived = keyword.status?.toLowerCase() === "archived";
+                    const isArchived = keyword.state?.toLowerCase() === "archived";
+                    const isEnabled = keyword.state?.toLowerCase() === "enabled";
+                    const isPaused = keyword.state?.toLowerCase() === "paused";
                   return (
                     <tr
                       key={keyword.id}
@@ -258,13 +260,13 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                             return (
                               <div className="flex items-center gap-2">
                                 <span className="table-text leading-[1.26]">
-                                  {pendingChange?.field === "status"
+                                  {pendingChange?.field === "state"
                                     ? pendingChange.newValue === "enabled"
                                       ? "Enabled"
                                       : pendingChange.newValue === "paused"
                                       ? "Paused"
                                       : "Archived"
-                                    : keyword.status}
+                                    : keyword.state}
                                 </span>
                                 <div className="w-4 h-4 border-2 border-[#136D6D] border-t-transparent rounded-full animate-spin"></div>
                               </div>
@@ -272,7 +274,7 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                           }
                           
                           if (pendingChange?.id === keyword.id &&
-                              pendingChange?.field === "status") {
+                              pendingChange?.field === "state") {
                             return (
                               <div className="flex items-center gap-2">
                                 <span className="table-text leading-[1.26]">
@@ -289,23 +291,27 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                           if (isArchived) {
                             return (
                               <div className="opacity-60">
-                                <StatusBadge status={keyword.status} />
+                                <StatusBadge status={keyword.state} />
                               </div>
                             );
                           }
                           
-                          const statusLower =
-                            keyword.status?.toLowerCase() || "enabled";
-                          const statusValue =
-                            statusLower === "enable" ||
-                            statusLower === "enabled"
+                          const stateLower =
+                            keyword.state?.toLowerCase() || "enabled";
+                          const stateValue =
+                            stateLower === "enable" ||
+                            stateLower === "enabled"
                               ? "enabled"
                               : "paused";
                           
                           const currentValue = editingField?.id === keyword.id &&
-                            editingField?.field === "status"
+                            editingField?.field === "state"
                             ? editedValue
-                            : statusValue;
+                            : stateValue;
+                          
+                          // #region agent log
+                          fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:310',message:'Dropdown render - currentValue calculation',data:{keywordId:keyword.id,editingFieldId:editingField?.id,editingFieldField:editingField?.field,editedValue,stateValue,currentValue,stateLower},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                          // #endregion
                           
                           return (
                             <Dropdown
@@ -317,11 +323,23 @@ export const KeywordsTable: React.FC<KeywordsTableProps> = ({
                               value={currentValue}
                               onChange={(val) => {
                                 const newValue = val as string;
+                                // #region agent log
+                                fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:322',message:'Dropdown onChange - entry',data:{keywordId:keyword.id,newValue,editingFieldId:editingField?.id,editingFieldField:editingField?.field,wasEditing:editingField?.id === keyword.id && editingField?.field === "state"},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
+                                // #endregion
                                 if (editingField?.id !== keyword.id ||
-                                    editingField?.field !== "status") {
-                                  onEditStart?.(keyword.id, "status", statusValue);
+                                    editingField?.field !== "state") {
+                                  // #region agent log
+                                  fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:326',message:'Calling onEditStart',data:{keywordId:keyword.id,field:"state",stateValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                                  // #endregion
+                                  onEditStart?.(keyword.id, "state", stateValue);
                                 }
+                                // #region agent log
+                                fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:330',message:'Calling onEditChange',data:{newValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                                // #endregion
                                 onEditChange?.(newValue);
+                                // #region agent log
+                                fetch('http://127.0.0.1:7244/ingest/6f001966-e7a4-4fa8-94fc-6549e6451357',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KeywordsTable.tsx:332',message:'Calling onEditEnd',data:{newValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,D'})}).catch(()=>{});
+                                // #endregion
                                 onEditEnd?.(newValue);
                               }}
                               buttonClassName="inline-edit-dropdown"

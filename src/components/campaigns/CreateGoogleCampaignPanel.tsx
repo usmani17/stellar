@@ -3004,9 +3004,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                   </p>
                 </div>
               </div>
-                  </p>
-                </div>
-              </div>
 
               {/* Keywords */}
               <div>

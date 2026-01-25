@@ -444,13 +444,27 @@ export function GoogleAdsTable<T = any>({
                 // Mark that a selection was made for this item (matches Amazon pattern)
                 statusSelectionMadeRef.current = itemId;
                 const newValue = val as string;
-                if (!isEditing) {
+                const wasEditing = isEditing;
+                
+                if (!wasEditing) {
                   onStartInlineEdit(row, column.key);
                 }
                 onInlineEditChange(newValue);
-                // For status and bidding_strategy_type, use direct confirmation immediately (skip modal)
-                // Pass itemId (campaign ID) and field directly to avoid state timing issues
-                onConfirmInlineEdit(newValue, column.key, itemId);
+                
+                // Always pass itemId and field directly to avoid state timing issues
+                // Use requestAnimationFrame + setTimeout for initial edits to ensure editingCell state is set before confirmInlineEdit
+                if (!wasEditing) {
+                  // Use requestAnimationFrame to ensure state update is processed
+                  requestAnimationFrame(() => {
+                    setTimeout(() => {
+                      // Pass itemId (ad ID) and field directly to avoid state timing issues
+                      onConfirmInlineEdit(newValue, column.key, itemId);
+                    }, 0);
+                  });
+                } else {
+                  // Pass itemId (ad ID) and field directly to avoid state timing issues
+                  onConfirmInlineEdit(newValue, column.key, itemId);
+                }
               }}
               defaultOpen={isEditing}
               closeOnSelect={true}

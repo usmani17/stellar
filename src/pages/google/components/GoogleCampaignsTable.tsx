@@ -345,25 +345,30 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
     // Use the field parameter if provided, otherwise fall back to editingCell
     const fieldToUse = field || editingCell?.field;
-    if (!fieldToUse) return;
+    if (!fieldToUse) {
+      return;
+    }
     
     // Use itemIdParam if provided, otherwise fall back to editingCell
     const campaignIdToUse = itemIdParam || editingCell?.campaignId;
     
-    // For budget, date, status, and bidding_strategy_type fields, use direct confirmation (skip modal)
-    // For other fields, use regular confirmation (with modal)
-    if (fieldToUse === "budget" || fieldToUse === "start_date" || fieldToUse === "end_date" || fieldToUse === "status" || fieldToUse === "bidding_strategy_type") {
-      // Use direct confirmation for budget/date/status/bidding_strategy_type fields
+    // For status changes, use regular confirmation (with modal) instead of direct confirmation
+    // For budget, date, and bidding_strategy_type fields, use direct confirmation (skip modal)
+    if (fieldToUse === "status") {
+      // Use regular confirmation for status changes to show modal
+      onConfirmInlineEdit(value, fieldToUse, campaignIdToUse);
+    } else if (fieldToUse === "budget" || fieldToUse === "start_date" || fieldToUse === "end_date" || fieldToUse === "bidding_strategy_type") {
+      // Use direct confirmation for budget/date/bidding_strategy_type fields
       if (onConfirmInlineEditDirect) {
         // Pass campaign ID and field to ensure it works even if editingCell is cleared
         onConfirmInlineEditDirect(value, campaignIdToUse, fieldToUse);
       } else {
         // Fallback to regular confirmation if direct not available
-        onConfirmInlineEdit(value);
+        onConfirmInlineEdit(value, fieldToUse, campaignIdToUse);
       }
     } else {
       // Use regular confirmation for other fields
-      onConfirmInlineEdit(value);
+      onConfirmInlineEdit(value, fieldToUse, campaignIdToUse);
     }
   };
 

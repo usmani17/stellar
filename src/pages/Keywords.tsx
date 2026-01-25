@@ -582,26 +582,30 @@ export const Keywords: React.FC = () => {
   };
 
   // Inline edit handlers
-  const startInlineEdit = (keyword: Keyword, field: "bid" | "state") => {
+  const startInlineEdit = (keyword: Keyword, field: "bid" | "state", initialValue?: string) => {
     setEditingCell({ keywordId: keyword.keywordId || keyword.id, field });
     if (field === "bid") {
       // Extract numeric value from formatted string
       const bidValue = parseFloat(
         (keyword.bid || "$0.00").replace(/[^0-9.]/g, "")
       );
-      setEditedValue(bidValue.toString());
+      setEditedValue(initialValue || bidValue.toString());
     } else if (field === "state") {
-      // Normalize state to match dropdown options
-      const statusLower = (keyword.state || "Enabled").toLowerCase();
-      const normalizedStatus =
-        statusLower === "enable" || statusLower === "enabled"
-          ? "Enabled"
-          : statusLower === "paused"
-          ? "Paused"
-          : statusLower === "archived"
-          ? "Archived"
-          : "Enabled";
-      setEditedValue(normalizedStatus);
+      // Use initialValue if provided, otherwise normalize state to match dropdown options
+      if (initialValue) {
+        setEditedValue(initialValue);
+      } else {
+        const statusLower = (keyword.state || "Enabled").toLowerCase();
+        const normalizedStatus =
+          statusLower === "enable" || statusLower === "enabled"
+            ? "Enabled"
+            : statusLower === "paused"
+            ? "Paused"
+            : statusLower === "archived"
+            ? "Archived"
+            : "Enabled";
+        setEditedValue(normalizedStatus);
+      }
     }
   };
 
@@ -619,12 +623,16 @@ export const Keywords: React.FC = () => {
     const keywordIdToUse = keywordIdOverride || editingCell?.keywordId;
     const fieldToUse = fieldOverride || editingCell?.field;
     
-    if (!keywordIdToUse || !fieldToUse || !accountId) return;
+    if (!keywordIdToUse || !fieldToUse || !accountId) {
+      return;
+    }
 
     const keyword = keywords.find(
       (k) => String(k.keywordId || k.id) === String(keywordIdToUse)
     );
-    if (!keyword) return;
+    if (!keyword) {
+      return;
+    }
 
     // Use override value if provided, otherwise use state
     const valueToCheck =
@@ -696,7 +704,8 @@ export const Keywords: React.FC = () => {
     setInlineEditOldValue(oldValue);
     setInlineEditNewValue(newValue);
     setShowInlineEditModal(true);
-    setEditingCell(null);
+    // Don't clear editingCell here - keep it set so dropdown shows editedValue
+    // It will be cleared when user confirms or cancels the edit
   };
 
   const runInlineEdit = async () => {
@@ -744,6 +753,8 @@ export const Keywords: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
+      // Clear editingCell after successful update
+      cancelInlineEdit();
     } catch (error: any) {
       console.error("Error updating keyword:", error);
       const errorMessage =
@@ -2039,6 +2050,12 @@ export const Keywords: React.FC = () => {
                                         ? "Archived"
                                         : "Enabled";
                                     
+                                    const keywordId = keyword.keywordId || keyword.id;
+                                    const statusValue = editingCell?.keywordId === keywordId &&
+                                      editingCell?.field === "state"
+                                      ? editedValue
+                                      : normalizedStatus;
+                                    
                                     return (
                                       <Dropdown
                                         options={[
@@ -2049,7 +2066,7 @@ export const Keywords: React.FC = () => {
                                             label: "Archived",
                                           },
                                         ]}
-                                        value={normalizedStatus}
+                                        value={statusValue}
                                         onChange={(val) => {
                                           const newValue = val as string;
                                           const keywordId = keyword.keywordId || keyword.id;
@@ -2057,10 +2074,12 @@ export const Keywords: React.FC = () => {
                                             editingCell?.field === "state";
                                           
                                           if (!wasEditing) {
-                                            startInlineEdit(keyword, "state");
+                                            // Pass newValue as initialValue to startInlineEdit so dropdown shows correct value immediately
+                                            startInlineEdit(keyword, "state", newValue);
+                                            // Also update via handleInlineEditChange to ensure state is consistent
+                                            handleInlineEditChange(newValue);
                                             // Pass keyword ID and field directly to avoid state timing issues
                                             setTimeout(() => {
-                                              handleInlineEditChange(newValue);
                                               confirmInlineEdit(newValue, keywordId, "state");
                                             }, 0);
                                           } else {
@@ -2376,7 +2395,78 @@ export const Keywords: React.FC = () => {
         </div>
       </div>
 
-      {/* Inline Edit Confirmation Modal for Keywords */}
+      {/* Inline Edit Confirmation Modal for Keywords (new system) */}
+      {showInlineEditModal && inlineEditKeyword && inlineEditField && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !inlineEditLoading) {
+              setShowInlineEditModal(false);
+              cancelInlineEdit();
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[17.1px] font-semibold text-[#072929] mb-4">
+              Confirm{" "}
+              {inlineEditField === "state" ? "Status" : "Bid"}{" "}
+              Change
+            </h3>
+
+            <div className="mb-4">
+              <p className="text-[12.16px] text-[#556179] mb-2">
+                Keyword:{" "}
+                <span className="font-semibold text-[#072929]">
+                  {inlineEditKeyword.name || "Unnamed Keyword"}
+                </span>
+              </p>
+              <div className="bg-[#f5f5f0] border border-[#e8e8e3] rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12.16px] text-[#556179]">
+                    {inlineEditField === "state" ? "Status" : "Bid"}:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12.16px] text-[#556179]">
+                      {inlineEditOldValue}
+                    </span>
+                    <span className="text-[12.16px] text-[#556179]">
+                      →
+                    </span>
+                    <span className="text-[12.16px] font-semibold text-[#072929]">
+                      {inlineEditNewValue}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowInlineEditModal(false);
+                  cancelInlineEdit();
+                }}
+                disabled={inlineEditLoading}
+                className="px-4 py-2 text-[12.16px] text-[#556179] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={runInlineEdit}
+                disabled={inlineEditLoading}
+                className="px-4 py-2 text-[12.16px] text-white bg-[#136D6D] rounded-lg hover:bg-[#0f5a5a] disabled:opacity-50"
+              >
+                {inlineEditLoading ? "Updating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Edit Confirmation Modal for Keywords (old system - kept for backward compatibility) */}
       {pendingKeywordChange && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"

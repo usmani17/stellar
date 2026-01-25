@@ -1389,21 +1389,30 @@ export const GoogleCampaigns: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    skipModal: boolean = false
+    fieldOverride?: string,
+    campaignIdOverride?: string | number
   ) => {
-    if (!editingCell || !accountId || isCancelling) return;
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const campaignIdToUse = campaignIdOverride || editingCell?.campaignId;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!campaignIdToUse || !fieldToUse || !accountId || isCancelling) {
+      return;
+    }
 
     const campaign = campaigns.find(
-      (c) => c.campaign_id === editingCell.campaignId
+      (c) => c.campaign_id === campaignIdToUse
     );
-    if (!campaign) return;
+    if (!campaign) {
+      return;
+    }
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
     let hasChanged = false;
     let validationError = "";
 
-    if (editingCell.field === "budget") {
+    if (fieldToUse === "budget") {
       const newBudgetStr = valueToCheck.trim();
       const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
       const oldBudget = campaign.daily_budget || 0;
@@ -1412,18 +1421,19 @@ export const GoogleCampaigns: React.FC = () => {
         return;
       }
       hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
-    } else if (editingCell.field === "status") {
-      const oldValue = (campaign.status || "ENABLED").trim();
-      const newValue = valueToCheck.trim();
-      hasChanged = newValue !== oldValue;
-    } else if (editingCell.field === "start_date") {
+    } else if (fieldToUse === "status") {
+      // Normalize status values for comparison (handle case differences)
+      const oldStatusRaw = (campaign.status || "ENABLED").trim().toUpperCase();
+      const newStatusRaw = valueToCheck.trim().toUpperCase();
+      hasChanged = newStatusRaw !== oldStatusRaw;
+    } else if (fieldToUse === "start_date") {
       // Normalize dates to YYYY-MM-DD format for comparison using utility function
       const oldValue = parseDateToYYYYMMDD(campaign.start_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
 
       console.log("[start_date] Date comparison:", {
-        campaignId: editingCell.campaignId,
+        campaignId: campaignIdToUse,
         oldValue,
         newValue,
         hasChanged,
@@ -1444,14 +1454,14 @@ export const GoogleCampaigns: React.FC = () => {
           return;
         }
       }
-    } else if (editingCell.field === "end_date") {
+    } else if (fieldToUse === "end_date") {
       // Normalize dates to YYYY-MM-DD format for comparison using utility function
       const oldValue = parseDateToYYYYMMDD(campaign.end_date);
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
 
       console.log("[end_date] Date comparison:", {
-        campaignId: editingCell.campaignId,
+        campaignId: campaignIdToUse,
         oldValue,
         newValue,
         hasChanged,
@@ -1483,7 +1493,7 @@ export const GoogleCampaigns: React.FC = () => {
           return;
         }
       }
-    } else if (editingCell.field === "bidding_strategy_type") {
+    } else if (fieldToUse === "bidding_strategy_type") {
       const oldValue = (campaign.bidding_strategy_type || "").trim();
       const newValue = valueToCheck.trim();
       hasChanged = newValue !== oldValue;
@@ -1494,14 +1504,8 @@ export const GoogleCampaigns: React.FC = () => {
       return;
     }
 
-    // If skipModal is true (e.g., when canceling), just cancel without showing modal
-    if (skipModal) {
-      cancelInlineEdit();
-      return;
-    }
-
     // For status changes, show modal
-    if (editingCell.field === "status") {
+    if (fieldToUse === "status") {
       const oldStatusRaw = campaign.status || "ENABLED";
       const newStatusRaw = valueToCheck.trim();
 
@@ -1518,21 +1522,22 @@ export const GoogleCampaigns: React.FC = () => {
       const newValue = statusDisplayMap[newStatusRaw] || newStatusRaw;
 
       setInlineEditCampaign(campaign);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(oldValue);
       setInlineEditNewValue(newValue);
       setShowInlineEditModal(true);
-      setEditingCell(null);
+      // Don't clear editingCell here - keep it set so dropdown shows editedValue
+      // It will be cleared when user confirms or cancels the edit
       return;
     }
 
     // For budget, show modal
-    if (editingCell.field === "budget") {
+    if (fieldToUse === "budget") {
       const newBudget = parseFloat(valueToCheck) || 0;
       const oldBudget = campaign.daily_budget || 0;
 
       setInlineEditCampaign(campaign);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(formatCurrency(oldBudget));
       setInlineEditNewValue(formatCurrency(newBudget));
       setShowInlineEditModal(true);
@@ -1541,7 +1546,7 @@ export const GoogleCampaigns: React.FC = () => {
     }
 
     // For bidding_strategy_type, show modal
-    if (editingCell.field === "bidding_strategy_type") {
+    if (fieldToUse === "bidding_strategy_type") {
       const oldValue = campaign.bidding_strategy_type || "—";
       const newValue = valueToCheck.trim();
 
@@ -1561,7 +1566,7 @@ export const GoogleCampaigns: React.FC = () => {
       setInlineEditImpressionShareCpcCeiling("");
 
       setInlineEditCampaign(campaign);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(formatBiddingStrategy(oldValue));
       setInlineEditNewValue(formatBiddingStrategy(newValue));
       setShowInlineEditModal(true);
@@ -1571,11 +1576,11 @@ export const GoogleCampaigns: React.FC = () => {
 
     // For start_date and end_date, show modal
     if (
-      editingCell.field === "start_date" ||
-      editingCell.field === "end_date"
+      fieldToUse === "start_date" ||
+      fieldToUse === "end_date"
     ) {
       // Format dates for display
-      const oldDateStr = parseDateToYYYYMMDD(campaign[editingCell.field]);
+      const oldDateStr = parseDateToYYYYMMDD(campaign[fieldToUse as "start_date" | "end_date"]);
       const newDateStr = valueToCheck.trim();
 
       // Format dates for display (MM/DD/YYYY format)
@@ -1597,7 +1602,7 @@ export const GoogleCampaigns: React.FC = () => {
       const oldValue = oldDateStr ? formatDateForDisplay(oldDateStr) : "—";
 
       setInlineEditCampaign(campaign);
-      setInlineEditField(editingCell.field);
+      setInlineEditField(fieldToUse);
       setInlineEditOldValue(oldValue);
       // Store the raw YYYY-MM-DD value for API call (we'll format it for display in modal)
       setInlineEditNewValue(newDateStr);
@@ -1611,7 +1616,7 @@ export const GoogleCampaigns: React.FC = () => {
     const newValue = valueToCheck;
 
     setInlineEditCampaign(campaign);
-    setInlineEditField(editingCell.field);
+    setInlineEditField(fieldToUse);
     setInlineEditOldValue(oldValue);
     setInlineEditNewValue(newValue);
     setShowInlineEditModal(true);

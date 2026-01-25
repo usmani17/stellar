@@ -445,33 +445,38 @@ export const GoogleAds: React.FC = () => {
 
   const confirmInlineEdit = (
     newValueOverride?: string,
-    skipModal: boolean = false
+    fieldOverride?: string,
+    adIdOverride?: string | number
   ) => {
-    if (!editingCell || !accountId || isCancelling) return;
+    // Use override parameters if provided, otherwise fall back to editingCell state
+    const adIdToUse = adIdOverride || editingCell?.adId;
+    const fieldToUse = fieldOverride || editingCell?.field;
+    
+    if (!adIdToUse || !fieldToUse || !accountId || isCancelling) {
+      return;
+    }
 
-    const ad = ads.find((a) => (a.ad_id || a.id) === editingCell.adId);
-    if (!ad) return;
+    const ad = ads.find((a) => (a.ad_id || a.id) === adIdToUse);
+    if (!ad) {
+      return;
+    }
 
     const valueToCheck =
       newValueOverride !== undefined ? newValueOverride : editedValue;
-    const oldValue = (ad.status || "ENABLED").trim();
-    const newValue = valueToCheck.trim();
-    const hasChanged = newValue !== oldValue;
+    // Normalize status values for comparison (handle case differences)
+    const oldStatusRaw = (ad.status || "ENABLED").trim().toUpperCase();
+    const newStatusRaw = valueToCheck.trim().toUpperCase();
+    const hasChanged = newStatusRaw !== oldStatusRaw;
 
     if (!hasChanged) {
       cancelInlineEdit();
       return;
     }
 
-    // If skipModal is true (e.g., when canceling), just cancel without showing modal
-    if (skipModal) {
-      cancelInlineEdit();
-      return;
-    }
-
     // For status changes, show modal
-    const oldStatusRaw = ad.status || "ENABLED";
-    const newStatusRaw = newValue.trim();
+    // Use the original values (not normalized) for display formatting
+    const oldStatusForDisplay = ad.status || "ENABLED";
+    const newStatusForDisplay = valueToCheck.trim();
 
     // Format status values for display
     const statusDisplayMap: Record<string, string> = {
@@ -482,15 +487,16 @@ export const GoogleAds: React.FC = () => {
       Paused: "Paused",
       Removed: "Removed",
     };
-    const oldValueDisplay = statusDisplayMap[oldStatusRaw] || oldStatusRaw;
-    const newValueDisplay = statusDisplayMap[newStatusRaw] || newStatusRaw;
+    const oldValueDisplay = statusDisplayMap[oldStatusForDisplay] || oldStatusForDisplay;
+    const newValueDisplay = statusDisplayMap[newStatusForDisplay] || newStatusForDisplay;
 
     setInlineEditAd(ad);
-    setInlineEditField(editingCell.field);
+    setInlineEditField(fieldToUse);
     setInlineEditOldValue(oldValueDisplay);
     setInlineEditNewValue(newValueDisplay);
     setShowInlineEditModal(true);
-    setEditingCell(null);
+    // Don't clear editingCell here - keep it set so dropdown shows editedValue
+    // It will be cleared when user confirms or cancels the edit
   };
 
   const runInlineEdit = async () => {
@@ -532,6 +538,8 @@ export const GoogleAds: React.FC = () => {
       setInlineEditField(null);
       setInlineEditOldValue("");
       setInlineEditNewValue("");
+      // Clear editingCell after successful update
+      cancelInlineEdit();
     } catch (error) {
       console.error("Error updating ad:", error);
       alert("Failed to update ad. Please try again.");
