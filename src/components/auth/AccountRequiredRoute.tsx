@@ -17,7 +17,7 @@ export const AccountRequiredRoute: React.FC<AccountRequiredRouteProps> = ({
     const returnUrl = location.pathname + location.search;
     return (
       <Navigate
-        to={`/accounts?returnUrl=${encodeURIComponent(returnUrl)}`}
+        to={`/brands?returnUrl=${encodeURIComponent(returnUrl)}`}
         replace
       />
     );

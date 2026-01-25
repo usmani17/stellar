@@ -42,7 +42,7 @@ export const Signup: React.FC = () => {
 
     try {
       await register(formData);
-      navigate("/accounts");
+      navigate("/brands");
     } catch (err: any) {
       const errorMessage =
         err.response?.data?.error ||

@@ -607,10 +607,14 @@ export const AdGroups: React.FC = () => {
     setPendingAdGroupChange(null);
   };
 
-  const handleAdGroupEditEnd = (newValue?: string) => {
-    if (!editingAdGroupField) return;
+  const handleAdGroupEditEnd = (newValue?: string, adgroupIdOverride?: number, fieldOverride?: "status" | "default_bid" | "name") => {
+    // Use override parameters if provided, otherwise fall back to editingAdGroupField state
+    const adgroupIdToUse = adgroupIdOverride || editingAdGroupField?.id;
+    const fieldToUse = fieldOverride || editingAdGroupField?.field;
+    
+    if (!adgroupIdToUse || !fieldToUse) return;
 
-    const adgroup = adgroups.find((ag) => ag.id === editingAdGroupField.id);
+    const adgroup = adgroups.find((ag) => ag.id === adgroupIdToUse);
     if (!adgroup) {
       setEditingAdGroupField(null);
       setEditedAdGroupValue("");
@@ -626,7 +630,7 @@ export const AdGroups: React.FC = () => {
     let hasChanged = false;
     let oldValue = "";
 
-    if (editingAdGroupField.field === "status") {
+    if (fieldToUse === "status") {
       const statusLower = adgroup.status?.toLowerCase() || "enabled";
       const currentStatus =
         statusLower === "enable" || statusLower === "enabled"
@@ -636,13 +640,13 @@ export const AdGroups: React.FC = () => {
           : "archived";
       oldValue = currentStatus;
       hasChanged = valueToCompare !== currentStatus;
-    } else if (editingAdGroupField.field === "default_bid") {
+    } else if (fieldToUse === "default_bid") {
       const currentBid = adgroup.default_bid
         ? adgroup.default_bid.replace(/[^0-9.]/g, "")
         : "0";
       oldValue = adgroup.default_bid || "$0.00";
       hasChanged = valueToCompare !== currentBid && valueToCompare !== "";
-    } else if (editingAdGroupField.field === "name") {
+    } else if (fieldToUse === "name") {
       oldValue = adgroup.name || "";
       hasChanged =
         valueToCompare.trim() !== oldValue.trim() &&
@@ -651,8 +655,8 @@ export const AdGroups: React.FC = () => {
 
     if (hasChanged) {
       setPendingAdGroupChange({
-        id: editingAdGroupField.id,
-        field: editingAdGroupField.field,
+        id: adgroupIdToUse,
+        field: fieldToUse,
         newValue: valueToCompare,
         oldValue: oldValue,
       });

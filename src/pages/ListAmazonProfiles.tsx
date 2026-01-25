@@ -257,9 +257,19 @@ export const ListAmazonProfiles: React.FC = () => {
       console.log("Save profiles result:", result);
 
       if (result && result.message) {
+        // Store success message in localStorage to show on channels page
+        localStorage.setItem('profiles_saved_success', JSON.stringify({
+          message: result.message,
+          type: 'success',
+          total_saved: result.total_saved,
+          newly_created: result.newly_created,
+          updated: result.updated,
+          sync_initiated: result.sync_initiated
+        }));
+        
         // Success - navigate back to channels page
         if (accountId) {
-          navigate(`/accounts/${accountId}/channels`);
+          navigate(`/brands/${accountId}/channels`);
         } else {
           navigate(-1);
         }
@@ -502,20 +512,22 @@ export const ListAmazonProfiles: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3 justify-end">
-                  <button
-                    type="button"
+                  <Button
                     onClick={() => {
                       if (accountId) {
-                        navigate(`/accounts/${accountId}/channels`);
+                        navigate(`/brands/${accountId}/channels`);
                       } else {
                         navigate(-1);
                       }
                     }}
                     disabled={saving}
+                    size="sm"
                     className="cancel-button"
                   >
-                    Cancel
-                  </button>
+                    <span className="text-[14px] font-semibold text-[#072929]">
+                      Cancel
+                    </span>
+                  </Button>
                   <Button
                     onClick={handleSave}
                     disabled={saving || selectedProfileIds.size === 0}

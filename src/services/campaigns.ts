@@ -188,7 +188,7 @@ export interface Keyword {
   id: number;
   keywordId?: string | number;
   name: string;
-  status: string;
+  state: string;
   bid?: string;
   adgroup_name?: string;
   campaign_name?: string;
@@ -955,9 +955,8 @@ export const campaignsService = {
       params.append("type", campaignType);
     }
 
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/${
-      params.toString() ? `?${params.toString()}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/${params.toString() ? `?${params.toString()}` : ""
+      }`;
     const response = await api.get<CampaignDetail>(url);
     return response.data;
   },
@@ -994,9 +993,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/adgroups/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post<AdGroupsResponse>(url, { filters });
     return response.data;
   },
@@ -1033,9 +1031,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/keywords/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post<KeywordsResponse>(url, { filters });
     return response.data;
   },
@@ -1072,9 +1069,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/productads/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post<ProductAdsResponse>(url, { filters });
     return response.data;
   },
@@ -1111,9 +1107,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/targets/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post<TargetsResponse>(url, { filters });
     return response.data;
   },
@@ -1160,9 +1155,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-keywords/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1210,9 +1204,8 @@ export const campaignsService = {
       queryParams.append("type", params.type);
     }
     const queryString = queryParams.toString();
-    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/campaigns/${campaignId}/negative-targets/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.post(url, { filters });
     return response.data;
   },
@@ -1222,13 +1215,13 @@ export const campaignsService = {
     payload: {
       campaignIds: Array<string | number>;
       action:
-        | "status"
-        | "budget"
-        | "budgetType"
-        | "name"
-        | "portfolioId"
-        | "endDate"
-        | "targetingType";
+      | "status"
+      | "budget"
+      | "budgetType"
+      | "name"
+      | "portfolioId"
+      | "endDate"
+      | "targetingType";
       status?: "enable" | "pause" | "archive";
       budgetAction?: "increase" | "decrease" | "set";
       budgetType?: "DAILY" | "LIFETIME";
@@ -2624,12 +2617,12 @@ export const campaignsService = {
     payload: {
       campaignIds: Array<string | number>;
       action:
-        | "name"
-        | "status"
-        | "budget"
-        | "start_date"
-        | "end_date"
-        | "bidding_strategy";
+      | "name"
+      | "status"
+      | "budget"
+      | "start_date"
+      | "end_date"
+      | "bidding_strategy";
       name?: string;
       status?: "ENABLED" | "PAUSED" | "REMOVED";
       budget?: number;
@@ -3102,9 +3095,8 @@ export const campaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/google-adwords/${accountId}/campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.get(url);
     return response.data;
   },
@@ -3364,9 +3356,8 @@ export const campaignsService = {
     const params = new URLSearchParams();
     if (campaignId) params.append("campaign_id", String(campaignId));
     const queryString = params.toString();
-    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/google-adwords/${accountId}/asset-groups/${assetGroupId}/assets/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.get(url);
     return response.data;
   },
@@ -3759,9 +3750,8 @@ export const campaignsService = {
     if (startDate) params.append("start_date", startDate);
     if (endDate) params.append("end_date", endDate);
     const queryString = params.toString();
-    const url = `/accounts/${accountId}/tiktok-campaigns/${campaignId}/${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const url = `/accounts/${accountId}/tiktok-campaigns/${campaignId}/${queryString ? `?${queryString}` : ""
+      }`;
     const response = await api.get(url);
     return response.data;
   },

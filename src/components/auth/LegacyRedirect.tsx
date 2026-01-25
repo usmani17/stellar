@@ -11,7 +11,7 @@ export const LegacyRedirect: React.FC<LegacyRedirectProps> = ({ pattern }) => {
   const campaignId = params.campaignId;
   const campaignTypeAndId = params.campaignTypeAndId;
 
-  let redirectPath = `/accounts/${accountId}/${pattern}`;
+  let redirectPath = `/brands/${accountId}/${pattern}`;
   if (campaignId) {
     redirectPath = redirectPath.replace(":campaignId", campaignId);
   }

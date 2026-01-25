@@ -54,8 +54,8 @@ export const Sidebar: React.FC = () => {
   useEffect(() => {
     const marketplace = getMarketplaceFromUrl(location.pathname);
 
-    // If on accounts page, collapse all sections
-    if (location.pathname === "/accounts") {
+    // If on brands page, collapse all sections
+    if (location.pathname === "/brands") {
       setIsAmazonSectionCollapsed(true);
       setIsGoogleSectionCollapsed(true);
     } else {
@@ -200,9 +200,9 @@ export const Sidebar: React.FC = () => {
       e.preventDefault();
       const route = buildRoute();
       if (route) {
-        navigate(`/accounts?returnUrl=${encodeURIComponent(route)}`);
+        navigate(`/brands?returnUrl=${encodeURIComponent(route)}`);
       } else {
-        navigate("/accounts");
+        navigate("/brands");
       }
     }
   };
@@ -256,11 +256,11 @@ export const Sidebar: React.FC = () => {
         <div className="mb-6">
           <div className="space-y-1">
             <Link
-              to="/accounts"
+              to="/brands"
               className={`flex items-center p-2 rounded-xl ${
-                isActive("/accounts") ? "" : "transition-colors"
+                isActive("/brands") ? "" : "transition-colors"
               } ${isCollapsed ? "justify-center" : "gap-2"} ${
-                isActive("/accounts")
+                isActive("/brands")
                   ? "w-full bg-forest-f60 !text-white hover:!text-white"
                   : "text-black hover:bg-transparent"
                 }`}
@@ -283,7 +283,7 @@ export const Sidebar: React.FC = () => {
               ) : (
                 <span
                   className={`text-[12.32px] font-normal leading-[16px] ${
-                    isActive("/accounts") ? "!text-white" : ""
+                    isActive("/brands") ? "!text-white" : ""
                     }`}
                 >
                   Brands
@@ -301,13 +301,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) => {
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
-                      : "/accounts/1/amazon/campaigns"
+                      : "/brands/1/amazon/campaigns"
                   );
                 }}
                 className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
@@ -353,13 +353,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "campaigns")
-                      : "/accounts/1/amazon/campaigns"
+                      : "/brands/1/amazon/campaigns"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -394,13 +394,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "amazon", "adgroups")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "adgroups")
-                      : "/accounts/1/amazon/adgroups"
+                      : "/brands/1/amazon/adgroups"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -433,13 +433,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "amazon", "keywords")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "keywords")
-                      : "/accounts/1/amazon/keywords"
+                      : "/brands/1/amazon/keywords"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -472,13 +472,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "amazon", "targets")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "amazon", "targets")
-                      : "/accounts/1/amazon/targets"
+                      : "/brands/1/amazon/targets"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -510,14 +510,14 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? `/accounts/${accountId}/amazon/logs`
-                    : "/accounts"
+                    ? `/brands/${accountId}/amazon/logs`
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
-                      ? `/accounts/${accountId}/amazon/logs`
-                      : "/accounts/1/amazon/logs"
+                      ? `/brands/${accountId}/amazon/logs`
+                      : "/brands/1/amazon/logs"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -566,13 +566,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) => {
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                      : "/accounts/1/google/campaigns"
+                      : "/brands/1/google/campaigns"
                   );
                 }}
                 className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
@@ -618,13 +618,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "campaigns")
-                      : "/accounts/1/google/campaigns"
+                      : "/brands/1/google/campaigns"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -659,13 +659,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "google", "adgroups")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "adgroups")
-                      : "/accounts/1/google/adgroups"
+                      : "/brands/1/google/adgroups"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -698,13 +698,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "google", "keywords")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "keywords")
-                      : "/accounts/1/google/keywords"
+                      : "/brands/1/google/keywords"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -743,13 +743,13 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? buildMarketplaceRoute(accountId, "google", "ads")
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
                       ? buildMarketplaceRoute(accountId, "google", "ads")
-                      : "/accounts/1/google/ads"
+                      : "/brands/1/google/ads"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -775,14 +775,14 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? `/accounts/${accountId}/google/logs`
-                    : "/accounts"
+                    ? `/brands/${accountId}/google/logs`
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
-                      ? `/accounts/${accountId}/google/logs`
-                      : "/accounts/1/google/logs"
+                      ? `/brands/${accountId}/google/logs`
+                      : "/brands/1/google/logs"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -830,12 +830,12 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? `/accounts/${accountId}/tiktok/campaigns`
-                    : "/accounts"
+                    ? `/brands/${accountId}/tiktok/campaigns`
+                    : "/brands"
                 }
                 onClick={(e) => {
                   handleAccountRequiredClick(e, () =>
-                    accountId ? `/accounts/${accountId}/tiktok/campaigns` : null
+                    accountId ? `/brands/${accountId}/tiktok/campaigns` : null
                   );
                 }}
                 className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
@@ -882,7 +882,7 @@ export const Sidebar: React.FC = () => {
                 to={
                   accountId
                     ? `/accounts/${accountId}/tiktok/campaigns`
-                    : "/accounts"
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
@@ -920,12 +920,12 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? `/accounts/${accountId}/tiktok/adgroups`
-                    : "/accounts"
+                    ? `/brands/${accountId}/tiktok/adgroups`
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
-                    accountId ? `/accounts/${accountId}/tiktok/adgroups` : null
+                    accountId ? `/brands/${accountId}/tiktok/adgroups` : null
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -956,11 +956,11 @@ export const Sidebar: React.FC = () => {
               </Link>
               <Link
                 to={
-                  accountId ? `/accounts/${accountId}/tiktok/ads` : "/accounts"
+                  accountId ? `/brands/${accountId}/tiktok/ads` : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
-                    accountId ? `/accounts/${accountId}/tiktok/ads` : null
+                    accountId ? `/brands/${accountId}/tiktok/ads` : null
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${
@@ -992,14 +992,14 @@ export const Sidebar: React.FC = () => {
               <Link
                 to={
                   accountId
-                    ? `/accounts/${accountId}/tiktok/logs`
-                    : "/accounts"
+                    ? `/brands/${accountId}/tiktok/logs`
+                    : "/brands"
                 }
                 onClick={(e) =>
                   handleAccountRequiredClick(e, () =>
                     accountId
-                      ? `/accounts/${accountId}/tiktok/logs`
-                      : "/accounts/1/tiktok/logs"
+                      ? `/brands/${accountId}/tiktok/logs`
+                      : "/brands/1/tiktok/logs"
                   )
                 }
                 className={`flex items-center p-2 rounded-xl ${

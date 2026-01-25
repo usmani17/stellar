@@ -22,9 +22,9 @@ export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
     );
   }
 
-  // If user is authenticated, redirect to accounts page
+  // If user is authenticated, redirect to brands page
   if (user) {
-    return <Navigate to="/accounts" replace />;
+    return <Navigate to="/brands" replace />;
   }
 
   // User is not authenticated, show the public page

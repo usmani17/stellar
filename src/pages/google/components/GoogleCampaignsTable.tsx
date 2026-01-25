@@ -70,10 +70,10 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
       maxWidth: "max-w-[400px]",
       editable: false,
       navigateTo: (row: IGoogleCampaign, accountId: string) =>
-        `/accounts/${accountId}/google-campaigns/${row.campaign_id}`,
+        `/brands/${accountId}/google-campaigns/${row.campaign_id}`,
       getValue: (row: IGoogleCampaign) => row.campaign_name || "Unnamed Campaign",
       render: (value: any, row: IGoogleCampaign) => {
-        const navPath = `/accounts/${accountId}/google-campaigns/${row.campaign_id}`;
+        const navPath = `/brands/${accountId}/google-campaigns/${row.campaign_id}`;
         return (
           <div className="group relative flex items-center gap-2">
             {onEditCampaign && (
@@ -342,29 +342,19 @@ export const GoogleCampaignsTable: React.FC<IGoogleCampaignsTableProps> = ({
   }, [allColumns, visibleColumns, columnOrder]);
 
   // Handle confirm inline edit - route to appropriate handler
+  // All fields (status, budget, end_date, bidding_strategy_type) now use modal confirmation
   const handleConfirmInlineEdit = (value: string, field?: string, itemIdParam?: string | number) => {
     // Use the field parameter if provided, otherwise fall back to editingCell
     const fieldToUse = field || editingCell?.field;
-    if (!fieldToUse) return;
+    if (!fieldToUse) {
+      return;
+    }
     
     // Use itemIdParam if provided, otherwise fall back to editingCell
     const campaignIdToUse = itemIdParam || editingCell?.campaignId;
     
-    // For budget, date, status, and bidding_strategy_type fields, use direct confirmation (skip modal)
-    // For other fields, use regular confirmation (with modal)
-    if (fieldToUse === "budget" || fieldToUse === "start_date" || fieldToUse === "end_date" || fieldToUse === "status" || fieldToUse === "bidding_strategy_type") {
-      // Use direct confirmation for budget/date/status/bidding_strategy_type fields
-      if (onConfirmInlineEditDirect) {
-        // Pass campaign ID and field to ensure it works even if editingCell is cleared
-        onConfirmInlineEditDirect(value, campaignIdToUse, fieldToUse);
-      } else {
-        // Fallback to regular confirmation if direct not available
-        onConfirmInlineEdit(value);
-      }
-    } else {
-      // Use regular confirmation for other fields
-      onConfirmInlineEdit(value);
-    }
+    // All fields now use regular confirmation (with modal) - matches Amazon Campaign pattern
+    onConfirmInlineEdit(value, fieldToUse, campaignIdToUse);
   };
 
   // Handle confirm change - route to appropriate handler (dates now use modal)

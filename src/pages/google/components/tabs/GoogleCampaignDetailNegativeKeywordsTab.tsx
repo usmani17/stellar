@@ -860,7 +860,7 @@ export const GoogleCampaignDetailNegativeKeywordsTab: React.FC<
                   }
                 }}
                 disabled={keywordTextEditLoading}
-                className="cancel-button disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cancel-button"
               >
                 Cancel
               </button>

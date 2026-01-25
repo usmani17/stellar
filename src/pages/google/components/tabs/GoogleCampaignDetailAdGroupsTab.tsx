@@ -793,8 +793,9 @@ export const GoogleCampaignDetailAdGroupsTab: React.FC<
                                     cancelInlineEdit();
                                   }
                                 }}
-                                defaultOpen={true}
+                                defaultOpen={false}
                                 closeOnSelect={true}
+                                showCheckmark={false}
                                 buttonClassName="w-full text-[13.3px] px-2 py-1"
                                 width="w-full"
                                 align="center"

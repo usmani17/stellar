@@ -991,3 +991,42 @@ body input[type="submit"]:disabled {
   background-color: #f9f9f6;
   margin-bottom: 1rem;
 }
+
+/* Profile avatar button */
+.profile-avatar-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background-color: #FEFEFB;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+  font-size: 12.32px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.profile-avatar-button:hover {
+  border-color: #136D6D;
+  background-color: #f5f5f0;
+}
+
+/* Account dropdown button */
+.account-dropdown-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding: 0 1rem;
+  background-color: #FEFEFB;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.account-dropdown-button:hover {
+  border-color: #136D6D;
+  background-color: #f5f5f0;
+}

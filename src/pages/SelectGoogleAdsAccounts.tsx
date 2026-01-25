@@ -169,7 +169,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Redirect to accounts page
-      navigate("/accounts", { replace: true });
+      navigate("/brands", { replace: true });
     } catch (err: any) {
       console.error("Failed to save Google Ads accounts:", err);
       setError(
@@ -566,7 +566,7 @@ export const SelectGoogleAdsAccounts: React.FC = () => {
                 <div className="flex gap-3 justify-end">
                   <Button
                     variant="outline"
-                    onClick={() => navigate("/accounts")}
+                    onClick={() => navigate("/brands")}
                     disabled={saving}
                   >
                     Cancel

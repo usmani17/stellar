@@ -1,3 +1,4 @@
+import type { IGoogleCampaignsSummary } from "../../types/google/campaign";
 import api from "../api";
 
 export const googleAdwordsAdGroupsService = {
@@ -16,15 +17,7 @@ export const googleAdwordsAdGroupsService = {
     }
   ): Promise<{
     adgroups: any[];
-    summary?: {
-      total_adgroups: number;
-      total_spends: number;
-      total_sales: number;
-      total_impressions: number;
-      total_clicks: number;
-      avg_acos: number;
-      avg_roas: number;
-    };
+    summary?: IGoogleCampaignsSummary | null;
     chart_data?: Array<{
       date: string;
       spend: number;

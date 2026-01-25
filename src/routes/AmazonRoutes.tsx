@@ -14,7 +14,7 @@ function AmazonRoutes() {
     return (
         <>
             <Route
-                path="/accounts/:accountId/amazon/campaigns"
+                path="/brands/:accountId/amazon/campaigns"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -26,7 +26,7 @@ function AmazonRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/amazon/campaigns/:campaignTypeAndId"
+                path="/brands/:accountId/amazon/campaigns/:campaignTypeAndId"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -38,7 +38,7 @@ function AmazonRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/amazon/adgroups"
+                path="/brands/:accountId/amazon/adgroups"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -50,7 +50,7 @@ function AmazonRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/amazon/keywords"
+                path="/brands/:accountId/amazon/keywords"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -62,7 +62,7 @@ function AmazonRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/amazon/targets"
+                path="/brands/:accountId/amazon/targets"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -74,7 +74,7 @@ function AmazonRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/amazon/logs"
+                path="/brands/:accountId/amazon/logs"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -86,7 +86,7 @@ function AmazonRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/amazon/log-history"
+                path="/brands/:accountId/amazon/log-history"
                 element={
                     <ProtectedRoute>
                         <AccountRequiredRoute>
@@ -107,7 +107,7 @@ function AmazonRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/campaigns"
+                path="/brands/:accountId/campaigns"
                 element={
                     <ProtectedRoute>
                         <LegacyRedirect pattern="amazon/campaigns" />
@@ -115,7 +115,7 @@ function AmazonRoutes() {
                 }
             />
             <Route
-                path="/accounts/:accountId/campaigns/:campaignTypeAndId"
+                path="/brands/:accountId/campaigns/:campaignTypeAndId"
                 element={
                     <ProtectedRoute>
                         <LegacyRedirect pattern="amazon/campaigns/:campaignTypeAndId" />

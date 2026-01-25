@@ -29,7 +29,7 @@ interface AdGroupsTableProps {
     currentValue: string
   ) => void;
   onEditChange?: (value: string) => void;
-  onEditEnd?: (value?: string) => void;
+  onEditEnd?: (value?: string, adgroupId?: number, field?: "status" | "default_bid" | "name") => void;
   onEditCancel?: () => void;
   inlineEditLoading?: Set<number>;
   pendingChange?: {
@@ -92,7 +92,7 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
     const campaignType = (adgroup.type || "sp").toLowerCase();
     const campaignTypeAndId = `${campaignType}_${adgroup.campaignId}`;
 
-    navigate(`/accounts/${accountId}/amazon/campaigns/${campaignTypeAndId}`);
+    navigate(`/brands/${accountId}/amazon/campaigns/${campaignTypeAndId}`);
   };
   const getSortIcon = (column: string) => {
     if (sortBy !== column || !onSort) {
@@ -655,12 +655,20 @@ export const AdGroupsTable: React.FC<AdGroupsTableProps> = ({
                                 value={currentValue}
                                 onChange={(val) => {
                                   const newValue = val as string;
-                                  if (editingField?.id !== adgroup.id ||
-                                      editingField?.field !== "status") {
+                                  const wasEditing = editingField?.id === adgroup.id &&
+                                    editingField?.field === "status";
+                                  
+                                  if (!wasEditing) {
                                     onEditStart?.(adgroup.id, "status", statusValue);
+                                    // Pass adgroup ID and field directly to avoid state timing issues
+                                    setTimeout(() => {
+                                      onEditChange?.(newValue);
+                                      onEditEnd?.(newValue, adgroup.id, "status");
+                                    }, 0);
+                                  } else {
+                                    onEditChange?.(newValue);
+                                    onEditEnd?.(newValue, adgroup.id, "status");
                                   }
-                                  onEditChange?.(newValue);
-                                  onEditEnd?.(newValue);
                                 }}
                                 buttonClassName="inline-edit-dropdown"
                                 width="w-full"

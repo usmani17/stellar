@@ -30,7 +30,7 @@ export const TikTokOAuthCallback: React.FC = () => {
         setError(`TikTok OAuth error: ${errorParam}`);
         setLoading(false);
         setTimeout(() => {
-          navigate("/accounts");
+          navigate("/brands");
         }, 3000);
         return;
       }
@@ -40,7 +40,7 @@ export const TikTokOAuthCallback: React.FC = () => {
         setError("No authorization code received from TikTok");
         setLoading(false);
         setTimeout(() => {
-          navigate("/accounts");
+          navigate("/brands");
         }, 3000);
         return;
       }
@@ -66,6 +66,11 @@ export const TikTokOAuthCallback: React.FC = () => {
             "Redirecting to TikTok advertiser selection for channel:",
             channelId
           );
+          // Store success message in localStorage to show on next page
+          localStorage.setItem('channel_created_success', JSON.stringify({
+            message: 'TikTok channel connected successfully!',
+            type: 'success'
+          }));
           // Use window.location for immediate redirect (more reliable than navigate)
           setTimeout(() => {
             window.location.href = `/channels/${channelId}/select-tiktok-profiles`;
@@ -75,7 +80,7 @@ export const TikTokOAuthCallback: React.FC = () => {
           // Fallback - refresh accounts and navigate there
         await refreshAccounts();
         setLoading(false);
-        navigate("/accounts", { replace: true });
+        navigate("/brands", { replace: true });
         }
       } catch (err: any) {
         console.error("TikTok OAuth callback error:", err);
@@ -87,7 +92,7 @@ export const TikTokOAuthCallback: React.FC = () => {
         );
         setLoading(false);
         setTimeout(() => {
-          navigate("/accounts");
+          navigate("/brands");
         }, 5000);
       }
     };

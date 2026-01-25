@@ -39,7 +39,7 @@ interface TikTokCampaignsTableProps {
     onStartInlineEdit?: (campaign: TikTokCampaign, field: "operation_status" | "budget") => void;
     onCancelInlineEdit?: () => void;
     onInlineEditChange?: (value: string) => void;
-    onConfirmInlineEdit?: (newValueOverride?: string) => void;
+    onConfirmInlineEdit?: (newValueOverride?: string, campaignIdOverride?: string | number, fieldOverride?: string) => void;
 }
 
 export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
@@ -99,7 +99,7 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
 
     const handleCampaignClick = (campaignId: string) => {
         if (accountId) {
-            navigate(`/accounts/${accountId}/tiktok/campaigns/${campaignId}`);
+            navigate(`/brands/${accountId}/tiktok/campaigns/${campaignId}`);
         }
     };
 
@@ -446,14 +446,28 @@ export const TikTokCampaignsTable: React.FC<TikTokCampaignsTableProps> = ({
                                                     value={editedValue}
                                                     onChange={(val) => {
                                                         const newValue = val as string;
-                                                        if (onInlineEditChange) {
-                                                            onInlineEditChange(newValue);
-                                                        }
-                                                        setTimeout(() => {
-                                                            if (onConfirmInlineEdit) {
-                                                                onConfirmInlineEdit(newValue);
+                                                        const wasEditing = editingCell?.campaign_id === campaign.campaign_id &&
+                                                            editingCell?.field === "operation_status";
+                                                        
+                                                        if (!wasEditing && onStartInlineEdit) {
+                                                            onStartInlineEdit(campaign, "operation_status");
+                                                            // Pass campaign ID and field directly to avoid state timing issues
+                                                            setTimeout(() => {
+                                                                if (onInlineEditChange) {
+                                                                    onInlineEditChange(newValue);
+                                                                }
+                                                                if (onConfirmInlineEdit) {
+                                                                    onConfirmInlineEdit(newValue, campaign.campaign_id, "operation_status");
+                                                                }
+                                                            }, 0);
+                                                        } else {
+                                                            if (onInlineEditChange) {
+                                                                onInlineEditChange(newValue);
                                                             }
-                                                        }, 100);
+                                                            if (onConfirmInlineEdit) {
+                                                                onConfirmInlineEdit(newValue, campaign.campaign_id, "operation_status");
+                                                            }
+                                                        }
                                                     }}
                                                     onClose={() => {
                                                         if (onCancelInlineEdit) {

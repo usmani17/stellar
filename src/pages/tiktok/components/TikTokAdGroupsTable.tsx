@@ -145,11 +145,15 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
         setEditedValue(value);
     };
 
-    const confirmInlineEdit = (newValueOverride?: string) => {
-        if (!editingCell || isCancelling) return;
+    const confirmInlineEdit = (newValueOverride?: string, adgroupIdOverride?: string | number, fieldOverride?: string) => {
+        // Use override parameters if provided, otherwise fall back to editingCell state
+        const adgroupIdToUse = adgroupIdOverride || editingCell?.adgroup_id;
+        const fieldToUse = fieldOverride || editingCell?.field;
+        
+        if (!adgroupIdToUse || !fieldToUse || isCancelling) return;
 
         const adgroup = adgroups.find(
-            (ag) => ag.adgroup_id === editingCell.adgroup_id
+            (ag) => String(ag.adgroup_id) === String(adgroupIdToUse)
         );
         if (!adgroup) return;
 
@@ -158,7 +162,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
 
         // Check if value actually changed
         let hasChanged = false;
-        if (editingCell.field === "budget") {
+        if (fieldToUse === "budget") {
             const newBudgetStr = valueToCheck.trim();
             const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
             const oldBudget = adgroup.budget || 0;
@@ -168,11 +172,11 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                 return;
             }
             hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
-        } else if (editingCell.field === "operation_status") {
+        } else if (fieldToUse === "operation_status") {
             const oldValue = (adgroup.operation_status || "ENABLE").trim();
             const newValue = valueToCheck.trim();
             hasChanged = newValue !== oldValue;
-        } else if (editingCell.field === "adgroup_name") {
+        } else if (fieldToUse === "adgroup_name") {
             const oldValue = (adgroup.adgroup_name || "").trim();
             const newValue = valueToCheck.trim();
             hasChanged = newValue !== oldValue && newValue.length > 0;
@@ -184,13 +188,13 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
         }
 
         // Call the appropriate update handler (parent shows confirmation modal)
-        if (editingCell.field === "adgroup_name" && onUpdateAdGroupName) {
-            onUpdateAdGroupName(editingCell.adgroup_id, valueToCheck.trim());
-        } else if (editingCell.field === "operation_status" && onUpdateAdGroupStatus) {
-            onUpdateAdGroupStatus(editingCell.adgroup_id, valueToCheck.trim());
-        } else if (editingCell.field === "budget" && onUpdateAdGroupBudget) {
+        if (fieldToUse === "adgroup_name" && onUpdateAdGroupName) {
+            onUpdateAdGroupName(String(adgroupIdToUse), valueToCheck.trim());
+        } else if (fieldToUse === "operation_status" && onUpdateAdGroupStatus) {
+            onUpdateAdGroupStatus(String(adgroupIdToUse), valueToCheck.trim());
+        } else if (fieldToUse === "budget" && onUpdateAdGroupBudget) {
             const budgetValue = parseFloat(valueToCheck.trim()) || 0;
-            onUpdateAdGroupBudget(editingCell.adgroup_id, budgetValue);
+            onUpdateAdGroupBudget(String(adgroupIdToUse), budgetValue);
         }
 
         // Clear editing state - parent modal handles the rest
@@ -533,7 +537,7 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                 <div className="table-text leading-[1.26] text-left">
                                                     {/* If we had campaign ID, we'd link it. For now just text or optional link */}
                                                     {item.campaign_id ? (
-                                                        <Link to={`/accounts/${1}/tiktok-campaigns/${item.campaign_id}`} className="hover:underline hover:text-[#136D6D]">
+                                                        <Link to={`/brands/${1}/tiktok-campaigns/${item.campaign_id}`} className="hover:underline hover:text-[#136D6D]">
                                                             {item.campaign_name}
                                                         </Link>
                                                     ) : (
@@ -557,8 +561,21 @@ export const TikTokAdGroupsTable: React.FC<TikTokAdGroupsTableProps> = ({
                                                             ]}
                                                             value={editedValue}
                                                             onChange={(value) => {
-                                                                handleInlineEditChange(value);
-                                                                confirmInlineEdit(value);
+                                                                const newValue = value as string;
+                                                                const wasEditing = editingCell?.adgroup_id === item.adgroup_id &&
+                                                                    editingCell?.field === "operation_status";
+                                                                
+                                                                if (!wasEditing) {
+                                                                    startInlineEdit(item, "operation_status");
+                                                                    // Pass adgroup ID and field directly to avoid state timing issues
+                                                                    setTimeout(() => {
+                                                                        handleInlineEditChange(newValue);
+                                                                        confirmInlineEdit(newValue, item.adgroup_id, "operation_status");
+                                                                    }, 0);
+                                                                } else {
+                                                                    handleInlineEditChange(newValue);
+                                                                    confirmInlineEdit(newValue, item.adgroup_id, "operation_status");
+                                                                }
                                                             }}
                                                             onClose={cancelInlineEdit}
                                                             defaultOpen={true}

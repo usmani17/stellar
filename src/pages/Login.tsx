@@ -45,7 +45,7 @@ export const Login: React.FC = () => {
         console.warn("Failed to prefetch accounts:", prefetchError);
       }
       
-      navigate("/accounts");
+      navigate("/brands");
     } catch (err: any) {
       // Better error handling - check for axios error structure
       const errorMessage = 

@@ -65,6 +65,9 @@ export interface CreateGoogleCampaignData {
   adgroup_name?: string;
   keywords?: string[] | string; // Can be array or comma-separated string
   match_type?: "BROAD" | "PHRASE" | "EXACT";
+  location_ids?: number[]; // Google Ads location IDs for geo-targeting
+  language_codes?: string[]; // Language codes for language targeting
+  conversion_action_ids?: string[]; // Conversion action IDs for selective optimization
   // Demand Gen fields
   video_url?: string;
   video_id?: string;
@@ -141,6 +144,43 @@ const BIDDING_STRATEGY_OPTIONS = [
   { value: "MANUAL_CPC", label: "Manual CPC" },
 ];
 
+const LOCATION_OPTIONS = [
+  { id: 2840, name: "United States", code: "US" },
+  { id: 2124, name: "Canada", code: "CA" },
+  { id: 2826, name: "United Kingdom", code: "UK" },
+  { id: 2392, name: "Japan", code: "JP" },
+  { id: 2036, name: "India", code: "IN" },
+  { id: 2276, name: "Brazil", code: "BR" },
+  { id: 2250, name: "Argentina", code: "AR" },
+  { id: 2380, name: "Italy", code: "IT" },
+  { id: 2191, name: "France", code: "FR" },
+  { id: 2287, name: "Germany", code: "DE" },
+  { id: 2414, name: "South Korea", code: "KR" },
+  { id: 2156, name: "China", code: "CN" },
+  { id: 2344, name: "Mexico", code: "MX" },
+  { id: 2234, name: "Australia", code: "AU" },
+  { id: 2376, name: "Spain", code: "ES" },
+];
+
+const LANGUAGE_OPTIONS = [
+  { code: "en", name: "English", languageConstantId: "1000" },
+  { code: "es", name: "Spanish", languageConstantId: "1003" },
+  { code: "fr", name: "French", languageConstantId: "1002" },
+  { code: "de", name: "German", languageConstantId: "1001" },
+  { code: "ja", name: "Japanese", languageConstantId: "1041" },
+  { code: "zh", name: "Chinese (Simplified)", languageConstantId: "1017" },
+  { code: "it", name: "Italian", languageConstantId: "1004" },
+  { code: "pt", name: "Portuguese", languageConstantId: "1005" },
+  { code: "ru", name: "Russian", languageConstantId: "1006" },
+  { code: "ko", name: "Korean", languageConstantId: "1040" },
+];
+
+const MATCH_TYPE_OPTIONS = [
+  { value: "BROAD", label: "Broad Match" },
+  { value: "PHRASE", label: "Phrase Match" },
+  { value: "EXACT", label: "Exact Match" },
+];
+
 export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps> = ({
   isOpen,
   onClose,
@@ -150,7 +190,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
   submitError = null,
   mode = "create",
   initialData = null,
-  campaignId,
   refreshMessage = null,
 }) => {
   const [showRefreshDetails, setShowRefreshDetails] = useState(false);
@@ -212,7 +251,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
         if (parsed.fieldErrors && typeof parsed.fieldErrors === "object") {
           setErrors(parsed.fieldErrors);
         }
-      } catch (e) {
+      } catch {
         setErrors({});
       }
     } else {
@@ -633,7 +672,6 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       url_custom_parameters: [],
     }));
   };
-
   // Get available bidding strategies based on campaign type
   // Note: TARGET_CPA and TARGET_ROAS are not allowed during creation for SEARCH campaigns
   // per Google Ads API restrictions. They can only be set after campaign creation.
@@ -963,6 +1001,14 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       if (!formData.merchant_id?.trim()) {
         newErrors.merchant_id = "Merchant ID is required";
       }
+    } else if (formData.campaign_type === "SEARCH") {
+      // Search campaign validation
+      if (!formData.location_ids || formData.location_ids.length === 0) {
+        newErrors.location_ids = "At least one target location is required";
+      }
+      if (!formData.language_codes || formData.language_codes.length === 0) {
+        newErrors.language_codes = "At least one target language is required";
+      }
     } else if (formData.campaign_type === "VIDEO") {
       // VIDEO campaigns cannot be created via API
       newErrors.campaign_type = "VIDEO campaigns cannot be created or modified via the Google Ads API. Please use the Google Ads UI to create Video campaigns, or use Demand Gen or Performance Max campaigns for video placements.";
@@ -1082,10 +1128,13 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 param.value.trim()
             )
           : undefined,
-      // Remove Search-specific fields - ad groups and keywords will be created separately
-      adgroup_name: formData.campaign_type === "DISPLAY" ? formData.adgroup_name : undefined,
-      keywords: undefined,
-      match_type: undefined,
+      // Remove fields for non-SEARCH campaigns
+      adgroup_name: formData.campaign_type === "DISPLAY" ? formData.adgroup_name : formData.campaign_type === "SEARCH" ? formData.adgroup_name : undefined,
+      keywords: formData.campaign_type === "SEARCH" ? formData.keywords : undefined,
+      match_type: formData.campaign_type === "SEARCH" ? formData.match_type : undefined,
+      location_ids: formData.campaign_type === "SEARCH" ? formData.location_ids : undefined,
+      language_codes: formData.campaign_type === "SEARCH" ? formData.language_codes : undefined,
+      conversion_action_ids: formData.campaign_type === "SEARCH" && formData.conversion_action_ids?.length ? formData.conversion_action_ids : undefined,
       // For Demand Gen, ensure only one of video_url or video_id is sent
       video_url: formData.campaign_type === "DEMAND_GEN" && formData.video_url?.trim() ? formData.video_url : undefined,
       video_id: formData.campaign_type === "DEMAND_GEN" && formData.video_id?.trim() ? formData.video_id : undefined,
@@ -1095,7 +1144,7 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       await onSubmit(payload);
       resetForm();
       setErrors({});
-    } catch (error) {
+    } catch {
       // Error handling is done in parent component
     }
   };
@@ -1220,89 +1269,9 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
       sales_country: "US",
       campaign_priority: 0,
       enable_local: false,
-    });
-    setErrors({});
-  };
-
-  const quickFillDemandGen = () => {
-    const today = new Date();
-    const dateStr = formatDateForName(today);
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() + 14); // 14 days from now
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 1); // 1 day after start date
-    
-    setFormData({
-      campaign_type: "DEMAND_GEN",
-      name: `Demand Gen Campaign Stellar FE - ${dateStr} - 1`,
-      budget_amount: 50,
-      budget_name: "Test Demand Gen Budget",
-      status: "PAUSED",
-      bidding_strategy_type: "MAXIMIZE_CONVERSIONS",
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
-      final_url: "https://techesthete.com",
-      business_name: "Techesthete",
-      logo_url: "https://placehold.co/128x128",
-      video_id: "dQw4w9WgXcQ", // Example YouTube video ID
-      video_url: "",
-      headlines: [
-        "Great Software Solutions",
-        "AI-Powered Development",
-        "Expert Software Services",
-        "Innovative Technology",
-        "Professional Development Team"
-      ],
-      descriptions: [
-        "We provide cutting-edge software solutions for your business needs",
-        "Transform your business with our AI-powered development services"
-      ],
-      long_headline: "",
-      ad_group_name: "",
-      ad_name: "",
-      channel_controls: {
-        gmail: true,
-        discover: true,
-        display: true,
-        youtube_in_feed: true,
-        youtube_in_stream: true,
-        youtube_shorts: true,
-      },
-      sales_country: "US",
-      campaign_priority: 0,
-      enable_local: false,
-    });
-    setErrors({});
-    setLogoPreview("https://placehold.co/128x128");
-  };
-
-  const quickFillDisplay = () => {
-    const today = new Date();
-    const dateStr = formatDateForName(today);
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() + 14); // 14 days from now
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 1); // 1 day after start date
-    
-    setFormData({
-      campaign_type: "DISPLAY",
-      name: `Display Campaign Stellar FE - ${dateStr} - 1`,
-      budget_amount: 50,
-      budget_name: "Test Display Budget",
-      status: "PAUSED",
-      bidding_strategy_type: "MANUAL_CPC",
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
-      adgroup_name: "Display Ad Group",
-      network_settings: {
-        target_content_network: true,
-        target_google_search: false,
-        target_search_network: false,
-        target_partner_search_network: false,
-      },
-      sales_country: "US",
-      campaign_priority: 0,
-      enable_local: false,
+      location_ids: [2840], // United States
+      language_codes: ["en"], // English
+      conversion_action_ids: [],
     });
     setErrors({});
   };
@@ -2987,6 +2956,166 @@ export const CreateGoogleCampaignPanel: React.FC<CreateGoogleCampaignPanelProps>
                 >
                   + Add parameter
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Search Specific Fields */}
+          {formData.campaign_type === "SEARCH" && (
+            <div className="mt-6 space-y-4">
+              <h3 className="text-[14px] font-semibold text-[#072929] border-b border-gray-200 pb-2">
+                Search Campaign Settings
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Ad Group Name */}
+                <div>
+                  <label className="form-label">
+                    Ad Group Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.adgroup_name || ""}
+                    onChange={(e) => handleChange("adgroup_name", e.target.value)}
+                    className={`campaign-input w-full ${
+                      errors.adgroup_name ? "border-red-500" : ""
+                    }`}
+                    placeholder="Optional ad group name"
+                  />
+                  <p className="text-[10px] text-[#556179] mt-1">
+                    The ad group organizes your keywords and ads
+                  </p>
+                </div>
+
+                {/* Match Type */}
+                <div>
+                  <label className="form-label">
+                    Default Match Type
+                  </label>
+                  <Dropdown<string>
+                    options={MATCH_TYPE_OPTIONS}
+                    value={formData.match_type || "BROAD"}
+                    onChange={(value) => handleChange("match_type", value)}
+                    buttonClassName="edit-button w-full"
+                  />
+                  <p className="text-[10px] text-[#556179] mt-1">
+                    Controls how closely keywords must match user searches
+                  </p>
+                </div>
+              </div>
+
+              {/* Keywords */}
+              <div>
+                <label className="form-label">
+                  Keywords (comma-separated or one per line)
+                </label>
+                <textarea
+                  value={Array.isArray(formData.keywords) ? formData.keywords.join("\n") : formData.keywords || ""}
+                  onChange={(e) => {
+                    const lines = e.target.value.split("\n").filter(line => line.trim());
+                    handleChange("keywords", lines);
+                  }}
+                  className={`campaign-input w-full h-24 resize-none ${
+                    errors.keywords ? "border-red-500" : ""
+                  }`}
+                  placeholder="e.g., blue running shoes&#10;best athletic shoes&#10;women's sports shoes"
+                />
+                {errors.keywords && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.keywords}
+                  </p>
+                )}
+                <p className="text-[10px] text-[#556179] mt-1">
+                  Enter one keyword per line
+                </p>
+              </div>
+
+              {/* Location Targeting */}
+              <div>
+                <label className="form-label">
+                  Target Locations
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded">
+                  {LOCATION_OPTIONS.map((location) => (
+                    <div key={location.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`location-${location.id}`}
+                        checked={formData.location_ids?.includes(location.id) || false}
+                        onChange={(e) => {
+                          const newLocationIds = e.target.checked
+                            ? [...(formData.location_ids || []), location.id]
+                            : (formData.location_ids || []).filter(id => id !== location.id);
+                          handleChange("location_ids", newLocationIds);
+                        }}
+                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
+                      />
+                      <label htmlFor={`location-${location.id}`} className="text-[12px] text-[#556179] cursor-pointer">
+                        {location.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#556179] mt-2">
+                  Select one or more countries/regions where your ads will be shown
+                </p>
+              </div>
+
+              {/* Language Targeting */}
+              <div>
+                <label className="form-label">
+                  Target Languages
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-white border border-gray-200 rounded">
+                  {LANGUAGE_OPTIONS.map((language) => (
+                    <div key={language.code} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`language-${language.code}`}
+                        checked={formData.language_codes?.includes(language.code) || false}
+                        onChange={(e) => {
+                          const newLanguageCodes = e.target.checked
+                            ? [...(formData.language_codes || []), language.code]
+                            : (formData.language_codes || []).filter(code => code !== language.code);
+                          handleChange("language_codes", newLanguageCodes);
+                        }}
+                        className="w-4 h-4 accent-forest-f40 border-gray-300 rounded focus:ring-forest-f40"
+                      />
+                      <label htmlFor={`language-${language.code}`} className="text-[12px] text-[#556179] cursor-pointer">
+                        {language.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#556179] mt-2">
+                  Select one or more languages for your target audience
+                </p>
+              </div>
+
+              {/* Conversion Action IDs */}
+              <div>
+                <label className="form-label">
+                  Conversion Actions (optional)
+                </label>
+                <textarea
+                  value={formData.conversion_action_ids?.join("\n") || ""}
+                  onChange={(e) => {
+                    const lines = e.target.value.split("\n").filter(line => line.trim());
+                    handleChange("conversion_action_ids", lines);
+                  }}
+                  className={`campaign-input w-full h-20 resize-none ${
+                    errors.conversion_action_ids ? "border-red-500" : ""
+                  }`}
+                  placeholder="Enter conversion action IDs (one per line)&#10;e.g., 123456789&#10;987654321"
+                />
+                {errors.conversion_action_ids && (
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {errors.conversion_action_ids}
+                  </p>
+                )}
+                <p className="text-[10px] text-[#556179] mt-1">
+                  Optional: Specify which conversions to optimize for. Leave empty to optimize for all conversions.
+                </p>
               </div>
             </div>
           )}

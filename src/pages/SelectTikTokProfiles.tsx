@@ -6,6 +6,7 @@ import { useSidebar } from "../contexts/SidebarContext";
 import { Sidebar } from "../components/layout/Sidebar";
 import { DashboardHeader } from "../components/layout/DashboardHeader";
 import { Button, Checkbox } from "../components/ui";
+import { Banner } from "../components/ui/Banner";
 
 interface TikTokProfile {
   id?: number;
@@ -33,6 +34,7 @@ export const SelectTikTokProfiles: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [accountId, setAccountId] = useState<number | null>(null);
   const [excludedProfiles, setExcludedProfiles] = useState<
     Array<{
@@ -43,6 +45,25 @@ export const SelectTikTokProfiles: React.FC = () => {
       account_name: string;
     }>
   >([]);
+
+  // Check for channel created success message on mount
+  useEffect(() => {
+    const channelSuccess = localStorage.getItem('channel_created_success');
+    if (channelSuccess) {
+      try {
+        const { message } = JSON.parse(channelSuccess);
+        setSuccessMessage(message);
+        localStorage.removeItem('channel_created_success');
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 5000);
+      } catch (e) {
+        console.error('Failed to parse success message:', e);
+        localStorage.removeItem('channel_created_success');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (channelId) {
@@ -202,12 +223,18 @@ export const SelectTikTokProfiles: React.FC = () => {
       console.log("Save profiles result:", result);
 
       if (result && result.message) {
+        // Store success message in localStorage to show on next page
+        const profileCount = selectedProfileIds.size;
+        localStorage.setItem('profiles_saved_success', JSON.stringify({
+          message: `${profileCount} profile${profileCount !== 1 ? 's' : ''} connected successfully!`,
+          type: 'success'
+        }));
         // Success - navigate back to channels page
         if (accountId) {
-          navigate(`/accounts/${accountId}/channels`);
+          navigate(`/brands/${accountId}/channels`);
         } else {
           // Fallback to accounts page if accountId not found
-          navigate("/accounts");
+          navigate("/brands");
         }
       } else {
         setError("Profiles saved but no confirmation received");
@@ -256,6 +283,15 @@ export const SelectTikTokProfiles: React.FC = () => {
               </p>
             </div>
 
+            {successMessage && (
+              <Banner
+                type="success"
+                message={successMessage}
+                dismissable={true}
+                onDismiss={() => setSuccessMessage(null)}
+                className="mb-6"
+              />
+            )}
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-[14px]">
                 {error}
@@ -419,20 +455,19 @@ export const SelectTikTokProfiles: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3 justify-end">
-                  <button
-                    type="button"
+                  <Button
                     onClick={() => {
                       if (accountId) {
-                        navigate(`/accounts/${accountId}/channels`);
+                        navigate(`/brands/${accountId}/channels`);
                       } else {
-                        navigate("/accounts");
+                        navigate("/brands");
                       }
                     }}
                     disabled={saving}
                     className="cancel-button"
                   >
                     Cancel
-                  </button>
+                  </Button>
                   <Button
                     onClick={handleSave}
                     disabled={saving}

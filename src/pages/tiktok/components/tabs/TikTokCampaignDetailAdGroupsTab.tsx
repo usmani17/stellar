@@ -204,11 +204,15 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
         }
     }, [editingCell, showInlineEditModal]);
 
-    const confirmInlineEdit = (newValueOverride?: string) => {
-        if (!editingCell || !accountId || isCancelling) return;
+    const confirmInlineEdit = (newValueOverride?: string, adgroupIdOverride?: string | number, fieldOverride?: string) => {
+        // Use override parameters if provided, otherwise fall back to editingCell state
+        const adgroupIdToUse = adgroupIdOverride || editingCell?.adgroup_id;
+        const fieldToUse = fieldOverride || editingCell?.field;
+        
+        if (!adgroupIdToUse || !fieldToUse || !accountId || isCancelling) return;
 
         const adgroup = adgroups.find(
-            (ag) => ag.adgroup_id === editingCell.adgroup_id
+            (ag) => String(ag.adgroup_id) === String(adgroupIdToUse)
         );
         if (!adgroup) return;
 
@@ -218,7 +222,7 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
 
         // Check if value actually changed
         let hasChanged = false;
-        if (editingCell.field === "budget") {
+        if (fieldToUse === "budget") {
             const newBudgetStr = valueToCheck.trim();
             const newBudget = newBudgetStr === "" ? 0 : parseFloat(newBudgetStr);
             const oldBudget = adgroup.budget || 0;
@@ -228,11 +232,11 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                 return;
             }
             hasChanged = Math.abs(newBudget - oldBudget) > 0.01;
-        } else if (editingCell.field === "operation_status") {
+        } else if (fieldToUse === "operation_status") {
             const oldValue = (adgroup.operation_status || "ENABLE").trim();
             const newValue = valueToCheck.trim();
             hasChanged = newValue !== oldValue;
-        } else if (editingCell.field === "adgroup_name") {
+        } else if (fieldToUse === "adgroup_name") {
             const oldValue = (adgroup.adgroup_name || "").trim();
             const newValue = valueToCheck.trim();
             hasChanged = newValue !== oldValue && newValue.length > 0;
@@ -246,19 +250,19 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
         let oldValue = "";
         let newValue = valueToCheck;
 
-        if (editingCell.field === "budget") {
+        if (fieldToUse === "budget") {
             oldValue = formatCurrency(adgroup.budget || 0);
             newValue = formatCurrency(parseFloat(valueToCheck) || 0);
-        } else if (editingCell.field === "operation_status") {
+        } else if (fieldToUse === "operation_status") {
             oldValue = adgroup.operation_status || "ENABLE";
             newValue = valueToCheck;
-        } else if (editingCell.field === "adgroup_name") {
+        } else if (fieldToUse === "adgroup_name") {
             oldValue = adgroup.adgroup_name || "";
             newValue = valueToCheck;
         }
 
         setInlineEditAdGroup(adgroup);
-        setInlineEditField(editingCell.field);
+        setInlineEditField(fieldToUse);
         setInlineEditOldValue(oldValue);
         setInlineEditNewValue(newValue);
         setShowInlineEditModal(true);
@@ -723,8 +727,21 @@ export const TikTokCampaignDetailAdGroupsTab: React.FC<TikTokCampaignDetailAdGro
                                                             ]}
                                                             value={editedValue}
                                                             onChange={(value) => {
-                                                                handleInlineEditChange(value);
-                                                                confirmInlineEdit(value);
+                                                                const newValue = value as string;
+                                                                const wasEditing = editingCell?.adgroup_id === item.adgroup_id &&
+                                                                    editingCell?.field === "operation_status";
+                                                                
+                                                                if (!wasEditing) {
+                                                                    startInlineEdit(item, "operation_status");
+                                                                    // Pass adgroup ID and field directly to avoid state timing issues
+                                                                    setTimeout(() => {
+                                                                        handleInlineEditChange(newValue);
+                                                                        confirmInlineEdit(newValue, item.adgroup_id, "operation_status");
+                                                                    }, 0);
+                                                                } else {
+                                                                    handleInlineEditChange(newValue);
+                                                                    confirmInlineEdit(newValue, item.adgroup_id, "operation_status");
+                                                                }
                                                             }}
                                                             defaultOpen={true}
                                                             closeOnSelect={true}
